@@ -1,16 +1,11 @@
 # rcore-os Blog
-* 目前通过 [Github pages](https://rcore-os.github.io/blog/) 可以访问
-* 尝试加入 CI/CD 在 pr/push 后自动部署
-* 测试自动安装 node.js 是否成功
-* 需要某些权限才能接着搞，比较有用的参考链接如下：
-  * https://frostming.com/2020/04-26/github-actions-deploy
-  * http://www.ruanyifeng.com/blog/2019/09/getting-started-with-github-actions.html
-  * https://ming.theyan.gs/2019/10/hexo-github_action-github_pages/
-* 目前已经实现在 pr/push 后自动更新博客，现在测试一下标签/分类功能以及图片功能是否正常，如果正常的话更新博客发布教程。
-* 经过一番折腾这些功能都比较正常了...
 ## 发布博客的流程
 1. 将本仓库 clone 或者 fork 到本地，并进入 `blog` 目录下；
-2. 安装 Hexo: `npm install hexo --save`；
+2. 安装 Hexo
+    ```
+    npm install hexo-cli -g 
+    npm install hexo --save
+    ```
 3. 创建新博客: `hexo n "<blog-title>"`，其中 `<blog-title>` 为博客标题；
 4. 此时在 `blog/source/_posts/` 目录下会看到 `<blog-title>.md` 以及一个名为 `<blog-title>` 的文件夹，我们需要将博客的内容放在 `<blog-title>.md` 中，并将这篇博客相关的图片放在 `<blog-title>` 文件夹中。注意，请不要修改其他文件；
 5. 修改之后，通过 push 或者提 pr 的形式将博客推送到远程仓库，Github 会自动重新构建静态网页并部署到 Github Pages。
@@ -61,3 +56,13 @@ mathjax: true
 ```
 
 其功能等同于 `![<image-title>](<image-file>)`。
+## Log
+* 目前通过 [Github pages](https://rcore-os.github.io/blog/) 可以访问
+* 尝试加入 CI/CD 在 pr/push 后自动部署
+* 测试自动安装 node.js 是否成功
+* 需要某些权限才能接着搞，比较有用的参考链接如下：
+  * https://frostming.com/2020/04-26/github-actions-deploy
+  * http://www.ruanyifeng.com/blog/2019/09/getting-started-with-github-actions.html
+  * https://ming.theyan.gs/2019/10/hexo-github_action-github_pages/
+* 目前已经实现在 pr/push 后自动更新博客，现在测试一下标签/分类功能以及图片功能是否正常，如果正常的话更新博客发布教程。
+* 经过一番折腾这些功能都比较正常了...
