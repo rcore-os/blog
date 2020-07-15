@@ -1,7 +1,11 @@
 # rcore-os Blog
 ## 发布博客的流程
 1. 将本仓库 clone 或者 fork 到本地，并进入 `blog` 目录下；
-2. 安装 Hexo: `npm install hexo --save`；
+2. 安装 Hexo
+    ```
+    npm install hexo-cli -g 
+    npm install hexo --save
+    ```
 3. 创建新博客: `hexo n "<blog-title>"`，其中 `<blog-title>` 为博客标题；
 4. 此时在 `blog/source/_posts/` 目录下会看到 `<blog-title>.md` 以及一个名为 `<blog-title>` 的文件夹，我们需要将博客的内容放在 `<blog-title>.md` 中，并将这篇博客相关的图片放在 `<blog-title>` 文件夹中。注意，请不要修改其他文件；
 5. 修改之后，通过 push 或者提 pr 的形式将博客推送到远程仓库，Github 会自动重新构建静态网页并部署到 Github Pages。
