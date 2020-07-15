@@ -60,4 +60,4 @@ mathjax: true
 {% asset_img <image-file> <image-title> %}
 ```
 
-其功能等同于 `![<image-title>](image-file)`。
+其功能等同于 `![<image-title>](<image-file>)`。
