@@ -13,8 +13,8 @@ mathjax: true
 <!-- more -->
 
 ## 插入图片
-![](../kanna.jpg)
+{% asset_img kanna.jpg A sample image file %}
 ## 数学公式
 我们的中间 $a + b = c$ 有一个公式。
-$\mathtt{0x8020 \_ 0000}$
+$\mathtt{0x8020{\_}0000}$
 
