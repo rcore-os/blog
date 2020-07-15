@@ -7,6 +7,7 @@ tags:
 	- author:wyfcyx
 	- repo:blog
 	- 破事水
+mathjax: true
 ---
 搞一篇测试 Blog 来看看各项功能是不是正常。
 <!-- more -->
