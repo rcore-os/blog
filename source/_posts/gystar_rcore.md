@@ -1,8 +1,8 @@
 ---
 title: rCoreTutorial总结报告
-date: 2020-07-15 14:34:11
+date: 2020-07-26 18:23:00
 categories:
-	- 随笔
+	- 学习总结
 tags:
 	- author:gystar/桂祎
 	- repo:blog
