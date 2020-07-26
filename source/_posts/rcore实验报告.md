@@ -2,11 +2,11 @@
 title: rcore总结报告
 date: 2020-07-26 17:26:55
 categories:
-    - <report>
+    - report
 tags:
-    - author:<shiweiwww>
-    - repo:<https://github.com/shiweiwww/rcore/tree/master/labs>
-    - <summerofcode2020>
+    - author:shiweiwww
+    - repo:https://github.com/shiweiwww/rcore/tree/master/labs
+    - summerofcode2020
 ---
 * #### 题前
     ##### 学习os一年，看过两个教程哈工大的linux0.11和清华的ucore，拿起放弃好多次，算是坚持下来入门了。一直以来想写个简单的os，奈何功力尚浅，迟迟不敢动手，今年有幸参加了summerofcode2020线上学习，对我来说是个很不错的实践机会，开始动手，边学习边搭建自己的os环境，为后期学习高级操作系统做准备
