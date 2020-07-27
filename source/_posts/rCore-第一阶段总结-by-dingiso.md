@@ -74,7 +74,7 @@ risc-v 在整个学习过程，一直担心是否学不完全会影响 lab的进
 
 构建了一份笔记，提取出了重要的和lab构建息息相关的基本内容，如有需要可以看一下：
 
-[计算机组成原理（risc-v）前两章 - 重点内容]()
+[计算机组成原理（risc-v）前两章 - 重点内容]([https://github.com/dingiso/DailySchedule/blob/master/docs/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BB%84%E6%88%90%E4%B8%8E%E8%AE%BE%E8%AE%A1RISC-V.md](https://github.com/dingiso/DailySchedule/blob/master/docs/计算机组成与设计RISC-V.md))
 
 * 阅读了RISC-V 手册 特权结构的部分 
 
@@ -102,7 +102,7 @@ risc-v 在整个学习过程，一直担心是否学不完全会影响 lab的进
 
 ### 学习内容：
 
-我在实验过程中对所有 lab 形成的总结文档，希望对大家有帮助 -  [lab内容总结文档]([https://github.com/dingiso/DailySchedule/blob/master/docs/lab%20%E6%80%BB%E7%BB%93%E6%96%87%E6%A1%A3.md](https://github.com/dingiso/DailySchedule/blob/master/docs/lab 总结文档.md))
+我在实验过程中对所有 lab 形成的总结文档，希望对大家有帮助 -  [lab内容总结文档](https://github.com/dingiso/DailySchedule/blob/master/docs/lab%20%E6%80%BB%E7%BB%93%E6%96%87%E6%A1%A3.md)
 
 我的实验报告： [https://github.com/dingiso/DailySchedule/tree/master/docs](https://github.com/dingiso/DailySchedule/tree/master/docs)
 
