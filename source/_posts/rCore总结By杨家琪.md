@@ -2,15 +2,15 @@
 title: <blog-title>
 date: 2020-07-15 16:40:28
 categories:
-    - rCore2020
+    - report
 tags:
     - author:greatoyster
-    - repo:https://github.com/greatoyster/DailySchedule
+    - summerofcode2020
 
 ---
 
 不知不觉一个月都要过去了，整了将近一个月（中间因为各种事情咕咕了一周多）的 rCoreLab， 在这里做一个小小的总结。
-
+<!-- more -->
 关于收获：
 
 - Rust编程更加熟练了，对于Rust本身的一些有趣的特性的理解也更加深刻了。比起C++和Python之类的语言，Rust可以明显让人感到要过编译其实不太容易。但是其实稍微入门一点以后就会习惯了，Rust编译器给你的各种提示比C++友好多了。另一方面，Rust花在测试Debug上的时间显著减少了，基本算法正确的情况下一遍过是没问题的。
