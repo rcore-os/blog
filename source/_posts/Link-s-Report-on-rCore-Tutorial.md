@@ -5,11 +5,10 @@ categories:
     - report
 tags:
     - author:leonardodalinky
-    - repo:https://github.com/leonardodalinky/DailySche
     - summerofcode2020
 mathjax: true
 ---
-
+<!-- more -->
 # 阶段一总结
 
 ## 第一部分 Rust语法
