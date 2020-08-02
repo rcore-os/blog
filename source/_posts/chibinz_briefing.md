@@ -4,13 +4,13 @@ date: 2020-07-26 21:41:00
 categories:
     - report
 tags:
-	- author: chibinz
-	- summerofcode2020
+    - author:chibinz
+    - summerofcode2020
 ---
 
 # OS Summer of Code 第一阶段总结报告
 首先自报家门，我是在来自上海科技大学信息学院的张18级本科生张驰斌。了解到这一次实习机会是通过大群里面一位同学发的消息。原本自己也对“用Rust在RISC-V机器上面写一个OS”这样新技术的梦幻联动也有过畅想过，加上对计算机底层知识比较感兴趣，没有多想就报名了。
-
+<!-- more -->
 ## Summary
 简单总结一下这三个周来取得的成果。Step 0部分完成了所有的rustlings和15道小练习题。Step 1部分从头到尾认真阅读了RISC-V Privileged ISA Specification。Technical manuals are fun！之前计算机体系结构课程学的就是RISC-V，Project包括了一个RV32I的解释器，还有用Logisim搭出来的CPU（麻雀虽小五脏俱全，Datapath里面的ALU，Regfile等应有尽有）。Step 2部分一步一步跟着教程实现了rCore，实验题因为时间原因只完成了部分，pr和issues倒是有积极的提交和回复。具体每一部分的情况留一个链接，就不机械性的在总结报告里面重复了。看到仓库的名字是blog博客，也没有具体规定写些啥，后面就写的freestyle一点，谈谈自己的感悟和随想。
 
