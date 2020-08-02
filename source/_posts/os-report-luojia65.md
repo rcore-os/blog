@@ -5,6 +5,7 @@ categories:
 	- report
 tags:
 	- author:luojia65
+	- summerofcode2020
 	- rcore-lab
 mathjax: true
 ---
