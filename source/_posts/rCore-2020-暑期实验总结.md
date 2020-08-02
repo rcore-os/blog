@@ -5,12 +5,12 @@ categories:
     - report
 tags:
     - author:VitalyAnkh
-    - repo:https://github.com/VitalyAnkh/learn/tree/master/OS/rcore-summer-os
+    - summerofcode2020
 ---
 
 ## 题前
     虽然本科专业属于数学系，我一直对计算机操作系统以及更底层的系统的运行原理深感兴趣。我也在2018年就学习了Rust 语言，2019 年的上半年一直在自学数学逻辑设计和 CPU 设计。自己设计一个 OS ， CPU 或者其他大型的软硬件系统，是多么令人兴奋的一件事！之前一直畏难，这个夏天，终于在 rCore 的帮助下完成了。
-
+<!-- more -->
 ## 过程总结
 
 ### Rust
