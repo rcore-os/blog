@@ -5,14 +5,13 @@ categories:
     - report
 tags:
     - author:losfair
-    - repo:blog
     - summerofcode2020
 ---
 
 我是 [losfair / 云海Linvy / 周鹤洋 / Heyang Zhou](https://github.com/losfair).
 
 感谢 rCore 组提供参与本次 OS SoC 的机会，感谢张汉东老师的推荐和陈渝老师的指导。
-
+<!-- more -->
 ## 学习路径
 
 由于先前有 Rust 语言的开发经验，也对 RISC-V 用户模式指令集有一点了解，因此直接开始按照 lab tutorials 的路径手写代码实现其所描述的 OS .
