@@ -2,17 +2,17 @@
 title: Report of OS Tutorial
 date: 2020-07-26 20:07:40
 categories:
-	- <report>
+	- report
 tags:
-	- author:<SKTT1Ryze>
-	- repo:<https://github.com/SKTT1Ryze/OS_Tutorial_Summer_of_Code>
-	- <Summer of Code>
+	- author:SKTT1Ryze
+	- summerofcode2020
 ---
 
 ## 前言
 2020年6月30日，在年级群看到了一位同学发的 OS Tutorial Summer of Code 链接，拍拍脑袋，决定利用这个暑假参加这次活动。  
 原因要追溯到上个学期，也就是大二上学期，的末尾，第一次在我的笔记本电脑上装了 Linux 双系统，从此就喜欢上了 Linux，一发不可收拾，这种兴趣逐渐使我萌生了动手写 OS 的想法，但一直以来都没有一个完整的知识体系和现成框架，这让我无从下手。  
 从那天开始，这个活动带我进入了一个新的世界，一个关于 Rust 语言，RISC-V体系结构，和新时代操作系统的新世界。  
+<!-- more -->
 ## Rust 初体验
 Rust 给我的第一印象就是：对 Linux 用户十分友好。  
 我学习 Rust 是先从环境配置开始，根据 [Rust 中文文档安装指南](https://kaisery.github.io/trpl-zh-cn/ch01-01-installation.html)中所说一步步走，我几乎没遇到什么障碍就完成了环境的配置。为什么说对 Linux 用户十分友好呢。像我这样的 Linux 用户崇尚着“命令行至上”的理念，想在命令行界面上完成所有对计算机的操作而不是 UI 界面，正所谓“一台电脑一把键盘足矣”。而 Rust 的所有环境配置操作都在命令行界面上可以很方便的完成。另外，很明显的是 Rust 在 Unix 端的环境配置比在 Windows 端要方便许多。  
