@@ -2,10 +2,10 @@
 title: 洛佳：操作系统实验总结
 date: 2020-07-15 14:34:11
 categories:
-	- 操作系统实验
+	- report
 tags:
 	- author:luojia65
-	- repo:blog
+	- rcore-lab
 mathjax: true
 ---
 我是洛佳，参与了这次OS实验。我在一段时间的工作中，学习了大量操作系统开发的基础知识，熟悉了理论课的概念。
