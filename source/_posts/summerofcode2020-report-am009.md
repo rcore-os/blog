@@ -6,13 +6,12 @@ categories:
 tags:
     - author:am009
     - summerofcode2020
-    - report
 ---
 
 # summerofcode2020 第一阶段学习总结
 
 我的rcore学习笔记在 [这里](https://github.com/am009/rcore_os/blob/master/notes/rcore%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%E6%B1%87%E6%80%BB.md)
-
+<!-- more -->
 ## rust
 
 rust这门语言的两大特点和难点就在于生命周期和所有权系统保证安全. 这两点有非常深入的理论基础, 感觉可以单独开一门课. 虽然我现在也不是完全明白, 但自从认真找一个例子思考过之后, 真正感受到生命周期标注的约束的各种不同的写法确实真正加上了各种不同的约束. 不同的写法可以把生命周期约束得或长或短, 当为各种传入的对象找到合适的生命周期标注的那时候, 我真实地感受到了rust的魅力. 可惜在rcore-tutorial中生命周期标注用得非常少, 而且不少都是'static, 使我在写操作系统的过程中没怎么思考生命周期的问题.
