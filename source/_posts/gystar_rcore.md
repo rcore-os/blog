@@ -2,12 +2,13 @@
 title: rCoreTutorial总结报告
 date: 2020-07-26 18:23:00
 categories:
-	- 学习总结
+	- report
 tags:
-	- author:gystar/桂祎
-	- repo:blog
+	- author:gystar
+	- summerofcode2020
 mathjax: true
 ---
+<!-- more -->
 从8月初开始，我从0开始学习了一周的rust语言，完成了相关练习。学习rust的公开repo为：
 
 https://github.com/gystar/HelloRust
