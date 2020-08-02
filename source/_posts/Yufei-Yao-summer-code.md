@@ -3,7 +3,9 @@ title: Yufei-Yao summer code
 date: 2020-07-26 16:10:17
 categories:
     - report
-tags: - summerofcode2020
+tags:
+    - author:Yufei-YAO
+    - summerofcode2020
 ---
 ## 前言
 
@@ -14,7 +16,7 @@ tags: - summerofcode2020
 总体上来说，这次的第一阶段学习过程还算顺利，初步学习了Rust并且了解了 RISC-V 指令集的实现。从零开始，一步一步完成了一个简单os的设计，我还尝试为实验提供的os代码进行了自己的改进和功能添加
 
 以下是每个阶段的总结，也希望和大家分享一些自己的学习经验。
-
+<!-- more -->
 ## 自学rust编程
 
 这部分我参考了《rust编程之道》，《由浅入深》以及learn by examples，以及按照项目要求完成了 rustlings 以及一些笨办法系列和leetcode的练习。
