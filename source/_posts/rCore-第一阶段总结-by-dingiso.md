@@ -2,10 +2,10 @@
 title: rCore 第一阶段总结 by dingiso
 date: 2020-07-27 8:14:30
 categories:
-	- 总结
+	- report
 tags:
-	- author: dingiso
-	- repo : blog
+	- author:dingiso
+	- summerofcode2020
 ---
 
 # rCore 第一阶段总结
@@ -17,7 +17,7 @@ tags:
 在学习之前，我只是对 操作系统有所了解，完成了清华的课程 和 实验
 
 对 `RUST`  ，  `RISC-V`  的了解不是很多，但是 rust 的安全性， 和 risc-v 的简洁是我一直十分欣赏的
-
+<!-- more -->
 
 
 ## Rust语言
