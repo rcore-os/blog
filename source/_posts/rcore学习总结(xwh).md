@@ -5,7 +5,6 @@ categories:
     - report
 tags:
     - author:frehit889
-    - repo:https://github.com/freheit889/record
     - summerofcode2020
 mathjax: true
 
@@ -16,7 +15,7 @@ mathjax: true
 
 我是徐文浩(frehit889),在学习ucore的过程中，我在群里突然发现了这个活动，当时心中一阵雀跃，后来一看要简历，想着我那么菜，怎么搞啊。后来仔细想想，投了又不亏，当时就决定要投，
 后来紧张了两天，居然进来了，当时的心情是 o(*￣▽￣*)ブ，在期末考试的重压下学习起了rust.
-
+<!-- more -->
 ## 学习rust
 
 ### 基础阶段
