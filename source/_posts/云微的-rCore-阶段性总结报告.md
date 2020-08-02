@@ -5,9 +5,7 @@ categories:
     - report
 tags:
     - author:yunwei37
-    - repo:[os-summer-of-code-daily](https://github.com/yunwei37/os-summer-of-code-daily)
     - summerofcode2020
-    - report
 ---
 
 ## 前言
@@ -19,6 +17,7 @@ tags:
 总体上来说，这次的第一阶段学习过程还算顺利，正式学习了 rust 这样一门注重安全性的优秀现代语言，了解了 RISC-V 指令集的实现，也第一次完整地体验了一个简单操作系统的开发流程，对于相关原理的具体实现有了一个直观的理解。另外，这也是我第一次参与这样的社区活动，尝试作出了一点微小的贡献，也认识了好多非常厉害的大佬们，感觉收获还是非常丰盛的喵。
 
 以下是每个阶段的总结，也希望和大家分享一些自己的学习经验。
+<!-- more-->
 
 ## 自学rust编程
 
