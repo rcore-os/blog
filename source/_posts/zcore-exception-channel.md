@@ -1,12 +1,14 @@
 ---
 title: "为 zCore 实现 Exception Channel 机制"
 date: 2020-08-13 16:59:52
+categories:
+  - developer
 tags:
   - author:benpigchu
   - repo:zCore
 ---
 最近我为 zCore 实现了 zircon 的 Exception Channel 机制。下面来介绍一下 Exception Channel 机制，以及这套机制在 zCore 中的实现。
-
+<!-- more -->
 ## Exception Channel 机制是什么
 
 在 zircon 中， Exception channel 机制被用来让用户程序能够处理其他用户程序（或者自己）在运行中产生的异常，具体的介绍可以在 [Fuchsia 的文档](https://fuchsia.dev/fuchsia-src/concepts/kernel/exceptions) 中看到。接下来让我们对 Exception channel 机制作一个简单的介绍
