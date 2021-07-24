@@ -1,7 +1,12 @@
 ---
 title: 'lab1: 实现log等级控制 by 樊博'
 date: 2021-07-23 04:42:27
+categories:
+	- report
 tags:
+	- author:vptvpt
+	- summerofcode2021
+	- rcore-lab
 ---
 
 大家好，我是来自哈尔滨工业大学（深圳）的20级本科生。我把我做实验的过程整理成博客，希望得到大家的指正。
