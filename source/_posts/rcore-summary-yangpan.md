@@ -1,9 +1,17 @@
 ---
 title: rcore-summary-yangpan
 date: 2021-07-29 11:50:42
+categories:
+	- report
 tags:
- - author:<杨攀>
+	- author:yangyangpanpan
+	- summerofcode2021
+	- rcore-lab
 ---
+
+正文如下。
+
+<!-- more -->
 
 # rust语言学习
 
