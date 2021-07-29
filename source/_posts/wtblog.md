@@ -1,17 +1,19 @@
 ---
 title: wtblog
 date: 2021-07-28 18:38:48
+categories:
+	- report
 tags:
-    - author:<wangtao-creator>
-    - email:<2521820396@qq.com>
-
+	- author:wangtao-creator
+	- summerofcode2021
+	- rcore-lab
 ---
 
 ## 前言
 
 ​	我觉得OS让人着迷，对我来说是这样的。我以前在想，电脑启动，它为什么能启动，内部又干了什么，它为什么能如此高效的处理事件，它能实现各种各样的功能。借着这次机会，我也在不断学习OS、RISC-V、rcore方面的知识。加油。
 
-
+<!-- more -->
 
 ## Rust
 
