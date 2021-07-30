@@ -1,7 +1,12 @@
 ---
 title: rcore-summary-xuexiaowei
 date: 2021-07-29 17:54:21
+categories:
+	- report
 tags:
+	- author:SummerVibes
+	- summerofcode2021
+	- rcore-lab
 ---
 
 # 阶段一总结
