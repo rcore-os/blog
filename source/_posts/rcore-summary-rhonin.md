@@ -1,10 +1,14 @@
 ---
 title: rcore-summary-rhonin
 date: 2021-07-29 19:50:16
+categories:
+	- report
 tags:
-    - author: rhonin
-    - summercodeof2021
+	- author:rhonin
+	- summerofcode2021
+	- rcore-lab
 ---
+
 ## rCore第一阶段总结
 
 我从了解到Rust语言开始就非常喜欢这门语言，之前也用rust刷过一段时间的leetcode，但苦于没有一个项目用来练手。之后在逛Rust中文社区时，了解到这个活动后就毫不犹豫的参加了。
