@@ -1,9 +1,18 @@
 ---
 title: stage1_summary_fanbo
 date: 2021-07-31 15:27:01
+categories:
+	- report
 tags:
+	- author:vptvpt
+	- summerofcode2021
+	- rcore-lab
 ---
+
 简单地对第一阶段的学习做一个总结。
+
+<!-- more -->
+
 # 收获
 第一阶段的学习对我来说，是一种自顶向下的学习，按照指导书的要求复现代码，不断地遇到问题，在遇到问题时，补充必要的知识。
 
