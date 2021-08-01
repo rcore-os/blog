@@ -4,9 +4,12 @@ date: 2021-07-31 20:11:39
 categories:
 	- report
 tags:
-	- author:YXL
+	- author:YXL76
 	- summerofcode2021
+	- rcore-lab
 ---
+
+<!-- more -->
 
 ## 契机
 
