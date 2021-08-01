@@ -1,12 +1,17 @@
 ---
 title: aa1hshh_summary
 date: 2021-07-30 21:35:08
+categories:
+	- report
 tags:
-    - author:aa1hshh
-    - repo:os-tutorial-summer-of-code-2021
+	- author:aa1hshh
+	- summerofcode2021
+	- rcore-lab
 ---
 
 # 第一阶段总结
+
+<!-- more -->
 
 > 做有兴趣和自认为有意义的事。
 
