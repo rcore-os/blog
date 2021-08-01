@@ -6,6 +6,7 @@ categories:
 tags:
 	- author:muzhou233
 	- summerofcode2021
+	- rcore-lab
 ---
 
 第一阶段的主要学习内容是Rust语言、RISC-V的特权级机制和 [rCore-Tutorial-Book](https://github.com/rcore-os/rCore-Tutorial-Book-v3)，我因为已经接触过Rust语言，所以在开始的几天复习了Rust语言的基础知识，学习了RISC-V的特权级机制，主要的时间和精力花费在了 rCore 的学习上。
