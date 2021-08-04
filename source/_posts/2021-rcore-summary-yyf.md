@@ -2,12 +2,14 @@
 title: 2021-rcore-summary-yyf
 date: 2021-08-04 13:31:47
 categories:
-    - report
+	- report
 tags:
-	- author: ez4yunfeng2
-	- repo: https://codechina.csdn.net/Ez4yunfeng2/2021-os-summer-DailySchedule
-    - rcore-lab
+	- author:ez4yunfeng2
+	- summerofcode2021
+	- rcore-lab
 ---
+
+<!-- more -->
 
 # 第一阶段完成情况：
 
