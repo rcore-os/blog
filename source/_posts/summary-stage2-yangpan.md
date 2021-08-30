@@ -1,7 +1,12 @@
 ---
 title: summary-stage2-yangpan
 date: 2021-08-30 08:42:45
+categories:
+	- report
 tags:
+	- author:yangyangpanpan
+	- summerofcode2021
+	- zcore
 ---
 
 ## 学习概况
@@ -11,6 +16,8 @@ tags:
  - 看了代码有关，例如weak, std::sync::atomic等相关语法
  - 完成前三章理解记录，已上传到自己的repo
  - repo:https://codechina.csdn.net/qq_40298363/zcore-tutorial
+
+<!-- more -->
 
 ## 要点理解
 
