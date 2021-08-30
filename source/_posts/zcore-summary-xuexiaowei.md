@@ -1,9 +1,17 @@
 ---
 title: zcore-summary-xuexiaowei
 date: 2021-08-30 15:00:16
+categories:
+	- report
 tags:
+	- author:SummerVibes
+	- summerofcode2021
+	- zcore
 ---
+
 # zCore 实训总结 - 给RVM提供riscv支持
+
+<!-- more -->
 
 ### 项目概述
 RVM是一个type2虚拟机，具体可移步https://github.com/rcore-os/RVM，
