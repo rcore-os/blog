@@ -8,7 +8,8 @@
     ```
 3. 创建新博客: `hexo n "<blog-title>"`，其中 `<blog-title>` 为博客标题；
 4. 此时在 `blog/source/_posts/` 目录下会看到 `<blog-title>.md` 以及一个名为 `<blog-title>` 的文件夹，我们需要将博客的内容放在 `<blog-title>.md` 中，并将这篇博客相关的图片放在 `<blog-title>` 文件夹中。注意，请不要修改其他文件；
-5. 修改之后，通过 push 或者提 pr 的形式将博客推送到远程仓库，Github 会自动重新构建静态网页并部署到 Github Pages。
+5. 写完博客后，若该repo对应的本地文件夹根目录存在`package-lock.json`文件，请手动删除，可用`git rm -f package-lock.json`，之后再`commit`;
+6. 修改之后，通过 push 或者提 pr 的形式将博客推送到远程仓库，Github 会自动重新构建静态网页并部署到 Github Pages。
 ## 博客分类/标签信息
 打开 Hexo 为我们建好的 `<blog-title>.md`，我们会看到这样的开头：
 ```
@@ -56,6 +57,22 @@ mathjax: true
 ```
 
 其功能等同于 `![<image-title>](<image-file>)`。
+
+## 预览
+博客根据标记`<!-- more -->`为Github Pages首页提供预览
+
+可在博客中适当位置添加标记`<!-- more -->`，该标记以下的内容将不会在Github Pages的首页展示
+
+特殊：紧跟开头加入标记(如下所示)，会在Github Pages的首页全片幅展示你的博客
+```
+---
+title: <blog-title>
+date: 2020-07-15 16:40:28
+tags:
+---
+<!-- more -->
+```
+
 ## Log
 * 目前通过 [Github pages](https://rcore-os.github.io/blog/) 可以访问
 * 尝试加入 CI/CD 在 pr/push 后自动部署
