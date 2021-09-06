@@ -2,19 +2,20 @@
 title: 2021操作系统夏令营总结-Rustsbi移植-yunfneg2
 date: 2021-09-06 14:19:02
 categories:
-  - report
+	- report
 tags:
-  - auther: ez4yunfeng2
-  - repo: https://github.com/ez4yunfeng2/rustsbi-nezha
+	- author:ez4yunfeng2
+	- summerofcode2021
+	- rustsbi
 ---
+
+[repo地址](https://github.com/ez4yunfeng2/rustsbi-nezha)
 
 ### 最终成果
 
 移植了rustsbi的基本功能，已经能够成功在哪吒开发板上引导zcore
 
-
-
-
+<!-- more -->
 
 ### 选择移植Rustsbi的原因
 
