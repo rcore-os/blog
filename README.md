@@ -50,7 +50,7 @@ mathjax: true
 
 目前这项功能还很简陋...之后再慢慢优化。
 
-假设你要插入一张 `<image-file>`，那么首先你应该把它放在 `blog/source/_post/<blog-title>` 文件夹中，然后在需要插入图片的位置，用如下的 tag 来插入图片：
+假设你要插入一张 `<image-file>`，那么首先你应该把它放在 `blog/source/_post/<blog-title>` 文件夹中，然后在需要插入图片的位置，用如下的 tag 来插入图片（注意：这里的'<'和'>'只是为了标识变量，插入图片的时候应该移除它们）：
 
 ```
 {% asset_img <image-file> <image-title> %}
