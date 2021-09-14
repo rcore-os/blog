@@ -300,6 +300,62 @@ pub fn run(target:&mut Thread){
 ```
 
 
+给定space_id通过一个系统调用切换到指定地址空间
+
+通过sys_do_yield系统调用来切换, 参数就是指定的space_id
+
+在内核中维护一个数据结构,其中给定了space_id与进程的context
+```rust
+pub struct SpaceidContext{
+    info: Vec<usize>
+}
+
+
+impl SpaceidContext{
+    pub fn new() -> Self {
+
+        let mut zero_vec: Vec<usize> = Vec::with_capacity(100);
+        for i in 0..100 {
+            zero_vec.push(0);
+        }
+        Self {
+            info: zero_vec
+        }
+    }
+    pub fn push_context(&mut self,space_id:usize, value:usize) {
+        self.info[space_id] = value;
+    }
+
+    pub fn get_context_ptr(&self, space_id:usize) -> usize{
+        self.info[space_id]
+    }
+}
+
+lazy_static! {
+    pub static ref SPACE: Mutex<SpaceidContext> = Mutex::new(SpaceidContext::new());
+}
+
+
+pub fn sys_do_yield(space_id:usize) -> isize {
+    switch_to_spaceid(space_id);
+    0
+}
+
+//切换到目标进程
+pub fn switch_to_spaceid(space_id:usize){
+
+    let idle = 0 as usize;
+    let target_context_ptr = SPACE.lock().get_context_ptr(space_id);
+    unsafe {
+        __switch(
+            &idle  as *const usize,
+            &target_context_ptr as *const usize,
+        );
+    }
+}
+```
+
+
 ## 运行演示
 在async_os下run python 1.py
 ```rust
