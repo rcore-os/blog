@@ -301,6 +301,8 @@ pub fn run(target:&mut Thread){
 ```
 
 
+当从调度器得到的线程不是当前地址空间时候需要切换到指定的地址空间
+
 给定space_id通过一个系统调用切换到指定地址空间
 
 通过sys_do_yield系统调用来切换, 参数就是指定的space_id
