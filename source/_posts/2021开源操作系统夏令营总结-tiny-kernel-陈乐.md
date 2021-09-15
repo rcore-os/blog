@@ -1,6 +1,6 @@
 ---
 title: 2021开源操作系统夏令营总结-tiny_kernel-陈乐
-date: 2021-09-16 16:00:25
+date: 2021-09-15 08:34:03
 categories:
 	- report
 tags:
@@ -8,6 +8,7 @@ tags:
 	- summerofcode2021
 	- async-os
 ---
+
 
 repo地址：[https://github.com/yuoo655/async_os](https://github.com/yuoo655/async_os)
 
@@ -114,7 +115,7 @@ unsafe {
 
 
 在用户进程中执行调度器的代码   ----- user\src\bin\1.rs:24
-目前还没有很好的办法来解决如何让用户程序知道函数在elf文件中的偏移量.
+目前还没有很好的办法来解 决如何让用户程序知道函数在elf文件中的偏移量.
 ```rust
 let add_to_thread_pool: unsafe extern "C" fn(usize, usize) = unsafe { core::mem::transmute(0x87000854 as usize) };
 unsafe { add_to_thread_pool(addr, 1 as usize) };
@@ -299,6 +300,8 @@ pub fn run(target:&mut Thread){
 }
 ```
 
+
+当从调度器得到的线程不是当前地址空间时候需要切换到指定的地址空间
 
 给定space_id通过一个系统调用切换到指定地址空间
 
