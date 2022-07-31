@@ -1,0 +1,54 @@
+name: auto-deploy-v
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12'
+      - run: npm install
+
+      - name: check node.version
+        run: node --version
+      - name: check npm.version
+        run: npm --version
+
+      - name: prepare build env
+        env:
+          GH_ACTION_DEPLOY_KEY: ${{secrets.GH_ACTION_DEPLOY_KEY}}
+          NEXT_VERSION: v7.3.0
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$GH_ACTION_DEPLOY_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          git config --global user.name 'wyfcyx'
+          git config --global user.email 'wyfcyx@users.noreply.github.com'
+          npm i -g hexo-cli
+          npm i
+          hexo --version
+
+      - name: deploy to github
+        run: |
+          pwd
+          ls
+          npm install hexo --save
+          hexo --version
+          npm install hexo-deployer-git --save
+          npm install https://github.com/CodeFalling/hexo-asset-image -- save
+          \cp tools/index.js node_modules/hexo-asset-image/index.js
+          npm un hexo-renderer-marked --save
+          # npm i hexo-renderer-pandoc --save
+          npm i hexo-renderer-kramed --save
+          hexo clean
+          hexo generate
+          hexo deploy
