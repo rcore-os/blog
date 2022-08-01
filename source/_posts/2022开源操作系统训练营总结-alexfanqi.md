@@ -6,7 +6,7 @@ categories:
 tags: 
     - author:alexfanqi
     - summerofcode2022
-    - rcode-lab
+    - rcore-lab
 ---
 ## 总体学习感想
 参加了rcore暑假第一阶段的学习，觉得用rust写操作系统体验很棒很有趣，相比c/c++代码rust写起来舒服不少，没有了类真的舒爽很多。
