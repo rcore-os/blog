@@ -5,9 +5,11 @@ categories:
     - report
 tags:
     - author:pickanameforlove
-    - rust
-    - rcore
+    - summerofcode2022
+    - rcode-lab
 ---
+
+<!-- more -->
 
 ### rust语言学习
 
