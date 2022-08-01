@@ -2,12 +2,14 @@
 title: rCore-camp2022-clstilmldy
 date: 2022-08-01 11:42:34
 categories:
-    - <catogory>
+    - report
 tags:
-    - author:<celestilmelody>
-    - repo:<daily_schedule_for_os_traning_camp_2022>
-<!-- more -->
+    - author:celestilmelody
+    - summerofcode2022
+    - rcode-lab
 ---
+
+repo:<daily_schedule_for_os_traning_camp_2022>
 
 ## rust语言学习
 
@@ -15,7 +17,7 @@ tags:
 
 ​	Rust 拥有出色的文档（rustwiki、以及官方推出的一系列教程等等）、强大的编译器（可以给出清晰的错误提示信息）等等，这些都是我其他语言不具有的；虽然使用上确实有难度，但是 Rust 确实很强大。
 
-
+<!-- more -->
 
 ## rCore 学习
 
