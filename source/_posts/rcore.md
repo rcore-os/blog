@@ -5,6 +5,8 @@ categories:
     - report
 tags:
     - author:xy_plus
+    - summerofcode2022
+    - rcore-lab
 ---
 
 # lab1 report
@@ -18,6 +20,8 @@ tags:
 每次调用 syscall 的时候，都先更新 TaskControlBlock.TaskInfo ，然后真正去调用 syscall 。
 
 返回的 task_info.status 和 task_info.syscall_times 都是直接从 TaskControlBlock 复制；task_info.time 为 (get_time_us() - TaskControlBlock.TaskInfo.time) / 1000 ，从而体现出时间差以及时间单位换算。
+
+<!-- more -->
 
 ## 简答作业
 
