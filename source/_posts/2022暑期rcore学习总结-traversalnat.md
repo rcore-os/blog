@@ -4,8 +4,12 @@ date: 2022-08-01 11:08:46
 categories:
     - report
 tags:
-    - author:<traversalnat>
+    - author:traversalnat
+    - summerofcode2022
+    - rcode-lab
 ---
+
+<!-- more -->
 
 ### rust
 深入理解引用和所有权有助于减少与rust编译器的斗争。
