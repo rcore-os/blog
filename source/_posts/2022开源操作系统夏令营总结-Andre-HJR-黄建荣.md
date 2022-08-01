@@ -1,6 +1,8 @@
 ---
 title: 2022开源操作系统夏令营总结-Andre-HJR-黄建荣
 date: 2022-08-01 00:19:33
+categories:
+    - report
 tags:
     - author:Andre-HJR
     - summerofcode2022
