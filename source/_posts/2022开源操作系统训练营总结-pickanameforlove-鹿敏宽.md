@@ -1,7 +1,12 @@
 ---
 title: 2022开源操作系统训练营总结-pickanameforlove-鹿敏宽
 date: 2022-08-01 10:46:53
-tags: rust
+categories:
+    - report
+tags:
+    - author:pickanameforlove
+    - rust
+    - rcore
 ---
 
 ### rust语言学习
