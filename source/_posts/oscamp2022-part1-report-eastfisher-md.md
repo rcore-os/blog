@@ -2,9 +2,11 @@
 title: 2022开源操作系统训练营第一阶段总结-eastfisher
 date: 2022-07-31 23:59:59
 categories:
-	- report
+    - report
 tags:
-	- author:eastfisher
+    - author:eastfisher
+    - summerofcode2022
+    - rcode-lab
 ---
 
 第一阶段的学习以 Rust 语言 和 rCore 操作系统实验为主，历时一个月。从结果来看，到完整完成第一阶段任务还有一段距离，但是学习过程还是有着不小的收获。
