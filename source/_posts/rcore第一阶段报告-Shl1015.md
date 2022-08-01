@@ -1,8 +1,15 @@
 ---
-title: <rcore第一阶段报告-Shl1015>
+title: rcore第一阶段报告-Shl1015
 date: 2022-08-01 12:28:07
+categories:
+    - report
 tags:
+    - author:Shl1015CS
+    - summerofcode2022
+    - rcode-lab
 ---
+
+<!-- more -->
 
 # 第一阶段报告
 
