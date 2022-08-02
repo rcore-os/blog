@@ -1,7 +1,12 @@
 ---
 title: Yakkhini's rCore 2022 report
 date: 2022-08-01 22:11:06
+categories:
+    - report
 tags:
+    - author:Yakkhini
+    - summerofcode2022
+    - rcore-lab
 ---
 
 # 2022 年开源操作系统训练营 - Yakkhini
