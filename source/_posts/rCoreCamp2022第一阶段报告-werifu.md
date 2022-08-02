@@ -5,11 +5,16 @@ categories:
 	- report
 tags:
 	- author:werifu
-	- summerofcode2021
+	- summerofcode2022
 	- rcore-lab
 ---
+
+
 # 第一阶段总结报告
 其实大多写在日记或者博客里了，这个总结文档可能很多是从日志里摘抄的，选择我一个月学习后觉得最精华的部分
+
+<!-- more -->
+
 日记
 博客
 ## rust 学习
