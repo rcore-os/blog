@@ -1,13 +1,21 @@
 ---
 title: 罗子健的blog
 date: 2022-08-05 08:54:25
+categories:
+    - report
 tags:
+    - author:YXLZJ
+    - summerofcode2022
+    - rcore-lab
 ---
-#罗子健的blog
-###Rust预览部分
+
+# 罗子健的blog
+### Rust预览部分
 1.完成了rustlings，之前学过rust，但是一直没有用它。这次算得上是实际运用了。rustlang与其他语言的不同之处，主要在于它独特的特权机制，提供了除gc和手动管理内存之外的第三种方案。
 
-###lab0-1
+<!-- more -->
+
+### lab0-1
 这一章主要实在裸机上运行程序，运用编译工具链
 ```
 target = riscv64gc-unknown-none-elf
@@ -70,7 +78,7 @@ $ qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os; echo $?
   Hello, world!
   9
 ```
-###lab0-2
+### lab0-2
 qemu开机时：
 qemu-system-riscv64 软件，就意味给这台虚拟的 RISC-V64 计算机加电了。 此时，CPU 的其它通用寄存器清零，而 PC 会指向 0x1000 的位置，这里有固化在硬件中的一小段引导代码， 它会很快跳转到 0x80000000 的 RustSBI 处。 RustSBI完成硬件初始化后，会跳转到 $(KERNEL_BIN) 所在内存位置 0x80200000 处， 执行操作系统的第一条指令。
 ![tupian](罗子健的blog/chap1-intro.png)
@@ -116,7 +124,7 @@ boot_stack_top:
 ```
 最后清空.bss段
 
-###lab0-2
+### lab0-2
 应用程序设计，主要是包装一个user_lib,方便应用程序进行系统调用
 新增系统调用
 ```
@@ -221,7 +229,7 @@ impl UserStack {
 
 之后我们就可以通过syscall分发进行系统调用了
 
-###lab1-os3
+### lab1-os3
 多到程序，就是过个程序同时在内存中 用 -Clink-args=-Ttext=xxxx 选项指定链接时 .text 段的地址为 0x80400000 + app_id * 0x20000
 实现__switch精心任务切换，并保存上下文，上下文信息保存在这个数据结构中
 ```
@@ -295,7 +303,7 @@ impl From<PhysAddr> for PhysPageNum {
 此外，我们还需要修改一些内容，以适应虚拟内存，比如SYS_WRITE系统调用（缓冲的地址改变），trap（地址改变）
 
 
-###lab3-5
+### lab3-5
 实现系统调用（fork，exec，waitpid）
 设计和调整内核中的一些数据结构，包括：
 
