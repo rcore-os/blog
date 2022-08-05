@@ -2,10 +2,11 @@
 title: os-training-camp-stage1-report-by-wanderya
 date: 2022-08-05 14:12:29
 categories:
-	- report
+    - report
 tags:
-    - author: wanderya
+    - author:wanderya
     - summerofcode2022
+    - rcore-lab
 ---
 
  # 2022 年开源操作系统训练营 -- wanderya
