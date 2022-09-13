@@ -4,13 +4,18 @@ date: 2022-09-12 14:25:12
 categories:
     - report
 tags:
-    - author: pickanameforlove
-    - repo: git@github.com:pickanameforlove/LittleOS.git
+    - author:pickanameforlove
+    - summerofcode2022
+    - rcore-lab
 ---
+
+[repo](git@github.com:pickanameforlove/LittleOS.git)
 
 我第二阶段选择的主题是模块化rcore，刚开始想的比较美好，这个模块化rcore项目和第一阶段都属同一个项目，做起来难度应该不大；并且模块化正是程序员所追求的一种境界。但是一着手实现就有很多问题了。第一个问题是怎么实现模块化，有没有一种切实可行的一种方法？此外，虽然经过了操作系统夏令营的洗礼，但是我依然缺少对操作系统底层相关的技术的理解。比如应用程序如何加载，这过程中使用到了什么命令等等细节的问题。
 
 无奈何只能从头开始看rcore-tutorial的文档了。因此我第二阶段做的工作并不是模块化rcore，而是按照rcore-tutorial文档复现出一个操作系统。
+
+<!-- more -->
 
 ### 关键知识点
 
