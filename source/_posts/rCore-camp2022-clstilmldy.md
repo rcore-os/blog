@@ -6,7 +6,7 @@ categories:
 tags:
     - author:celestilmelody
     - summerofcode2022
-    - rcode-lab
+    - rcore-lab
 ---
 
 repo:<daily_schedule_for_os_traning_camp_2022>

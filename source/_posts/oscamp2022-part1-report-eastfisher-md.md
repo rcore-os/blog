@@ -6,7 +6,7 @@ categories:
 tags:
     - author:eastfisher
     - summerofcode2022
-    - rcode-lab
+    - rcore-lab
 ---
 
 第一阶段的学习以 Rust 语言 和 rCore 操作系统实验为主，历时一个月。从结果来看，到完整完成第一阶段任务还有一段距离，但是学习过程还是有着不小的收获。

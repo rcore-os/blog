@@ -6,7 +6,7 @@ categories:
 tags:
     - author:pickanameforlove
     - summerofcode2022
-    - rcode-lab
+    - rcore-lab
 ---
 
 ### rust语言学习
