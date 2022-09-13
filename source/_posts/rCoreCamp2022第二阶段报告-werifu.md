@@ -18,6 +18,8 @@ tags:
 
 VSCode 为了方便图形化地调试（而不是在终端里手输命令去获取信息），提供了一套对 Debugger 的 UI 支持，但是不同的语言有不同的调试器，无法直接让 UI 去调用相应调试器，因此 VSCode 提出了 Debug Adapter 作为 UI 与 Debugger 的连接桥梁，一个调试器插件就是一个实现了这样一套接口的对象，其协议叫做 Debug Adapter Protocol。
 
+<!-- more -->
+
 ![](rCoreCamp2022-第二阶段总结报告-陈思宇/debug.png)
 
 需要注意的是：上图三个部分都是单独的进程，因此之间的通信其实都是进程间通信。
