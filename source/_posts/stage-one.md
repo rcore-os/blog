@@ -4,9 +4,9 @@ date: 2022-08-01 00:48:52
 categories:
 	- report
 tags:
-	- author: jackyliu16
-	- SummerOfCode-2022
-	- rCore-lab
+	- author:jackyliu16
+	- summerofcode2022
+	- rcore-lab
 	
 ---
 
@@ -14,6 +14,8 @@ tags:
 # 总结报告
 
 > 本文为刘逸珑在2022年开源操作系统训练营中的第一阶段总结报告
+
+<!-- more -->
 
 ### 第一阶段：rust学习部分
 
