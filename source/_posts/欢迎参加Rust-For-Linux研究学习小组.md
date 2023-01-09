@@ -65,6 +65,4 @@ Rust 是一种“多范式安全系统编程语言”，在开源领域呈现出
 
 - 或者扫描图片二维码：
 
-  ```
-  {% asset_img welcome_join.jpg welcome %}
-  ```
+ {% asset_img welcome_join.jpg welcome %}
