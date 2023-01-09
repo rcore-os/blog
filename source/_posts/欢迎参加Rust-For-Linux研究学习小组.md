@@ -2,16 +2,15 @@
 title: 欢迎参加Rust_For_Linux研究学习小组
 date: 2023-01-09 16:10:10
 categories:
-    - report
+    - announcements
 tags:
     - author:shzhxh
-    - Rust
-    - Linux
+    - Rust-for-Linux
 ---
 
 **不同操作系统内核可重用的Rust Crate设计与实现**
 
-Rust 是一种“多范式安全系统编程语言”，在开源领域呈现出滚雪球般的势头不断壮大。当前已经出现了多种基于Rust的实验型操作系统项目，而且也已经出现在主流的操作系统中。2022年12月12日，Linux 6.1 正式发布。Linux 6.1 的一个主要升级是把已经开发近一年多的Rust for Linux子系统加入主席，这是对 Rust 在Linux内核上的重要突破。今后将可以使用Rust开发操作系统内核模块，并用于不同操作系统中，而Rus化的实时优化Linux内核和Rust RTOS将成为重要新技术方向。
+Rust 是一种“多范式安全系统编程语言”，在开源领域呈现出滚雪球般的势头不断壮大。当前已经出现了多种基于Rust的实验型操作系统项目，而且也已经出现在主流的操作系统中。2022年12月12日，Linux 6.1 正式发布。Linux 6.1 的一个主要升级是把已经开发近一年多的Rust for Linux子系统加入主线，这是对 Rust 在Linux内核上的重要突破。今后将可以使用Rust开发操作系统内核模块，并用于不同操作系统中，而Rust化的实时优化Linux内核和Rust RTOS将成为重要新技术方向。
 
 本课程计划定期讨论和研究 **“不同操作系统内核可重用的Rust Crate设计与实现”** ，并基于Linux内核和Rust RTOS，着重开展以下三个研究子方向的技术工作：
 
