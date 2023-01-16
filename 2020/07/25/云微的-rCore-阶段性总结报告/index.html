@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="前言大家好，这里是云微（郑昱笙），非常高兴能参与到这次 os tutorial summer of code 的活动中来。我是一名浙江大学的18级本科生，其实很早就听说了rCore这样一个项目，也是机缘巧合在 github 上面随便逛逛的时候发现了它，就报名参加啦。 在参加这次活动之前，我对 rust 可以说是只闻其名，并没有过任何实际的了解；risc-v同样如此；在课程中了解过一些操作系统相关的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="云微的 rCore 阶段性总结报告">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2020/07/25/%E4%BA%91%E5%BE%AE%E7%9A%84-rCore-%E9%98%B6%E6%AE%B5%E6%80%A7%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="前言大家好，这里是云微（郑昱笙），非常高兴能参与到这次 os tutorial summer of code 的活动中来。我是一名浙江大学的18级本科生，其实很早就听说了rCore这样一个项目，也是机缘巧合在 github 上面随便逛逛的时候发现了它，就报名参加啦。 在参加这次活动之前，我对 rust 可以说是只闻其名，并没有过任何实际的了解；risc-v同样如此；在课程中了解过一些操作系统相关的">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-07-25T18:58:38.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.610Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="summerofcode2020">
+<meta property="article:tag" content="author:yunwei37">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2020/07/25/%E4%BA%91%E5%BE%AE%E7%9A%84-rCore-%E9%98%B6%E6%AE%B5%E6%80%A7%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>云微的 rCore 阶段性总结报告 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#自学rust编程"><span class="nav-number">2.</span> <span class="nav-text">自学rust编程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RISC-V-学习"><span class="nav-number">3.</span> <span class="nav-text">RISC-V 学习</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rCore-Tutorial-实验部分"><span class="nav-number">4.</span> <span class="nav-text">rCore Tutorial 实验部分</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#一些感想"><span class="nav-number">5.</span> <span class="nav-text">一些感想</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#链接"><span class="nav-number">6.</span> <span class="nav-text">链接</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2020/07/25/%E4%BA%91%E5%BE%AE%E7%9A%84-rCore-%E9%98%B6%E6%AE%B5%E6%80%A7%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          云微的 rCore 阶段性总结报告
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-07-25 18:58:38" itemprop="dateCreated datePublished" datetime="2020-07-25T18:58:38+00:00">2020-07-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>大家好，这里是云微（郑昱笙），非常高兴能参与到这次 os tutorial summer of code 的活动中来。我是一名浙江大学的18级本科生，其实很早就听说了rCore这样一个项目，也是机缘巧合在 github 上面随便逛逛的时候发现了它，就报名参加啦。</p>
+<p>在参加这次活动之前，我对 rust 可以说是只闻其名，并没有过任何实际的了解；risc-v同样如此；在课程中了解过一些操作系统相关的原理，但也没有很完整的实践过程，虽然之前六月底的时候学了一点 mit 6.828 相关的内容（完成了前两个lab），但由于参加了这次活动就暂时没有继续。</p>
+<p>总体上来说，这次的第一阶段学习过程还算顺利，正式学习了 rust 这样一门注重安全性的优秀现代语言，了解了 RISC-V 指令集的实现，也第一次完整地体验了一个简单操作系统的开发流程，对于相关原理的具体实现有了一个直观的理解。另外，这也是我第一次参与这样的社区活动，尝试作出了一点微小的贡献，也认识了好多非常厉害的大佬们，感觉收获还是非常丰盛的喵。</p>
+<p>以下是每个阶段的总结，也希望和大家分享一些自己的学习经验。<br><a id="more"></a></p>
+<h2 id="自学rust编程"><a href="#自学rust编程" class="headerlink" title="自学rust编程"></a>自学rust编程</h2><p>我自己的学习过程是阅读了《rust程序设计语言》以及一部分的《rust编程之道》，以及按照项目要求完成了 rustlings 以及一些笨办法系列和leetcode的练习。</p>
+<p>从初学者的角度来说，感觉rust确实是一门入门难度非常高的语言，但在略微熟悉了它之后也必须承认它确实是一门非常适合于大型工程实践的优秀语言，严格的编译期检查保证了很多常见的错误几乎不可能发生，在不用 unsafe 代码的情况下。</p>
+<p>rust 的基本语法难度不大，学习过程中大概主要需要注意的难点就是生命周期和所有权问题，以及对于后期操作系统的实践过程中，可能也会涉及到很大一部分关于裸指针和不安全代码、以及各种 trait 和适用的内置 api 接口，这部分可能需要去查阅相关的文档。</p>
+<p>对于更进一步的学习，也许使用 rust 去完成一些数据结构的练习会比较不错 ———— 比如双向链表、二叉树、线段树等等什么的。</p>
+<p>另外，对于这个项目而言，也许可以在基本掌握rust的语法之后就直接进入 lab0 lab1 的学习过程之中，通过大量阅读操作系统现有的代码来完成更进一步的学习（我就是这么做的）。</p>
+<h2 id="RISC-V-学习"><a href="#RISC-V-学习" class="headerlink" title="RISC-V 学习"></a>RISC-V 学习</h2><p>这部分我参考的是《RISC-V 手册 一本开源指令集的指南》，大概花一天就能看完，基本了解 RISC-V 的相关概念。这大概得益于它简洁性、模块化的设计理念，它也确实是一个非常现代化也非常年轻的指令集，虽然现在还没有得到大规模的使用，但感觉以后应该会越来越广泛的。</p>
+<p>之前在学校学习的是 MIPS 指令集，二者还是有很大相似之处的。</p>
+<p>对于我们操作系统的实践而言，主要需要关注的就是特权架构相关的部分，包括机器模式、监管者模式、用户模式，异常处理，以及虚拟内存和分页方案的部分。不过这些东西后面的文档里面也会有提及。</p>
+<h2 id="rCore-Tutorial-实验部分"><a href="#rCore-Tutorial-实验部分" class="headerlink" title="rCore Tutorial 实验部分"></a>rCore Tutorial 实验部分</h2><p>这部分是整个活动的核心，我目前的完成情况是根据实验指导一步步完成了整个操作系统的搭建过程，另外也完成了目前的实验题目；接下来有设想了一些可能的改进方案，但感觉关于具体的实践设计还是缺乏一些相关的知识和参考，所以这两天也在尝试阅读 rCore 和 zCore 的源代码，希望能先多了解一些具体地操作系统的实践知识，免得做一些没有意义的工作。</p>
+<p>目前实验指导的文档已经比较详细了，但可能还是有一些细节方面和最终完成的代码会有一点出入，尤其是后半部分感觉省略掉的内容还是比较多的，可能要结合源代码来阅读（对于想要自己实现但又没有太多操作系统和rust编程经验的同学可能不太友好）；但总体来说还是可以很清晰的了解到操作系统构建起来的整个过程。</p>
+<p>实验题本身难度应该不算太大，也可以尽量避免使用 Unsafe Rust 的地方（比如在实验二中可以尝试使用数组代替需要动态分配空间的部分），但对于深入理解操作系统的的构成还是有非常大帮助和必要的。</p>
+<h2 id="一些感想"><a href="#一些感想" class="headerlink" title="一些感想"></a>一些感想</h2><ul>
+<li>rust 目前还是有一些功能可能还不太成熟，但已经有很棒的相关生态圈了；</li>
+<li>在经历过入门阶段和编译器殊死搏斗的过程之后，大概就能慢慢体会到 rust 的优美之处了；</li>
+<li>操作系统的开发看起来是一件非常有趣的事情，希望能通过阶段一的考核，继续阶段二；</li>
+<li>实验的相关设计和文档还是很完善的，通过开源社区提供的很多工具把一些和操作系统核心关联并不是很紧密的部分封装起来（比如驱动、BootLoader），使初学者不会那么容易被复杂的接口搞迷糊掉（这也得益于rust强大的抽象能力，还是零开销的）；</li>
+<li>采用 rust 的对象封装来使用 rust 的自动回收机制是个非常好的设计，但有可能也使得封装略微复杂了一些；</li>
+<li>开源社区的氛围还是非常不错的，这里的老哥个个都是人才，说话又好听；</li>
+<li>如果要在操作系统方向进行更深入的探索，也许还是需要多学习一些其他的操作系统设计架构进行对比，目前在尝试阅读 rCore 的部分源码，也在看学堂在线的《Linux 内核分析与应用》课程；之前 mit 6.828 做了一半的实验也打算继续完成；</li>
+</ul>
+<h2 id="链接"><a href="#链接" class="headerlink" title="链接"></a>链接</h2><ul>
+<li>我的每日学习记录：<a href="https://github.com/yunwei37/os-summer-of-code-daily" target="_blank" rel="noopener">https://github.com/yunwei37/os-summer-of-code-daily</a></li>
+<li>lab 实验报告和记录：<a href="https://github.com/yunwei37/os-summer-of-code-daily/tree/master/labs" target="_blank" rel="noopener">https://github.com/yunwei37/os-summer-of-code-daily/tree/master/labs</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/summerofcode2020/" rel="tag"># summerofcode2020</a>
+              <a href="/blog/tags/author-yunwei37/" rel="tag"># author:yunwei37</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2020/07/24/%E5%BA%94%E5%B1%8A%E8%80%83%E7%A0%94%E5%AD%A6%E5%AD%90%E7%9A%84-rCore-%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" rel="prev" title="应届考研学子的 rCore 学习总结报告">
+      <i class="fa fa-chevron-left"></i> 应届考研学子的 rCore 学习总结报告
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2020/07/26/os-soc-2020-report-losfair/" rel="next" title="losfair 的 rCore OS SoC 第一阶段总结报告">
+      losfair 的 rCore OS SoC 第一阶段总结报告 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

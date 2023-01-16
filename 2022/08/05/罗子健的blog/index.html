@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="罗子健的blogRust预览部分1.完成了rustlings，之前学过rust，但是一直没有用它。这次算得上是实际运用了。rustlang与其他语言的不同之处，主要在于它独特的特权机制，提供了除gc和手动管理内存之外的第三种方案。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="罗子健的blog">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="罗子健的blogRust预览部分1.完成了rustlings，之前学过rust，但是一直没有用它。这次算得上是实际运用了。rustlang与其他语言的不同之处，主要在于它独特的特权机制，提供了除gc和手动管理内存之外的第三种方案。">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/chap1-intro.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/fsm-coop.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/satp.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/sv39-va-pa.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/sv39-pte.png">
+<meta property="article:published_time" content="2022-08-05T08:54:25.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.686Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="summerofcode2022">
+<meta property="article:tag" content="author:YXLZJ">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/chap1-intro.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>罗子健的blog | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#罗子健的blog"><span class="nav-number">1.</span> <span class="nav-text">罗子健的blog</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Rust预览部分"><span class="nav-number">1.0.1.</span> <span class="nav-text">Rust预览部分</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab0-1"><span class="nav-number">1.0.2.</span> <span class="nav-text">lab0-1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab0-2"><span class="nav-number">1.0.3.</span> <span class="nav-text">lab0-2</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab0-2-1"><span class="nav-number">1.0.4.</span> <span class="nav-text">lab0-2</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab1-os3"><span class="nav-number">1.0.5.</span> <span class="nav-text">lab1-os3</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab2-os4"><span class="nav-number">1.0.6.</span> <span class="nav-text">lab2-os4</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab3-5"><span class="nav-number">1.0.7.</span> <span class="nav-text">lab3-5</span></a></li></ol></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          罗子健的blog
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-08-05 08:54:25" itemprop="dateCreated datePublished" datetime="2022-08-05T08:54:25+00:00">2022-08-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="罗子健的blog"><a href="#罗子健的blog" class="headerlink" title="罗子健的blog"></a>罗子健的blog</h1><h3 id="Rust预览部分"><a href="#Rust预览部分" class="headerlink" title="Rust预览部分"></a>Rust预览部分</h3><p>1.完成了rustlings，之前学过rust，但是一直没有用它。这次算得上是实际运用了。rustlang与其他语言的不同之处，主要在于它独特的特权机制，提供了除gc和手动管理内存之外的第三种方案。</p>
+<a id="more"></a>
+<h3 id="lab0-1"><a href="#lab0-1" class="headerlink" title="lab0-1"></a>lab0-1</h3><p>这一章主要实在裸机上运行程序，运用编译工具链<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">target &#x3D; riscv64gc-unknown-none-elf</span><br></pre></td></tr></table></figure><br>作为裸机程序，我们必须移除标准库和增加语言项并且移除main函数<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; os&#x2F;src&#x2F;lang_items.rs</span><br><span class="line">use core::panic::PanicInfo;</span><br><span class="line"></span><br><span class="line">#[panic_handler]</span><br><span class="line">fn panic(_info: &amp;PanicInfo) -&gt; ! &#123;</span><br><span class="line">    loop &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>增加入口函数<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; os&#x2F;src&#x2F;main.rs</span><br><span class="line">#[no_mangle]</span><br><span class="line">extern &quot;C&quot; fn _start() &#123;</span><br><span class="line">    loop&#123;&#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>执行环境缺乏退出机制<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">const SYSCALL_EXIT: usize &#x3D; 93;</span><br><span class="line"></span><br><span class="line">fn syscall(id: usize, args: [usize; 3]) -&gt; isize &#123;</span><br><span class="line">    let mut ret;</span><br><span class="line">    unsafe &#123;</span><br><span class="line">        core::arch::asm!(</span><br><span class="line">            &quot;ecall&quot;,</span><br><span class="line">            inlateout(&quot;x10&quot;) args[0] &#x3D;&gt; ret,</span><br><span class="line">            in(&quot;x11&quot;) args[1],</span><br><span class="line">            in(&quot;x12&quot;) args[2],</span><br><span class="line">            in(&quot;x17&quot;) id,</span><br><span class="line">        );</span><br><span class="line">    &#125;</span><br><span class="line">    ret</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">pub fn sys_exit(xstate: i32) -&gt; isize &#123;</span><br><span class="line">    syscall(SYSCALL_EXIT, [xstate as usize, 0, 0])</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>在这一章中，我们也完成了Write Trait使其可以进行输出字符<br>这样一个最小化的内核程序就能被启动起来了<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; os&#x2F;src&#x2F;main.rs</span><br><span class="line"></span><br><span class="line">#[no_mangle]</span><br><span class="line">extern &quot;C&quot; fn _start() &#123;</span><br><span class="line">    print!(&quot;Hello, &quot;&quot;);</span><br><span class="line">    println!(&quot;world!&quot;);</span><br><span class="line">    sys_exit(9);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>效果如：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ qemu-riscv64 target&#x2F;riscv64gc-unknown-none-elf&#x2F;debug&#x2F;os; echo $?</span><br><span class="line">  Hello, world!</span><br><span class="line">  9</span><br></pre></td></tr></table></figure></p>
+<h3 id="lab0-2"><a href="#lab0-2" class="headerlink" title="lab0-2"></a>lab0-2</h3><p>qemu开机时：<br>qemu-system-riscv64 软件，就意味给这台虚拟的 RISC-V64 计算机加电了。 此时，CPU 的其它通用寄存器清零，而 PC 会指向 0x1000 的位置，这里有固化在硬件中的一小段引导代码， 它会很快跳转到 0x80000000 的 RustSBI 处。 RustSBI完成硬件初始化后，会跳转到 $(KERNEL_BIN) 所在内存位置 0x80200000 处， 执行操作系统的第一条指令。<br><img src="/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/chap1-intro.png" alt="tupian"><br>然后实现关机功能<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; os&#x2F;src&#x2F;sbi.rs</span><br><span class="line">fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -&gt; usize &#123;</span><br><span class="line"> let mut ret;</span><br><span class="line">  unsafe &#123;</span><br><span class="line">      core::arch::asm!(</span><br><span class="line">          &quot;ecall&quot;,</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">const SBI_SHUTDOWN: usize &#x3D; 8;</span><br><span class="line"></span><br><span class="line">pub fn shutdown() -&gt; ! &#123;</span><br><span class="line">    sbi_call(SBI_SHUTDOWN, 0, 0, 0);</span><br><span class="line">    panic!(&quot;It should shutdown!&quot;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; os&#x2F;src&#x2F;main.rs</span><br><span class="line">#[no_mangle]</span><br><span class="line">extern &quot;C&quot; fn _start() &#123;</span><br><span class="line">    shutdown();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>应用程序访问操作系统提供的系统调用的指令是 ecall ，操作系统访问 RustSBI提供的SBI调用的指令也是 ecall ， 虽然指令一样，但它们所在的特权级是不一样的。 简单地说，应用程序位于最弱的用户特权级（User Mode）， 操作系统位于内核特权级（Supervisor Mode）， RustSBI位于机器特权级（Machine Mode）。<br>此后我们需要通过连接脚本调整连接器的行为，使内存布局符合预计<br>用另一段汇编代码初始化栈空间：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># os&#x2F;src&#x2F;entry.asm</span><br><span class="line">    .section .text.entry</span><br><span class="line">     .globl _start</span><br><span class="line">_start:</span><br><span class="line">    la sp, boot_stack_top</span><br><span class="line">    call rust_main</span><br><span class="line">    .section .bss.stack</span><br><span class="line">    .globl boot_stack</span><br><span class="line">boot_stack:</span><br><span class="line">    .space 4096 * 16</span><br><span class="line">    .globl boot_stack_top</span><br><span class="line">boot_stack_top:</span><br></pre></td></tr></table></figure><br>最后清空.bss段</p>
+<h3 id="lab0-2-1"><a href="#lab0-2-1" class="headerlink" title="lab0-2"></a>lab0-2</h3><p>应用程序设计，主要是包装一个user_lib,方便应用程序进行系统调用<br>新增系统调用<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">fn sys_write(fd: usize, buf: *const u8, len: usize) -&gt; isize;</span><br><span class="line">fn sys_exit(xstate: usize) -&gt; !;</span><br></pre></td></tr></table></figure><br>我们要把应用程序的二进制镜像文件作为数据段链接到内核里， 内核需要知道应用程序的数量和它们的位置。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">_num_app:</span><br><span class="line">    .quad 3</span><br><span class="line">    .quad app_0_start</span><br><span class="line">    .quad app_1_start</span><br><span class="line">    .quad app_2_start</span><br><span class="line">    .quad app_2_end</span><br><span class="line">    .section .data</span><br><span class="line">    .global app_0_start</span><br><span class="line">    .global app_0_end</span><br><span class="line">app_0_start:</span><br><span class="line">    .incbin &quot;..&#x2F;user&#x2F;target&#x2F;riscv64gc-unknown-none-elf&#x2F;release&#x2F;hello_world.bin&quot;</span><br><span class="line">app_0_end:</span><br></pre></td></tr></table></figure><br>在 os 的 batch 子模块中实现一个应用管理器 AppManager<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">struct AppManager &#123;</span><br><span class="line">    num_app: usize,</span><br><span class="line">    current_app: usize,</span><br><span class="line">    app_start: [usize; MAX_APP_NUM + 1],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>始化 AppManager 的全局实例<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">lazy_static! &#123;</span><br><span class="line">    static ref APP_MANAGER: UPSafeCell&lt;AppManager&gt; &#x3D; unsafe &#123;</span><br><span class="line">        UPSafeCell::new(&#123;</span><br><span class="line">            extern &quot;C&quot; &#123;</span><br><span class="line">                fn _num_app();</span><br><span class="line">            &#125;</span><br><span class="line">            let num_app_ptr &#x3D; _num_app as usize as *const usize;</span><br><span class="line">            let num_app &#x3D; num_app_ptr.read_volatile();</span><br><span class="line">            let mut app_start: [usize; MAX_APP_NUM + 1] &#x3D; [0; MAX_APP_NUM + 1];</span><br><span class="line">            let app_start_raw: &amp;[usize] &#x3D;</span><br><span class="line">                core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1);</span><br><span class="line">            app_start[..&#x3D;num_app].copy_from_slice(app_start_raw);</span><br><span class="line">            AppManager &#123;</span><br><span class="line">                num_app,</span><br><span class="line">                current_app: 0,</span><br><span class="line">                app_start,</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">unsafe fn load_app(&amp;self, app_id: usize) &#123;</span><br><span class="line">    if app_id &gt;&#x3D; self.num_app &#123;</span><br><span class="line">        panic!(&quot;All applications completed!&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    info!(&quot;[kernel] Loading app_&#123;&#125;&quot;, app_id);</span><br><span class="line">    &#x2F;&#x2F; clear icache</span><br><span class="line">    core::arch::asm!(&quot;fence.i&quot;);</span><br><span class="line">    &#x2F;&#x2F; clear app area</span><br><span class="line">    core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, APP_SIZE_LIMIT).fill(0);</span><br><span class="line">    let app_src &#x3D; core::slice::from_raw_parts(</span><br><span class="line">        self.app_start[app_id] as *const u8,</span><br><span class="line">        self.app_start[app_id + 1] - self.app_start[app_id],</span><br><span class="line">    );</span><br><span class="line">    let app_dst &#x3D; core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, app_src.len());</span><br><span class="line">    app_dst.copy_from_slice(app_src);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>控制程序执行<br>1.启动应用程序时，需要初始化应用程序的用户态上下文，并能切换到用户态执行应用程序；<br>2.应用程序发起系统调用后，需要切换到批处理操作系统中进行处理；<br>3.应用程序执行出错时，批处理操作系统要杀死该应用并加载运行下一个应用；<br>4.应用程序执行结束时，批处理操作系统要加载运行下一个应用。<br>进入 S 特权级 Trap 的相关 CSR<br>CSR 名<br>该 CSR 与 Trap 相关的功能<br>sstatus<br>SPP 等字段给出 Trap 发生之前 CPU 处在哪个特权级（S/U）等信息<br>sepc<br>当 Trap 是一个异常的时候，记录 Trap 发生之前执行的最后一条指令的地址<br>scause<br>描述 Trap 的原因<br>stval<br>给出 Trap 附加信息<br>stvec<br>控制 Trap 处理代码的入口地址<br>而当 CPU 完成 Trap 处理准备返回的时候，需要通过一条 S 特权级的特权指令 sret 来完成，这一条指令具体完成以下功能：<br>CPU 会将当前的特权级按照 sstatus 的 SPP 字段设置为 U 或者 S ；<br>CPU 会跳转到 sepc 寄存器指向的那条指令，然后继续执行。<br>用户站和内核栈<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">impl UserStack &#123;</span><br><span class="line">    fn get_sp(&amp;self) -&gt; usize &#123;</span><br><span class="line">        self.data.as_ptr() as usize + USER_STACK_SIZE</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>可以看到里面包含所有的通用寄存器 x0~x31 ，还有 sstatus 和 sepc<br>此外还有Trap 上下文保存和恢复的汇编代码</p>
+<p>之后我们就可以通过syscall分发进行系统调用了</p>
+<h3 id="lab1-os3"><a href="#lab1-os3" class="headerlink" title="lab1-os3"></a>lab1-os3</h3><p>多到程序，就是过个程序同时在内存中 用 -Clink-args=-Ttext=xxxx 选项指定链接时 .text 段的地址为 0x80400000 + app_id * 0x20000<br>实现__switch精心任务切换，并保存上下文，上下文信息保存在这个数据结构中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; os&#x2F;src&#x2F;task&#x2F;context.rs</span><br><span class="line">#[repr(C)]</span><br><span class="line">pub struct TaskContext &#123;</span><br><span class="line">    ra: usize,</span><br><span class="line">    sp: usize,</span><br><span class="line">    s: [usize; 12],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>管理多道程序需要实现 sys_yield 和 sys_exit<br>运行状态变化图：<br><img src="/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/fsm-coop.png" alt="tupian"><br>实现时间片轮转算法（RR）</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; os&#x2F;src&#x2F;timer.rs</span><br><span class="line"></span><br><span class="line">use riscv::register::time;</span><br><span class="line"></span><br><span class="line">pub fn get_time() -&gt; usize &#123;</span><br><span class="line">    time::read()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>定时器<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">1&#x2F;&#x2F; os&#x2F;src&#x2F;sbi.rs</span><br><span class="line"> 2</span><br><span class="line"> 3const SBI_SET_TIMER: usize &#x3D; 0;</span><br><span class="line"> 4</span><br><span class="line"> 5pub fn set_timer(timer: usize) &#123;</span><br><span class="line"> 6    sbi_call(SBI_SET_TIMER, timer, 0, 0);</span><br><span class="line"> 7&#125;</span><br><span class="line"> 8</span><br><span class="line"> 9&#x2F;&#x2F; os&#x2F;src&#x2F;timer.rs</span><br><span class="line">10</span><br><span class="line">11use crate::config::CLOCK_FREQ;</span><br><span class="line">12const TICKS_PER_SEC: usize &#x3D; 100;</span><br><span class="line">13</span><br><span class="line">14pub fn set_next_trigger() &#123;</span><br><span class="line">15    set_timer(get_time() + CLOCK_FREQ &#x2F; TICKS_PER_SEC);</span><br><span class="line">16&#125;</span><br></pre></td></tr></table></figure><br>增加系统调用<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fn sys_get_time(ts: *mut TimeVal, _tz: usize) -&gt; isize;</span><br></pre></td></tr></table></figure><br>之后就可以实现抢占式调度<br>习题不难，根据要求实现接口就好</p>
+<h3 id="lab2-os4"><a href="#lab2-os4" class="headerlink" title="lab2-os4"></a>lab2-os4</h3><p>stap:<br><img src="/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/satp.png" alt="stap"><br>虚拟与物理地址格式<br><img src="/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/sv39-va-pa.png" alt="va pa"><br>用Rust类型系统进行转换<br>例如：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">impl From&lt;PhysAddr&gt; for PhysPageNum &#123;</span><br><span class="line">    fn from(v: PhysAddr) -&gt; Self &#123;</span><br><span class="line">        assert_eq!(v.page_offset(), 0);</span><br><span class="line">        v.floor()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>页表项<br><img src="/blog/2022/08/05/%E7%BD%97%E5%AD%90%E5%81%A5%E7%9A%84blog/sv39-pte.png" alt="pte"><br>访问一个地址时，先通过虚拟耶号，得到页表项，再从页表项中找到真实物理地址，再和偏移量进行拼接。对于分配的页帧，可以通过一个栈来管理，分配与回收<br>在任务控制块中加入MemSet,在程序看来很方便的就可以管理内存空间，同时，所有程序都可以使用同样的连接脚本<br>此外，我们还需要修改一些内容，以适应虚拟内存，比如SYS_WRITE系统调用（缓冲的地址改变），trap（地址改变）</p>
+<h3 id="lab3-5"><a href="#lab3-5" class="headerlink" title="lab3-5"></a>lab3-5</h3><p>实现系统调用（fork，exec，waitpid）<br>设计和调整内核中的一些数据结构，包括：</p>
+<p>基于应用名的应用链接/加载器<br>进程标识符 PidHandle 以及内核栈 KernelStack<br>任务控制块 TaskControlBlock<br>任务管理器 TaskManager<br>处理器管理结构 Processor</p>
+<p>进程控制块<br>在内核中，每个进程的执行状态、资源控制等元数据均保存在一个被称为 进程控制块 (PCB, Process Control Block) 的结构中，它是内核对进程进行管理的单位。在内核看来，它就等价于一个进程。</p>
+<p>TaskControlBlockInner 中包含下面这些内容：<br>trap_cx_ppn 指出了应用地址空间中的 Trap 上下文被放在的物理页帧的物理页号。<br>base_size 的含义是：应用数据仅有可能出现在应用地址空间低于 base_size 字节的区域中。借助它我们可以清楚的知道应用有多少数据驻留在内存中。<br>task_cx 保存任务上下文，用于任务切换。<br>task_status 维护当前进程的执行状态。<br>memory_set 表示应用地址空间。<br>parent 指向当前进程的父进程（如果存在的话）。注意我们使用 Weak 而非 Arc 来包裹另一个任务控制块，因此这个智能指针将不会影响父进程的引用计数。<br>children 则将当前进程的所有子进程的任务控制块以 Arc 智能指针的形式保存在一个向量中，这样才能够更方便的找到它们。<br>当进程调用 exit 系统调用主动退出或者执行出错由内核终止的时候，它的退出码 exit_code 会被内核保存在它的任务控制块中，并等待它的父进程通过 waitpid 回收它的资源的同时也收集它的 PID 以及退出码。<br>其余地方变化不大，主要是复用了任务控制块<br>进程退出时，父进程要回收子进程的资源<br>练习：<br>sys_spawn：模仿fork()进行初始化赋值工作，把复制地址空间的操作修改为把地址空间赋值为memory_set<br>stride 调度算法：在tcb中加入开始时间，优先级和stride<br>每切换一次任务更新一下stride值，然后进行插入排序<br>去新进程时，取出队头tcb，执行，就完成了stride 调度算法，注意还要增加ys_set_priority()系统调用，已设置优先级</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/summerofcode2022/" rel="tag"># summerofcode2022</a>
+              <a href="/blog/tags/author-YXLZJ/" rel="tag"># author:YXLZJ</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2022/08/02/rCoreCamp2022%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%8A%A5%E5%91%8A-werifu/" rel="prev" title="rCoreCamp2022第一阶段报告-werifu">
+      <i class="fa fa-chevron-left"></i> rCoreCamp2022第一阶段报告-werifu
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2022/08/05/os-training-camp-stage1-report-by-wanderya/" rel="next" title="os-training-camp-stage1-report-by-wanderya">
+      os-training-camp-stage1-report-by-wanderya <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

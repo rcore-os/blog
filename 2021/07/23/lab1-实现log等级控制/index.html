@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="大家好，我是来自哈尔滨工业大学（深圳）的20级本科生。我把我做实验的过程整理成博客，希望得到大家的指正。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="lab1: 实现log等级控制 by 樊博">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2021/07/23/lab1-%E5%AE%9E%E7%8E%B0log%E7%AD%89%E7%BA%A7%E6%8E%A7%E5%88%B6/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="大家好，我是来自哈尔滨工业大学（深圳）的20级本科生。我把我做实验的过程整理成博客，希望得到大家的指正。">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2021-07-23T04:42:27.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.602Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="summerofcode2021">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="author:vptvpt">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2021/07/23/lab1-%E5%AE%9E%E7%8E%B0log%E7%AD%89%E7%BA%A7%E6%8E%A7%E5%88%B6/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>lab1: 实现log等级控制 by 樊博 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#日志的基本输出"><span class="nav-number">1.</span> <span class="nav-text">日志的基本输出</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实现等级控制"><span class="nav-number">2.</span> <span class="nav-text">实现等级控制</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2021/07/23/lab1-%E5%AE%9E%E7%8E%B0log%E7%AD%89%E7%BA%A7%E6%8E%A7%E5%88%B6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          lab1: 实现log等级控制 by 樊博
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-07-23 04:42:27" itemprop="dateCreated datePublished" datetime="2021-07-23T04:42:27+00:00">2021-07-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>大家好，我是来自哈尔滨工业大学（深圳）的20级本科生。我把我做实验的过程整理成博客，希望得到大家的指正。</p>
+<a id="more"></a>
+<h2 id="日志的基本输出"><a href="#日志的基本输出" class="headerlink" title="日志的基本输出"></a>日志的基本输出</h2><p>Rust中的log库为我们提供了日志的常规操作,比如日志的输出，分级控制等。</p>
+<p>但是log只是一个日志门面库。所谓门面，其实就是它定义了一套统一的日志trait API， 抽象出来日志的常规操作，具体的日志库实现它定义的API。例如，输出日志信息可以使用log库提供的<code>error, warn, info, debug, trace</code>等输出宏，这些宏输出的日志有不同的级别，但是具体的输出格式取决于具体的日志库的实现，我们要实现的彩色输出，需要对Log trait进行自定义的实现。</p>
+<p>我们可以使用log库中的set_logger函数设置具体的日志实现库，在set_logger之前的日志将被忽略。从源码中可以看到，set_logger函数的参数是Log trait的trait对象的具有‘static生命周期的引用。<br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">set_logger</span></span>(logger: &amp;<span class="symbol">'static</span> <span class="keyword">dyn</span> Log) -&gt; <span class="built_in">Result</span>&lt;(), SetLoggerError&gt;</span><br></pre></td></tr></table></figure></p>
+<p>Log trait就是log库中一个重要的API,定义了三个方法。<br><code>fn enabled(&amp;self, metadata: &amp;Metadata) -&gt; bool</code>返回这条log是否允许输出日志。<br><code>fn log(&amp;self, record: &amp;Record)</code> 记录这条日志，这里日志使用Record来表示这条日志。<br><code>fn flush(&amp;self)</code> flush缓存的日志。<br>用户可以根据需要为具体的日志实现库定义自己的实现。</p>
+<p>为了实现自己的日志实现库，需要实现Log的trait object，这里只需要trait,不需要存储数据，所以定义了一个unit-like struct<code>SimpleLogger</code>作为具体的日志实现库。<br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> LOGGER: SimpleLogger = SimpleLogger;  </span><br><span class="line"><span class="comment">//实例化一个SimpleLogger`，作为一个类单元结构体，SimpleLogger既是数据类型，又是该数据类型的值。</span></span><br><span class="line">log::set_logger(&amp;LOGGER).unwrap();</span><br></pre></td></tr></table></figure><br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">SimpleLogger</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> Log <span class="keyword">for</span> SimpleLogger &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">enabled</span></span>(&amp;<span class="keyword">self</span>, _metadata: &amp;Metadata) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">        <span class="literal">true</span></span><br><span class="line">		</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">log</span></span>(&amp;<span class="keyword">self</span>, record: &amp;Record) &#123;</span><br><span class="line">        <span class="keyword">if</span> !<span class="keyword">self</span>.enabled(record.metadata()) &#123;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        print_in_color(</span><br><span class="line">            <span class="built_in">format_args!</span>(</span><br><span class="line">                <span class="string">"[&#123;&#125;]&#123;&#125;\n"</span>,</span><br><span class="line">                record.level（）,</span><br><span class="line">                record.args()</span><br><span class="line">            ),</span><br><span class="line">            level_to_color_code(record.level()),</span><br><span class="line">        );</span><br><span class="line">    &#125;</span><br><span class="line">	</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">flush</span></span>(&amp;<span class="keyword">self</span>) &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br><code>enabled</code>函数返回true，允许输出日志，<code>log</code>函数中调用了<code>print_in_color</code>函数实现对不同级别日志不同颜色的输出。<br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Stdout</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> Write <span class="keyword">for</span> Stdout &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">write_str</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, s: &amp;<span class="built_in">str</span>) -&gt; fmt::<span class="built_in">Result</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> c <span class="keyword">in</span> s.chars() &#123;</span><br><span class="line">            console_putchar(c <span class="keyword">as</span> <span class="built_in">usize</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="literal">Ok</span>(())</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">print</span></span>(args: fmt::Arguments) &#123;</span><br><span class="line">    Stdout.write_fmt(args).unwrap();</span><br><span class="line">&#125;</span><br><span class="line"><span class="built_in">macro_rules!</span> with_color &#123;</span><br><span class="line">    ($args: ident, $color_code: ident) =&gt; &#123;&#123;</span><br><span class="line">        <span class="built_in">format_args!</span>(<span class="string">"\u&#123;1B&#125;[&#123;&#125;m&#123;&#125;\u&#123;1B&#125;[0m"</span>, $color_code <span class="keyword">as</span> <span class="built_in">u8</span>, $args)</span><br><span class="line">    &#125;&#125;;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">print_in_color</span> </span>(args:fmt::Arguments,color_code:<span class="built_in">u8</span>) &#123;</span><br><span class="line">    print(with_color!(args,color_code));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>可以看到，<code>print_in_color</code>函数输出的颜色取决于<code>color_code</code>参数。在Log trait的具体实现中，调用了<code>level_to_code</code>函数。<br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">level_to_color_code</span></span>(level: Level) -&gt; <span class="built_in">u8</span> &#123;</span><br><span class="line">    <span class="keyword">match</span> level &#123;</span><br><span class="line">        Level::Error =&gt; <span class="number">31</span>, <span class="comment">// Red</span></span><br><span class="line">        Level::Warn =&gt; <span class="number">93</span>,  <span class="comment">// BrightYellow</span></span><br><span class="line">        Level::Info =&gt; <span class="number">34</span>,  <span class="comment">// Blue</span></span><br><span class="line">        Level::<span class="built_in">Debug</span> =&gt; <span class="number">32</span>, <span class="comment">// Green</span></span><br><span class="line">        Level::Trace =&gt; <span class="number">90</span>, <span class="comment">// BrightBlack</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br><code>level_to_code</code>函数把日志的不同级别映射成了不同的<code>color_code</code>。调用log库提供的<code>level()</code>方法得到日志的级别，这样就实现了用不同颜色输出不同级别的日志。</p>
+<h2 id="实现等级控制"><a href="#实现等级控制" class="headerlink" title="实现等级控制"></a>实现等级控制</h2><p>log中提供了<code>set_max_level</code>函数可以设定输出的等级，<code>set_max_level</code>函数的参数是<code>LevelFilter</code>类型的枚举。比如：<br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">log::set_max_level(LevelFilter::Info);<span class="comment">//设定输出等级为Info，输出Info等级以及更高输出等级的信息</span></span><br></pre></td></tr></table></figure></p>
+<p>现在的问题在于，如何通过make命令来控制日志的输出等级。我们预期的命令是这样的：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make run LOG=INFO</span><br></pre></td></tr></table></figure><br>这里make命令在makefile文件里声明了一个变量LOG并赋值为INFO    。可以把该变量设置为环境变量，提供给我们编写的操作系统使用。</p>
+<p>问题在于，我们编写的操作系统是在qemu模拟的裸机上运行的，在运行时无法读取宿主机操作系统的环境变量。</p>
+<p>Rust核心库提供的<code>option_env</code>宏可以完美地解决一个问题，这个宏可以在编译时检查操作系统的环境变量。如果读取到了想要的环境变量，会返回该环境变量的Some(“环境变量的值的形式”)。所以只要在编写makefile时，在编译之前将LOG设置为环境变量即可：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">build:</span><br><span class="line">	@export LOG&#x3D;$(LOG);cargo build --release</span><br></pre></td></tr></table></figure><br>将得到的环境变量映射为对应的日志等级，作为<code>set_max_level</code>的参数，就达到了控制日志输出等级的目的。<br><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">log::set_max_level(<span class="keyword">match</span> <span class="built_in">option_env!</span>(<span class="string">"LOG"</span>) &#123;</span><br><span class="line">        <span class="literal">Some</span>(<span class="string">"ERROR"</span>) =&gt; LevelFilter::Error,</span><br><span class="line">        <span class="literal">Some</span>(<span class="string">"WARN"</span>) =&gt; LevelFilter::Warn,</span><br><span class="line">        <span class="literal">Some</span>(<span class="string">"INFO"</span>) =&gt; LevelFilter::Info,</span><br><span class="line">        <span class="literal">Some</span>(<span class="string">"DEBUG"</span>) =&gt; LevelFilter::<span class="built_in">Debug</span>,</span><br><span class="line">        <span class="literal">Some</span>(<span class="string">"TRACE"</span>) =&gt; LevelFilter::Trace,</span><br><span class="line">        _ =&gt; LevelFilter::Info,</span><br><span class="line">    &#125;);</span><br></pre></td></tr></table></figure></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/summerofcode2021/" rel="tag"># summerofcode2021</a>
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/author-vptvpt/" rel="tag"># author:vptvpt</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2020/09/06/os-report-final-luojia65/" rel="prev" title="洛佳：K210组RustSBI开发总结">
+      <i class="fa fa-chevron-left"></i> 洛佳：K210组RustSBI开发总结
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2021/07/26/rcore-summary-kerui/" rel="next" title="rcore-summary-kerui">
+      rcore-summary-kerui <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

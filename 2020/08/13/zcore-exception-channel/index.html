@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="最近我为 zCore 实现了 zircon 的 Exception Channel 机制。下面来介绍一下 Exception Channel 机制，以及这套机制在 zCore 中的实现。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="为 zCore 实现 Exception Channel 机制">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2020/08/13/zcore-exception-channel/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="最近我为 zCore 实现了 zircon 的 Exception Channel 机制。下面来介绍一下 Exception Channel 机制，以及这套机制在 zCore 中的实现。">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-08-13T16:59:52.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.610Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:benpigchu">
+<meta property="article:tag" content="repo:zCore">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2020/08/13/zcore-exception-channel/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>为 zCore 实现 Exception Channel 机制 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Exception-Channel-机制是什么"><span class="nav-number">1.</span> <span class="nav-text">Exception Channel 机制是什么</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#如何处理异常"><span class="nav-number">1.1.</span> <span class="nav-text">如何处理异常</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#如何抛出异常"><span class="nav-number">1.2.</span> <span class="nav-text">如何抛出异常</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#在-zCore-中实现-Exception-Channel"><span class="nav-number">2.</span> <span class="nav-text">在 zCore 中实现 Exception Channel</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Exceptionate"><span class="nav-number">2.1.</span> <span class="nav-text">Exceptionate</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Exception-和-ExceptionObject"><span class="nav-number">2.2.</span> <span class="nav-text">Exception 和 ExceptionObject</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#处理异常"><span class="nav-number">2.3.</span> <span class="nav-text">处理异常</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#寻找-Exceptionate"><span class="nav-number">2.4.</span> <span class="nav-text">寻找 Exceptionate</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#抛出异常"><span class="nav-number">2.5.</span> <span class="nav-text">抛出异常</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#测试-Exception-Channel"><span class="nav-number">3.</span> <span class="nav-text">测试 Exception Channel</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#core-test"><span class="nav-number">3.1.</span> <span class="nav-text">core-test</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#exception-test"><span class="nav-number">3.2.</span> <span class="nav-text">exception-test</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#小结"><span class="nav-number">4.</span> <span class="nav-text">小结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2020/08/13/zcore-exception-channel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          为 zCore 实现 Exception Channel 机制
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-08-13 16:59:52" itemprop="dateCreated datePublished" datetime="2020-08-13T16:59:52+00:00">2020-08-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/developer/" itemprop="url" rel="index"><span itemprop="name">developer</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>最近我为 zCore 实现了 zircon 的 Exception Channel 机制。下面来介绍一下 Exception Channel 机制，以及这套机制在 zCore 中的实现。<br><a id="more"></a></p>
+<h2 id="Exception-Channel-机制是什么"><a href="#Exception-Channel-机制是什么" class="headerlink" title="Exception Channel 机制是什么"></a>Exception Channel 机制是什么</h2><p>在 zircon 中， Exception channel 机制被用来让用户程序能够处理其他用户程序（或者自己）在运行中产生的异常，具体的介绍可以在 <a href="https://fuchsia.dev/fuchsia-src/concepts/kernel/exceptions" target="_blank" rel="noopener">Fuchsia 的文档</a> 中看到。接下来让我们对 Exception channel 机制作一个简单的介绍</p>
+<h3 id="如何处理异常"><a href="#如何处理异常" class="headerlink" title="如何处理异常"></a>如何处理异常</h3><p>对于用户程序而言，要想处理其他用户程序产生的异常，首先要能操作那些用户程序对应的内核对象。在 zircon 中，我们用 <a href="https://fuchsia.dev/fuchsia-src/reference/kernel_objects/thread" target="_blank" rel="noopener">Thread</a>、<a href="https://fuchsia.dev/fuchsia-src/reference/kernel_objects/process" target="_blank" rel="noopener">Process</a>、<a href="https://fuchsia.dev/fuchsia-src/reference/kernel_objects/job" target="_blank" rel="noopener">Job</a> 这三个层次的任务（也就是 <a href="https://fuchsia.dev/fuchsia-src/reference/kernel_objects/task" target="_blank" rel="noopener">Task</a>）管理用户程序的运行。我们都知道 Thread 也就是线程是运算调度的最小单位，Process 也就是进程是内存等资源分配的最小单位，而 zircon 中的 Job 则用于进行一组进程的权限控制和资源管理，这与 Linux 的 <a href="https://man7.org/linux/man-pages/man7/cgroups.7.html" target="_blank" rel="noopener">cgroups</a> 类似。</p>
+<p>有了要处理异常的 Task，就可以从这个 Task 上建立 Exception Channel 了。用户可以通过调用 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/task_create_exception_channel" target="_blank" rel="noopener">zx_task_create_exception_channel</a> 这个系统调用来为 Task 创建 Exception Channel。Exception Channel 有两种：普通的以及调试用的。Thread 只有普通的 Exception Channel ，而 Process 和 Job 两者都有。对于每个 Task，每种 Exception Channel 同时最多只能有一个。</p>
+<p>现在我们拿到 Exception Channel 了。 Exception Channel 顾名思义就是个 <a href="https://fuchsia.dev/fuchsia-src/reference/kernel_objects/channel" target="_blank" rel="noopener">Channel</a>。在 zircon 中 Channel 用于进行进程间通信，它除了传递数据以外它还能传递内核对象，这一点与 <a href="https://www.man7.org/linux/man-pages/man7/unix.7.html" target="_blank" rel="noopener">UNIX domain socket</a> 类似。对于 Exception Channel ， Channel 的另一端由内核控制，当对应的任务产生异常时，内核向会向 Exception Channel 内发送异常的简要信息，以及一个表示异常的 Exception 内核对象。</p>
+<p>现在我们拿到了 Exception 内核对象，就可以进行异常处理了。我们可以通过 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/exception_get_thread" target="_blank" rel="noopener">zx_exception_get_thread</a>、<a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/exception_get_process" target="_blank" rel="noopener">zx_exception_get_process</a> 系统调用获取具体产生异常的进程和线程，这时我们就可以</p>
+<ul>
+<li>通过 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/process_read_memory" target="_blank" rel="noopener">zx_process_read_memory</a>、<a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/process_write_memory" target="_blank" rel="noopener">zx_process_write_memory</a> 系统调用读写进程的内存</li>
+<li>通过 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/thread_read_state" target="_blank" rel="noopener">zx_thread_read_state</a>、<a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/thread_write_state" target="_blank" rel="noopener">thread_write_state</a> 系统调用读写线程的寄存器状态</li>
+<li>直接使用 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/task_kill" target="_blank" rel="noopener">zx_task_kill</a> 结束线程或进程</li>
+</ul>
+<p>如果我们已经成功完成了异常处理，我们应当使用 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_set_property" target="_blank" rel="noopener">zx_object_set_property</a> 系统调用将 Exception 内核对象的 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_get_property#zx_prop_exception_state" target="_blank" rel="noopener">ZX_PROP_EXCEPTION_STATE</a> 属性设置为已解决异常。如果发现自己无法解决异常便无需进行此操作。接下来只需使用 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/handle_close" target="_blank" rel="noopener">zx_handle_close</a> 系统调用等方式消除对 Exception 内核对象的引用，这样就完成了异常的处理。此后异常要么传递给下一个 Exception Channel ，要么直接由内核进行兜底处理。</p>
+<p>另外对于 Process 上的调试用 Exception Channel ，从这个 Channel 收到的 Exception 内核对象可以用 zx_object_set_property 系统调用将 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_get_property#zx_prop_exception_state" target="_blank" rel="noopener">ZX_PROP_EXCEPTION_STRATEGY</a> 属性设置为允许第二次机会，这样就能够在尝试使用 Thread 和 Process 上的普通 Exception Channel 无法解决异常的情况下再次收到异常再进行处理。当然，还可以用 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_get_property" target="_blank" rel="noopener">zx_object_get_property</a> 读取这个属性，以次得知得知 Process 上的调试用 Exception Channel 会不会有机会再次收到这个异常，以及是否确实是在Process 上的调试用 Exception Channel 的第二次机会中收到这个异常的。</p>
+<h3 id="如何抛出异常"><a href="#如何抛出异常" class="headerlink" title="如何抛出异常"></a>如何抛出异常</h3><p>以上我们介绍了如何使用 Exception Channel 机制处理异常。接下来我们介绍一下异常是如何产生的，以及产生异常的线程是什么行为。</p>
+<p>线程可以产生两种异常：硬件直接产生的异常和内核生成的异常。前者由 CPU 异常中断产生，而后者由内核生成。由 CPU 产生的异常就是大家都熟悉的页错误、指令无法解析等异常中断，而内核产生的异常则有系统调用时出的触犯权限限制的异常和用于调试的 task 生命周期相关的异常（包括线程的启动与结束，以及进程的启动）。不同的 Exception Channel 可以接受的异常的类型也有不同，具体来讲：</p>
+<ul>
+<li>CPU 硬件产生的异常和触犯权限限制的异常这两种普通的异常可以被 Thread 和 Process 上的 Exception Channel，以及 Job 上的普通 Exception Channel 收到（不包含 Job 上的）。这些 Exception Channel 按一定的顺序依次试图解决异常，直到异常被在被发送到某个 Exception Channel 后被解决，或者线程被杀死，再或者最终无人成功处理时由内核处理。具体的顺序为：<ul>
+<li>Process 上的调试用 Exception Channel</li>
+<li>Thread 上的普通 Exception Channel</li>
+<li>Process 上的普通 Exception Channel</li>
+<li>如果，Exception 对象的 ZX_PROP_EXCEPTION_STRATEGY 属性被设置为了允许第二次机会， Process 上的调试用 Exception Channel 此时会再次收到异常</li>
+<li>Job 上的普通 Exception Channel</li>
+<li>Job 的祖先 Job 上的的普通 Exception Channel，并以此类推</li>
+</ul>
+</li>
+<li>对于线程启动与结束的异常，只有 Process 上的调试用 Exception Channel 能收到一次</li>
+<li>对于进程的启动，只有 Process 的各个祖先 Job 中能收到异常的最接近叶子节点的 Job 上的调试用 Exception Channel 能收到异常</li>
+</ul>
+<p>如果异常最终没能被处理，对于 CPU 产生的异常应当立即结束进程，对于触犯权限限制的异常视权限设置决定是否立即结束进程，而对于其他类型异常直接继续执行。</p>
+<p>对于异常正在被处理的线程，它应该处于 BlockedException 状态（线程退出的异常除外），并且此时如果使用 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_get_info" target="_blank" rel="noopener">zx_object_get_info</a> 系统调用通过传入 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_get_info#zx_info_thread" target="_blank" rel="noopener">ZX_INFO_THREAD</a> 信息类型查看线程的信息，除了能够得知线程的状态，还应该可以得知现在是在通过什么种类的 Exception Channel 处理异常。此外如果在 zx_object_get_info 系统调用中传入 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_get_info#zx_info_thread_exception_report" target="_blank" rel="noopener">ZX_INFO_THREAD_EXCEPTION_REPORT</a> 信息类型，还能得到线程当前的异常的基本信息。另外如果使用 zx_object_get_info 系统调用通过传入 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/object_get_info#zx_info_process" target="_blank" rel="noopener">ZX_INFO_PROCESS</a> 信息类型查看进程的信息，可以看到进程有没有被建立调试用的 Exception Channel。</p>
+<p>现在文档已经读得差不多了，可以开始实现了。</p>
+<h2 id="在-zCore-中实现-Exception-Channel"><a href="#在-zCore-中实现-Exception-Channel" class="headerlink" title="在 zCore 中实现 Exception Channel"></a>在 zCore 中实现 Exception Channel</h2><p>zCore 中 Exception Channel 机制的实现与 zircon 中的类似，但是略有不同。接下来我们来对此进行介绍。这里列出的代码是我的 PR 中的原始代码，和现在的版本可能略有差异，但大体思路是一致的。</p>
+<h3 id="Exceptionate"><a href="#Exceptionate" class="headerlink" title="Exceptionate"></a>Exceptionate</h3><p>首先，在各种 Task 内应该有用于存放用于发送异常的结构，我们称之为 <code>Exceptionate</code> ：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Exceptionate</span></span> &#123;</span><br><span class="line">	type_: ExceptionChannelType,</span><br><span class="line">	inner: Mutex&lt;ExceptionateInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ExceptionateInner</span></span> &#123;</span><br><span class="line">	channel: <span class="built_in">Option</span>&lt;Arc&lt;Channel&gt;&gt;,</span><br><span class="line">	thread_rights: Rights,</span><br><span class="line">	process_rights: Rights,</span><br><span class="line">	shutdowned: <span class="built_in">bool</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到我们在 <code>Exceptionate</code> 内存放了这些信息</p>
+<ul>
+<li>Exception Channel 的类型</li>
+<li>现在正在已经创建好的 Exception Channel 的发送端</li>
+<li>从这里发送的 Exception 中获取的线程和进程的 Handle 应有的权限，在创建 Exception Channel 时会根据传入的 Task 的 Handle 的权限设置</li>
+<li>是否已经关闭了 Exception Channel。这是为了避免在已经结束了的 Task 上创建 Exception Channel 而设置的。</li>
+</ul>
+<p>现在让我们创建 Exception Channel ：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Exceptionate&#123;</span><br><span class="line">	<span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">create_channel</span></span>(</span><br><span class="line">		&amp;<span class="keyword">self</span>,</span><br><span class="line">		thread_rights: Rights,</span><br><span class="line">		process_rights: Rights,</span><br><span class="line">	) -&gt; ZxResult&lt;Arc&lt;Channel&gt;&gt; &#123;</span><br><span class="line">		<span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.lock();</span><br><span class="line">		<span class="keyword">if</span> inner.shutdowned &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="literal">Err</span>(ZxError::BAD_STATE);</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 检查是否已有 Channel</span></span><br><span class="line">		<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(channel) = inner.channel.as_ref() &#123;</span><br><span class="line">			<span class="keyword">if</span> channel.peer().is_ok() &#123;</span><br><span class="line">				<span class="keyword">return</span> <span class="literal">Err</span>(ZxError::ALREADY_BOUND);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 创建与设置信息</span></span><br><span class="line">		<span class="keyword">let</span> (sender, receiver) = Channel::create();</span><br><span class="line">		inner.channel.replace(sender);</span><br><span class="line">		inner.process_rights = process_rights;</span><br><span class="line">		inner.thread_rights = thread_rights;</span><br><span class="line">		<span class="literal">Ok</span>(receiver)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里我们建立了一对 Channel，并将发送端保存下来，将接收端返回给调用者。在此之前我们还要检查是否已经被创建了 Exception Channel，由于 Exception Channel 被关闭时我们并不会接到通知，所以需要再检查现有的 Channel 的另一端是否已被关闭了。</p>
+<h3 id="Exception-和-ExceptionObject"><a href="#Exception-和-ExceptionObject" class="headerlink" title="Exception 和 ExceptionObject"></a>Exception 和 ExceptionObject</h3><p>接下来我们来看 <code>Exception</code> 结构：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Exception</span></span> &#123;</span><br><span class="line">	thread: Arc&lt;Thread&gt;,</span><br><span class="line">	type_: ExceptionType,</span><br><span class="line">	report: ExceptionReport,</span><br><span class="line">	inner: Mutex&lt;ExceptionInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ExceptionInner</span></span> &#123;</span><br><span class="line">	current_channel_type: ExceptionChannelType,</span><br><span class="line">	thread_rights: Rights,</span><br><span class="line">	process_rights: Rights,</span><br><span class="line">	handled: <span class="built_in">bool</span>,</span><br><span class="line">	second_chance: <span class="built_in">bool</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 <code>Exception</code> 结构里我们存放了这些信息</p>
+<ul>
+<li>产生异常的的线程的引用</li>
+<li>异常的类型和有关信息</li>
+<li>异常处理的状态，包括<ul>
+<li>当前正在使用的 Exception Channel 的信息，包括种类和能通过 Exception 获取到的线程与进程的 Handle 的权限</li>
+<li>异常是否已被解决</li>
+<li>Process 上的调试用 Exception Channel 会不会有第二次机会中收到异常</li>
+</ul>
+</li>
+</ul>
+<p>这里可以发现我们的 <code>Exception</code> 结构并不是一个内核对象。这是因为内核对象的生命周期是使用 Rust 的 <code>Arc</code> 管理的，如果用户程序关闭了内核对象的 Handle，那么内核对象就直接被销毁了。如果 <code>Exception</code> 是一个内核对象，我们这时就无法继续处理异常了。所以我们的实现在其上多包一层，形成 <code>ExceptionObject</code> 内核对象：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">ExceptionObject</span></span> &#123;</span><br><span class="line">	base: KObjectBase,</span><br><span class="line">	exception: Arc&lt;Exception&gt;,</span><br><span class="line">	close_signal: <span class="built_in">Option</span>&lt;oneshot::Sender&lt;()&gt;&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">impl_kobject!(ExceptionObject);</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> <span class="built_in">Drop</span> <span class="keyword">for</span> ExceptionObject &#123;</span><br><span class="line">	<span class="function"><span class="keyword">fn</span> <span class="title">drop</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) &#123;</span><br><span class="line">		<span class="keyword">self</span>.close_signal</span><br><span class="line">			.take()</span><br><span class="line">			.and_then(|signal| signal.send(()).ok());</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样我们就可以通过实现 <code>Drop</code> trait ，在 <code>ExceptionObject</code> 被销毁时通知我们的线程当前 Exception Channel 结束了对 Exception 的操作。</p>
+<p>接下来我们就可以将 Exception 发送到用户空间了：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Exceptionate&#123;</span><br><span class="line">	<span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">send_exception</span></span>(&amp;<span class="keyword">self</span>, exception: &amp;Arc&lt;Exception&gt;) -&gt; ZxResult&lt;oneshot::Receiver&lt;()&gt;&gt;</span><br><span class="line">	&#123;</span><br><span class="line">		<span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.lock();</span><br><span class="line">		<span class="keyword">let</span> channel = inner.channel.as_ref().ok_or(ZxError::NEXT)?;</span><br><span class="line">		<span class="comment">// 基本信息</span></span><br><span class="line">		<span class="keyword">let</span> info = ExceptionInfo &#123;</span><br><span class="line">			pid: exception.thread.proc().id(),</span><br><span class="line">			tid: exception.thread.id(),</span><br><span class="line">			type_: exception.type_,</span><br><span class="line">			padding: <span class="built_in">Default</span>::default(),</span><br><span class="line">		&#125;;</span><br><span class="line">		<span class="keyword">let</span> (sender, receiver) = oneshot::channel::&lt;()&gt;();</span><br><span class="line">		<span class="comment">// 把 Exception 包起来</span></span><br><span class="line">		<span class="keyword">let</span> object = ExceptionObject::create(exception.clone(), sender);</span><br><span class="line">		<span class="keyword">let</span> handle = Handle::new(object, Rights::DEFAULT_EXCEPTION);</span><br><span class="line">		<span class="keyword">let</span> msg = MessagePacket &#123;</span><br><span class="line">			data: info.pack(),</span><br><span class="line">			handles: <span class="built_in">vec!</span>[handle],</span><br><span class="line">		&#125;;</span><br><span class="line">		exception.set_rights(inner.thread_rights, inner.process_rights);</span><br><span class="line">		<span class="comment">// 发送，处理 Channel 已经关闭的异常</span></span><br><span class="line">		channel.write(msg).map_err(|err| &#123;</span><br><span class="line">			<span class="keyword">if</span> err == ZxError::PEER_CLOSED &#123;</span><br><span class="line">				inner.channel.take();</span><br><span class="line">				<span class="keyword">return</span> ZxError::NEXT;</span><br><span class="line">			&#125;</span><br><span class="line">			err</span><br><span class="line">		&#125;)?;</span><br><span class="line">		<span class="literal">Ok</span>(receiver)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在发送 Exception 时，我们将 <code>Exception</code> 包进 <code>ExceptionObject</code> ，设置 <code>Exception</code> 内与 Exception Channel 有关的状态，并生成要发送的异常的基本信息结构。这里我们生成了一对 <a href="https://docs.rs/futures/0.3.5/futures/channel/oneshot/index.html" target="_blank" rel="noopener">oneshot channel</a> 用于通知调用者用户程序关闭了 <code>ExceptionObject</code> 的 Handle，并返回出来。如果没有可用的 Exception Channel ，我们返回 <code>ZxError::NEXT</code> 指示调用者改用别的方式处理异常。</p>
+<h3 id="处理异常"><a href="#处理异常" class="headerlink" title="处理异常"></a>处理异常</h3><p>接下来我们可以开始处理异常了：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Exception&#123;</span><br><span class="line">	<span class="keyword">pub</span> <span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">handle</span></span>(<span class="keyword">self</span>: &amp;Arc&lt;<span class="keyword">Self</span>&gt;, fatal: <span class="built_in">bool</span>) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">		<span class="keyword">self</span>.handle_with_exceptionates(fatal, ExceptionateIterator::new(<span class="keyword">self</span>), <span class="literal">false</span>)</span><br><span class="line">			.<span class="keyword">await</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">pub</span> <span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">handle_with_exceptionates</span></span>(</span><br><span class="line">		<span class="keyword">self</span>: &amp;Arc&lt;<span class="keyword">Self</span>&gt;,</span><br><span class="line">		fatal: <span class="built_in">bool</span>,</span><br><span class="line">		exceptionates: <span class="keyword">impl</span> <span class="built_in">IntoIterator</span>&lt;Item = Arc&lt;Exceptionate&gt;&gt;,</span><br><span class="line">		first_only: <span class="built_in">bool</span>,</span><br><span class="line">	) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">		<span class="keyword">self</span>.thread.set_exception(<span class="literal">Some</span>(<span class="keyword">self</span>.clone()));</span><br><span class="line">		<span class="keyword">let</span> future = <span class="keyword">self</span>.handle_internal(exceptionates, first_only);</span><br><span class="line">		<span class="comment">// 这里我们需要先把 Future Pin 起来才能传进去</span></span><br><span class="line">		pin_mut!(future);</span><br><span class="line">		<span class="keyword">let</span> result: ZxResult = <span class="keyword">self</span></span><br><span class="line">			.thread</span><br><span class="line">			.blocking_run(</span><br><span class="line">				future,</span><br><span class="line">				ThreadState::BlockedException,</span><br><span class="line">				Duration::from_nanos(<span class="built_in">u64</span>::max_value()),</span><br><span class="line">			)</span><br><span class="line">			.<span class="keyword">await</span>;</span><br><span class="line">		<span class="keyword">self</span>.thread.set_exception(<span class="literal">None</span>);</span><br><span class="line">		<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Err</span>(err) = result &#123;</span><br><span class="line">			<span class="keyword">if</span> err == ZxError::STOP &#123;</span><br><span class="line">				<span class="comment">// 线程被 Kill</span></span><br><span class="line">				<span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">			&#125; <span class="keyword">else</span> <span class="keyword">if</span> err == ZxError::NEXT &amp;&amp; fatal &#123;</span><br><span class="line">				<span class="comment">// 无法处理，终结线程</span></span><br><span class="line">				<span class="keyword">self</span>.thread.proc().exit(TASK_RETCODE_SYSCALL_KILL);</span><br><span class="line">				<span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="literal">true</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">handle_internal</span></span>(</span><br><span class="line">		<span class="keyword">self</span>: &amp;Arc&lt;<span class="keyword">Self</span>&gt;,</span><br><span class="line">		exceptionates: <span class="keyword">impl</span> <span class="built_in">IntoIterator</span>&lt;Item = Arc&lt;Exceptionate&gt;&gt;,</span><br><span class="line">		first_only: <span class="built_in">bool</span>,</span><br><span class="line">	) -&gt; ZxResult &#123;</span><br><span class="line">		<span class="keyword">for</span> exceptionate <span class="keyword">in</span> exceptionates.into_iter() &#123;</span><br><span class="line">			<span class="keyword">let</span> closed = <span class="keyword">match</span> exceptionate.send_exception(<span class="keyword">self</span>) &#123;</span><br><span class="line">				<span class="comment">// 成功发送</span></span><br><span class="line">				<span class="literal">Ok</span>(receiver) =&gt; receiver,</span><br><span class="line">				<span class="comment">// 直接尝试下一个 Exceptionate</span></span><br><span class="line">				<span class="literal">Err</span>(ZxError::NEXT) =&gt; <span class="keyword">continue</span>,</span><br><span class="line">				<span class="literal">Err</span>(err) =&gt; <span class="keyword">return</span> <span class="literal">Err</span>(err),</span><br><span class="line">			&#125;;</span><br><span class="line">			<span class="keyword">self</span>.inner.lock().current_channel_type = exceptionate.type_;</span><br><span class="line">			<span class="comment">// 等待处理结束</span></span><br><span class="line">			closed.<span class="keyword">await</span>.ok();</span><br><span class="line">			<span class="keyword">let</span> handled = &#123;</span><br><span class="line">				<span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.lock();</span><br><span class="line">				inner.current_channel_type = ExceptionChannelType::<span class="literal">None</span>;</span><br><span class="line">				inner.handled</span><br><span class="line">			&#125;;</span><br><span class="line">			<span class="keyword">if</span> handled | first_only &#123;</span><br><span class="line">				<span class="comment">// 若只考虑第一个 Exception Channel 或者异常以解决则直接成功</span></span><br><span class="line">				<span class="keyword">return</span> <span class="literal">Ok</span>(());</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="literal">Err</span>(ZxError::NEXT)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>zCore 的一大特色是，在内核态使用了 async await 机制，这里我们也使用 async await 机制实现异常处理。我们的 <code>handle_with_exceptionates</code> 方法有三个参数：是否需要在无法处理异常时直接终止进程、可能收到异常的 Exception Channel 的迭代器、是否只考虑第一个接收了异常的 Exception Channel （这是为了只给第一个能收到异常的 Job 上的调试用 Exception Channel 发送进程启动的异常）。为了方便普通异常的使用，我们还增添了使用默认 Exception Channel 迭代器 <code>handle</code> 方法。</p>
+<p>在这里，<code>handle_with_exceptionates</code> 方法调用了 <code>handle_internal</code> ，并将其返回的的 Future 扔给线程的 <code>blocking_run</code> 方法运行。这个方法会在运行前后先设置线程的状态，并且在线程被杀死的时候提前终止运行。<code>handle_with_exceptionates</code> 会检测异常处理的结果，并在需要是结束线程，它的返回值会告知调用者产生异常线程是否已经结束。</p>
+<p>而 <code>handle_internal</code> 方法则是一个大循环，包括以下步骤：</p>
+<ul>
+<li>从 Exception Channel 迭代器中提取 <code>Exceptionate</code>， 并调用其上的 <code>send_exception</code> 方法</li>
+<li>检查是不是成功发送了异常，设置 Exception Channel 类型，并等待异常处理完成</li>
+<li>判断是否完成了异常是否已被解决，并决定是退出还是继续循环</li>
+</ul>
+<h3 id="寻找-Exceptionate"><a href="#寻找-Exceptionate" class="headerlink" title="寻找 Exceptionate"></a>寻找 Exceptionate</h3><p>接下来我们来介绍默认的 Exception Channel 迭代器：<code>ExceptionateIterator</code></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ExceptionateIterator</span></span>&lt;<span class="symbol">'a</span>&gt; &#123;</span><br><span class="line">	exception: &amp;<span class="symbol">'a</span> Exception,</span><br><span class="line">	state: ExceptionateIteratorState,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 各个迭代器状态，各个状态的命名代表接下来考虑哪种 Exception Channel</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">ExceptionateIteratorState</span></span> &#123;</span><br><span class="line">	<span class="comment">// 布尔值表示是否是第二次机会</span></span><br><span class="line">	<span class="built_in">Debug</span>(<span class="built_in">bool</span>),</span><br><span class="line">	Thread,</span><br><span class="line">	Process,</span><br><span class="line">	Job(Arc&lt;Job&gt;),</span><br><span class="line">	Finished,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;<span class="symbol">'a</span>&gt; ExceptionateIterator&lt;<span class="symbol">'a</span>&gt; &#123;</span><br><span class="line">	<span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(exception: &amp;<span class="symbol">'a</span> Exception) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">		ExceptionateIterator &#123;</span><br><span class="line">			exception,</span><br><span class="line">			<span class="comment">// 从 Process 的调试用 Channel 开始</span></span><br><span class="line">			state: ExceptionateIteratorState::<span class="built_in">Debug</span>(<span class="literal">false</span>),</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;<span class="symbol">'a</span>&gt; <span class="built_in">Iterator</span> <span class="keyword">for</span> ExceptionateIterator&lt;<span class="symbol">'a</span>&gt; &#123;</span><br><span class="line">	<span class="class"><span class="keyword">type</span> <span class="title">Item</span></span> = Arc&lt;Exceptionate&gt;;</span><br><span class="line">	<span class="function"><span class="keyword">fn</span> <span class="title">next</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; <span class="built_in">Option</span>&lt;Self::Item&gt; &#123;</span><br><span class="line">		<span class="comment">// 如上文所说，是 Process 调试用 -&gt; Thread -&gt; Process</span></span><br><span class="line">		<span class="comment">// -&gt; Process 调试用第二次 -&gt; Job -&gt; 祖先 Job 的顺序</span></span><br><span class="line">		<span class="keyword">loop</span> &#123;</span><br><span class="line">			<span class="keyword">match</span> &amp;<span class="keyword">self</span>.state &#123;</span><br><span class="line">				ExceptionateIteratorState::<span class="built_in">Debug</span>(second_chance) =&gt; &#123;</span><br><span class="line">					<span class="keyword">if</span> *second_chance &amp;&amp; !<span class="keyword">self</span>.exception.inner.lock().second_chance &#123;</span><br><span class="line">						<span class="comment">// 不再需要第二次机会，直接继续</span></span><br><span class="line">						<span class="keyword">self</span>.state =</span><br><span class="line">							ExceptionateIteratorState::Job(<span class="keyword">self</span>.exception.thread.proc().job());</span><br><span class="line">						<span class="keyword">continue</span>;</span><br><span class="line">					&#125;</span><br><span class="line">					<span class="keyword">let</span> proc = <span class="keyword">self</span>.exception.thread.proc();</span><br><span class="line">					<span class="keyword">self</span>.state = <span class="keyword">if</span> *second_chance &#123;</span><br><span class="line">						ExceptionateIteratorState::Job(<span class="keyword">self</span>.exception.thread.proc().job())</span><br><span class="line">					&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">						ExceptionateIteratorState::Thread</span><br><span class="line">					&#125;;</span><br><span class="line">					<span class="keyword">return</span> <span class="literal">Some</span>(proc.get_debug_exceptionate());</span><br><span class="line">				&#125;</span><br><span class="line">				ExceptionateIteratorState::Thread =&gt; &#123;</span><br><span class="line">					<span class="keyword">self</span>.state = ExceptionateIteratorState::Process;</span><br><span class="line">					<span class="keyword">return</span> <span class="literal">Some</span>(<span class="keyword">self</span>.exception.thread.get_exceptionate());</span><br><span class="line">				&#125;</span><br><span class="line">				ExceptionateIteratorState::Process =&gt; &#123;</span><br><span class="line">					<span class="keyword">let</span> proc = <span class="keyword">self</span>.exception.thread.proc();</span><br><span class="line">					<span class="keyword">self</span>.state = ExceptionateIteratorState::<span class="built_in">Debug</span>(<span class="literal">true</span>);</span><br><span class="line">					<span class="keyword">return</span> <span class="literal">Some</span>(proc.get_exceptionate());</span><br><span class="line">				&#125;</span><br><span class="line">				ExceptionateIteratorState::Job(job) =&gt; &#123;</span><br><span class="line">					<span class="keyword">let</span> parent = job.parent();</span><br><span class="line">					<span class="keyword">let</span> result = job.get_exceptionate();</span><br><span class="line">					<span class="keyword">self</span>.state = parent.map_or(</span><br><span class="line">						ExceptionateIteratorState::Finished,</span><br><span class="line">						ExceptionateIteratorState::Job,</span><br><span class="line">					);</span><br><span class="line">					<span class="keyword">return</span> <span class="literal">Some</span>(result);</span><br><span class="line">				&#125;</span><br><span class="line">				ExceptionateIteratorState::Finished =&gt; <span class="keyword">return</span> <span class="literal">None</span>,</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里我们直接实现了 Rust 的 <code>Iterator</code> trait，这样就可以直接使用 <code>for in</code> 来取出 <code>Exceptionate</code> 的引用了。具体的实现就是经典的状态机，用 Enum 来表示接下来考虑什么类型的 Exception Channel 。另外在迭代过程中我们还读取了异常是否允许第二次机会，并以此决定是否要使用 Process 上的调试用 Exception Channel 。</p>
+<h3 id="抛出异常"><a href="#抛出异常" class="headerlink" title="抛出异常"></a>抛出异常</h3><p>接下来我们就可以在内核的其他地方生成并发送异常了。作为最典型的例子，我们来看 CPU 生成的异常如何处理。为了便于理解，下面的代码进行了许多简化。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">spawn</span></span>(thread: Arc&lt;Thread&gt;) &#123;</span><br><span class="line">	<span class="keyword">let</span> vmtoken = thread.proc().vmar().table_phys();</span><br><span class="line">	<span class="keyword">let</span> future = <span class="keyword">async</span> <span class="keyword">move</span> &#123;</span><br><span class="line">		<span class="keyword">let</span> <span class="keyword">mut</span> exit = <span class="literal">false</span>;</span><br><span class="line">		<span class="comment">// 一旦需要线程结束就结束</span></span><br><span class="line">		<span class="keyword">while</span> !exit &#123;</span><br><span class="line">			<span class="keyword">let</span> <span class="keyword">mut</span> cx = thread.wait_for_run().<span class="keyword">await</span>;</span><br><span class="line">			<span class="keyword">if</span> thread.state() == ThreadState::Dying &#123;</span><br><span class="line">				<span class="keyword">break</span>;</span><br><span class="line">			&#125;</span><br><span class="line">			kernel_hal::context_run(&amp;<span class="keyword">mut</span> cx);</span><br><span class="line">			<span class="meta">#[cfg(target_arch = <span class="meta-string">"x86_64"</span>)]</span></span><br><span class="line">			<span class="keyword">match</span> cx.trap_num &#123;</span><br><span class="line">				<span class="number">0x100</span> =&gt; exit = handle_syscall(&amp;thread, &amp;<span class="keyword">mut</span> cx.general).<span class="keyword">await</span>,</span><br><span class="line">				<span class="number">0x20</span>..=<span class="number">0x3f</span> =&gt; &#123;</span><br><span class="line">					<span class="comment">// 这里省略</span></span><br><span class="line">				&#125;</span><br><span class="line">				<span class="number">0xe</span> =&gt; &#123;</span><br><span class="line">					<span class="meta">#[cfg(target_arch = <span class="meta-string">"x86_64"</span>)]</span></span><br><span class="line">					<span class="keyword">let</span> flags = &#123;</span><br><span class="line">						<span class="comment">// 这里省略</span></span><br><span class="line">					&#125;;</span><br><span class="line">					<span class="keyword">match</span> thread</span><br><span class="line">						.proc()</span><br><span class="line">						.vmar()</span><br><span class="line">						.handle_page_fault(kernel_hal::fetch_fault_vaddr(), flags)</span><br><span class="line">					&#123;</span><br><span class="line">						<span class="literal">Ok</span>(()) =&gt; &#123;&#125;</span><br><span class="line">						<span class="literal">Err</span>(e) =&gt; &#123;</span><br><span class="line">							<span class="comment">// 无法处理的页错误</span></span><br><span class="line">							<span class="keyword">let</span> exception = Exception::create(</span><br><span class="line">								thread.clone(),</span><br><span class="line">								ExceptionType::FatalPageFault,</span><br><span class="line">								<span class="literal">Some</span>(&amp;cx),</span><br><span class="line">							);</span><br><span class="line">							<span class="keyword">if</span> !exception.handle(<span class="literal">true</span>).<span class="keyword">await</span> &#123;</span><br><span class="line">								<span class="comment">// 通过设置 exit 变量来退出线程</span></span><br><span class="line">								exit = <span class="literal">true</span>;</span><br><span class="line">							&#125;</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="number">0x8</span> =&gt; &#123;</span><br><span class="line">					<span class="built_in">panic!</span>(<span class="string">"Double fault from user mode! &#123;:#x?&#125;"</span>, cx);</span><br><span class="line">				&#125;</span><br><span class="line">				num =&gt; &#123;</span><br><span class="line">					<span class="comment">// 其它杂七杂八的异常类型</span></span><br><span class="line">					<span class="keyword">let</span> type_ = <span class="keyword">match</span> num &#123;</span><br><span class="line">						<span class="number">0x1</span> =&gt; ExceptionType::HardwareBreakpoint,</span><br><span class="line">						<span class="number">0x3</span> =&gt; ExceptionType::SoftwareBreakpoint,</span><br><span class="line">						<span class="number">0x6</span> =&gt; ExceptionType::UndefinedInstruction,</span><br><span class="line">						<span class="number">0x17</span> =&gt; ExceptionType::UnalignedAccess,</span><br><span class="line">						_ =&gt; ExceptionType::General,</span><br><span class="line">					&#125;;</span><br><span class="line">					<span class="keyword">let</span> exception = Exception::create(thread.clone(), type_, <span class="literal">Some</span>(&amp;cx));</span><br><span class="line">					<span class="keyword">if</span> !exception.handle(<span class="literal">true</span>).<span class="keyword">await</span> &#123;</span><br><span class="line">						exit = <span class="literal">true</span>;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			thread.end_running(cx);</span><br><span class="line">			<span class="keyword">if</span> exit &#123;</span><br><span class="line">				<span class="keyword">break</span>;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">// 结束线程</span></span><br><span class="line">		thread.terminate();</span><br><span class="line">	&#125;;</span><br><span class="line">	kernel_hal::Thread::spawn(<span class="built_in">Box</span>::pin(future), vmtoken);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，在 zCore 中用户线程是当作一个 Future 来运行的，在运行 Future 的过程中，我们会在一个大循环里不断切换到用户态，并通过硬件中断切换回来。从用户态切换回来后，我们会对中断进行处理。对于异常的情况，我们直接根据中断编号确定异常的种类，并根据寄存器状态生成异常的基本信息，最后直接使用异常上的 <code>handle</code> 方法进行处理即可。最后根据 <code>handle</code> 方法的返回值确定是否已经终止了进程，若是则终止循环，线程也就跟着终止了。</p>
+<p>对于其它的异常也是类似的实现方法。当然对于与 Task 生命周期相关的异常会在尝试的 Exception Channel 种类上略有不同，但是大体上差不多。最为特殊的是线程退出的异常，由于我们不一定需要等待异常处理完毕，同时需要保证一定尝试向 Process 上的调试用 Exception Channel 发送 Exception，所以我们直接使用对应 <code>Exceptionate</code> 的 <code>send_exception</code> 方法发送异常，并只在需要的时候等待异常处理完成。</p>
+<h2 id="测试-Exception-Channel"><a href="#测试-Exception-Channel" class="headerlink" title="测试 Exception Channel"></a>测试 Exception Channel</h2><p>现在我们实现得差不多了，可以开始测试了。Exception Channel 的测试们除了测试 Exception Channel 机制本身，同时也测试了整个 Task 模块的实现，所以接下来还会提到 Task 模块里的各种问题和细节。</p>
+<h3 id="core-test"><a href="#core-test" class="headerlink" title="core-test"></a>core-test</h3><p>首先是 zircon 的核心测试 core-test 。在 core-test 中其实有不少使用了 Exception Channel 的测试，但是大部分是在使用 Exception Channel 来确认某些操作确实产生了异常，或是在线程启动时进行一些准备操作。对我们来说，比较重要的是 <code>Threads.ThreadStartWithZeroInstructionPointer</code> <code>Threads.SuspendMultiple</code> <code>Threads.KillSuspendedThread</code> 这几个与线程的状态有关的测试，测试的源代码可以在 <a href="https://fuchsia.googlesource.com/fuchsia/+/2d323540e1cfaf3a99926f13e0b6c3c2efaea5d5/zircon/system/utest/core/threads/threads.cc" target="_blank" rel="noopener">Fuchsia 的代码仓库</a> 找到。</p>
+<p>从 <code>Threads.SuspendMultiple</code> 测试中可以发现，就算一个线程在处理异常的时候同时被 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/task_suspend" target="_blank" rel="noopener">zx_task_suspend</a> 系统调用暂停了，线程的状态应该为 BlockedException 状态而非 Suspend 状态。而如果看其他测试，可以发现对于其他 Blocked 的状态， Suspend 状态会将其覆盖。这一点在 Fuchsia 的文档里没有记载，为此我改了一通 Thread 的状态转换。</p>
+<h3 id="exception-test"><a href="#exception-test" class="headerlink" title="exception-test"></a>exception-test</h3><p>接下来是大头：专门测试 Exception Channel 的 exception-test。exception-test 的代码可以在 <a href="https://fuchsia.googlesource.com/fuchsia/+/2d323540e1cfaf3a99926f13e0b6c3c2efaea5d5/src/zircon/tests/exception/exception.cc" target="_blank" rel="noopener">Fuchsia 的代码仓库</a> 找到。Fuchsia 默认不会编译 exception-test，所以我需要自行手动编译 Fuchsia。为此我下载了 Fuchsia，配了编译的环境。这里按照 <a href="https://fuchsia.dev/fuchsia-src/getting_started" target="_blank" rel="noopener">官方介绍</a> 就可以搞定，我只需要自行设置代理相关的环境变量即可。之后就可以开始编译了。由于 zircon 和 zCore 的实现略有区别，所以需要对 Fuchsia 代码进行些许的改变才能进行编译。具体的可以看 <a href="https://github.com/rcore-os/zCore/blob/master/scripts/gen-prebuilt.sh" target="_blank" rel="noopener">zCore 仓库内的编译脚本</a>。当然，因为 Fuchsia 源码有些许变动，所以我们需要手动编辑一下同文件夹下的 patch 文件，具体的这里就略过了。最后，在 <code>fx set</code> 这一行内加上 <code>--with-base //src/zircon/tests/exception:exception-package</code> 参数，我们就可以在 zCore 加载之后直接使用 exception-test 了。不过，不知为何，用我编译出来的镜像启动时会因为某种原因无法加载 <code>/boot/test/</code> 路径下的测试二进制，所以我用 Fuchsia 编译出来的 zbi 镜像操作工具把它挪到了 <code>/boot/bin/</code> 里。</p>
+<p>在 exception-test 中还是发现了一些实现上的问题的：</p>
+<ul>
+<li>在 <code>ExceptionTest.ThreadLifecycleChannelExceptions</code> 测试中，线程退出时无法触发线程退出的异常。这是因为杀死进程之后进程过早结束关闭了 <code>Exceptionate</code> 导致的。为此我修改了 Task 结束的行为，让 Task 在等待子 Task 完全结束后再完全终止，在此时再关闭了 <code>Exceptionate</code> 并设置信号等等。</li>
+<li>在 <code>ExceptionTest.ProcessLifecycleJobChannel</code> 测试中，我们发现一个没有子 Task 的 Job 应当在引用它的 Handle 被全部关闭之后自动结束。这意味着我们存储 Job 的子 Job 的时候应该用弱引用 <code>Weak</code> 而非强引用 <code>Arc</code> ，并且应当为 Job 实现 <code>Drop</code> trait 使得它会在销毁时完成结束 Job 的过程。</li>
+<li>在 <code>ExceptionTest.LifecycleBlocking</code> 测试中，我们发现对于线程退出的异常，如果线程是被杀死的，它应当发送完异常后直接结束，而如果线程是自行结束的，它应当等待异常处理。这意味着线程结束时还需要考虑它结束的方式。</li>
+</ul>
+<p>至此 exception-test 中的 48 个测试除了涉及到还未实现的 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/thread_read_state" target="_blank" rel="noopener">zx_thread_read_state</a> 与 <a href="https://fuchsia.dev/fuchsia-src/reference/syscalls/thread_write_state" target="_blank" rel="noopener">zx_thread_write_state</a> 两个系统调用的 6 个测试以外，剩下的 42 个测试都已经完全通过了。Exception Channel 的实现看来已经很完善了。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>Exception Channel 实现了之后，可以用它来对一些会触发异常的系统调用进行测试了。比如在内存相关的测试以及硬件驱动相关的测试中，可以检测这些测试中触发的页错误以及特权保护异常了。实现 Exception Channel 之后还有一个结果，就是用户程序的异常可以触发系统级的 crashsvc 了。这意味着系统会尝试为异常退出的进程生成核心转储文件了。虽然 crashsvc 还至少需要有 zx_thread_read_state 和 zx_thread_write_state 这两个系统调用、能够读取异常线程的寄存器状态，才可能完全正常工作，但至少走到到这一步算是一个很大的进步了。</p>
+<p>至于之后的工作，一个是 zx_thread_read_state 和 zx_thread_write_state ，另一个是 Job 的权限管理机制。除此之外当然还是得修修 bug。至于更远的之后再看吧。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-benpigchu/" rel="tag"># author:benpigchu</a>
+              <a href="/blog/tags/repo-zCore/" rel="tag"># repo:zCore</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2020/08/01/rcore/" rel="prev" title="rcore">
+      <i class="fa fa-chevron-left"></i> rcore
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2020/08/30/report-of-rCore-to-zCore/" rel="next" title="rCore 到 zCore 功能迁移组报告">
+      rCore 到 zCore 功能迁移组报告 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

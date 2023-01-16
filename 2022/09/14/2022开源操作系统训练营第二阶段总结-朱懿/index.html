@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="2022 开源操作系统训练营第二阶段总结2022.09 朱懿 在第一阶段学习了rust和操作系统实验的基础上，第二阶段我基于我的兴趣，选择了虚拟机的方向，经过前期的调查了解研究，发现，在夏令营第二阶段设计的虚拟化的几个方向中，对于偏向硬件的虚拟机方向，已经有人做出了实现。然而我注意到，目前为止，所有的工作仍然没有人注意到操作系统级的虚拟化的方向，也就是容器化的方向。因此，在自己感兴趣的前提下，第二">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2022开源操作系统训练营第二阶段总结-朱懿">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2022/09/14/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9C%B1%E6%87%BF/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="2022 开源操作系统训练营第二阶段总结2022.09 朱懿 在第一阶段学习了rust和操作系统实验的基础上，第二阶段我基于我的兴趣，选择了虚拟机的方向，经过前期的调查了解研究，发现，在夏令营第二阶段设计的虚拟化的几个方向中，对于偏向硬件的虚拟机方向，已经有人做出了实现。然而我注意到，目前为止，所有的工作仍然没有人注意到操作系统级的虚拟化的方向，也就是容器化的方向。因此，在自己感兴趣的前提下，第二">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2022-09-14T08:34:17.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.582Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="summerofcode2022">
+<meta property="article:tag" content="author:ZhiyuanSue">
+<meta property="article:tag" content="virtualization">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2022/09/14/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9C%B1%E6%87%BF/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2022开源操作系统训练营第二阶段总结-朱懿 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#2022-开源操作系统训练营第二阶段总结"><span class="nav-number">1.</span> <span class="nav-text">2022 开源操作系统训练营第二阶段总结</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#项目背景及前期学习路线"><span class="nav-number">1.1.</span> <span class="nav-text">项目背景及前期学习路线</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#项目背景"><span class="nav-number">1.1.1.</span> <span class="nav-text">项目背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#zcore学习路线"><span class="nav-number">1.1.2.</span> <span class="nav-text">zcore学习路线</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Linux-namespace学习路线"><span class="nav-number">1.1.3.</span> <span class="nav-text">Linux namespace学习路线</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-总体"><span class="nav-number">1.1.3.1.</span> <span class="nav-text">1&#x2F;总体</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-user-ns"><span class="nav-number">1.1.3.2.</span> <span class="nav-text">2&#x2F;user ns</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-mnt-ns"><span class="nav-number">1.1.3.3.</span> <span class="nav-text">3&#x2F;mnt ns</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-net-ns"><span class="nav-number">1.1.3.4.</span> <span class="nav-text">4&#x2F;net ns</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-pid-ns"><span class="nav-number">1.1.3.5.</span> <span class="nav-text">5&#x2F;pid ns</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#6-uts-ns"><span class="nav-number">1.1.3.6.</span> <span class="nav-text">6&#x2F;uts ns</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#7-ipc-ns"><span class="nav-number">1.1.3.7.</span> <span class="nav-text">7&#x2F;ipc ns</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#zcore调试和理解相关部分"><span class="nav-number">1.2.</span> <span class="nav-text">zcore调试和理解相关部分</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#增加自己写的C测例"><span class="nav-number">1.2.1.</span> <span class="nav-text">增加自己写的C测例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#zcore的namespace改造实现"><span class="nav-number">1.3.</span> <span class="nav-text">zcore的namespace改造实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-整体数据结构"><span class="nav-number">1.3.0.1.</span> <span class="nav-text">1&#x2F;整体数据结构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-clone函数的改造"><span class="nav-number">1.3.0.2.</span> <span class="nav-text">2&#x2F;clone函数的改造</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-uts-ns的改造"><span class="nav-number">1.3.0.3.</span> <span class="nav-text">3&#x2F;uts ns的改造</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-pid-ns的改造"><span class="nav-number">1.3.0.4.</span> <span class="nav-text">4&#x2F;pid ns的改造</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-ipc-ns"><span class="nav-number">1.3.0.5.</span> <span class="nav-text">5&#x2F;ipc ns</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#6-mnt-ns"><span class="nav-number">1.3.0.6.</span> <span class="nav-text">6&#x2F;mnt ns</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TODO"><span class="nav-number">1.4.</span> <span class="nav-text">TODO</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#net-ns的完善"><span class="nav-number">1.4.1.</span> <span class="nav-text">net ns的完善</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#cgroup及相关设计"><span class="nav-number">1.4.2.</span> <span class="nav-text">cgroup及相关设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#zcore整体架构的改动可能性"><span class="nav-number">1.4.3.</span> <span class="nav-text">zcore整体架构的改动可能性</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-为整个内核及整个文件系统统一化设计"><span class="nav-number">1.4.3.1.</span> <span class="nav-text">1&#x2F;为整个内核及整个文件系统统一化设计</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-添加user-group-other的权限控制设计（可选）"><span class="nav-number">1.4.3.2.</span> <span class="nav-text">2&#x2F;添加user&#x2F;group&#x2F;other的权限控制设计（可选）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-在整个架构的设计中就嵌入namespace"><span class="nav-number">1.4.3.3.</span> <span class="nav-text">3&#x2F;在整个架构的设计中就嵌入namespace</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-mount系统调用的实现（可选）"><span class="nav-number">1.4.3.4.</span> <span class="nav-text">4&#x2F;mount系统调用的实现（可选）</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#感想"><span class="nav-number">1.5.</span> <span class="nav-text">感想</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">1.6.</span> <span class="nav-text">参考资料</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2022/09/14/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9C%B1%E6%87%BF/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2022开源操作系统训练营第二阶段总结-朱懿
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-09-14 08:34:17" itemprop="dateCreated datePublished" datetime="2022-09-14T08:34:17+00:00">2022-09-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="2022-开源操作系统训练营第二阶段总结"><a href="#2022-开源操作系统训练营第二阶段总结" class="headerlink" title="2022 开源操作系统训练营第二阶段总结"></a>2022 开源操作系统训练营第二阶段总结</h1><p>2022.09 朱懿</p>
+<p>在第一阶段学习了rust和操作系统实验的基础上，第二阶段我基于我的兴趣，选择了虚拟机的方向，经过前期的调查了解研究，发现，在夏令营第二阶段设计的虚拟化的几个方向中，对于偏向硬件的虚拟机方向，已经有人做出了实现。然而我注意到，目前为止，所有的工作仍然没有人注意到操作系统级的虚拟化的方向，也就是容器化的方向。因此，在自己感兴趣的前提下，第二阶段我选择了容器化的这个虚拟机的方向进行学习和研究。</p>
+<p>（当然，也因为没有前人在这方面的相关工作，我在这方面的学习研究，不能说举步维艰吧，只能说从0到1）</p>
+<p>因此，尽管最后在zcore上面的改造不算成功，但我会尽量详尽的结合我在项目里面的log记录，省却大量无用的吐槽，希望为后来者提供一些可行的资料和设计思路。</p>
+<a id="more"></a>
+<h2 id="项目背景及前期学习路线"><a href="#项目背景及前期学习路线" class="headerlink" title="项目背景及前期学习路线"></a>项目背景及前期学习路线</h2><h3 id="项目背景"><a href="#项目背景" class="headerlink" title="项目背景"></a>项目背景</h3><p>容器化的虚拟化，最典型的代表就是docker——我想来读这篇文档的人肯定用过的。</p>
+<p>容器化需要内核支持namespace和cgroup相关的功能，在此基础之上封装了一些东西。其中，namespace主要用于各类资源的隔离，而cgroup则用于控制各类资源的使用。而zcore（包括rcore）本身并没有支持这些。因此，我试图进行相关内容的学习，并且在zcore的基础上，简单实现namespace的功能。至于cgroup的部分，我涉及的不多。但总体而言，需要更多的系统调用的改写。</p>
+<p>下面的学习路线，如果有所缺失的部分，可以读我列举出来的参考，以及我的ppt（大概是简单的不能再简单的简单版）。需要阅读了解的内容颇多，而为了适应zcore做的调整和设计上的适应也不少。</p>
+<h3 id="zcore学习路线"><a href="#zcore学习路线" class="headerlink" title="zcore学习路线"></a>zcore学习路线</h3><p>1/关于zcore进入其内核的过程，感谢<a href="https://github.com/wyfcyx/osnotes/tree/master/os/zCore" target="_blank" rel="noopener">https://github.com/wyfcyx/osnotes/tree/master/os/zCore</a> 这位大佬的文档，让我少走了不少弯路，基本上看着这个也能理解其进入内核的过程。推荐先进行阅读然后再来整体理解zcore</p>
+<p>2/关于zcore在zircon上面封装了一层Linux的大概情况。（我只能说这么封装的人，真是个天才，也是我最终这个项目没能好好完成的一个重大原因）</p>
+<p>先说zircon内核。其实如果不限定为riscv的话，据说是可以直接跑zircon的。当然测例有没有我就不知道了，我不干这个的。</p>
+<p>在zcore/zircon-object下面是zircon的内核代码。</p>
+<p>我认为其中最核心的部分是object文件夹下面，简单来说，这个内核把所有的内核里面的东西都看作某种kernel object。所以你去看zircon里面的代码，基本上所有数据结构，开头都有一个base，这个base是kernel object就是基类，相当于作为一个类的继承吧。（在这里的设计，我觉得还是基本上一脉相承的，但是到了上面封装的Linux层就各种自行其是了）</p>
+<p>在整个namespace相关的学习路线中，最重要的是process，从zircon中的processor到Linux processor的转变。</p>
+<p>在zircon中，增加了一个create_with_ext函数，用于创建包括了Linux扩展的进程控制块。</p>
+<p>而在上层的Linux层中（在zcore/linux_object/process.rs），实现了一个扩展的trait，用于创建和从processor访问linux processor。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">pub trait ProcessExt &#123;</span><br><span class="line">    fn create_linux(job: &amp;Arc&lt;Job&gt;, rootfs: Arc&lt;dyn FileSystem&gt;) -&gt; ZxResult&lt;Arc&lt;Self&gt;&gt;;</span><br><span class="line">    fn linux(&amp;self) -&gt; &amp;LinuxProcess;</span><br><span class="line">    fn fork_from(parent: &amp;Arc&lt;Self&gt;, vfork: bool) -&gt; ZxResult&lt;Arc&lt;Self&gt;&gt;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这里面的create_linux调用了前面的create_with_ext函数，去进行创建。</p>
+<p>而linux函数，通过不知道怎么弄出来的特别方式，得到了一个linuxprocess的引用</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fn linux(&amp;self) -&gt; &amp;LinuxProcess &#123;</span><br><span class="line">        self.ext().downcast_ref::&lt;LinuxProcess&gt;().unwrap()</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>做mnt ns时让我无奈的地方也在于此，LinuxProcess里面总共定义了三个，root_inode，parent，inner，其中，parent肯定不能改，inner是可以通过一些办法更改的，但是root_inode则理论上是可以chroot来更改的，然而由于这在这里写死了，我实在改不了root_inode，要么大修。</p>
+<p>总之，在syscall里面，要得到zircon，就调用zircon_process，或者self.thread.proc，这是一样的，如果要得到zircon process的扩展，在此基础上调用linux，就用self.thread.proc().linux()，也即是self.zircon_process().linux()</p>
+<p>之所以强调这部分，是因为syscall的进入点都是从某个进程实例开始的，理解这部分才好继续下去。</p>
+<h3 id="Linux-namespace学习路线"><a href="#Linux-namespace学习路线" class="headerlink" title="Linux namespace学习路线"></a>Linux namespace学习路线</h3><p>这部分内容还是挺多的，建议看ppt先了解个大概再深入，我下面给出了不少参考资料，我不想把这里面的东西全都抄一遍，这没啥用，当然你要是对Linux内核熟悉，直接看内核也很不错的。</p>
+<h4 id="1-总体"><a href="#1-总体" class="headerlink" title="1/总体"></a>1/总体</h4><p>涉及到ns的内核函数包括clone，setns，unshare</p>
+<p>ns的创建，从clone（）函数开始，使用不同的flag用于创建不同的ns。</p>
+<p>clone函数，新进程，创建并加入新ns</p>
+<p>setns函数，已有进程，加入已有的ns</p>
+<p>unshare函数，已有的进程，创建并加入新的ns</p>
+<p>（没有创建新进程的时候就加入已经存在的ns的选项。或者确切的说，如果不加flag，会加入父进程所在的ns，之后调用setns或者unshare去加入另一个ns，这样的组合即可。）</p>
+<p>父子ns之间的关系，在linux中，除了pid ns之外，都是按照扁平结构去进行存储的，但是pid ns，由于其本身的设计需要向parent传递pid并进行映射，因此，pid ns中，父子ns是按照树状结构进行存储的。</p>
+<p>每个process里面都有一个ns_proxy结构体。ns_proxy指向每个process各个namespace。</p>
+<h4 id="2-user-ns"><a href="#2-user-ns" class="headerlink" title="2/user ns"></a>2/user ns</h4><p>User ns本身是权限控制系统的核心，所有的ns都会指向user ns的结构体。一个user ns就代表某个user。</p>
+<p>一方面，某个user ns需要进行user ns的映射。我的理解是，某个user在另一个user ns中代表着什么，可以是group，也可以是同一个user</p>
+<p>另一方面是权限的控制。在子ns中的权限，在owner进程看来是root权限，但是他实际的权限受限于该user ns的权限。</p>
+<p>user ns的创建不需要权限，但是其他的ns的创建需要该ns拥有CAP_SYS_ADMIN权限。</p>
+<p>各种各样的权限可以在linux内核中include/uapi/linux/capability.h去找到。</p>
+<h4 id="3-mnt-ns"><a href="#3-mnt-ns" class="headerlink" title="3/mnt ns"></a>3/mnt ns</h4><p>mnt ns是linux 内核最开始实现的一个ns，确切的说，从一开始，人家压根儿没考虑多个ns，所以很多，比如说flag什么都是newns，而不是newmount来命名的。</p>
+<p>mnt ns我看了之后认为最核心的部分就在于copy tree函数，就是将整个inode树都复制一遍。</p>
+<p>shared subtree和propagate type</p>
+<p>引入这些概念的目的是为了分开来的inode树可以共享某些节点，应用场景如下，比如host和虚拟机用了两颗inode树，然后现在插入一个新磁盘，要不要让这个磁盘在host和虚拟机都看得见文件系统？这就是传播属性的作用。但是这样一来，需要更改文件系统。这更为复杂一些。</p>
+<h4 id="4-net-ns"><a href="#4-net-ns" class="headerlink" title="4/net ns"></a>4/net ns</h4><p>不太熟，自己去找找参考文档吧，一堆东西看晕我了。</p>
+<h4 id="5-pid-ns"><a href="#5-pid-ns" class="headerlink" title="5/pid ns"></a>5/pid ns</h4><p>pid ns最大的特点，我看了一圈，应该是在于父pid ns 里面能够看见子pid ns里面的进程，但反过来看不到。</p>
+<p>因此为了支持这个东西，需要从当前的pid ns向上不断的在每个ns中进行pid的映射。</p>
+<h4 id="6-uts-ns"><a href="#6-uts-ns" class="headerlink" title="6/uts ns"></a>6/uts ns</h4><p>uts namespace的部分，自己百度一下吧，我懒得说了，可以更改的就两个字符串，域名和主机名，不能改的倒是有几个字符串，但说到底就是几个字符串。</p>
+<h4 id="7-ipc-ns"><a href="#7-ipc-ns" class="headerlink" title="7/ipc ns"></a>7/ipc ns</h4><p>ipc ns我认为是由于pid ns里面，在父pid ns里面看得见子ns里面的进程，所以进程间的通信就不那么保险了，因此加了这个。</p>
+<p>其实际的实现，是在每个pid ns中封装了信号量，semaphore，shared memory的队列。然后从外面就看不到了</p>
+<h2 id="zcore调试和理解相关部分"><a href="#zcore调试和理解相关部分" class="headerlink" title="zcore调试和理解相关部分"></a>zcore调试和理解相关部分</h2><p>这部分内容主要是给后来者进行参考的，我实在无法找到完整的zcore的整个开发文档，希望能够免去大量的时间用于调整代码和理解代码。</p>
+<p>我的调试目标是riscv64的linux。绝大部分的改动也是在这个Linux层面去进行改动的。</p>
+<h3 id="增加自己写的C测例"><a href="#增加自己写的C测例" class="headerlink" title="增加自己写的C测例"></a>增加自己写的C测例</h3><p>这里我走过不少弯路，包括但不限于，花费大量时间去编译x86到musl的rust交叉编译器（这个玩意儿本身没有直接安装的办法，只能去下载源码然后进行编译，然而他的源码，整个包加上附加的子模块，加起来应该有好几个gb，偏偏又都是国外的镜像，不翻墙很慢。）然后编译完了之后还发现找不到头文件</p>
+<p>但是实际上，完全无需那么麻烦，一个可行的做法如下</p>
+<p>在zcore/linux-syscall/test下面增加一个你自己写的C文件。然后运行cargo other-test —arch riscv64，随后你就能在zcore运行起来之后的bin文件夹下面发现你写的项目，从而进行测试。</p>
+<p>当然，这些个C代码调用的系统调用接口，使用的就是你zcore的linux层面的系统调用。</p>
+<h2 id="zcore的namespace改造实现"><a href="#zcore的namespace改造实现" class="headerlink" title="zcore的namespace改造实现"></a>zcore的namespace改造实现</h2><p>这一部分主要描述我试图做的改造。</p>
+<p>我不得不承认我在这方面的改动没有全部完成，尤其是测试样例和修bug等等，可惜夏令营就那么点时间。</p>
+<p>从原生的linux的设计角度来看，namespace应当是组成内核的一部分，甚至在内核第一个进程创建之前就对每种类型的ns初始化了一个init的ns，然而在这里，我不得不以一个类似于插件的形式去试图改造他，目的是尽可能的不改动原来的代码（如果改了那会是相当讨厌的一项工作）</p>
+<p>也因此，我没有试图像Linux那样去实现，毕竟这是完全不同的两个内核——从我本来的想法而言，我只需要让用户看不到即可，至于完全复制Linux的做法是不现实的，因此我做了很多设计上的改动。</p>
+<h4 id="1-整体数据结构"><a href="#1-整体数据结构" class="headerlink" title="1/整体数据结构"></a>1/整体数据结构</h4><p>这部分主要是在Linux_object/src/namespace中</p>
+<p>对于所有的namespace，用一个trait来实现多态和继承。让所有的ns，都可以在一个ns manager中进行记录和管理。由于基于zircon，我给他添加了一个kernel object的base，用于在zcore中唯一标识。同时，我一样在相关函数接口中，尽量使用namespace的KoID和processor的KoID去进行相关数据结构的管理——相比于直接引用当然会麻烦一些，但是，这样会较好的绕过rust一堆复杂的规则——而且确实能用。</p>
+<p>在每个ns中，还有各自的数据结构，以及相应的各自所使用的函数。</p>
+<p>对于创建一个子ns之后，父子ns之间的关系，虽然linux中只有pidns是树状结构，但是为了统一设计，在这里，我都使用了树状结构。</p>
+<p>每个process结构体里面，则增加了ns_proxy字段，用于集中描述某个process使用的每个类型的ns。</p>
+<h4 id="2-clone函数的改造"><a href="#2-clone函数的改造" class="headerlink" title="2/clone函数的改造"></a>2/clone函数的改造</h4><p>正如前面说的那样，ns的创建是从clone函数开始的。clone的几个flag具体对应的值，在linux-syscall/src/task.rs最底下有相关介绍的值，所以在system call中，首先需要改写sys_clone函数。</p>
+<p>clone函数在linux的实现，既包括了thread的创建，也包括了process的创建，显然thread跟我们无关，因为ns是和进程相关的概念，因此去改变fork_from即可。不巧的是，fork_from函数的入参——显然不能改变，但是他也没包括flags。由于rust不像c，所以我试了不少办法试图让flag传递进去，最后不得不用一个不太优雅的方式。</p>
+<p>我在父进程的ns_proxy中记录传递的flag，然后在fork之后就清理掉他。至少子进程能够读取父进程的这一信息。通过这样把flag传递进去。</p>
+<p>随后，根据不同的flag，dispatch各种情况，如果某个flag置位了，那么就创建一个子ns，并且将子进程的加入到那个ns中去。</p>
+<p>不过，我没有实现setns和unshare。就这两个函数而言，没什么难度，后者只不过是这个dispatch的复制罢了，而前者，需要得到另一个进程所在的某种类型的ns的id号。然而，没有ps命令，更无从谈起看到另一进程的ns——当然直接加这个函数还是简单的，改写proc中ns_proxy的某个值即可，可是，用户无从知晓KoID，又有什么意义呢。</p>
+<h4 id="3-uts-ns的改造"><a href="#3-uts-ns的改造" class="headerlink" title="3/uts ns的改造"></a>3/uts ns的改造</h4><p>uts ns的改造是我最开始做的，原因很简单，就两个字符串要改，对于整个项目而言是不错的测试情况。</p>
+<p>为此，一方面，需要使用sethostname和setdomainname两个系统调用来改字符串，另一方面需要在uname系统调用中，进行输出。</p>
+<p>原先在misc.rs中实现了一个uname函数。在此，只需要将取得这两个字符串的操作指向对应的uts ns即可。</p>
+<h4 id="4-pid-ns的改造"><a href="#4-pid-ns的改造" class="headerlink" title="4/pid ns的改造"></a>4/pid ns的改造</h4><p>原先的pid 使用的是zircon内核的KoID作为其pid，但是显然，这玩意儿并不是从0开始的。我并不想像Linux那样抄一个。其实就是个数字。</p>
+<p>建立proc的时候，递归的向上找到父ns，然后去给他分配一个pid。</p>
+<p>然后使用pid的syscall的时候，去找对应的ns，然后找到对应的pid即可。</p>
+<h4 id="5-ipc-ns"><a href="#5-ipc-ns" class="headerlink" title="5/ipc ns"></a>5/ipc ns</h4><p>按照Linux的思路，要全都在这里面创建。</p>
+<p>我寻思了一下，为什么不能在创建的时候，他会给一个KoID对吧，在ns中收集这些KoID，然后在其他的syscall的时候，查看该ipc量的KoID所在的ns是否满足条件呢。这样虽然在内核中仍然能够访问所有的信号量，共享内存等等，但是只要用户看不见就可以了呀。</p>
+<h4 id="6-mnt-ns"><a href="#6-mnt-ns" class="headerlink" title="6/mnt ns"></a>6/mnt ns</h4><p>这部分的改造真的让我头痛。主要是他用的是rcore-fs。最后，干脆不copy tree了，直接新建一个算了。我也没测试。不懂这玩意怎么改。</p>
+<h2 id="TODO"><a href="#TODO" class="headerlink" title="TODO"></a>TODO</h2><h3 id="net-ns的完善"><a href="#net-ns的完善" class="headerlink" title="net ns的完善"></a>net ns的完善</h3><p>正如前面所提到的，net ns我没有尝试去实现，因为看上去太过复杂。</p>
+<p>从设计的角度来说，只不过让net ns去持有网络中应该有的数据结构，我个人看下代码来的感觉，直接持有socket即可，而每次进行网络的系统调用之时，不再使用全局的socket，而是使用进程对应的net ns中的socket，从而完善net ns的内容。</p>
+<p>（实在是一大堆的missing document劝退了我）</p>
+<h3 id="cgroup及相关设计"><a href="#cgroup及相关设计" class="headerlink" title="cgroup及相关设计"></a>cgroup及相关设计</h3><p>可行的做法：正如Linux中的设计一样，最好每个子系统都维护自己的资源管理结构。而cgroup则负责指向这些结构。</p>
+<p>同时，Linux中，cgroup规定了每个子系统需要实现的函数指针，让子系统各自自己实现，而不是统一实现，这使用rust的trait可以很轻易的去完成。在每次系统调用的时候，加以判定即可。</p>
+<p>除此之外，还有cgroup的挂载等等，这些我不多说了，在上述的部分完成了之后不会很复杂。</p>
+<h3 id="zcore整体架构的改动可能性"><a href="#zcore整体架构的改动可能性" class="headerlink" title="zcore整体架构的改动可能性"></a>zcore整体架构的改动可能性</h3><p>这部分我想说，或者说我的想法还是不少的——尽管我不知道有生之年吧，我会不会重启或者后面会不会有人接续着做容器化的方向。</p>
+<h4 id="1-为整个内核及整个文件系统统一化设计"><a href="#1-为整个内核及整个文件系统统一化设计" class="headerlink" title="1/为整个内核及整个文件系统统一化设计"></a>1/为整个内核及整个文件系统统一化设计</h4><p>正如linux有个万物皆文件的思想——我重复过很多遍这件事。</p>
+<p>从我阅读zcore内核来看，我反倒认为zircon的那一层是相对完整的，他存在一个统一的base，每个内核中的东西都作为某种Kernel object来对待。但是在上层的Linux的封装上面，这个设计已经慢慢的崩坏了，很多理应存在kernel object，作为某种内核对象的地方没有使用，当然，他们基本上就是直接用的linux的数据结构来表示。</p>
+<p>另一方面是fs和这个kobject规划的割裂，我同意，不能全都当成文件来处理——毕竟每个内核存在每个内核的特性，没必要照抄别的内核。然而，如果要封装一层linux，那么在vfs层面，用zcore的kernel object来改写文件系统，进而整个内核实现统一的管理，而不是直接用rcore的fs，我认为是必要的。</p>
+<p>底层基础用的zircon，但是上层却试图完全用Linux的部分，而不加以适应性的改造，啊，对就是这么一个缝合怪。</p>
+<h4 id="2-添加user-group-other的权限控制设计（可选）"><a href="#2-添加user-group-other的权限控制设计（可选）" class="headerlink" title="2/添加user/group/other的权限控制设计（可选）"></a>2/添加user/group/other的权限控制设计（可选）</h4><p>这本来应当是我在user ns里面应当做的部分，然而我在做的时候，才发现，整体缺少一个统一的用户的权限控制的设计。这显然不是数据结构里面增加一个字段就好了的事情。</p>
+<p>整个zcore，我发现对于权限控制模型的设计基本上是没有的——当然作为一个内核，并不是一定要有也就是了。我需要实现user ns，所以进行这样的建议，但我不觉得这是绝对必须的。对吧。</p>
+<p>如果有兴趣可以试图了解权限控制模型。但是，显然，linux的权限控制模型，是基于文件模型的统一规划，如果不能在内核中，统一规划为kernel object的话（或者统一当成文件也行啊），这种权限控制，需要更为复杂的设计。所以我认为前面的统一化设计是更为迫切的。</p>
+<h4 id="3-在整个架构的设计中就嵌入namespace"><a href="#3-在整个架构的设计中就嵌入namespace" class="headerlink" title="3/在整个架构的设计中就嵌入namespace"></a>3/在整个架构的设计中就嵌入namespace</h4><p>我在这次的改动中，思路仍然是使用一种类似插件的方式，去进行改造，但是，我发现这样会遇到非常多的问题。</p>
+<p>但这些问题归根结底，是因为设计之初没考虑进namespace，所引起的，因此，也许从整体设计层面就直接加入namespace，能解决这些不足。</p>
+<h4 id="4-mount系统调用的实现（可选）"><a href="#4-mount系统调用的实现（可选）" class="headerlink" title="4/mount系统调用的实现（可选）"></a>4/mount系统调用的实现（可选）</h4><p>虽然说起来只是一个mnt系统调用，但是这是Linux文件系统中非常重要的一个接口，而且背后的功能非常的复杂。</p>
+<h2 id="感想"><a href="#感想" class="headerlink" title="感想"></a>感想</h2><p>首先，我很高兴能够参加这么一次操作系统训练营，虽然需要大量阅读linux内核挺辛苦，而且最终没能做出一个完成的成品让我略有些沮丧。但是总体而言，学习的收获还是非常大的。</p>
+<p>其次，在我具体的实践中，也越来越了解了rust这门语言，也许各种引用让我头疼过很多次，编译器总是过不了，但是在解决问题的过程中确实增加了我对这门语言的熟悉度。</p>
+<p>第三，由于rust对于语言的诸多限制，而不像C那么自由，我也是头一次如此深刻的认识到，一个项目在一开始的设计的部分，对于后续功能的改写有多么重要的影响。</p>
+<p>我并不是否认zcore设计者的努力和聪慧，只不过由于他们在设计之初，没有考虑进这些，加上其本身是在zircon内核上增加了一层封装，形成了较为复杂的两层结构，导致大规模的增加内核功能非常困难和麻烦。</p>
+<p>偏偏不巧的是，namespace相关的部分，需要大量改写syscall，这让我很多时候，都在和编译器斗争，以及思考某个对象或者变量应该有的语义，以及应当改成什么样，才能尽可能的实现目标但是尽量不影响原有的设计。这最终促使我思考，应当如何从整体设计开始就考虑进namespace的功能而不是像我一样试图加一个插件的方式去解决这样的问题。</p>
+<p>总之，虽然夏令营已经结束了，但是如果有时间和机会，我一定会努力将这部分的内容继续加以改写，以完成当初的设计目标，也就是做一个简易的docker的想法——尽管从实际作用和意义来说，这个docker本身内核基于zcore，能够支持的软件基本没有，哈哈哈。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p>总感觉自己有点面向百度和csdn编程了，只能靠大家的blog去理解了。实际上搜索引擎会给出很多详细的解读，我这里只列举一部分觉得不错的，有助于理解的，那些不能直指核心的我就不考虑进来了。</p>
+<p>Linux kernel source: <a href="https://www.kernel.org" target="_blank" rel="noopener">https://www.kernel.org</a></p>
+<p><a href="https://www.cnblogs.com/bakari/p/8823642.html" target="_blank" rel="noopener">https://www.cnblogs.com/bakari/p/8823642.html</a></p>
+<p>clone函数：<a href="https://www.cnblogs.com/charlieroro/p/14280738.html" target="_blank" rel="noopener">https://www.cnblogs.com/charlieroro/p/14280738.html</a></p>
+<p>uts ns：<a href="https://www.freeaihub.com/post/109006.html" target="_blank" rel="noopener">https://www.freeaihub.com/post/109006.html</a></p>
+<p>user ns：<a href="https://tinylab.org/user-namespace/" target="_blank" rel="noopener">https://tinylab.org/user-namespace/</a></p>
+<p>mnt ns：<a href="https://www.cnblogs.com/pwl999/p/15534976.html" target="_blank" rel="noopener">https://www.cnblogs.com/pwl999/p/15534976.html</a></p>
+<p>pid ns：<a href="https://blog.csdn.net/tanzhe2017/article/details/81003281" target="_blank" rel="noopener">https://blog.csdn.net/tanzhe2017/article/details/81003281</a></p>
+<p>ipc ns：<a href="https://blog.csdn.net/tanzhe2017/article/details/81001682" target="_blank" rel="noopener">https://blog.csdn.net/tanzhe2017/article/details/81001682</a></p>
+<p>net ns：（不知道）</p>
+<p>cgroup：<a href="https://weibo.com/ttarticle/p/show?id=2309634728579127902348" target="_blank" rel="noopener">https://weibo.com/ttarticle/p/show?id=2309634728579127902348</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/summerofcode2022/" rel="tag"># summerofcode2022</a>
+              <a href="/blog/tags/author-ZhiyuanSue/" rel="tag"># author:ZhiyuanSue</a>
+              <a href="/blog/tags/virtualization/" rel="tag"># virtualization</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2022/09/14/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%88%98%E9%80%B8%E7%8F%91/" rel="prev" title="2022开源操作系统训练营第二阶段总结-刘逸珑">
+      <i class="fa fa-chevron-left"></i> 2022开源操作系统训练营第二阶段总结-刘逸珑
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2022/09/16/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%99%88%E6%9E%97%E5%B3%B0/" rel="next" title="2022开源操作系统训练营第二阶段总结-陈林峰">
+      2022开源操作系统训练营第二阶段总结-陈林峰 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

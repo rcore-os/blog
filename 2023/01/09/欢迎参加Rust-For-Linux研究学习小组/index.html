@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="不同操作系统内核可重用的Rust Crate设计与实现 Rust 是一种“多范式安全系统编程语言”，在开源领域呈现出滚雪球般的势头不断壮大。当前已经出现了多种基于Rust的实验型操作系统项目，而且也已经出现在主流的操作系统中。2022年12月12日，Linux 6.1 正式发布。Linux 6.1 的一个主要升级是把已经开发近一年多的Rust for Linux子系统加入主线，这是对 Rust 在">
+<meta property="og:type" content="article">
+<meta property="og:title" content="欢迎参加Rust_For_Linux研究学习小组">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2023/01/09/%E6%AC%A2%E8%BF%8E%E5%8F%82%E5%8A%A0Rust-For-Linux%E7%A0%94%E7%A9%B6%E5%AD%A6%E4%B9%A0%E5%B0%8F%E7%BB%84/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="不同操作系统内核可重用的Rust Crate设计与实现 Rust 是一种“多范式安全系统编程语言”，在开源领域呈现出滚雪球般的势头不断壮大。当前已经出现了多种基于Rust的实验型操作系统项目，而且也已经出现在主流的操作系统中。2022年12月12日，Linux 6.1 正式发布。Linux 6.1 的一个主要升级是把已经开发近一年多的Rust for Linux子系统加入主线，这是对 Rust 在">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2023/01/09/%E6%AC%A2%E8%BF%8E%E5%8F%82%E5%8A%A0Rust-For-Linux%E7%A0%94%E7%A9%B6%E5%AD%A6%E4%B9%A0%E5%B0%8F%E7%BB%84/welcome_join.jpg">
+<meta property="article:published_time" content="2023-01-09T16:10:10.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.686Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:shzhxh">
+<meta property="article:tag" content="Rust-for-Linux">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2023/01/09/%E6%AC%A2%E8%BF%8E%E5%8F%82%E5%8A%A0Rust-For-Linux%E7%A0%94%E7%A9%B6%E5%AD%A6%E4%B9%A0%E5%B0%8F%E7%BB%84/welcome_join.jpg">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2023/01/09/%E6%AC%A2%E8%BF%8E%E5%8F%82%E5%8A%A0Rust-For-Linux%E7%A0%94%E7%A9%B6%E5%AD%A6%E4%B9%A0%E5%B0%8F%E7%BB%84/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>欢迎参加Rust_For_Linux研究学习小组 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/01/09/%E6%AC%A2%E8%BF%8E%E5%8F%82%E5%8A%A0Rust-For-Linux%E7%A0%94%E7%A9%B6%E5%AD%A6%E4%B9%A0%E5%B0%8F%E7%BB%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          欢迎参加Rust_For_Linux研究学习小组
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-01-09 16:10:10" itemprop="dateCreated datePublished" datetime="2023-01-09T16:10:10+00:00">2023-01-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/announcements/" itemprop="url" rel="index"><span itemprop="name">announcements</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><strong>不同操作系统内核可重用的Rust Crate设计与实现</strong></p>
+<p>Rust 是一种“多范式安全系统编程语言”，在开源领域呈现出滚雪球般的势头不断壮大。当前已经出现了多种基于Rust的实验型操作系统项目，而且也已经出现在主流的操作系统中。2022年12月12日，Linux 6.1 正式发布。Linux 6.1 的一个主要升级是把已经开发近一年多的Rust for Linux子系统加入主线，这是对 Rust 在Linux内核上的重要突破。今后将可以使用Rust开发操作系统内核模块，并用于不同操作系统中，而Rust化的实时优化Linux内核和Rust RTOS将成为重要新技术方向。</p>
+<p>本课程计划定期讨论和研究 <strong>“不同操作系统内核可重用的Rust Crate设计与实现”</strong> ，并基于Linux内核和Rust RTOS，着重开展以下三个研究子方向的技术工作：</p>
+<p><strong>内核特性研究：</strong></p>
+<ol>
+<li>如何快速启用Linux Rust Feature并运行测试</li>
+<li>分析Rust在Linux 6.x内核里的用法</li>
+<li>内核中Rust 与 C 的 ABI 兼容性与互操作系统性的研究</li>
+<li>为linux其他子模块封装rust api,用rust重写子模块</li>
+<li>完善Rust-for-Linux并提交补丁</li>
+<li>实时操作系统（Linux RT-Preempt， RTOS等）关键技术研究</li>
+</ol>
+<p><strong>硬件驱动研究：</strong></p>
+<ol>
+<li>分析并设计实现面向virtio设备，可独立运行的基础Rust Device Driver Crate</li>
+<li>用Rust重写Linux Device Drivers书中的例子，并可在Linux内核中运行</li>
+<li>设计 OS kernel 设备驱动抽象库，让 基于Rust 开发各种OS的驱动更加方便易用</li>
+<li>使用Rust编写各种嵌入式驱动模块，如串口、网络、GPU等</li>
+<li>在基础Rust Device Driver Crate上，快速实现不同OS kernel上的设备驱动</li>
+</ol>
+<p><strong>异步内核编程研究：</strong></p>
+<ol>
+<li>研究 Rust for Linux 对异步内核编程的 “异步”支持</li>
+<li>探索Linux 驱动模块的异步编程方式</li>
+<li>分析异步网络 TCP/IP协议栈的设计与实现</li>
+<li>分析异步文件系统的设计与实现</li>
+</ol>
+<p><strong>学习小组公约：</strong></p>
+<ol>
+<li><p>每周一、三、五的晚上8点开始，定为固定时间的学习小组讨论会。每次讨论会不少于1小时，不多于3小时。</p>
+</li>
+<li><p>第一期从2023.2.6开始，学习周期初步定为3周，学习目标是分工完成上面的研究课题，总结出关于这个课程的知识点大纲和时间进度安排表。</p>
+</li>
+<li><p>每个小组成员要求每周的学习小组讨论会都要参加，并力争有所输出分享。每次活动安排3人进行分享，每个分享时间以20-30分钟为宜。</p>
+</li>
+</ol>
+<p>参考信息：</p>
+<ul>
+<li><a href="https://github.com/rcore-os/virtio-drivers" target="_blank" rel="noopener">基础Rust Device Driver Crate: virtio-drviers</a></li>
+<li>基于基础Rust Device Driver Crate的操作系统<ul>
+<li><a href="https://github.com/rcore-os/rCore-Tutorial-v3/tree/ch9" target="_blank" rel="noopener">rCore-Tutorial v3</a></li>
+<li><a href="https://github.com/rcore-os/zCore" target="_blank" rel="noopener">zCore</a></li>
+</ul>
+</li>
+</ul>
+<p>参加链接：</p>
+<p><a href="https://www.wjx.cn/vm/OUlztkX.aspx#" target="_blank" rel="noopener">Rust For Linux研究学习小组</a></p>
+<ul>
+<li><p>或者扫描图片二维码：</p>
+<img src="/blog/2023/01/09/%E6%AC%A2%E8%BF%8E%E5%8F%82%E5%8A%A0Rust-For-Linux%E7%A0%94%E7%A9%B6%E5%AD%A6%E4%B9%A0%E5%B0%8F%E7%BB%84/welcome_join.jpg" class title="welcome">
+</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-shzhxh/" rel="tag"># author:shzhxh</a>
+              <a href="/blog/tags/Rust-for-Linux/" rel="tag"># Rust-for-Linux</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2022/12/15/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-jiaxianhua/" rel="prev" title="2022开源操作系统训练营第一阶段总结-jiaxianhua">
+      <i class="fa fa-chevron-left"></i> 2022开源操作系统训练营第一阶段总结-jiaxianhua
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2023/01/15/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-my-vegetable-has-exploded/" rel="next" title="2022开源操作系统训练营第一阶段总结-my-vegetable-has-exploded">
+      2022开源操作系统训练营第一阶段总结-my-vegetable-has-exploded <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

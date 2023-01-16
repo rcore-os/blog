@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="2022 年开源操作系统训练营 - Yakkhini在这个训练营中，我会深入学习操作系统原理，从零开始 用 Rust 语言写一个基于 RISC-V 架构的 类 Unix 内核。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Yakkhini&#39;s rCore 2022 report">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="2022 年开源操作系统训练营 - Yakkhini在这个训练营中，我会深入学习操作系统原理，从零开始 用 Rust 语言写一个基于 RISC-V 架构的 类 Unix 内核。">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-MemoryLayout.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-link-sections.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-page-table.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-GCP_file.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-pipe_output.png">
+<meta property="article:published_time" content="2022-08-01T22:11:06.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.594Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="summerofcode2022">
+<meta property="article:tag" content="author:Yakkhini">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-MemoryLayout.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Yakkhini's rCore 2022 report | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#2022-年开源操作系统训练营-Yakkhini"><span class="nav-number">1.</span> <span class="nav-text">2022 年开源操作系统训练营 - Yakkhini</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#环境配置"><span class="nav-number">1.1.</span> <span class="nav-text">环境配置</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#远程仓库"><span class="nav-number">1.1.1.</span> <span class="nav-text">远程仓库</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#本地"><span class="nav-number">1.1.2.</span> <span class="nav-text">本地</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#学习-Rust-编程-July-06-July-08"><span class="nav-number">1.2.</span> <span class="nav-text">学习 Rust 编程 (July 06 - July 08)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Rustlings-安装及使用"><span class="nav-number">1.2.1.</span> <span class="nav-text">Rustlings 安装及使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#重点题目汇总"><span class="nav-number">1.2.2.</span> <span class="nav-text">重点题目汇总</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Index"><span class="nav-number">1.2.2.1.</span> <span class="nav-text">Index</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#error6"><span class="nav-number">1.2.2.2.</span> <span class="nav-text">error6</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#generics2"><span class="nav-number">1.2.2.3.</span> <span class="nav-text">generics2</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#iterators4"><span class="nav-number">1.2.2.4.</span> <span class="nav-text">iterators4</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#iterators5"><span class="nav-number">1.2.2.5.</span> <span class="nav-text">iterators5</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#box1"><span class="nav-number">1.2.2.6.</span> <span class="nav-text">box1</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#arc1"><span class="nav-number">1.2.2.7.</span> <span class="nav-text">arc1</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#quiz4"><span class="nav-number">1.2.2.8.</span> <span class="nav-text">quiz4</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#advanced-errs1"><span class="nav-number">1.2.2.9.</span> <span class="nav-text">advanced_errs1</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#完成"><span class="nav-number">1.2.3.</span> <span class="nav-text">完成</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第零章：实验环境配置-lab0-0-July-08"><span class="nav-number">1.3.</span> <span class="nav-text">第零章：实验环境配置 - lab0-0 (July 08)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#安装-Qemu"><span class="nav-number">1.3.1.</span> <span class="nav-text">安装 Qemu</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#试运行-rCore-Tutorial"><span class="nav-number">1.3.2.</span> <span class="nav-text">试运行 rCore-Tutorial</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第一章：应用程序与基本执行环境-lab0-0-July-08-July-09"><span class="nav-number">1.4.</span> <span class="nav-text">第一章：应用程序与基本执行环境 - lab0-0 (July 08 - July 09)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#应用程序执行环境"><span class="nav-number">1.4.1.</span> <span class="nav-text">应用程序执行环境</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#目标三原组"><span class="nav-number">1.4.1.1.</span> <span class="nav-text">目标三原组</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#程序是怎样被执行的"><span class="nav-number">1.4.1.2.</span> <span class="nav-text">程序是怎样被执行的</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#内存"><span class="nav-number">1.4.1.2.1.</span> <span class="nav-text">内存</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#编译"><span class="nav-number">1.4.1.2.2.</span> <span class="nav-text">编译</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代码实现"><span class="nav-number">1.4.2.</span> <span class="nav-text">代码实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#代码组织"><span class="nav-number">1.4.2.1.</span> <span class="nav-text">代码组织</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#移除标准库依赖"><span class="nav-number">1.4.2.2.</span> <span class="nav-text">移除标准库依赖</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#汇编和链接器"><span class="nav-number">1.4.2.3.</span> <span class="nav-text">汇编和链接器</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#汇编"><span class="nav-number">1.4.2.3.1.</span> <span class="nav-text">汇编</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#嵌入"><span class="nav-number">1.4.2.3.2.</span> <span class="nav-text">嵌入</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#链接"><span class="nav-number">1.4.2.3.3.</span> <span class="nav-text">链接</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第二章：批处理系统-lab0-1-July-09-July-10"><span class="nav-number">1.5.</span> <span class="nav-text">第二章：批处理系统 - lab0-1 (July 09 - July 10)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CI-自动评分系统内置的-riscv-依赖出错"><span class="nav-number">1.5.1.</span> <span class="nav-text">CI 自动评分系统内置的 riscv 依赖出错</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#特权级"><span class="nav-number">1.5.2.</span> <span class="nav-text">特权级</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存布局"><span class="nav-number">1.5.3.</span> <span class="nav-text">内存布局</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#任务的调度切换"><span class="nav-number">1.5.4.</span> <span class="nav-text">任务的调度切换</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第三章：多道程序与分时多任务-lab1-July-10-July-11"><span class="nav-number">1.6.</span> <span class="nav-text">第三章：多道程序与分时多任务 - lab1 (July 10 - July 11)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#原理"><span class="nav-number">1.6.1.</span> <span class="nav-text">原理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#应用程序内存布局"><span class="nav-number">1.6.1.1.</span> <span class="nav-text">应用程序内存布局</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#控制流"><span class="nav-number">1.6.1.2.</span> <span class="nav-text">控制流</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代码"><span class="nav-number">1.6.2.</span> <span class="nav-text">代码</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#TaskInfo-获取"><span class="nav-number">1.6.2.1.</span> <span class="nav-text">TaskInfo 获取</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#报告"><span class="nav-number">1.6.3.</span> <span class="nav-text">报告</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#问答"><span class="nav-number">1.6.3.1.</span> <span class="nav-text">问答</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第四章：地址空间-lab2-July-11-July-16"><span class="nav-number">1.7.</span> <span class="nav-text">第四章：地址空间 - lab2 (July 11 - July 16)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#物理空间和虚拟地址空间"><span class="nav-number">1.7.1.</span> <span class="nav-text">物理空间和虚拟地址空间</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#物理空间的缺陷和解决办法"><span class="nav-number">1.7.1.1.</span> <span class="nav-text">物理空间的缺陷和解决办法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#透明的巨大虚拟地址空间"><span class="nav-number">1.7.1.2.</span> <span class="nav-text">透明的巨大虚拟地址空间</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#页表"><span class="nav-number">1.7.2.</span> <span class="nav-text">页表</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#页表的硬件机制"><span class="nav-number">1.7.2.1.</span> <span class="nav-text">页表的硬件机制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#多级页表"><span class="nav-number">1.7.2.2.</span> <span class="nav-text">多级页表</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#报告-1"><span class="nav-number">1.7.3.</span> <span class="nav-text">报告</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#问答-1"><span class="nav-number">1.7.3.1.</span> <span class="nav-text">问答</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第五章：进程及进程管理-lab3-July-16-July-17"><span class="nav-number">1.8.</span> <span class="nav-text">第五章：进程及进程管理 - lab3 (July 16 - July 17)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#功能"><span class="nav-number">1.8.1.</span> <span class="nav-text">功能</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#分时调度"><span class="nav-number">1.8.2.</span> <span class="nav-text">分时调度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#报告-2"><span class="nav-number">1.8.3.</span> <span class="nav-text">报告</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pass-溢出的影响"><span class="nav-number">1.8.4.</span> <span class="nav-text">Pass 溢出的影响</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第六章：文件系统与-I-O-重定向-lab4-July-17-July-20"><span class="nav-number">1.9.</span> <span class="nav-text">第六章：文件系统与 I&#x2F;O 重定向 - lab4 (July 17 - July 20)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Inode"><span class="nav-number">1.9.1.</span> <span class="nav-text">Inode</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#文件目录"><span class="nav-number">1.9.2.</span> <span class="nav-text">文件目录</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#缓存块"><span class="nav-number">1.9.3.</span> <span class="nav-text">缓存块</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#报告-3"><span class="nav-number">1.9.4.</span> <span class="nav-text">报告</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Inode-根节点被破坏"><span class="nav-number">1.9.4.1.</span> <span class="nav-text">Inode 根节点被破坏</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第七章：进程间通信-July-27"><span class="nav-number">1.10.</span> <span class="nav-text">第七章：进程间通信 - July 27</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#通信"><span class="nav-number">1.10.1.</span> <span class="nav-text">通信</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#管道和信道"><span class="nav-number">1.10.2.</span> <span class="nav-text">管道和信道</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#报告-4"><span class="nav-number">1.11.</span> <span class="nav-text">报告</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#例子"><span class="nav-number">1.11.0.1.</span> <span class="nav-text">例子</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#优化"><span class="nav-number">1.11.0.2.</span> <span class="nav-text">优化</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第八章：并发-lab5-July-20-July-21"><span class="nav-number">1.12.</span> <span class="nav-text">第八章：并发 - lab5 (July 20 - July 21)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#进程、线程和协程"><span class="nav-number">1.12.1.</span> <span class="nav-text">进程、线程和协程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#并发和并行"><span class="nav-number">1.12.2.</span> <span class="nav-text">并发和并行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#并发问题"><span class="nav-number">1.12.3.</span> <span class="nav-text">并发问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#锁、信号量"><span class="nav-number">1.12.4.</span> <span class="nav-text">锁、信号量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#银行家算法"><span class="nav-number">1.12.5.</span> <span class="nav-text">银行家算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#报告-5"><span class="nav-number">1.12.6.</span> <span class="nav-text">报告</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#回收"><span class="nav-number">1.12.6.1.</span> <span class="nav-text">回收</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#两种实现"><span class="nav-number">1.12.6.2.</span> <span class="nav-text">两种实现</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考"><span class="nav-number">1.13.</span> <span class="nav-text">参考</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2022/08/01/Yakkhini-s-rCore-2022-report/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Yakkhini's rCore 2022 report
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-08-01 22:11:06" itemprop="dateCreated datePublished" datetime="2022-08-01T22:11:06+00:00">2022-08-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="2022-年开源操作系统训练营-Yakkhini"><a href="#2022-年开源操作系统训练营-Yakkhini" class="headerlink" title="2022 年开源操作系统训练营 - Yakkhini"></a>2022 年开源操作系统训练营 - Yakkhini</h1><p>在这个训练营中，我会深入学习操作系统原理，<strong>从零开始</strong> 用 <strong>Rust</strong> 语言写一个基于 <strong>RISC-V</strong> 架构的 <strong>类 Unix 内核。</strong></p>
+<a id="more"></a>
+<h2 id="环境配置"><a href="#环境配置" class="headerlink" title="环境配置"></a>环境配置</h2><h3 id="远程仓库"><a href="#远程仓库" class="headerlink" title="远程仓库"></a>远程仓库</h3><p>需要注意的是，所有远程仓库可见性应设置为 Public 公开状态，否则 GitHub Action 中的自动评分可能无权开始，或者需付费才能使用。</p>
+<h3 id="本地"><a href="#本地" class="headerlink" title="本地"></a>本地</h3><p>我计划在本地开发，目前使用的是 Manjaro 系统。我将所有实验会用到的文件和仓库都存放在了 <code>/diske/Rust/zCore/</code> 路径中。<code>/diske</code> 是我挂载的 Windows 系统的 E 盘。</p>
+<p>本文档也使用软链接进来了。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&gt; ln -s ~/Documents/YeChaNvCinema/docs/computerSci/20220706-zcore.md /diske/Rust/zCore/diary.md</span><br></pre></td></tr></table></figure>
+<h2 id="学习-Rust-编程-July-06-July-08"><a href="#学习-Rust-编程-July-06-July-08" class="headerlink" title="学习 Rust 编程 (July 06 - July 08)"></a>学习 Rust 编程 (July 06 - July 08)</h2><p>由于我之前使用 Rust 开发过一个完整的游戏项目（见 <a href="https://github.com/Yakkhini/PongPlanting" target="_blank" rel="noopener">Planting Pong</a>），所以系统地学习过 Rust 语言。但是我仍然想跟着训练营再过一下 Rust，因为我之前的开发比较面向业务逻辑，而操作系统的编写肯定还需要更高的要求，如错误处理、多线程并发之类的高级用法也可能会用到。</p>
+<p><a href="https://github.com/LearningOS/learn_rust_rustlings-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / learn_rust_rustlings-Yakkhini</em></a></p>
+<p>配置 GitHub Classroom:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&gt; make setupclassroom</span><br></pre></td></tr></table></figure>
+<h3 id="Rustlings-安装及使用"><a href="#Rustlings-安装及使用" class="headerlink" title="Rustlings 安装及使用"></a>Rustlings 安装及使用</h3><p>训练营的 Rust 习题实验是由 <code>rustlings</code> 工具驱动的。虽然 AUR 中可以安装，但是为了方便和易于管理我将它安装在了 <code>$HOME/.cargo/bin</code> 中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&gt; curl -L https://raw.githubusercontent.com/rust-lang/rustlings/main/install.sh | bash</span><br></pre></td></tr></table></figure>
+<p>使用：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">~/.cargo/bin/rustlings watch</span><br></pre></td></tr></table></figure>
+<h3 id="重点题目汇总"><a href="#重点题目汇总" class="headerlink" title="重点题目汇总"></a>重点题目汇总</h3><p>在学习过程中，我发现我的担心是正确的。由于我之前的开发比较侧重于业务逻辑，所以前 40 道题的内容完成速度很快，对其中的概念也比较熟悉；但是后三十道题的完成比较艰难。其中，主要耗费时间的题目类型有 <strong>错误处理、泛型、宏、迭代器、智能指针、线程。</strong>我在这里列举出一些重点题目，并附出解决办法中应注意的部分。</p>
+<!-- tabs:start -->
+<h4 id="Index"><a href="#Index" class="headerlink" title="Index"></a><strong>Index</strong></h4><ul>
+<li>错误处理：error6，advanced_errs1</li>
+<li>泛型：generics2</li>
+<li>宏：quiz4</li>
+<li>迭代器：iterators4，iterators5</li>
+<li>智能指针：box1</li>
+<li>线程：arc1</li>
+</ul>
+<h4 id="error6"><a href="#error6" class="headerlink" title="error6"></a><strong>error6</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// errors6.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Using catch-all error types like `Box&lt;dyn error::Error&gt;` isn't recommended</span></span><br><span class="line"><span class="comment">// for library code, where callers might want to make decisions based on the</span></span><br><span class="line"><span class="comment">// error content, instead of printing it out or propagating it further. Here,</span></span><br><span class="line"><span class="comment">// we define a custom error type to make it possible for callers to decide</span></span><br><span class="line"><span class="comment">// what to do next when our function returns an error.</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Make these tests pass! Execute `rustlings hint errors6` for hints :)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> std::num::ParseIntError;</span><br><span class="line"></span><br><span class="line"><span class="comment">// This is a custom error type that we will be using in `parse_pos_nonzero()`.</span></span><br><span class="line"><span class="meta">#[derive(PartialEq, Debug)]</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">ParsePosNonzeroError</span></span> &#123;</span><br><span class="line">    Creation(CreationError),</span><br><span class="line">    ParseInt(ParseIntError),</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> ParsePosNonzeroError &#123;</span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> add another error conversion function here.</span></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">from_creation</span></span>(x: CreationError) -&gt; ParsePosNonzeroError &#123;</span><br><span class="line">        <span class="keyword">match</span> x &#123;</span><br><span class="line">            CreationError::Negative =&gt; ParsePosNonzeroError::Creation(CreationError::Negative),</span><br><span class="line">            CreationError::Zero =&gt; ParsePosNonzeroError::Creation(CreationError::Zero),</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">parse_pos_nonzero</span></span>(s: &amp;<span class="built_in">str</span>) -&gt; <span class="built_in">Result</span>&lt;PositiveNonzeroInteger, ParsePosNonzeroError&gt; &#123;</span><br><span class="line">    <span class="comment">// <span class="doctag">TODO:</span> change this to return an appropriate error instead of panicking</span></span><br><span class="line">    <span class="comment">// when `parse()` returns an error.</span></span><br><span class="line">    <span class="keyword">let</span> x = s.parse();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">match</span> x &#123;</span><br><span class="line">        <span class="literal">Ok</span>(x) =&gt; PositiveNonzeroInteger::new(x).map_err(ParsePosNonzeroError::from_creation),</span><br><span class="line">        <span class="literal">Err</span>(e) =&gt; &#123;<span class="literal">Err</span>(ParsePosNonzeroError::ParseInt(e))&#125;,</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Don't change anything below this line.</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(PartialEq, Debug)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">PositiveNonzeroInteger</span></span>(<span class="built_in">u64</span>);</span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(PartialEq, Debug)]</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">CreationError</span></span> &#123;</span><br><span class="line">    Negative,</span><br><span class="line">    Zero,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> PositiveNonzeroInteger &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(value: <span class="built_in">i64</span>) -&gt; <span class="built_in">Result</span>&lt;PositiveNonzeroInteger, CreationError&gt; &#123;</span><br><span class="line">        <span class="keyword">match</span> value &#123;</span><br><span class="line">            x <span class="keyword">if</span> x &lt; <span class="number">0</span> =&gt; <span class="literal">Err</span>(CreationError::Negative),</span><br><span class="line">            x <span class="keyword">if</span> x == <span class="number">0</span> =&gt; <span class="literal">Err</span>(CreationError::Zero),</span><br><span class="line">            x =&gt; <span class="literal">Ok</span>(PositiveNonzeroInteger(x <span class="keyword">as</span> <span class="built_in">u64</span>)),</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="generics2"><a href="#generics2" class="headerlink" title="generics2"></a><strong>generics2</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// This powerful wrapper provides the ability to store a positive integer value.</span></span><br><span class="line"><span class="comment">// Rewrite it using generics so that it supports wrapping ANY type.</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Execute `rustlings hint generics2` for hints!</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Wrapper</span></span>&lt;T&gt; &#123;</span><br><span class="line">    value: T,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;T&gt; Wrapper&lt;T&gt; &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(value: T) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        Wrapper &#123; value &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="iterators4"><a href="#iterators4" class="headerlink" title="iterators4"></a><strong>iterators4</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// iterators4.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">factorial</span></span>(num: <span class="built_in">u64</span>) -&gt; <span class="built_in">u64</span> &#123;</span><br><span class="line">    <span class="comment">// Complete this function to return the factorial of num</span></span><br><span class="line">    <span class="comment">// Do not use:</span></span><br><span class="line">    <span class="comment">// - return</span></span><br><span class="line">    <span class="comment">// Try not to use:</span></span><br><span class="line">    <span class="comment">// - imperative style loops (for, while)</span></span><br><span class="line">    <span class="comment">// - additional variables</span></span><br><span class="line">    <span class="comment">// For an extra challenge, don't use:</span></span><br><span class="line">    <span class="comment">// - recursion</span></span><br><span class="line">    <span class="comment">// Execute `rustlings hint iterators4` for hints.</span></span><br><span class="line"></span><br><span class="line">    (<span class="number">1</span>..num + <span class="number">1</span>).product()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="iterators5"><a href="#iterators5" class="headerlink" title="iterators5"></a><strong>iterators5</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// iterators5.rs</span></span><br><span class="line"><span class="comment">// Let's define a simple model to track Rustlings exercise progress. Progress</span></span><br><span class="line"><span class="comment">// will be modelled using a hash map. The name of the exercise is the key and</span></span><br><span class="line"><span class="comment">// the progress is the value. Two counting functions were created to count the</span></span><br><span class="line"><span class="comment">// number of exercises with a given progress. These counting functions use</span></span><br><span class="line"><span class="comment">// imperative style for loops. Recreate this counting functionality using</span></span><br><span class="line"><span class="comment">// iterators. Only the two iterator methods (count_iterator and</span></span><br><span class="line"><span class="comment">// count_collection_iterator) need to be modified.</span></span><br><span class="line"><span class="comment">// Execute `rustlings hint iterators5` for hints.</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// Make the code compile and the tests pass.</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> std::collections::HashMap;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(Clone, Copy, PartialEq, Eq)]</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">Progress</span></span> &#123;</span><br><span class="line">    <span class="literal">None</span>,</span><br><span class="line">    <span class="literal">Some</span>,</span><br><span class="line">    Complete,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">count_iterator</span></span>(map: &amp;HashMap&lt;<span class="built_in">String</span>, Progress&gt;, value: Progress) -&gt; <span class="built_in">usize</span> &#123;</span><br><span class="line">    <span class="comment">// map is a hashmap with String keys and Progress values.</span></span><br><span class="line">    <span class="comment">// map = &#123; "variables1": Complete, "from_str": None, ... &#125;</span></span><br><span class="line"></span><br><span class="line">    map.values().filter(|val| **val == value).count()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">count_collection_iterator</span></span>(collection: &amp;[HashMap&lt;<span class="built_in">String</span>, Progress&gt;], value: Progress) -&gt; <span class="built_in">usize</span> &#123;</span><br><span class="line">    <span class="comment">// collection is a slice of hashmaps.</span></span><br><span class="line">    <span class="comment">// collection = [&#123; "variables1": Complete, "from_str": None, ... &#125;,</span></span><br><span class="line">    <span class="comment">//     &#123; "variables2": Complete, ... &#125;, ... ]</span></span><br><span class="line"></span><br><span class="line">    collection</span><br><span class="line">        .iter()</span><br><span class="line">        .map(|submap| submap.values().filter(|val| **val == value).count())</span><br><span class="line">        .sum()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="box1"><a href="#box1" class="headerlink" title="box1"></a><strong>box1</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// box1.rs</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// At compile time, Rust needs to know how much space a type takes up. This becomes problematic</span></span><br><span class="line"><span class="comment">// for recursive types, where a value can have as part of itself another value of the same type.</span></span><br><span class="line"><span class="comment">// To get around the issue, we can use a `Box` - a smart pointer used to store data on the heap,</span></span><br><span class="line"><span class="comment">// which also allows us to wrap a recursive type.</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// The recursive type we're implementing in this exercise is the `cons list` - a data structure</span></span><br><span class="line"><span class="comment">// frequently found in functional programming languages. Each item in a cons list contains two</span></span><br><span class="line"><span class="comment">// elements: the value of the current item and the next item. The last item is a value called `Nil`.</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// Step 1: use a `Box` in the enum definition to make the code compile</span></span><br><span class="line"><span class="comment">// Step 2: create both empty and non-empty cons lists by replacing `unimplemented!()`</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// Note: the tests should not be changed</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// Execute `rustlings hint box1` for hints :)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(PartialEq, Debug)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">enum</span> <span class="title">List</span></span> &#123;</span><br><span class="line">    Cons(<span class="built_in">i32</span>, <span class="built_in">Box</span>&lt;List&gt;),</span><br><span class="line">    Nil,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"This is an empty cons list: &#123;:?&#125;"</span>, create_empty_list());</span><br><span class="line">    <span class="built_in">println!</span>(</span><br><span class="line">        <span class="string">"This is a non-empty cons list: &#123;:?&#125;"</span>,</span><br><span class="line">        create_non_empty_list()</span><br><span class="line">    );</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">create_empty_list</span></span>() -&gt; List &#123;</span><br><span class="line">    List::Nil</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">create_non_empty_list</span></span>() -&gt; List &#123;</span><br><span class="line">    List::Cons(<span class="number">1</span>, <span class="built_in">Box</span>::new(List::Nil))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="arc1"><a href="#arc1" class="headerlink" title="arc1"></a><strong>arc1</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">/ arc1.rs</span><br><span class="line"><span class="comment">// In this exercise, we are given a Vec of u32 called "numbers" with values ranging</span></span><br><span class="line"><span class="comment">// from 0 to 99 -- [ 0, 1, 2, ..., 98, 99 ]</span></span><br><span class="line"><span class="comment">// We would like to use this set of numbers within 8 different threads simultaneously.</span></span><br><span class="line"><span class="comment">// Each thread is going to get the sum of every eighth value, with an offset.</span></span><br><span class="line"><span class="comment">// The first thread (offset 0), will sum 0, 8, 16, ...</span></span><br><span class="line"><span class="comment">// The second thread (offset 1), will sum 1, 9, 17, ...</span></span><br><span class="line"><span class="comment">// The third thread (offset 2), will sum 2, 10, 18, ...</span></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"><span class="comment">// The eighth thread (offset 7), will sum 7, 15, 23, ...</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Because we are using threads, our values need to be thread-safe.  Therefore,</span></span><br><span class="line"><span class="comment">// we are using Arc.  We need to make a change in each of the two TODOs.</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Make this code compile by filling in a value for `shared_numbers` where the</span></span><br><span class="line"><span class="comment">// first TODO comment is, and create an initial binding for `child_numbers`</span></span><br><span class="line"><span class="comment">// where the second TODO comment is. Try not to create any copies of the `numbers` Vec!</span></span><br><span class="line"><span class="comment">// Execute `rustlings hint arc1` for hints :)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#![forbid(unused_imports)]</span> <span class="comment">// Do not change this, (or the next) line.</span></span><br><span class="line"><span class="keyword">use</span> std::sync::Arc;</span><br><span class="line"><span class="keyword">use</span> std::thread;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> numbers: <span class="built_in">Vec</span>&lt;_&gt; = (<span class="number">0</span>..<span class="number">100u32</span>).collect();</span><br><span class="line">    <span class="keyword">let</span> shared_numbers = Arc::new(numbers); <span class="comment">// TODO</span></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> joinhandles = <span class="built_in">Vec</span>::new();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> offset <span class="keyword">in</span> <span class="number">0</span>..<span class="number">8</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> child_numbers = Arc::clone(&amp;shared_numbers); <span class="comment">// TODO</span></span><br><span class="line">        joinhandles.push(thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">            <span class="keyword">let</span> sum: <span class="built_in">u32</span> = child_numbers.iter().filter(|n| *n % <span class="number">8</span> == offset).sum();</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"Sum of offset &#123;&#125; is &#123;&#125;"</span>, offset, sum);</span><br><span class="line">        &#125;));</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">for</span> handle <span class="keyword">in</span> joinhandles.into_iter() &#123;</span><br><span class="line">        handle.join().unwrap();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="quiz4"><a href="#quiz4" class="headerlink" title="quiz4"></a><strong>quiz4</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[macro_export]</span></span><br><span class="line"><span class="built_in">macro_rules!</span> my_macro &#123;</span><br><span class="line">    ($val:expr) =&gt; &#123;</span><br><span class="line">        <span class="string">"Hello "</span>.to_owned() + $val</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(test)]</span></span><br><span class="line"><span class="keyword">mod</span> tests &#123;</span><br><span class="line">    <span class="keyword">use</span> super::*;</span><br><span class="line"></span><br><span class="line">    <span class="meta">#[test]</span></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">test_my_macro_world</span></span>() &#123;</span><br><span class="line">        <span class="built_in">assert_eq!</span>(my_macro!(<span class="string">"world!"</span>), <span class="string">"Hello world!"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">#[test]</span></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">test_my_macro_goodbye</span></span>() &#123;</span><br><span class="line">        <span class="built_in">assert_eq!</span>(my_macro!(<span class="string">"goodbye!"</span>), <span class="string">"Hello goodbye!"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="advanced-errs1"><a href="#advanced-errs1" class="headerlink" title="advanced_errs1"></a><strong>advanced_errs1</strong></h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// advanced_errs1.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Remember back in errors6, we had multiple mapping functions so that we</span></span><br><span class="line"><span class="comment">// could translate lower-level errors into our custom error type using</span></span><br><span class="line"><span class="comment">// `map_err()`? What if we could use the `?` operator directly instead?</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Make this code compile! Execute `rustlings hint advanced_errs1` for</span></span><br><span class="line"><span class="comment">// hints :)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> std::num::ParseIntError;</span><br><span class="line"><span class="keyword">use</span> std::<span class="built_in">str</span>::FromStr;</span><br><span class="line"></span><br><span class="line"><span class="comment">// This is a custom error type that we will be using in the `FromStr`</span></span><br><span class="line"><span class="comment">// implementation.</span></span><br><span class="line"><span class="meta">#[derive(PartialEq, Debug)]</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">ParsePosNonzeroError</span></span> &#123;</span><br><span class="line">    Creation(CreationError),</span><br><span class="line">    ParseInt(ParseIntError),</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> <span class="built_in">From</span>&lt;CreationError&gt; <span class="keyword">for</span> ParsePosNonzeroError &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">from</span></span>(e: CreationError) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        <span class="comment">// <span class="doctag">TODO:</span> complete this implementation so that the `?` operator will</span></span><br><span class="line">        <span class="comment">// work for `CreationError`</span></span><br><span class="line"></span><br><span class="line">        ParsePosNonzeroError::Creation(e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// <span class="doctag">TODO:</span> implement another instance of the `From` trait here so that the</span></span><br><span class="line"><span class="comment">// `?` operator will work in the other place in the `FromStr`</span></span><br><span class="line"><span class="comment">// implementation below.</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> <span class="built_in">From</span>&lt;ParseIntError&gt; <span class="keyword">for</span> ParsePosNonzeroError &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">from</span></span>(e: ParseIntError) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        ParsePosNonzeroError::ParseInt(e)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Don't change anything below this line.</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> FromStr <span class="keyword">for</span> PositiveNonzeroInteger &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Err</span></span> = ParsePosNonzeroError;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">from_str</span></span>(s: &amp;<span class="built_in">str</span>) -&gt; <span class="built_in">Result</span>&lt;PositiveNonzeroInteger, Self::<span class="literal">Err</span>&gt; &#123;</span><br><span class="line">        <span class="keyword">let</span> x: <span class="built_in">i64</span> = s.parse()?;</span><br><span class="line">        <span class="literal">Ok</span>(PositiveNonzeroInteger::new(x)?)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(PartialEq, Debug)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">PositiveNonzeroInteger</span></span>(<span class="built_in">u64</span>);</span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(PartialEq, Debug)]</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">CreationError</span></span> &#123;</span><br><span class="line">    Negative,</span><br><span class="line">    Zero,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> PositiveNonzeroInteger &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(value: <span class="built_in">i64</span>) -&gt; <span class="built_in">Result</span>&lt;PositiveNonzeroInteger, CreationError&gt; &#123;</span><br><span class="line">        <span class="keyword">match</span> value &#123;</span><br><span class="line">            x <span class="keyword">if</span> x &lt; <span class="number">0</span> =&gt; <span class="literal">Err</span>(CreationError::Negative),</span><br><span class="line">            x <span class="keyword">if</span> x == <span class="number">0</span> =&gt; <span class="literal">Err</span>(CreationError::Zero),</span><br><span class="line">            x =&gt; <span class="literal">Ok</span>(PositiveNonzeroInteger(x <span class="keyword">as</span> <span class="built_in">u64</span>)),</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<!-- tabs:end -->
+<h3 id="完成"><a href="#完成" class="headerlink" title="完成"></a>完成</h3><p>每道题的具体完成情况可以在 GitHub Commit 记录中查到。</p>
+<p>Quiz2 及之前题目：<a href="https://github.com/LearningOS/learn_rust_rustlings-Yakkhini/commit/e67dea32e9a5b03114d544276c0e4cef82238d52" target="_blank" rel="noopener">Finish: Before quiz2(include quiz2). · LearningOS/learn_rust_rustlings-Yakkhini@e67dea3</a></p>
+<p>Quiz2 之后所有题目：<a href="https://github.com/LearningOS/learn_rust_rustlings-Yakkhini/commit/a079df7a058b67ee67cd9e385df90995a9a4fe38" target="_blank" rel="noopener">Finish: All Done. · LearningOS/learn_rust_rustlings-Yakkhini@a079df7</a></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">🎉 All exercises completed! 🎉</span><br><span class="line"></span><br><span class="line">+----------------------------------------------------+</span><br><span class="line">|          You made it to the Fe-nish line!          |</span><br><span class="line">+--------------------------  ------------------------+</span><br><span class="line">                          \\/</span><br><span class="line">     ▒▒          ▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒▒          ▒▒</span><br><span class="line">   ▒▒▒▒  ▒▒    ▒▒        ▒▒  ▒▒        ▒▒    ▒▒  ▒▒▒▒</span><br><span class="line">   ▒▒▒▒  ▒▒  ▒▒            ▒▒            ▒▒  ▒▒  ▒▒▒▒</span><br><span class="line"> ░░▒▒▒▒░░▒▒  ▒▒            ▒▒            ▒▒  ▒▒░░▒▒▒▒</span><br><span class="line">   ▓▓▓▓▓▓▓▓  ▓▓      ▓▓██  ▓▓  ▓▓██      ▓▓  ▓▓▓▓▓▓▓▓</span><br><span class="line">     ▒▒▒▒    ▒▒      ████  ▒▒  ████      ▒▒░░  ▒▒▒▒</span><br><span class="line">       ▒▒  ▒▒▒▒▒▒        ▒▒▒▒▒▒        ▒▒▒▒▒▒  ▒▒</span><br><span class="line">         ▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▒▒▒▒▒▒▒▒▓▓▒▒▓▓▒▒▒▒▒▒▒▒</span><br><span class="line">           ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒</span><br><span class="line">             ▒▒▒▒▒▒▒▒▒▒██▒▒▒▒▒▒██▒▒▒▒▒▒▒▒▒▒</span><br><span class="line">           ▒▒  ▒▒▒▒▒▒▒▒▒▒██████▒▒▒▒▒▒▒▒▒▒  ▒▒</span><br><span class="line">         ▒▒    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒    ▒▒</span><br><span class="line">       ▒▒    ▒▒    ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒    ▒▒    ▒▒</span><br><span class="line">       ▒▒  ▒▒    ▒▒                  ▒▒    ▒▒  ▒▒</span><br><span class="line">           ▒▒  ▒▒                      ▒▒  ▒▒</span><br><span class="line"></span><br><span class="line">We hope you enjoyed learning about the various aspects of Rust!</span><br><span class="line">If you noticed any issues, please don<span class="string">'t hesitate to report them to our repo.</span></span><br><span class="line"><span class="string">You can also contribute your own exercises to help the greater community!</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">Before reporting an issue or contributing, please read our guidelines:</span></span><br><span class="line"><span class="string">https://github.com/rust-lang/rustlings/blob/main/CONTRIBUTING.md</span></span><br></pre></td></tr></table></figure>
+<h2 id="第零章：实验环境配置-lab0-0-July-08"><a href="#第零章：实验环境配置-lab0-0-July-08" class="headerlink" title="第零章：实验环境配置 - lab0-0 (July 08)"></a>第零章：实验环境配置 - lab0-0 (July 08)</h2><p>在本章中，我们会完成环境配置并成功运行 <strong>rCore-Tutorial</strong>。</p>
+<p><a href="https://github.com/LearningOS/lab0-0-setup-env-run-os1-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab0-0-setup-env-run-os1-Yakkhini</em></a></p>
+<h3 id="安装-Qemu"><a href="#安装-Qemu" class="headerlink" title="安装 Qemu"></a>安装 Qemu</h3><p>我计划采用本地开发。Qemu 相关软件包在 Arch 的 <code>extra/</code> 仓库中可以找到，打包质量有保证。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&gt; yay -S qemu qemu-system-riscv qemu-user</span><br><span class="line">&gt; qemu-system-riscv64 --version; qemu-riscv64 --version;</span><br></pre></td></tr></table></figure>
+<p><strong>Output：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">QEMU emulator version 7.0.0</span><br><span class="line">Copyright (c) 2003-2022 Fabrice Bellard and the QEMU Project developers</span><br><span class="line">qemu-riscv64 version 7.0.0</span><br><span class="line">Copyright (c) 2003-2022 Fabrice Bellard and the QEMU Project developers</span><br></pre></td></tr></table></figure>
+<h3 id="试运行-rCore-Tutorial"><a href="#试运行-rCore-Tutorial" class="headerlink" title="试运行 rCore-Tutorial"></a>试运行 rCore-Tutorial</h3><p>裸机操作系统 <code>os1</code> 不需要处理用户代码，可以直接运行来检查本地环境是否正确配置。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&gt; <span class="built_in">cd</span> os1; LOG=DEBUG make run;</span><br></pre></td></tr></table></figure>
+<p><strong>Output：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(rustup target list | grep &quot;riscv64gc-unknown-none-elf (installed)&quot;) || rustup target add riscv64gc-unknown-none-elf</span><br><span class="line">riscv64gc-unknown-none-elf (installed)</span><br><span class="line">cargo install cargo-binutils --vers ~0.2</span><br><span class="line">    Updating crates.io index</span><br><span class="line">     Ignored package &#96;cargo-binutils v0.2.0&#96; is already installed, use --force to override</span><br><span class="line">rustup component add rust-src</span><br><span class="line">info: component &#39;rust-src&#39; is up to date</span><br><span class="line">rustup component add llvm-tools-preview</span><br><span class="line">info: component &#39;llvm-tools-preview&#39; for target &#39;x86_64-unknown-linux-gnu&#39; is up to date</span><br><span class="line">    Finished release [optimized] target(s) in 0.01s</span><br><span class="line">make: rust-objcopy: No such file or directory</span><br><span class="line">make: *** [Makefile:22: target&#x2F;riscv64gc-unknown-none-elf&#x2F;release&#x2F;os.bin] Error 127</span><br></pre></td></tr></table></figure>
+<p>可以看到直接运行出现了错误 <code>make: rust-objcopy: No such file or directory</code>。根据实验说明，这个命令会安装一些本地可能没有的依赖。我在运行过程中没有收到 <code>root</code> 提权申请，根据项目的工具链，我推测是 <code>Cargo</code> 安装在 <code>~/.cargo/bin/</code> 目录中的可执行文件不在环境变量路径中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&gt; ls ~/.cargo/bin</span><br></pre></td></tr></table></figure>
+<p><strong>Output:</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cargo-nm       cargo-objdump   cargo-readobj  cargo-strip  rust-ld    rust-lld  rust-objcopy  rust-profdata  rust-size</span><br><span class="line">cargo-objcopy  cargo-profdata  cargo-size     rust-ar      rustlings  rust-nm   rust-objdump  rust-readobj   rust-strip</span><br></pre></td></tr></table></figure>
+<p>果然，<code>rust-objcopy</code> 就在其中。肯定是程序直接使用命令 <code>rust-objcopy</code> 调用它失败了，现在的正确命令应该是 <code>~/.cargo/bin/rust-objcopy</code>。但是我不想把这个路径纳入环境变量（怕和 Pacman 打架），也不能修改 Makefile，因为有可能会影响评分程序执行。所以还是每次调用前先临时改一下 <code>PATH</code> 变量好了。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> PATH=<span class="string">"<span class="variable">$&#123;PATH&#125;</span>:<span class="variable">$&#123;HOME&#125;</span>/.cargo/bin"</span></span><br><span class="line">LOG=DEBUG make run</span><br></pre></td></tr></table></figure>
+<p><strong>Output:</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">(rustup target list | grep &quot;riscv64gc-unknown-none-elf (installed)&quot;) || rustup target add riscv64gc-unknown-none-elf</span><br><span class="line">riscv64gc-unknown-none-elf (installed)</span><br><span class="line">cargo install cargo-binutils --vers ~0.2</span><br><span class="line">    Updating crates.io index</span><br><span class="line">     Ignored package &#96;cargo-binutils v0.2.0&#96; is already installed, use --force to override</span><br><span class="line">rustup component add rust-src</span><br><span class="line">info: component &#39;rust-src&#39; is up to date</span><br><span class="line">rustup component add llvm-tools-preview</span><br><span class="line">info: component &#39;llvm-tools-preview&#39; for target &#39;x86_64-unknown-linux-gnu&#39; is up to date</span><br><span class="line">    Finished release [optimized] target(s) in 0.01s</span><br><span class="line">[rustsbi] RustSBI version 0.2.2, adapting to RISC-V SBI v1.0.0</span><br><span class="line">.______       __    __      _______.___________.  _______..______   __</span><br><span class="line">|   _  \     |  |  |  |    &#x2F;       |           | &#x2F;       ||   _  \ |  |</span><br><span class="line">|  |_)  |    |  |  |  |   |   (----&#96;---|  |----&#96;|   (----&#96;|  |_)  ||  |</span><br><span class="line">|      &#x2F;     |  |  |  |    \   \       |  |      \   \    |   _  &lt; |  |</span><br><span class="line">|  |\  \----.|  &#96;--&#39;  |.----)   |      |  |  .----)   |   |  |_)  ||  |</span><br><span class="line">| _| &#96;._____| \______&#x2F; |_______&#x2F;       |__|  |_______&#x2F;    |______&#x2F; |__|</span><br><span class="line">[rustsbi] Implementation     : RustSBI-QEMU Version 0.1.1</span><br><span class="line">[rustsbi] Platform Name      : riscv-virtio,qemu</span><br><span class="line">[rustsbi] Platform SMP       : 1</span><br><span class="line">[rustsbi] Platform Memory    : 0x80000000..0x88000000</span><br><span class="line">[rustsbi] Boot HART          : 0</span><br><span class="line">[rustsbi] Device Tree Region : 0x87000000..0x87000ef2</span><br><span class="line">[rustsbi] Firmware Address   : 0x80000000</span><br><span class="line">[rustsbi] Supervisor Address : 0x80200000</span><br><span class="line">[rustsbi] pmp01: 0x00000000..0x80000000 (-wr)</span><br><span class="line">[rustsbi] pmp02: 0x80000000..0x80200000 (---)</span><br><span class="line">[rustsbi] pmp03: 0x80200000..0x88000000 (xwr)</span><br><span class="line">Hello, world!</span><br><span class="line">[DEBUG] .rodata [0x80203000, 0x80205000)</span><br><span class="line">[ INFO] .data [0x80205000, 0x80206000)</span><br><span class="line">[ WARN] boot_stack [0x80206000, 0x80216000)</span><br><span class="line">[ERROR] .bss [0x80216000, 0x80217000)</span><br><span class="line">Panicked at src&#x2F;main.rs:48 Shutdown machine!</span><br></pre></td></tr></table></figure>
+<p>实验成功。</p>
+<h2 id="第一章：应用程序与基本执行环境-lab0-0-July-08-July-09"><a href="#第一章：应用程序与基本执行环境-lab0-0-July-08-July-09" class="headerlink" title="第一章：应用程序与基本执行环境 - lab0-0 (July 08 - July 09)"></a>第一章：应用程序与基本执行环境 - lab0-0 (July 08 - July 09)</h2><p>在本章中，我们会打造一个能打印 <code>Hello, world!</code> 的 OS，深入理解应用程序及其执行环境。</p>
+<p><a href="https://github.com/LearningOS/lab0-0-setup-env-run-os1-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab0-0-setup-env-run-os1-Yakkhini</em></a></p>
+<h3 id="应用程序执行环境"><a href="#应用程序执行环境" class="headerlink" title="应用程序执行环境"></a>应用程序执行环境</h3><p>一个应用程序的执行大概会通过四层路径，自顶向下：程序函数（<code>main.rs/main()/println!</code>） -&gt; 标准库（<code>std, GUN Libc</code>） -&gt; 内核与操作系统的指令集（<code>Linux kernel 5.15/x86_64</code>） -&gt; 硬件（<code>cpu</code>）。</p>
+<h4 id="目标三原组"><a href="#目标三原组" class="headerlink" title="目标三原组"></a>目标三原组</h4><p>除程序函数外，运行时库、指令集架构、操作系统类型共同构成了程序运行的平台。这三者也被叫做 <strong>目标三元组</strong>。如上述 <code>hello world</code> 程序，其平台就为 <code>x86_64</code> 指令集，<code>Linux</code> 操作系统，<code>GNU Libc</code> 运行时库。</p>
+<h4 id="程序是怎样被执行的"><a href="#程序是怎样被执行的" class="headerlink" title="程序是怎样被执行的"></a>程序是怎样被执行的</h4><h5 id="内存"><a href="#内存" class="headerlink" title="内存"></a>内存</h5><p>源代码被编译成可执行文件后，其内部的字节大概可以分为 <strong>代码</strong> 和 <strong>数据</strong> 两部分。代码会被 CPU 解析并执行，而数据部分则指示了代码中读写数据的操作应该发生在内存的哪部分空间中。</p>
+<p>不过，由于我们知道在程序运行的过程中会出现很多不同类型、生命周期、容量、功能的数据结构，如果将它们全部放在一起的话会让空间管理难以进行。所以我们进一步地分了很多 <strong>段</strong> 来存放数据。不同的段依照一定规则放在内存的不同位置上，构成程序的 <strong>内存布局。</strong>如：</p>
+<img src="/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-MemoryLayout.png" class title="一种典型的内存布局">
+<p>从这个布局中我们看到，存放的数据大概被分成了代码内容和数据内容两个部分。</p>
+<ul>
+<li><code>.text</code> 部分存放编译出的汇编代码。</li>
+<li><code>.rodata</code> 存放只读的全局数据，<code>.data</code> 存放可读写的全局数据。这两者共同构成 <strong>已初始化数据段。</strong></li>
+<li><code>.bss</code> 则存放程序未初始化的全局数据，由加载者初始化。其中的数据初始化后就会存放在已初始化数据段中。所以，一般来说，<code>.bss</code> 数据段会在程序运行过程中逐步缩小。</li>
+<li><code>heap</code> <strong>堆</strong> 存放程序运行时动态分配的数据（如不定长可扩展的数组和向量），由低地址向高地址增长。</li>
+<li><code>stack</code> <strong>栈</strong> 用作 <strong>调用上下文的保存与恢复，</strong>以及存放一些局部变量，由高地址向低地址增长。</li>
+</ul>
+<h5 id="编译"><a href="#编译" class="headerlink" title="编译"></a>编译</h5><p>编译流程大概包括三道工序，经过三个组件，它们分别是 <strong>编译器、汇编器、链接器。</strong> 编译器将我们 ASCLL 码的 Rust 源代码文件 <code>*.rs</code> 转为汇编语言，而汇编器再将汇编语言转为机器可读取的二进制码。</p>
+<p>那么链接器是做什么的呢？我们在写程序的时候，定义变量、常量都使用了高级语言的语法。但是在程序运行中，程序想要使用一个数据只能去寻址访问，找到所需数据在内存中存放的地址来进行读写操作。这一步翻译工作会在汇编和机器码层面做出来。</p>
+<p>但是这就出现了一个问题：<strong>各个原文件是由编译器、汇编器单独编译的，那么它们就无从得知彼此所需数据的位置，更无法协调内存布局。</strong>如果直接执行，很有可能会彼此冲突，造成严重的错误。链接器就是做这件事的：将各个源文件汇编的布局，按段拆分，再重新组合：</p>
+<img src="/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-link-sections.png" class title="链接器工作图示">
+<p>如图所示，如果直接将 <code>1.O</code>，<code>2.O</code> 拿去运行，那 CPU 在读取 <code>2.O</code> 的 <code>.rodata</code> 位置 <code>0x1000</code> 时可能就会读到 <code>1.O</code> 的 <code>.text</code> 段。实际上，这样两个冲突的内存布局可能都无法正常开始运行，更没有读取操作了。而在组合成 <code>output.O</code> 后，内存布局不再矛盾，程序正常运行。</p>
+<h3 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h3><h4 id="代码组织"><a href="#代码组织" class="headerlink" title="代码组织"></a>代码组织</h4><p>我发现需要将 <code>riscv64gc-unknown-none-elf</code> target 安装到本地：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&gt; rustup target add riscv64gc-unknown-none-elf</span><br></pre></td></tr></table></figure>
+<p>在下一步的学习中，我发现我由于对操作系统理解不够，因而许多实验书中的概念都不了解。对于操作系统零基础的同学，我建议大家去看未精简的原书 <a href="https://rcore-os.github.io/rCore-Tutorial-Book-v3/index.html"><strong>rCore-Tutorial-Book 第三版</strong></a> 参考学习。</p>
+<h4 id="移除标准库依赖"><a href="#移除标准库依赖" class="headerlink" title="移除标准库依赖"></a>移除标准库依赖</h4><p>我们要写操作系统，所以除指令集已定义 <code>riscv64gc</code> ，我们均无法使用其他操作系统及内置的运行时库。而 Rust 标准库 <code>std</code> 也无法使用。所以应仅依赖 Rust 无需操作系统支持的 <code>core</code> 核心库。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/main.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#![no_std]</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>我们移除了 <code>println!</code> 宏，因为这是一个由 <code>std</code> 提供的宏。</p>
+<h4 id="汇编和链接器"><a href="#汇编和链接器" class="headerlink" title="汇编和链接器"></a>汇编和链接器</h4><p>正常情况下，我们在写 Rust 程序时不用管编译结果是怎样链接的，因为我们最终写的软件运行在操作系统上，而操作系统会通过虚拟地址等机制来给程序分配一个简洁透明的地址空间，供其随意分配使用。这就代表着，只要一个 Rust 项目在编译时链接器的主要工作就是组合各个文件编译的组合，让其不冲突，而不用考虑内存安排是否会与其他程序冲突，以及和内存硬件相适合。</p>
+<p>但是，我们做操作系统开发，就不会有另一层系统来接管地址的分配和使用了。这代表着我们必须手写每个地址段在物理硬件（也就是 QEMU 给的虚拟硬件空间）内存中的布局。这需要汇编和链接器语言的支持：</p>
+<!-- tabs:start -->
+<h5 id="汇编"><a href="#汇编" class="headerlink" title="汇编"></a><strong>汇编</strong></h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># os&#x2F;src&#x2F;entry.asm</span><br><span class="line">     .section .text.entry</span><br><span class="line">     .globl _start</span><br><span class="line"> _start:</span><br><span class="line">     li x1, 100</span><br></pre></td></tr></table></figure>
+<p>可以看到，RISC-V 运行所需的 <code>_start</code> 汇编存放在了 <code>.text</code> 段中。之后需要把这段汇编嵌入到 Rust 代码中作为程序入口。</p>
+<h5 id="嵌入"><a href="#嵌入" class="headerlink" title="嵌入"></a><strong>嵌入</strong></h5><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/main.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#![no_std]</span></span><br><span class="line"><span class="meta">#![no_main]</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">mod</span> lang_item;</span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> core::arch::global_asm;</span><br><span class="line">global_asm!(<span class="built_in">include_str!</span>(<span class="string">"entry.asm"</span>));</span><br></pre></td></tr></table></figure>
+<h5 id="链接"><a href="#链接" class="headerlink" title="链接"></a><strong>链接</strong></h5><p>再将整个程序的内存布局写出，与 QEMU 对接：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">OUTPUT_ARCH(riscv)</span><br><span class="line">ENTRY(_start)</span><br><span class="line">BASE_ADDRESS &#x3D; 0x80200000;</span><br><span class="line"></span><br><span class="line">SECTIONS</span><br><span class="line">&#123;</span><br><span class="line">    . &#x3D; BASE_ADDRESS;</span><br><span class="line">    skernel &#x3D; .;</span><br><span class="line"></span><br><span class="line">    stext &#x3D; .;</span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text.entry)</span><br><span class="line">        *(.text .text.*)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);</span><br><span class="line">    etext &#x3D; .;</span><br><span class="line">    srodata &#x3D; .;</span><br><span class="line">    .rodata : &#123;</span><br><span class="line">        *(.rodata .rodata.*)</span><br><span class="line">        *(.srodata .srodata.*)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);</span><br><span class="line">    erodata &#x3D; .;</span><br><span class="line">    sdata &#x3D; .;</span><br><span class="line">    .data : &#123;</span><br><span class="line">        *(.data .data.*)</span><br><span class="line">        *(.sdata .sdata.*)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);</span><br><span class="line">    edata &#x3D; .;</span><br><span class="line">    .bss : &#123;</span><br><span class="line">        *(.bss.stack)</span><br><span class="line">        sbss &#x3D; .;</span><br><span class="line">        *(.bss .bss.*)</span><br><span class="line">        *(.sbss .sbss.*)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);</span><br><span class="line">    ebss &#x3D; .;</span><br><span class="line">    ekernel &#x3D; .;</span><br><span class="line"></span><br><span class="line">    &#x2F;DISCARD&#x2F; : &#123;</span><br><span class="line">        *(.eh_frame)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到，我们将各个地址段的存放设定为计划中 QEMU 给到的地址空间中可用的部分。</p>
+<!-- tabs:end -->
+<h2 id="第二章：批处理系统-lab0-1-July-09-July-10"><a href="#第二章：批处理系统-lab0-1-July-09-July-10" class="headerlink" title="第二章：批处理系统 - lab0-1 (July 09 - July 10)"></a>第二章：批处理系统 - lab0-1 (July 09 - July 10)</h2><p><strong>批处理系统</strong> 指的是在这样一个系统中可以一次性运行多个任务，当上一个任务结束后，下一个任务就会自动开始，而不用人工切换。其中 <strong>批量</strong> 的意思就是指人在下达操作命令时一次下达多个任务。需要注意的是，我们这里任务的运行仍是顺序的，而没有出现任务切换、调度、多道并行的状态。</p>
+<p>那么，想要实现这样一个操作系统，主要做两件事：<strong>多个任务的内存布局，</strong>以及 <strong>任务间的切换调度。</strong></p>
+<p>本章在上一章的基础上，让我们的 OS 内核能以批处理的形式一次运行多个应用程序，同时利用特权级机制，令 OS 不因出错的用户态程序而崩溃。</p>
+<p><a href="https://github.com/LearningOS/lab0-1-run-os2-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab0-1-run-os2-Yakkhini</em></a></p>
+<h3 id="CI-自动评分系统内置的-riscv-依赖出错"><a href="#CI-自动评分系统内置的-riscv-依赖出错" class="headerlink" title="CI 自动评分系统内置的 riscv 依赖出错"></a>CI 自动评分系统内置的 riscv 依赖出错</h3><p>在运行中，我发现内置的 RISC-V 依赖有错误，所有的 <code>asm!</code> 没有声明导致无法编译。于是提了一个 <strong>Pull request：</strong><a href="https://github.com/LearningOS/rust-based-os-comp2022/pull/59" target="_blank" rel="noopener">Fix: Used but undeclared macro ‘asm!’. by Yakkhini · Pull Request #59 · LearningOS/rust-based-os-comp2022</a></p>
+<p>由于修补好了内置的依赖，所以新生成的实验仓库在 CI 中不会出问题了。如果是已经生成的仓库，也可以参考 <strong>QA7</strong> 修改。</p>
+<h3 id="特权级"><a href="#特权级" class="headerlink" title="特权级"></a>特权级</h3><p>分析上一章的操作系统实现，我们很容易发现一个问题：我如果在操作系统中编入一个任务，那么任务本身虽然可以经过链接器处理后正常运行，但是对于程序具体的实现（如对内存的操作）却不设防。这就带来了安全隐患：我完全可以写一个恶意程序，读写操作系统本身在内存中的数据，或者调用本该由操作系统才能运行的指令，对计算机进行破坏。</p>
+<p>那么，这就需要权级体系的介入了。如果对那些我们想压入操作系统去计算的任务，我们应当使其没有调用会对系统破坏的那些指令的权限，而这样的权限应该分配给操作系统内核。</p>
+<p>好在 RISC-V 架构中定义了一个特权级体系供我们使用：</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th style="text-align:center">级别</th>
+<th style="text-align:center">编码</th>
+<th style="text-align:center">名称</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">0</td>
+<td style="text-align:center">00</td>
+<td style="text-align:center">U, User/Application</td>
+</tr>
+<tr>
+<td style="text-align:center">1</td>
+<td style="text-align:center">01</td>
+<td style="text-align:center">S, Supervisor</td>
+</tr>
+<tr>
+<td style="text-align:center">2</td>
+<td style="text-align:center">10</td>
+<td style="text-align:center">H, Hypervisor</td>
+</tr>
+<tr>
+<td style="text-align:center">3</td>
+<td style="text-align:center">11</td>
+<td style="text-align:center">M, Machine</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>那么我们就可以借用这个特权级体系来写操作系统。如 Bootloader 就以 M 特权级运行，并给出 SBI（系统二进制接口）来与运行在 S 特权级上的操作系统内核交互；操作系统上再做一层 ABI（应用二进制接口），供运行在 U 特权上的具体程序来与操作系统交互。我们只需要控制 SBI 和 ABI 的支持范围，就可以控制每一层软件使用提权指令的范围。</p>
+<p>也就是说，我们现在的代码实现了内核和用户程序的权属隔离。以专业的角度来讲，我们是开始做区分 <strong>内核态</strong> 和 <strong>用户态</strong> 的工作了。</p>
+<p>?&gt; 不过，我们现在的工作其实只做了一半。虽然内核和用户的权属被隔离了，但用户程序依然能随意访问到操作系统和其他应用程序的内存数据。</p>
+<h3 id="内存布局"><a href="#内存布局" class="headerlink" title="内存布局"></a>内存布局</h3><p>用户态的程序代码存放在 <code>user/</code> 目录。其中也包括了汇编的入口点和链接器脚本，这里不再多讲。需要注意的一点时链接器中应用程序的起始物理地址是 <code>0x80400000</code>，这与整个操作系统的内存布局设计有关。</p>
+<p>将应用程序链接到内核，则需要专门写一个 <code>link_app.S</code> 汇编代码来处理。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"># os&#x2F;src&#x2F;link_app.S</span><br><span class="line"></span><br><span class="line">    .align 3</span><br><span class="line">    .section .data</span><br><span class="line">    .global _num_app</span><br><span class="line">_num_app:</span><br><span class="line">    .quad 5</span><br><span class="line">    .quad app_0_start</span><br><span class="line">    .quad app_1_start</span><br><span class="line">    .quad app_2_start</span><br><span class="line">    .quad app_3_start</span><br><span class="line">    .quad app_4_start</span><br><span class="line">    .quad app_4_end</span><br><span class="line"></span><br><span class="line">    .section .data</span><br><span class="line">    .global app_0_start</span><br><span class="line">    .global app_0_end</span><br><span class="line">app_0_start:</span><br><span class="line">    .incbin &quot;..&#x2F;user&#x2F;target&#x2F;riscv64gc-unknown-none-elf&#x2F;release&#x2F;00hello_world.bin&quot;</span><br><span class="line">app_0_end:</span><br><span class="line"></span><br><span class="line">    .section .data</span><br><span class="line">    .global app_1_start</span><br><span class="line">    .global app_1_end</span><br><span class="line">app_1_start:</span><br><span class="line">    .incbin &quot;..&#x2F;user&#x2F;target&#x2F;riscv64gc-unknown-none-elf&#x2F;release&#x2F;01store_fault.bin&quot;</span><br><span class="line">app_1_end:</span><br><span class="line"></span><br><span class="line">    .section .data</span><br><span class="line">    .global app_2_start</span><br><span class="line">    .global app_2_end</span><br><span class="line">app_2_start:</span><br><span class="line">    .incbin &quot;..&#x2F;user&#x2F;target&#x2F;riscv64gc-unknown-none-elf&#x2F;release&#x2F;02power.bin&quot;</span><br><span class="line">app_2_end:</span><br><span class="line"></span><br><span class="line">    .section .data</span><br><span class="line">    .global app_3_start</span><br><span class="line">    .global app_3_end</span><br><span class="line">app_3_start:</span><br><span class="line">    .incbin &quot;..&#x2F;user&#x2F;target&#x2F;riscv64gc-unknown-none-elf&#x2F;release&#x2F;03priv_inst.bin&quot;</span><br><span class="line">app_3_end:</span><br><span class="line"></span><br><span class="line">    .section .data</span><br><span class="line">    .global app_4_start</span><br><span class="line">    .global app_4_end</span><br><span class="line">app_4_start:</span><br><span class="line">    .incbin &quot;..&#x2F;user&#x2F;target&#x2F;riscv64gc-unknown-none-elf&#x2F;release&#x2F;04priv_csr.bin&quot;</span><br><span class="line">app_4_end:</span><br></pre></td></tr></table></figure>
+<p>可以看到，几个应用的二进制 ELF 数据顺序放置在内核的 <code>.data</code> 字段中，随取随用。在运行结束完后再清除 <code>0x80400000</code> 后的内容，加载下一个程序。</p>
+<h3 id="任务的调度切换"><a href="#任务的调度切换" class="headerlink" title="任务的调度切换"></a>任务的调度切换</h3><p>要实现任务的切换，就需要一个持久的数据结构来维护任务的运行信息。而 Rust 中的变量往往会因为寿命周期而被回收。如果使用常量，但常量中的数据无法在运行时改变；如果使用 <code>&#39;static</code> 生命周期声明，常量中的数据也无法在一开始就初始化。所以我们使用 <code>lazy_static</code> 依赖提供的宏，来声明 <code>AppManager</code> 结构体。</p>
+<p>那么，为什么不使用 <code>&#39;static mut</code> 来初始化这个结构呢？因为在 Rust 中，全局可变变量是一种 unsafe 行为。其实在这里使用还算是比较安全的——因为全局可变变量的风险来源往往是多线程。但一来 Rust 编译器无法检测到这个全局可变变量有没有经过多线程，二来我们在之后的操作系统设计中还需要引入多线程。除此之外，全局可变变量并不算得上是一种良好的设计。你如果滥用它，就会给你增加极大的心智负担和代码风险，这当然也是 Rust 不愿意看到的。当然，我们在这里使用它，是因为我们的确需要它。</p>
+<p>具体情况我在 <a href="https://www.reddit.com/r/rust/comments/bkw00l/why_is_static_mut_bad_to_use/" target="_blank" rel="noopener">Reddit 上的一篇帖文</a> 中找到了更详细的说明：</p>
+<blockquote>
+<p><em>“The problem is that it breaks Rust’s most important safety principle: Aliasing + Mutation should never happen at the same time unless the mutation is synchronized.”</em></p>
+<p>—— @CryZe92 · 3 yr. ago</p>
+</blockquote>
+<p>可以猜测，Rust 编译器的一些激进优化策略可能会由于无力检查，而使得全局可变变量编译出错。</p>
+<p>所以说，我们在 <code>AppManager</code> 中给需要可变的条目做一层 <code>RefCell</code>，在保证整个结构体是不可变全局变量的同时可以通过获取可变引用的方式来动态维护那些需要改变数据的条目信息。这就是 <strong>内部可变性</strong> 的设计模式。根据上述，我们还需要为其实现一个 <code>UPSafeCell</code>，通过限制获取变量者数目始终只有一个的方式来保证代码安全。如果你读完最后一章，这一实现很像一个 <strong>互斥锁！</strong>是的，它们做的基本是一样的事情。甚至，使用互斥锁而不用 <code>UPSafeCell</code> 也可以满足 <code>Sync</code> trait。</p>
+<p>重点说明 <code>AppManager</code> 的实现，是因为我们在之后还要使用很多 Managers。至于针对其中结构体的方法，就是比较常规的业务逻辑了。</p>
+<h2 id="第三章：多道程序与分时多任务-lab1-July-10-July-11"><a href="#第三章：多道程序与分时多任务-lab1-July-10-July-11" class="headerlink" title="第三章：多道程序与分时多任务 - lab1 (July 10 - July 11)"></a>第三章：多道程序与分时多任务 - lab1 (July 10 - July 11)</h2><p>本章的目标是实现分时多任务系统，它能 <strong>并发</strong> 地执行多个用户程序，并调度这些程序。</p>
+<p>与前一章不同的是，并发执行程序不再执行完一个程序，再自动执行下一个；而是多个程序同时进行，在不同任务间切换以达到更高效利用计算资源的结果。</p>
+<p><a href="https://github.com/LearningOS/lab1-os3-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab1-os3-Yakkhini</em></a></p>
+<h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h3><h4 id="应用程序内存布局"><a href="#应用程序内存布局" class="headerlink" title="应用程序内存布局"></a>应用程序内存布局</h4><p>在本章中，各个应用需要在运行过程中彼此切换，所以不能像上一章一样运行完一个程序后，清除用户态内存，再运行下一个。每一个程序的代码段在 <code>0x80400000</code> 位置后的 <code>.text</code> 段顺序排列，供操作系统在运行中取用。</p>
+<h4 id="控制流"><a href="#控制流" class="headerlink" title="控制流"></a>控制流</h4><p>其实在上一章中，<strong>控制流</strong> 的概念就被提到了，我们使用了一些 <code>trap</code> 来协助程序的切换、内核态与用户态的切换。但是我认为真正较为复杂的控制流是由于多道程序的实现需求而被使用的，所以放在这一章节记录。</p>
+<p>要比较详细地了解控制流及原理，应该去看原书第一章节的 <a href="http://rcore-os.cn/rCore-Tutorial-Book-v3/chapter0/3os-hw-abstract.html" target="_blank" rel="noopener">操作系统抽象</a> 一节帮助了解。</p>
+<p>正常情况下，操作系统会逐行阅读 <code>.text</code> 中的汇编指令并运算。这就是 <strong>普通控制流</strong>。但我们也想在运行中切换不同的程序执行，或者切换内核与用户态的汇编指令执行。这就需要 <strong>异常控制流</strong> 的介入。</p>
+<p>?&gt; 我们知道，如 <code>if</code> <code>loop</code> 等高级语言的语法在编译成汇编语言时也会伴随着汇编指令的行间跳转。如著名的 <code>GOTO</code> 语法就是做这件事的。那么，这样的跳转和异常控制流又有什么区别？这是因为在我们编写程序，以及计算机执行程序时，需要考虑的不止有「现在在执行什么」，还包括「已经执行了什么」和「将要执行什么」。程序的执行过程也是数据的维护和更改的过程，与过去和未来的数据状态有关。这种当前的状态决定了程序执行的进度、效果、权属、功能等，不如说，是程序的 <strong>执行环境</strong> 被强制切换了。这种突变就是 <strong>异常控制流</strong>，因为它往往需要可控的中断或异常来达到效果。</p>
+<p>异常控制流有三种，分别是 <strong>中断</strong>、<strong>异常</strong>、<strong>陷入</strong>。中断来自于外部事件，与程序的执行状况无关；异常是指程序执行出现问题，交给操作系统执行命令，决定其恢复或者终止；陷入则是程序在执行中由于权级不够或者特殊需求，有意地切换到其他程序或者内核态来执行特定功能的代码。这三者中，只有异常可能是意外或错误导致的，并可能引起程序终止。</p>
+<p>我们在本章的任务中，当程序有意调用内核命令接口，或者主动切换其他程序，那么就应当使用 <strong>陷入</strong>。而分时调度程序时，由外部的时钟决定定期暂停当前执行程序去执行其他程序，当然就是一种 <strong>中断</strong> 了。</p>
+<p>除此之外，我们之前讲过程序的执行就是维护一组数据的状态。如果在任务切换中，任务程序的状态丢失，那就会导致程序执行出错，出现不可预期的结果。所以我们要保存每一个未执行完程序的这种状态，或者说，保存每一个未执行完程序的 <strong>上下文</strong>。</p>
+<h3 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h3><p>在本章内容中，我们需要重点实现的就是 <code>TaskManager</code> 和分时调度系统。<code>TaskManager</code> 也使用了内部可变性的设计思想，而分时调度则是调用了 RISC-V 中的时钟定时中断功能来做的。</p>
+<h4 id="TaskInfo-获取"><a href="#TaskInfo-获取" class="headerlink" title="TaskInfo 获取"></a>TaskInfo 获取</h4><p>本章的编程任务是设计一个 TaskInfo 获取当前程序的信息。字段有运行状态、运行时间以及所有程序使用的系统调用次数。</p>
+<p>对于运行状态来说，每一个发起询问的任务其运行状态必然是正在运行的，所以可以写死为 <code>TaskStatus::Running</code>。至于运行时间和系统调用次数，则应当写入 <code>TaskManager</code> 的可变引用中。</p>
+<h3 id="报告"><a href="#报告" class="headerlink" title="报告"></a>报告</h3><p>本章中的操作系统实现了多道程序，一个内部可变设计的任务管理器。通过对任务管理器中的信息维护，实现了对任务信息的查询。在分时设计和任务切换中，使用了 RISC-V 提供的一些中断功能，来帮助暂存程序上下文。</p>
+<h4 id="问答"><a href="#问答" class="headerlink" title="问答"></a>问答</h4><ol>
+<li>越权问题</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">LOG=ERROR make run</span><br></pre></td></tr></table></figure>
+<p><strong>Output：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[ERROR] [kernel] PageFault in application, bad addr &#x3D; 0x0, bad instruction &#x3D; 0x80400408, core dumped.</span><br><span class="line">[ERROR] [kernel] IllegalInstruction in application, core dumped.</span><br><span class="line">[ERROR] [kernel] IllegalInstruction in application, core dumped.</span><br></pre></td></tr></table></figure>
+<p>这说明程序访问了非法的路径和指令，被 sbi 拒绝了。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) =&gt; &#123;</span><br><span class="line">            error!(<span class="string">"[kernel] PageFault in application, bad addr = &#123;:#x&#125;, bad instruction = &#123;:#x&#125;, core dumped."</span>, stval, cx.sepc);</span><br><span class="line">            exit_current_and_run_next();</span><br><span class="line">        &#125;</span><br><span class="line">Trap::Exception(Exception::IllegalInstruction) =&gt; &#123;</span><br><span class="line">            error!(<span class="string">"[kernel] IllegalInstruction in application, core dumped."</span>);</span><br><span class="line">            exit_current_and_run_next();</span><br><span class="line">        &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<ol>
+<li><p>深入 <code>trap.S</code></p>
+<ol>
+<li><p><code>__restore</code></p>
+<p>刚进入 <code>__restore</code> 中时，<code>a0</code> 指向的是内核栈的栈顶。我们要通过 <code>sp</code> 来寻找需恢复的数据，一般情况下在 <code>trap_handler</code> 之后 <code>sp</code> 的位置正确，所以不需要调整。例外是如第二章批处理程序中，在运行下一个程序后一个新的上下文被压入内核栈，此时 <code>sp</code> 的位置不正确，所以需要重新调整。那么这也代表着 <code>__restore</code> 的两种使用情况：在 Trap 特权切换并发出系统调用后切换回程序时上下文的恢复，以及在运行一个新程序时恢复新程序的上下文到寄存器。</p>
+<ol>
+<li>特殊处理的寄存器</li>
+</ol>
+<p>这几行代码从之前保存的特殊寄存器数据重新读入临时寄存器，并写入特殊寄存器。<code>sstatus</code> 表示特权级信息，<code>sepc</code> 则记录了 Trap 处理完成后的下一条指令地址。<code>sscratch</code> 用于记录用户栈顶的位置，用于之后与 <code>sp</code> 交换。</p>
+<ol>
+<li><code>x2</code>，<code>x4</code> 寄存器</li>
+</ol>
+<p>因为 <code>x4</code> 寄存器除非手动的话就不会被用到，所以无需保存；<code>x2</code> 寄存器就是 <code>sp</code> 需要单独去处理。</p>
+<ol>
+<li><code>__restore</code> 中 <code>sp</code> 和 <code>sscratch</code> 伪指令操作</li>
+</ol>
+<p>在这一指令之后 <code>sp</code> 重新指向用户栈栈顶，<code>sscratch</code> 保存内核栈栈顶以备下一次 Trap 处理。</p>
+<ol>
+<li>状态切换的指令</li>
+</ol>
+<p>在 <code>sret</code> 指令之后发生了状态切换。因为这一指令实际上处理了 <code>x1</code> 通用寄存器，做了写 0 操作，完成了 <code>__restore</code> 的返回。除此之外，这一条指令中 CPU 还会按 <code>sstatus</code> 中的字段设置特权级，以及跳转到 <code>sepc</code> 中指向的指令。</p>
+<ol>
+<li><code>__alltraps</code> 中 <code>sp</code> 和 <code>sscratch</code> 伪指令操作</li>
+</ol>
+<p>在这一指令之后 <code>sp</code> 指向内核栈栈顶，<code>sscratch</code> 保存用户栈栈顶以备回到用户态的恢复操作。</p>
+<ol>
+<li>状态何时切换</li>
+</ol>
+<p>在用户态中调用 <code>ecall</code> 返回后，CPU 将特权级调为 S 级。在 <code>__alltraps</code> 中，<code>sp</code> 指向内核栈顶，代表着进入了内核栈内存空间。在备份各个寄存器后，进入 <code>trap_handler</code> 中，执行内核态指令。</p>
+</li>
+</ol>
+</li>
+</ol>
+<h2 id="第四章：地址空间-lab2-July-11-July-16"><a href="#第四章：地址空间-lab2-July-11-July-16" class="headerlink" title="第四章：地址空间 - lab2 (July 11 - July 16)"></a>第四章：地址空间 - lab2 (July 11 - July 16)</h2><p>在本章中，我们将更深入地了解程序运行与内存的关系，并以 <strong>页表</strong> 这一工具来隔离每一个程序，令操作系统更方便、更安全。</p>
+<p><a href="https://github.com/LearningOS/lab2-os4-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab2-os4-Yakkhini</em></a></p>
+<blockquote>
+<p><em>July 11 注：今天正式去工地实习入职了，第一次上班。昨晚没睡着很困，实在没精力和 Rust 编译器搏斗了。</em></p>
+</blockquote>
+<h3 id="物理空间和虚拟地址空间"><a href="#物理空间和虚拟地址空间" class="headerlink" title="物理空间和虚拟地址空间"></a>物理空间和虚拟地址空间</h3><p>我们在程序运行过程中，数据主要是在内存中维护的。我们看待内存的方式可以把它想象成一个大数组。那么，在本章之前，我们程序和操作系统的数据在内存中的存储方式就相当于在这个大数组中独自占用一部分空间，来存放所需的数据。至于哪段空间属于哪个程序、怎样申请内存、各个程序之间怎样不冲突，全靠它们自己来维护。</p>
+<h4 id="物理空间的缺陷和解决办法"><a href="#物理空间的缺陷和解决办法" class="headerlink" title="物理空间的缺陷和解决办法"></a>物理空间的缺陷和解决办法</h4><p>这无疑是一种坏的设计。从安全角度来看，各个程序之间的内存读写互不设防，那么当操作系统中出现一个恶意程序或者错误程序时，它可以在内存层次上轻易地把其他程序搞得一团糟。从使用友好度来看，每一个编写程序的人都要考虑自己的程序的内存布局是否与其他程序冲突，或者装载程序的人需要动手链接每一个程序的内存段，来保证所有程序都可以正常运行。这会增加繁重的心智负担。</p>
+<p>那么，可不可以为每一个程序做一层虚拟的包装，让它们觉得自己是整部计算机中 <strong>唯一的程序</strong> 来运行，然后做一个组件来统一管理它们呢？这种想法的产物就是 <strong>虚拟地址空间。</strong></p>
+<h4 id="透明的巨大虚拟地址空间"><a href="#透明的巨大虚拟地址空间" class="headerlink" title="透明的巨大虚拟地址空间"></a>透明的巨大虚拟地址空间</h4><p>这种做法是，对于每一个程序，它们尽可以随意申请自己的内存，只要不和自己冲突就好。因为在程序的视角看，它们会认为自己处在一块巨大的内存块中，而无法感知到其他程序的存在。也就是说，虚拟地址空间对程序是 <strong>透明</strong> 的。</p>
+<p>虽然允许程序使用的地址范围很宽，但并不是真的会记录每一个地址的信息。否则，程序就无法享受看起来巨大的地址空间了。只有程序在申请一段内存、操作内存时，那块内存才会真的被映射在实际的物理内存上。实现这一特性，因为我们在页表及节点中采用了 <strong>树结构。</strong></p>
+<h3 id="页表"><a href="#页表" class="headerlink" title="页表"></a>页表</h3><p>维护虚拟地址信息有很多办法，广为使用的一种是 <strong>页表</strong>。这是基于 <strong>分页内存管理</strong> 所建立的地址转换机制。我们按内存的 <strong>地址</strong> 来访问内存中特定位置的数据，就如同 <strong>循秩访问</strong> 列表和向量中的数据一样。一组固定长度的、连续的地址组成一个虚拟页面，或者物理页帧，这就是虚拟地址与物理地址中映射的最小单位。我们给每一个页面、页帧都取了编号，即 <strong>页号，</strong>在页表中成对记录，表示映射关系。</p>
+<img src="/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-page-table.png" class title="页表中以页号的方式存储着虚拟页面和物理页帧的映射关系">
+<h4 id="页表的硬件机制"><a href="#页表的硬件机制" class="headerlink" title="页表的硬件机制"></a>页表的硬件机制</h4><p>页表的设计很好，但想要独立实现它难于登天。我们在上几章已经了解到了，对内存的操作行为遍布程序执行的各个维度，直到汇编、机器码，程序也在和内存打交道；CPU 的寄存器也常常通过物理地址在内存上读写数据。而我们编写操作系统的角度是站在高级语言（Rust）角度上的，于是写页表转换就成了一件不可能的事情。</p>
+<p>所以，如果有 CPU 的帮助，自动地将汇编语言中对内存地址的访问读写视为虚拟地址，并将这些操作转到实际的物理地址上，这种问题就迎刃而解。在 CPU 中，做这件事的组件就是 <strong>内存管理单元</strong>（<strong>MMU，</strong>Memory Management Unit）。</p>
+<p>在 RISC-V 架构中，修改 <code>satp</code> 这一 CSR 寄存器就可以开启分页模式。</p>
+<h4 id="多级页表"><a href="#多级页表" class="headerlink" title="多级页表"></a>多级页表</h4><p>我们维护页表映射的数据结构是一颗 <strong>字典树。</strong>采用树结构的好处是，可以 <strong>按需分配</strong> 合法的映射。我们知道，数据库就是靠 B+ 树结构实现的。</p>
+<h3 id="报告-1"><a href="#报告-1" class="headerlink" title="报告"></a>报告</h3><p>在本章中，我们实现了虚拟地址空间，使各个程序之间内存隔离。这与 RISC-V 的硬件 MMU 支持有关。在任务切换、中断上，程序的装载逻辑也重写了，以适应新的虚拟地址空间。</p>
+<h4 id="问答-1"><a href="#问答-1" class="headerlink" title="问答"></a>问答</h4><ol>
+<li>SV39 页表页表项</li>
+</ol>
+<p>多级页表由物理页号索引、保护位以及更多的标志位组成。标志位可以控制此页表项的读写、执行权限，合法性，访问权级及访问痕迹等。</p>
+<ol>
+<li>缺页</li>
+</ol>
+<p>Lazy 策略的好处是省去了无用的加载，按需分配内存。即使出现缺页，也可以处理后再加载或分配。</p>
+<p>swap 则可以将使用频率低的内存映射放在硬盘中，节省更多内存用于程序执行。</p>
+<ol>
+<li><p>单页表</p>
+<ol>
+<li>控制用户态</li>
+</ol>
+<p>修改 <code>U</code> 标志位即可。</p>
+<ol>
+<li><p>单页表优势</p>
+<p>单页表无需切换页表，在内核态与用户态切换时直接备份上下文即可。</p>
+<ol>
+<li>切换页表</li>
+</ol>
+<p>双页表在程序转换和权级转换时都需要切换页表，而单页表只需要在程序切换时更换页表即可。</p>
+</li>
+</ol>
+</li>
+</ol>
+<h2 id="第五章：进程及进程管理-lab3-July-16-July-17"><a href="#第五章：进程及进程管理-lab3-July-16-July-17" class="headerlink" title="第五章：进程及进程管理 - lab3 (July 16 - July 17)"></a>第五章：进程及进程管理 - lab3 (July 16 - July 17)</h2><p>在本章，我们将进一步深入操作系统中各个程序的组合方式。在之前，我们的每个程序都只能手动装载进来，如果我们的程序具有装载和启动其他程序的能力，那么操作系统又会方便很多。我们之前描述程序很模糊，会称呼它为任务、用户程序、应用，现在这些正在执行的应用有了一个新的名字：<strong>进程。</strong></p>
+<p><a href="https://github.com/LearningOS/lab3-os5-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab3-os5-Yakkhini</em></a></p>
+<h3 id="功能"><a href="#功能" class="headerlink" title="功能"></a>功能</h3><p>每一个正在执行的应用都是一个 <strong>进程（process）。</strong>想要实现预期的效果，我们为新增了三个系统调用供进程使用：</p>
+<ul>
+<li>Fork：从某一进程中分支出子进程</li>
+<li>Exec：在进程中执行程序，用于在子进程中运行程序</li>
+<li>Wait Pid：等待运行结束进程的 <code>pid</code> 用于回收资源</li>
+</ul>
+<p>这使得我们可以做一个简单的 Shell 了，在 Shell 中输入程序名，就可以令 Shell 分支一个子进程并运行这个程序。在执行结束后，Pid，栈空间及映射的页表都被回收。</p>
+<p>进程的编写，离不开上一章中页表提供的 <strong>在程序层面动态分配回收内存资源</strong> 的能力。</p>
+<h3 id="分时调度"><a href="#分时调度" class="headerlink" title="分时调度"></a>分时调度</h3><p>现在我们的调度使用了 Stride 算法，这是一种与优先级有关的调度算法。优先级越高，则 Stride 越小，执行次数会更加频繁；同时也不会使得优先级较低的程序无法执行，而是一种比较均匀和线性的分布。</p>
+<h3 id="报告-2"><a href="#报告-2" class="headerlink" title="报告"></a>报告</h3><p>在本章中，我们实现了应用执行从任务到进程的变迁。进程更加强大，可以生成和运行其他进程。这需要进程具有动态分配内存资源的能力；在运行中我们保留了程序分时运行的能力以高效使用计算资源，这需要操作系统具有中断程序切换程序的能力，以及一个有效的调度算法。</p>
+<h3 id="Pass-溢出的影响"><a href="#Pass-溢出的影响" class="headerlink" title="Pass 溢出的影响"></a>Pass 溢出的影响</h3><p>当 Pass 溢出后，Pass 之间的比较实际上并不是它们全部值的比较，而是 Pass 除以溢出边界（如以 <code>u8</code> 存储 Pass，这一边界就是 <code>255</code>）后的余数相比较。那这种比较就很大程度上失去了意义，也就是一个 Stride 较大的进程，无非它的（表现的）Pass 值只是从零值到溢出边界值迭代得更块而已。所以就需要堆或栈等可动态扩容的数据结构来存储 Pass。<strong>但我的办法是</strong> 在调度算法中，Stride 以 <code>u8</code> 存储，BigStride 值为 <code>u8::Max</code> 即 <code>255</code>，而 Pass 则以容量更大的 <code>usize</code> 格式来存储，以避免溢出问题。当然，如果是一个更复杂的操作系统、运行时间更久的程序，这种实现最终还是会溢出并使算法失效。</p>
+<h2 id="第六章：文件系统与-I-O-重定向-lab4-July-17-July-20"><a href="#第六章：文件系统与-I-O-重定向-lab4-July-17-July-20" class="headerlink" title="第六章：文件系统与 I/O 重定向 - lab4 (July 17 - July 20)"></a>第六章：文件系统与 I/O 重定向 - lab4 (July 17 - July 20)</h2><p>在本章中，我们将实现一个 <strong>文件系统，</strong>用于 <strong>持久储存</strong> 数据信息。</p>
+<p><a href="https://github.com/LearningOS/lab4-os6-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab4-os6-Yakkhini</em></a></p>
+<h3 id="Inode"><a href="#Inode" class="headerlink" title="Inode"></a>Inode</h3><p>如果你有使用类 Unix 系统的经验，那你可能对 <strong>Inode</strong> 并不陌生。在 Linux 中，文件的目录信息与实际在硬盘中的位置信息是解耦的，这代表着我们可以轻易地通过映射来实现文件的 <strong>软链接</strong> 和 <strong>硬链接。</strong>Inode 就是对硬盘中的每一个文件通过存储其在硬盘中的位置信息而产生的一个特殊编号，每一个文件的 Inode 都不同。</p>
+<h3 id="文件目录"><a href="#文件目录" class="headerlink" title="文件目录"></a>文件目录</h3><p>文件目录信息存放着每个文件的路径，通过路径来访问文件。但是常规文件和目录 <strong>并不一定与 Inode 一一对应，</strong>这是因为可能有多个操作系统中中的文件指向硬盘中的同一位置。</p>
+<h3 id="缓存块"><a href="#缓存块" class="headerlink" title="缓存块"></a>缓存块</h3><p>我们使用了 <strong>缓存</strong> 技术来加强 I/O 运行效率。这是程序在运行中使用资源的特点决定的：当程序在运行时，可能会在短时间内多次处理同一文件，而在处理完成后文件访问次数就会趋于稀疏。如果每次访问都要从硬盘中读写数据，那么就会有性能浪费。所以可以把文件短时间内存在缓存中操作，再最终一次写入硬盘。不过，这可能会在并发中出现一些资源抢占或者原子化问题。</p>
+<p>这样的处理办法有点像之前页表中的 sway 策略，不过方向相反。</p>
+<h3 id="报告-3"><a href="#报告-3" class="headerlink" title="报告"></a>报告</h3><p>在本章中，我们接入了一个文件系统，使用 Inode 和文件目录及文件名来管理文件。我们使用了缓存技术来优化文件访问的性能开销，写了一个用于创建文件链接的系统调用。</p>
+<h4 id="Inode-根节点被破坏"><a href="#Inode-根节点被破坏" class="headerlink" title="Inode 根节点被破坏"></a>Inode 根节点被破坏</h4><p>Root Inode 有着帮助程序寻找其他 Inode 及文件的功能，如果 Root Inode 损坏了，那么对文件的增删改查都难以正常进行。</p>
+<h2 id="第七章：进程间通信-July-27"><a href="#第七章：进程间通信-July-27" class="headerlink" title="第七章：进程间通信 - July 27"></a>第七章：进程间通信 - July 27</h2><p>在上一章中，我们令进程拥有了创建子进程的能力。但是想要各个进程间更深地交互协作，这种程度还不够。我们知道，程序之间想要协作，就需要有互相交流信息的能力，即 <strong>通信能力。</strong>这种进程间的通信行为是由 <strong>管道（Pipe）</strong> 实现的。</p>
+<h3 id="通信"><a href="#通信" class="headerlink" title="通信"></a>通信</h3><p>现代互联网及计算机技术中，要找到电脑真正从一个「计算器」进化的节点，那必然是 <strong>通信能力</strong> 的逐渐强大。从网络层面上讲，一台台计算机通过网络协议相连接；在计算机内部，各个程序共享文件或内存中的信息。正是信息在计算机技术中多个维度的分发和共享，才造就了现在繁荣的赛博世界。如果计算机失去了通信能力，那它最终也只能停留在批处理阶段，无非是一个更方便的算盘而已。</p>
+<h3 id="管道和信道"><a href="#管道和信道" class="headerlink" title="管道和信道"></a>管道和信道</h3><p>如果学习过并发的知识，那我们或许会接触过 <strong>信道（channel）</strong>这一概念。进程想要合作维护一段数据，那么它们就有两个选择</p>
+<ol>
+<li>直接共享这段数据的内存，同时拥有对这段数据读写的权利；</li>
+<li>进程间通过信道来交流信息，只保留一个进程读写数据的权利。</li>
+</ol>
+<p>比起共享内存，信道的方式相对更安全，因为这可能会避免一些并发中的常见问题。不过本章中并未实现信道，而是实现了 <strong>管道。</strong>管道是 Linux 中一种常见的命令行语法，方便地组合各个命令之间的处理流程。比起信道，管道往往只会传输和处理进程的输入与输出。</p>
+<h2 id="报告-4"><a href="#报告-4" class="headerlink" title="报告"></a>报告</h2><h4 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h4><p>比如我在处理一个 18926 行的数据文件：</p>
+<img src="/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-GCP_file.png" class title="很大的文件">
+<p>我想把其中 <code>tRNA</code> 的所有在 1000-2000 的字段拿出来，只需要使用管道组合命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">awk <span class="string">'&#123;if ($8&gt;1000 &amp;&amp; $9&lt;2000) &#123;print$0&#125;&#125;'</span> GCF_000146045.2_R64_feature_table.txt | grep tRNA</span><br></pre></td></tr></table></figure>
+<p><strong>Output：</strong></p>
+<img src="/blog/2022/08/01/Yakkhini-s-rCore-2022-report/zcore-pipe_output.png" class title="管道例子输出">
+<h4 id="优化"><a href="#优化" class="headerlink" title="优化"></a>优化</h4><p>我认为可以采取一种广播的方式，进程之间发送时只需传播一次让所有其他进程都听到，而进程会忽略无用的信息。</p>
+<p>当然，也可以直接让部分进程共享资源，那么我们就要考虑处理并发问题了，也就是下一章的内容。</p>
+<h2 id="第八章：并发-lab5-July-20-July-21"><a href="#第八章：并发-lab5-July-20-July-21" class="headerlink" title="第八章：并发 - lab5 (July 20 - July 21)"></a>第八章：并发 - lab5 (July 20 - July 21)</h2><p>我们在前几章中，做了基于 CPU 时钟中断的分时进程切换、方便动态分配内存资源的页表系统、一个简易的文件读写系统、以及具有自主运行程序能力的进程。在接下来，我们希望部分进程能以共享资源、合作处理数据的方式来运行，而不仅仅靠进程间通信。之前实现的功能都为这一目标铺垫了基础。在本章之后，我们的系统正式成为了一个原始但功能完备的内核原型。</p>
+<p><a href="https://github.com/LearningOS/lab5-os8-Yakkhini" target="_blank" rel="noopener"><strong>Classroom</strong> - <em>LearningOS / lab5-os8-Yakkhini</em></a></p>
+<h3 id="进程、线程和协程"><a href="#进程、线程和协程" class="headerlink" title="进程、线程和协程"></a>进程、线程和协程</h3><p>进程建立在分时复用调度与虚拟内存隔离的基础上，进程之间地址空间隔离，由内核调度；进程中可以有多个线程，共享这一进程的地址空间但是各个线程的栈需要分离。线程可以由内核调度也可以由用户态调度，后者为绿色线程。线程中又可以有许多协程，协程的特点是不仅共享地址空间，也共享线程的栈，使开销更小。</p>
+<p>协程一般在用户态中调度，对操作系统透明。</p>
+<p>所以说，<strong>区分进程、线程、协程的核心是对内存的共享程度</strong>，而它们的调度权级并不一定不同，也不一定能或不能并发、并行。不过，从线程开始我们就需要考虑并发问题了。因为对进程来说，它们互相隔离且透明，即使并行也很难相互干扰。<strong>当并发和资源共享都发生时，才可能出现并发问题。</strong></p>
+<p><em>注：我习惯采用 Rust 视角对于并发和并行的概念，即除专门讲述外，不完全区分二者。</em></p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th style="text-align:center">类型</th>
+<th style="text-align:center">内存特征</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">进程</td>
+<td style="text-align:center">相互完全隔离</td>
+</tr>
+<tr>
+<td style="text-align:center">线程</td>
+<td style="text-align:center">同一进程内的线程共享内存，但各自用栈</td>
+</tr>
+<tr>
+<td style="text-align:center">协程</td>
+<td style="text-align:center">同一线程内的协程共享内存且共用栈</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="并发和并行"><a href="#并发和并行" class="headerlink" title="并发和并行"></a>并发和并行</h3><p>并发和并行的关系在很多地方都讲得比较模糊，有的地方讲并发和并行是两种不同的东西，有的地方则讲并行一定并发，并发不一定并行。但你深入了解这两个概念后，应该会明白 <strong>并发与并行只是在从两个不同的角度来描述多个程序的执行状态，并发不一定并行，并行也不一定并发。</strong></p>
+<p>并发指的是多个程序在同一时间开始执行（当然在学过编译原理后我们发现很多程序只是开始执行得非常接近而已，因为 CPU 在逐条执行机器码命令），而对它们是以两个不同的线程并行执行或是不停地调度切换——抑或者是两个以上的程序以这两种方式组合执行并没有约束。同样的，并行更多是在描述多个程序正在以多线程的方式同时执行而非分时复用，对于这些程序是否同时发起没有约束。当然，我们在描述多个程序并行执行时它们往往也是在同一时间点开始的，否则就可能没什么讨论的意义。这就是所谓「并行是并发的子集」说法的来源。</p>
+<h3 id="并发问题"><a href="#并发问题" class="headerlink" title="并发问题"></a>并发问题</h3><p>当多个程序以线程或协程运行时，它们不仅会并行执行或者在一段时间内分时复用执行，有时也在共享内存、甚至在内存上同一位置的数据同时做操作。这就可能会带来 <strong>并发问题。</strong> 这是因为这些程序在运行过程中事实上存在了先后执行顺序，甚至这种顺序是无法控制的。那么，它们对同一数据的操作行为就可能彼此冲突。常见的并发问题有：</p>
+<ul>
+<li>死锁：一个集合中的每一个线程都在等待另一个线程运行结束</li>
+<li>同步缺陷：在实际上顺序不可控的并发程序中却要求一种顺序的正确</li>
+<li>互斥缺陷：在并发中一个不应该被再分割的操作没有实现原子化</li>
+</ul>
+<h3 id="锁、信号量"><a href="#锁、信号量" class="headerlink" title="锁、信号量"></a>锁、信号量</h3><p>想要解决这个问题，我们可以给内存资源上 <strong>锁。</strong>锁的本质是以一个整数来衡量资源的可用性和可用量，当整数为 0 时，就代表着这个资源不可被其他进程所访问。这其实是 <strong>信号量</strong> 机制的原理。而我们常见的 <strong>互斥锁，</strong>如 Rust 中的 <code>Mutex</code>，就是一种特殊的信号量，即这个整数的最大值只能为 <code>1</code> 代表其可被占用，被占用后就归为 <code>0</code>，代表资源不可再被二次占用，也就是上锁了。</p>
+<h3 id="银行家算法"><a href="#银行家算法" class="headerlink" title="银行家算法"></a>银行家算法</h3><p>银行家算法实际上是一种 <strong>预防死锁</strong> 的办法，即在分配资源前就计算分配后是否会导致后继资源不够用的结果。</p>
+<p>那么，这种算法实际上是有不必要的性能开销的。每一次的安全性检测都需要预测之后的所有直到所有程序顺利完成的结果，这带来了庞大且不必要的计算。因为并不是不满足安全性检查的分配就一定会导致死锁。</p>
+<p>那么，有什么优化的办法呢？</p>
+<p>分析互斥锁 <code>Mutex</code> 的测例，我们发现死锁的来源并不是来自多个进程对多个资源的抢占，而是来自于一个进程在试图获取自己之前曾获取过的资源所有权。这种尝试被处理后，进程被切换等待，但并未取消这一次获取行为。于是当 CPU 切换回此进程时，进程会再次尝试获取资源，构成了一个无限的循环。死锁就这样产生了。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">...</span><br><span class="line">enable_deadlock_detect(<span class="literal">true</span>);</span><br><span class="line"><span class="keyword">let</span> mid = mutex_blocking_create() <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line"><span class="built_in">assert_eq!</span>(mutex_lock(mid), <span class="number">0</span>); <span class="comment">// A</span></span><br><span class="line"><span class="built_in">assert_eq!</span>(mutex_lock(mid), -<span class="number">0xdead</span>); <span class="comment">// B</span></span><br><span class="line">mutex_unlock(mid); <span class="comment">// A</span></span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>这并不是一个常规意义的死锁，不过我们可以把这一进程拆分为两个线程 A 和 B，以及一个资源 Res：</p>
+<ul>
+<li>A 在开始执行时会获取资源 Res</li>
+<li>B 在开始执行时需要获取资源 Res</li>
+<li>A 释放资源的条件是 B 执行完成</li>
+</ul>
+<p>这样一看，程序中存在的死锁就很明了了：当 A 先于 B 执行时，就会导致死锁。而我们知道 A 和 B 只是同一测例代码中的不同部分而已，而且没有线程区分。也就是说，A 实际上一定会先于 B 开始执行。</p>
+<p>我们知道，银行家算法会在两种情况拒绝进程对资源的访问：一是在可用资源已不足分配时，二是在可用资源访问后无法预测出一条安全路径。此处导致应拦截的原因是第一条，所以我们不妨直接在代码中计算已用的资源和用量，当用量不足时直接使访问资源失败：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LAB5 HINT: Return -0xDEAD if deadlock is detected</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_mutex_lock</span></span>(mutex_id: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> process = current_process();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> process_inner.available[mutex_id] == <span class="number">0</span> &amp;&amp; process_inner.deadlock_detect == <span class="literal">true</span> &#123;</span><br><span class="line">        <span class="built_in">drop</span>(process_inner);</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">0xDEAD</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        process_inner.available[mutex_id] -= <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">let</span> mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());</span><br><span class="line">        <span class="built_in">drop</span>(process_inner);</span><br><span class="line">        <span class="built_in">drop</span>(process);</span><br><span class="line">        mutex.lock();</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_mutex_unlock</span></span>(mutex_id: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> process = current_process();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    process_inner.available[mutex_id] += <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">let</span> mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());</span><br><span class="line">    <span class="built_in">drop</span>(process_inner);</span><br><span class="line">    <span class="built_in">drop</span>(process);</span><br><span class="line">    mutex.unlock();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>注意到，我们仅需要 <code>available[]</code> 数组就可以实现防止死锁的功能。</p>
+<p>那么，既然这样就可以避免死锁，那为什么还要用更复杂的银行家算法呢？这是因为，构成死锁可能会有很多种情况。如我们有线程 <code>thr1</code> 和线程 <code>thr2</code>：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">thr1</span></span>() -&gt; ! &#123;</span><br><span class="line">   mutex1.lock();</span><br><span class="line">   mutex2.lock();</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">thr2</span></span>() -&gt; ! &#123;</span><br><span class="line">   mutex2.lock();</span><br><span class="line">   mutex1.lock();</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果仅考虑资源限制，那么 <code>thr1</code> 访问 <code>mutex1</code> 的行为和 <code>thr2</code> 访问 <code>mutex2</code> 的行为都会被允许，接着死锁依然会出现。只有我们在对每个线程的资源用量提前检测，才可以避免。比如在 <code>thr1</code> 使用 <code>mutex1</code> 后，运行 <code>thr2</code> 线程时不止检测 <code>mutex2</code> 的可用性，也检测 <code>mutex1</code> 的可用性，才可以避免死锁。不过如测例中单资源的使用，仅使用基础的资源限制就可以完全避免死锁了。</p>
+<p>那么，我们该如何提前得知线程将要使用的资源量？在信号量中，我们以队列的方式来维护资源访问请求，于是这个问题就迎刃而解：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_semaphore_up</span></span>(sem_id: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> process = current_process();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    process_inner.available[sem_id] += <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">let</span> sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());</span><br><span class="line">    <span class="built_in">drop</span>(process_inner);</span><br><span class="line">    sem.up();</span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// LAB5 HINT: Return -0xDEAD if deadlock is detected</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_semaphore_down</span></span>(sem_id: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> process = current_process();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">let</span> sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());</span><br><span class="line">    <span class="keyword">if</span> process_inner.available[sem_id] - <span class="number">1</span> &lt;= sem.inner.exclusive_access().wait_queue.len() <span class="keyword">as</span> <span class="built_in">i8</span> &amp;&amp; process_inner.deadlock_detect == <span class="literal">true</span>  &#123;</span><br><span class="line">        <span class="built_in">drop</span>(process_inner);</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">0xDEAD</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        process_inner.available[sem_id] -= <span class="number">1</span>;</span><br><span class="line">        <span class="built_in">drop</span>(process_inner);</span><br><span class="line">        sem.down();</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>注意到，我们直接在任一资源访问请求后导致无法满足所有请求时拒绝访问，以保证不会出现死锁。再以之前的双线程为例：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">thr1</span></span>() -&gt; ! &#123;</span><br><span class="line">   mutex1.lock();</span><br><span class="line">   mutex2.lock();</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">thr2</span></span>() -&gt; ! &#123;</span><br><span class="line">   mutex2.lock();</span><br><span class="line">   mutex1.lock();</span><br><span class="line">   ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果应用这个算法，那么 <code>mutex1</code> 所有的访问都排在队列中。在 <code>thr1</code> 的访问时，程序会预测到让其拥有 <code>mutex1</code> 会使得 <code>thr2</code> 无法再拥有 <code>mutex1</code>。这其实是比银行家算法更严苛的一种死锁检测。但是它的好处是无需像银行家算法一样不停地遍历和预测，最终形成更大的性能开销。</p>
+<h3 id="报告-5"><a href="#报告-5" class="headerlink" title="报告"></a>报告</h3><p>在本章中，我们实现了线程，并以锁或信号量，及条件变量的方式来处理线程件因共享内存导致的并发问题。为了避免死锁，我使用了优化精简过的银行家算法，更严苛但是避免了一些性能开销。</p>
+<h4 id="回收"><a href="#回收" class="headerlink" title="回收"></a>回收</h4><p>需要回收的有线程的内存资源、tid，TaskControlBlock。在访问资源、线程调度中可能都会有 TaskControlBlock 的引用，不过无需专门回收，因为不会再使用这些引用了。</p>
+<h4 id="两种实现"><a href="#两种实现" class="headerlink" title="两种实现"></a>两种实现</h4><p>第一种在使用 <code>unlock</code> 后一定会解锁，再尝试切换到下一个任务；而第二种实现在找不到下一个任务后才会做解锁，但是在访问队列中寻到下一个任务后会直接安排入调度计划，而不做解锁操作。这可能会产生解锁失败的情况，使这个资源被永久地锁在了原线程中，除非额外再做解锁操作。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="https://learningos.github.io/rust-based-os-comp2022/index.html" target="_blank" rel="noopener"><em>Open-Source-OS-Training-Camp-2022 文档</em></a></p>
+<p><a href="https://rcore-os.github.io/rCore-Tutorial-Book-v3/index.html"><em>rCore-Tutorial-Book 第三版</em></a></p>
+<p><a href="https://github.com/LearningOS/rust-based-os-comp2022/blob/main/scheduling.md" target="_blank" rel="noopener"><em>SCHEDULING.md</em></a></p>
+<p><a href="https://kaisery.github.io/trpl-zh-cn/title-page.html" target="_blank" rel="noopener"><em>Rust 程序设计语言 - Rust 程序设计语言 简体中文版</em></a></p>
+<p><a href="https://doc.rust-lang.org/std/index.html" target="_blank" rel="noopener"><em>std - Rust</em></a></p>
+<p><a href="https://wiki.archlinux.org/title/QEMU" target="_blank" rel="noopener"><em>QEMU - ArchWiki</em></a></p>
+<p><a href="https://riscv-programming.org/index.html" target="_blank" rel="noopener"><em>RISC-V Assembly Programming</em></a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/summerofcode2022/" rel="tag"># summerofcode2022</a>
+              <a href="/blog/tags/author-Yakkhini/" rel="tag"># author:Yakkhini</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2022/08/01/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-1/" rel="prev" title="2022开源操作系统训练营第一阶段总结">
+      <i class="fa fa-chevron-left"></i> 2022开源操作系统训练营第一阶段总结
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2022/08/02/rCoreCamp2022%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%8A%A5%E5%91%8A-werifu/" rel="next" title="rCoreCamp2022第一阶段报告-werifu">
+      rCoreCamp2022第一阶段报告-werifu <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

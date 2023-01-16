@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="rust深入理解引用和所有权有助于减少与rust编译器的斗争。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2022暑期rcore学习总结-traversalnat">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2022/08/01/2022%E6%9A%91%E6%9C%9Frcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-traversalnat/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="rust深入理解引用和所有权有助于减少与rust编译器的斗争。">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2022-08-01T11:08:46.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.594Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="summerofcode2022">
+<meta property="article:tag" content="author:traversalnat">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2022/08/01/2022%E6%9A%91%E6%9C%9Frcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-traversalnat/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2022暑期rcore学习总结-traversalnat | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#rust"><span class="nav-number">1.</span> <span class="nav-text">rust</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存"><span class="nav-number">2.</span> <span class="nav-text">内存</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#文件"><span class="nav-number">3.</span> <span class="nav-text">文件</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#索引"><span class="nav-number">3.1.</span> <span class="nav-text">索引</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#磁盘布局"><span class="nav-number">3.2.</span> <span class="nav-text">磁盘布局</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2022/08/01/2022%E6%9A%91%E6%9C%9Frcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-traversalnat/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2022暑期rcore学习总结-traversalnat
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2022-08-01 11:08:46" itemprop="dateCreated datePublished" datetime="2022-08-01T11:08:46+00:00">2022-08-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="rust"><a href="#rust" class="headerlink" title="rust"></a>rust</h3><p>深入理解引用和所有权有助于减少与rust编译器的斗争。</p>
+<a id="more"></a>
+<p><strong>引用在rust中是一个类型</strong>，引用的底层实现是指针，正如指针在 C/C++ 中是一个独立类型，在使用引用时也需要将之作为一个类型看待，需要与 C++ 中的引用区分开来。使用引用作为参数的函数只能接受引用，传入一个非引用类型会导致编译器报错，理解了这里可以减少大部分与编译器斗争的时间。</p>
+<ol>
+<li><code>vec.iter().map(|x| {})</code> 中 x 类型是一个引用，<code>vec.iter().map(|&amp;x| {})</code> 此时 x 类型便是解引用后的类型，在匿名函数中解引用，需要对应的类型支持 Copy Trait，否则会导致所有权问题。</li>
+<li><code>vec.iter().max()</code>得到的数据也是一个引用，总之在对容器内数据进行链式处理时，为了所有权不丢失，使用的都是引用。</li>
+<li>不能通过引用获取原数据的所有权，<code>let data2 = *(&amp;data)</code> 会导致报错（data类型不支持 Copy Trait的情况下）。</li>
+<li><code>for &amp;v in &amp;vec</code> 与匿名函数中 &amp;x 一样，x 的类型是解引用后的类型，会导致所有权和 Copy Trait 的问题。</li>
+</ol>
+<h3 id="内存"><a href="#内存" class="headerlink" title="内存"></a>内存</h3><p>​    关于页表如何使虚拟地址转换为物理地址，<a href="https://github.com/mit-pdos/xv6-riscv-book/blob/xv6-riscv/fig/riscv_pagetable.svg" target="_blank" rel="noopener">https://github.com/mit-pdos/xv6-riscv-book/blob/xv6-riscv/fig/riscv_pagetable.svg</a> 给出了一个比较直观的转换过程。</p>
+<p>​    内核通过 PageTable 结构体维护页表，PageTable 需要记录一级页表目录的地址，通过 map/unmap 两个函数来映射虚拟内存页至物理内存页，需要映射内存页时，虚拟页号低27位可平均分为三部分 L2,L1,L0, 物理页号 ptr由物理页帧管理器申请得到：</p>
+<pre><code>1. 通过 L2 在一级页表目录中找到 PTE，
+    1. 若PTE 无效，则需要申请一个新的物理页作为二级页表目录，并修改 PTE 中 PPN 记录二级页表目录的物理页号
+    2. 使用 PTE 中 PPN （物理页号）找到二级页表目录 物理地址(PPN &lt;&lt; 12 即可得到二级目录物理地址)
+2. 使用 L1 在二级目录中找到 PTE
+    1. 若PTE 无效，则需要申请一个新的物理页作为三级页表目录，并修改 PTE 中 PPN 记录三级页表目录的物理页号
+    2. 使用 PTE 中 PPN （物理页号）找到三级页表目录物理地址
+3. 使用 L0 在三级目录中找到 PTE，修改 PTE 中的 PPN 为 ptr ，根据参数修改 Flags
+</code></pre><h3 id="文件"><a href="#文件" class="headerlink" title="文件"></a>文件</h3><h4 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">在磁盘上的索引节点区域，每个块上都保存着若干个索引节点 DiskInode</span><br><span class="line"><span class="keyword">const</span> INODE_DIRECT_COUNT: <span class="built_in">usize</span> = <span class="number">28</span>;</span><br><span class="line"><span class="comment">// 控制 在 128 字节</span></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">DiskInode</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> size: <span class="built_in">u32</span>, <span class="comment">// 文件/目录内容的字节数</span></span><br><span class="line">    <span class="keyword">pub</span> direct: [<span class="built_in">u32</span>; INODE_DIRECT_COUNT], </span><br><span class="line">    <span class="keyword">pub</span> indirect1: <span class="built_in">u32</span>, </span><br><span class="line">    <span class="keyword">pub</span> indirect2: <span class="built_in">u32</span>,</span><br><span class="line">    type_: DiskInodeType, <span class="comment">// 表示索引节点的类型</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以将一个数据块（512字节）看做是一个 [block_id: u32; 128] 的数组，block_id 可以是下一级数据块或者下一个索引所在数据块。</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>索引</th>
+<th>直接索引</th>
+<th>一级索引（一个数据块）</th>
+<th>二级索引（一个数据块）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Direct</td>
+<td>[block_id:  u32; INODE_DIRECT_COUNT]</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Indirect1</td>
+<td>Block_id:  u32</td>
+<td><code>[block_id:u32;  BLOCK_SZ / 4]</code></td>
+<td><code> </code></td>
+</tr>
+<tr>
+<td>Indirect2</td>
+<td>Block_id:  u32</td>
+<td><code>[block_id:u32;  BLOCK_SZ / 4]</code></td>
+<td><code>[block_id:u32;  BLOCK_SZ / 4]</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h4 id="磁盘布局"><a href="#磁盘布局" class="headerlink" title="磁盘布局"></a>磁盘布局</h4><div class="table-container">
+<table>
+<thead>
+<tr>
+<th>0</th>
+<th>超级块</th>
+<th>SuperBlock  （记录下述每个区域使用的数据块数量）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1..</td>
+<td>索引节点位图</td>
+<td>BitMap 用于分配、释放DiskInode</td>
+</tr>
+<tr>
+<td></td>
+<td>索引节点区域</td>
+<td>[DiskInode] 数组，DiskInode 记录文件/目录字节数，与数据块节点（数据块节点可以作为一、二级索引块索引更多数据块）  （目录项记录DiskInode 的序号即 inode_number）</td>
+</tr>
+<tr>
+<td></td>
+<td>数据块位图</td>
+<td>BitMap 用于分配、释放数据块</td>
+</tr>
+<tr>
+<td>..end</td>
+<td>数据块区域</td>
+<td>[[u32; 128]] , 每个数据块为 [u32; 128]，共512 字节</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>使用索引节点区域中第一个 DiskInode 作为根目录的索引节点，该节点索引得到的文件记录根目录下的所有文件，这个文件可视为 [DirEntry] 数组，每一个DirEntry 记录着该目录项的文件名和 inode_number，inode_number 记录 DiskInode 在 索引节点区域 中的序号，要通过 inode_number 找到 DiskInode，需要得知索引节点区域的起始地址，并通过 inode_number 计算其所处的数据块地址和在数据块中的偏移。</p>
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>索引节点pos</th>
+<th>索引节点</th>
+<th>对应文件/目录</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>root inode</td>
+<td>“/“</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/summerofcode2022/" rel="tag"># summerofcode2022</a>
+              <a href="/blog/tags/author-traversalnat/" rel="tag"># author:traversalnat</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2022/08/01/2022%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-pickanameforlove-%E9%B9%BF%E6%95%8F%E5%AE%BD/" rel="prev" title="2022开源操作系统训练营总结-pickanameforlove-鹿敏宽">
+      <i class="fa fa-chevron-left"></i> 2022开源操作系统训练营总结-pickanameforlove-鹿敏宽
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2022/08/01/rCore-camp2022-clstilmldy/" rel="next" title="rCore-camp2022-clstilmldy">
+      rCore-camp2022-clstilmldy <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

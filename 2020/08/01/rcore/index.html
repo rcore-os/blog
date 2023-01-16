@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="lab1 report实现功能修改 TaskControlBlock ，加入成员变量 TaskInfo 。 初始化时，TaskInfo.status 为 TaskStatus::Running 。由于查询的是当前任务的状态，因此 TaskStatus 一定是 Running ；TaskInfo.syscall_times 为 全 0 ；TaskStatus.time 用 get_time_us()">
+<meta property="og:type" content="article">
+<meta property="og:title" content="rcore">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2020/08/01/rcore/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="lab1 report实现功能修改 TaskControlBlock ，加入成员变量 TaskInfo 。 初始化时，TaskInfo.status 为 TaskStatus::Running 。由于查询的是当前任务的状态，因此 TaskStatus 一定是 Running ；TaskInfo.syscall_times 为 全 0 ；TaskStatus.time 用 get_time_us()">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://learningos.github.io/rust-based-os-comp2022/_images/sv39-pte.png">
+<meta property="article:published_time" content="2020-08-01T16:40:28.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.606Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="summerofcode2022">
+<meta property="article:tag" content="author:xy_plus">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://learningos.github.io/rust-based-os-comp2022/_images/sv39-pte.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2020/08/01/rcore/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>rcore | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#lab1-report"><span class="nav-number">1.</span> <span class="nav-text">lab1 report</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#实现功能"><span class="nav-number">1.1.</span> <span class="nav-text">实现功能</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#简答作业"><span class="nav-number">1.2.</span> <span class="nav-text">简答作业</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1"><span class="nav-number">1.2.1.</span> <span class="nav-text">1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2"><span class="nav-number">1.2.2.</span> <span class="nav-text">2</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-1"><span class="nav-number">1.2.2.1.</span> <span class="nav-text">1</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1"><span class="nav-number">1.2.2.2.</span> <span class="nav-text">2</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3"><span class="nav-number">1.2.2.3.</span> <span class="nav-text">3</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4"><span class="nav-number">1.2.2.4.</span> <span class="nav-text">4</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5"><span class="nav-number">1.2.2.5.</span> <span class="nav-text">5</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#6"><span class="nav-number">1.2.2.6.</span> <span class="nav-text">6</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#7"><span class="nav-number">1.2.2.7.</span> <span class="nav-text">7</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#其它"><span class="nav-number">1.3.</span> <span class="nav-text">其它</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#lab2"><span class="nav-number">2.</span> <span class="nav-text">lab2</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#实现功能-1"><span class="nav-number">2.1.</span> <span class="nav-text">实现功能</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#fix-sys-get-time-amp-amp-sys-task-info"><span class="nav-number">2.1.1.</span> <span class="nav-text">fix sys_get_time &amp;&amp; sys_task_info</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sys-mmap"><span class="nav-number">2.1.2.</span> <span class="nav-text">sys_mmap</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sys-munmap"><span class="nav-number">2.1.3.</span> <span class="nav-text">sys_munmap</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#问答题"><span class="nav-number">2.2.</span> <span class="nav-text">问答题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2"><span class="nav-number">2.2.1.</span> <span class="nav-text">1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2"><span class="nav-number">2.2.2.</span> <span class="nav-text">2</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#其它-1"><span class="nav-number">2.3.</span> <span class="nav-text">其它</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#lab3"><span class="nav-number">3.</span> <span class="nav-text">lab3</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#lab4"><span class="nav-number">4.</span> <span class="nav-text">lab4</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#lab5"><span class="nav-number">5.</span> <span class="nav-text">lab5</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2020/08/01/rcore/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          rcore
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-08-01 16:40:28" itemprop="dateCreated datePublished" datetime="2020-08-01T16:40:28+00:00">2020-08-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="lab1-report"><a href="#lab1-report" class="headerlink" title="lab1 report"></a>lab1 report</h1><h2 id="实现功能"><a href="#实现功能" class="headerlink" title="实现功能"></a>实现功能</h2><p>修改 TaskControlBlock ，加入成员变量 TaskInfo 。</p>
+<p>初始化时，TaskInfo.status 为 TaskStatus::Running 。由于查询的是当前任务的状态，因此 TaskStatus 一定是 Running ；TaskInfo.syscall_times 为 全 0 ；TaskStatus.time 用 get_time_us() 赋值。</p>
+<p>每次调用 syscall 的时候，都先更新 TaskControlBlock.TaskInfo ，然后真正去调用 syscall 。</p>
+<p>返回的 task_info.status 和 task_info.syscall_times 都是直接从 TaskControlBlock 复制；task_info.time 为 (get_time_us() - TaskControlBlock.TaskInfo.time) / 1000 ，从而体现出时间差以及时间单位换算。</p>
+<a id="more"></a>
+<h2 id="简答作业"><a href="#简答作业" class="headerlink" title="简答作业"></a>简答作业</h2><h3 id="1"><a href="#1" class="headerlink" title="1"></a>1</h3><blockquote>
+<p>[rustsbi] RustSBI version 0.2.2, adapting to RISC-V SBI v1.0.0</p>
+<ul>
+<li>ch2b_bad_address.rs<ul>
+<li>[ERROR] [kernel] PageFault in application, core dumped.</li>
+<li>访问错误地址</li>
+</ul>
+</li>
+<li>ch2b_bad_instructions.rs<ul>
+<li>[ERROR] [kernel] IllegalInstruction in application, core dumped.</li>
+<li>执行非法指令</li>
+</ul>
+</li>
+<li>ch2b_bad_register.rs<ul>
+<li>[ERROR] [kernel] IllegalInstruction in application, core dumped.</li>
+<li>执行非法指令</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+<h3 id="2"><a href="#2" class="headerlink" title="2"></a>2</h3><h4 id="1-1"><a href="#1-1" class="headerlink" title="1"></a>1</h4><p><strong>restore 是在 switch 的时候，通过设置 ra 寄存器调用的。在 switch 期间没有写过 a0 寄存器，因此 a0 在 </strong>restore 时仍然是 switch 的第一个参数，unuse 或者 current_task_cx_ptr 。</p>
+<p>在启用第一个进程和切换进程这两个场景下，都会需要通过 restore 来设置寄存器。</p>
+<h4 id="2-1"><a href="#2-1" class="headerlink" title="2"></a>2</h4><p>特殊处理了 sstatus、sepc、sscratch 寄存器。</p>
+<ul>
+<li>sscratch：进入用户态时，保存内核栈地址。用户态返回内核态时，将 sp 设置为内核栈地址。</li>
+<li>sepc：当 Trap 是一个异常的时候，记录 Trap 发生之前执行的最后一条指令的地址</li>
+<li>sstatus：SPP 等字段给出 Trap 发生之前 CPU 处在哪个特权级（S/U）等信息</li>
+</ul>
+<h4 id="3"><a href="#3" class="headerlink" title="3"></a>3</h4><p>x2 是 sp ，会在后面保存到 sscratch 。</p>
+<p>x4 用户程序用不到，所以不用保存。</p>
+<h4 id="4"><a href="#4" class="headerlink" title="4"></a>4</h4><p>sscratch 是内核栈地址，sp 是用户栈地址。</p>
+<h4 id="5"><a href="#5" class="headerlink" title="5"></a>5</h4><p>sret 指令。</p>
+<p>sret 的时候，CPU 会将当前的特权级按照 sstatus 的 SPP 字段设置为 U 或者 S ；CPU 会跳转到 sepc 寄存器指向的那条指令，然后继续执行。</p>
+<h4 id="6"><a href="#6" class="headerlink" title="6"></a>6</h4><p>sp 是内核栈，sscratch 是用户栈。</p>
+<h4 id="7"><a href="#7" class="headerlink" title="7"></a>7</h4><p>ecall</p>
+<h2 id="其它"><a href="#其它" class="headerlink" title="其它"></a>其它</h2><p>作业题和 trap.S 的行有一些不一致。</p>
+<h1 id="lab2"><a href="#lab2" class="headerlink" title="lab2"></a>lab2</h1><p>（刚知道不用写报告，气死我了）</p>
+<h2 id="实现功能-1"><a href="#实现功能-1" class="headerlink" title="实现功能"></a>实现功能</h2><h3 id="fix-sys-get-time-amp-amp-sys-task-info"><a href="#fix-sys-get-time-amp-amp-sys-task-info" class="headerlink" title="fix sys_get_time &amp;&amp; sys_task_info"></a>fix sys_get_time &amp;&amp; sys_task_info</h3><p>通过用户态页表将用户态地址转换为物理地址。</p>
+<p>将传入的 *TimeVal 地址转换为内核态可用的指针，然后填充结构体。</p>
+<p>sys_task_info 同理。</p>
+<h3 id="sys-mmap"><a href="#sys-mmap" class="headerlink" title="sys_mmap"></a>sys_mmap</h3><p>首先对输入参数做检查，非法参数返回 -1 。</p>
+<p>然后检查将要 mmap 的地址对应的 vpn 是否已经 map ，如果已经 map 了，返回 -1 ，否则将这一页 mmap 到一个匿名 frame 。</p>
+<p>传入的 port 需要转换成 MapPermission ，然后设置 U 位。</p>
+<h3 id="sys-munmap"><a href="#sys-munmap" class="headerlink" title="sys_munmap"></a>sys_munmap</h3><p>检查将要 unmap 的地址是否都是已经被 map ，如果 unmap 一段没有被 map 的地址会返回 -1 。</p>
+<p>检查 vpn 是否 map 的方式，是通过 page table 获取 pte ，如果 ptr 存在且有效，就认为已经 map。所以 unmap 也是调用 page table 的 unmap 。</p>
+<p>尝试操作 data_frames ，但是似乎有 bug ，无法正常调用 remove 函数，所以就没用。</p>
+<h2 id="问答题"><a href="#问答题" class="headerlink" title="问答题"></a>问答题</h2><h3 id="1-2"><a href="#1-2" class="headerlink" title="1"></a>1</h3><p><img src="https://learningos.github.io/rust-based-os-comp2022/_images/sv39-pte.png" alt></p>
+<p>上图为 SV39 分页模式下的页表项，其中 [53:10] 这 44 位是物理页号，最低的 8 位 [7:0] 则是标志位，它们的含义如下：</p>
+<p>仅当 V(Valid) 位为 1 时，页表项才是合法的；</p>
+<p>R/W/X 分别控制索引到这个页表项的对应虚拟页面是否允许读/写/取指；</p>
+<p>U 控制索引到这个页表项的对应虚拟页面是否在 CPU 处于 U 特权级的情况下是否被允许访问；</p>
+<p>G 是 Global；</p>
+<p>A(Accessed) 记录自从页表项上的这一位被清零之后，页表项的对应虚拟页面是否被访问过；</p>
+<p>D(Dirty) 则记录自从页表项上的这一位被清零之后，页表项的对应虚拟页表是否被修改过。</p>
+<h3 id="2-2"><a href="#2-2" class="headerlink" title="2"></a>2</h3><h2 id="其它-1"><a href="#其它-1" class="headerlink" title="其它"></a>其它</h2><p>小语法错误。</p>
+<figure class="highlight diff"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="deletion">- 一定要注意 mmap 是的页表项，注意 riscv 页表项的格式与 port 的区别。</span></span><br><span class="line"><span class="addition">+ 一定要注意 mmap 的是页表项，注意 riscv 页表项的格式与 port 的区别。</span></span><br></pre></td></tr></table></figure>
+<h1 id="lab3"><a href="#lab3" class="headerlink" title="lab3"></a>lab3</h1><p>spawn 就是抄了一下 fork 和 exec 没啥难度。stride 调度算法的测例不是很好，最后用玄学办法才勉强过了测例，很烦。建议测例改成在调度过程中 print ，然后用 python 检查 print 内容的比例。stride 是我最讨厌的 lab 。</p>
+<h1 id="lab4"><a href="#lab4" class="headerlink" title="lab4"></a>lab4</h1><p>好难，感觉的是最难的 lab 了。学习了如何在磁盘中进行读写，如何与底层磁盘交互。</p>
+<h1 id="lab5"><a href="#lab5" class="headerlink" title="lab5"></a>lab5</h1><p>这个感觉没啥难度，就是按照文档写完就好了，总共好像也不到五十行。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/summerofcode2022/" rel="tag"># summerofcode2022</a>
+              <a href="/blog/tags/author-xy-plus/" rel="tag"># author:xy_plus</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2020/07/27/rCore-%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-by-dingiso/" rel="prev" title="rCore 第一阶段总结 by dingiso">
+      <i class="fa fa-chevron-left"></i> rCore 第一阶段总结 by dingiso
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2020/08/13/zcore-exception-channel/" rel="next" title="为 zCore 实现 Exception Channel 机制">
+      为 zCore 实现 Exception Channel 机制 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

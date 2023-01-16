@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="repo地址：https:&#x2F;&#x2F;github.com&#x2F;KveinAxel&#x2F;async-os">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2021开源操作系统夏令营总结-异步系统调用-吴非凡">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2021/09/09/2021%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%A4%8F%E4%BB%A4%E8%90%A5%E6%80%BB%E7%BB%93-%E5%BC%82%E6%AD%A5%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-%E5%90%B4%E9%9D%9E%E5%87%A1/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="repo地址：https:&#x2F;&#x2F;github.com&#x2F;KveinAxel&#x2F;async-os">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2021-09-09T18:58:25.000Z">
+<meta property="article:modified_time" content="2023-01-16T13:31:09.566Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="summerofcode2021">
+<meta property="article:tag" content="async-os">
+<meta property="article:tag" content="author:kevinaxel">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2021/09/09/2021%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%A4%8F%E4%BB%A4%E8%90%A5%E6%80%BB%E7%BB%93-%E5%BC%82%E6%AD%A5%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-%E5%90%B4%E9%9D%9E%E5%87%A1/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2021开源操作系统夏令营总结-异步系统调用-吴非凡 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#课题背景"><span class="nav-number">1.</span> <span class="nav-text">课题背景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#RISC-V-N拓展"><span class="nav-number">1.1.</span> <span class="nav-text">RISC-V N拓展</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#软硬协同的用户态中断"><span class="nav-number">1.2.</span> <span class="nav-text">软硬协同的用户态中断</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#研究现状"><span class="nav-number">2.</span> <span class="nav-text">研究现状</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#异步操作系统设计方案"><span class="nav-number">2.1.</span> <span class="nav-text">异步操作系统设计方案</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#研究工作"><span class="nav-number">3.</span> <span class="nav-text">研究工作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#用户视图"><span class="nav-number">3.1.</span> <span class="nav-text">用户视图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内核视图"><span class="nav-number">3.2.</span> <span class="nav-text">内核视图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#其他情况"><span class="nav-number">3.3.</span> <span class="nav-text">其他情况</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#最终进度"><span class="nav-number">4.</span> <span class="nav-text">最终进度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-number">5.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">81</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">79</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2021/09/09/2021%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%A4%8F%E4%BB%A4%E8%90%A5%E6%80%BB%E7%BB%93-%E5%BC%82%E6%AD%A5%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-%E5%90%B4%E9%9D%9E%E5%87%A1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2021开源操作系统夏令营总结-异步系统调用-吴非凡
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-09-09 18:58:25" itemprop="dateCreated datePublished" datetime="2021-09-09T18:58:25+00:00">2021-09-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>repo地址：<a href="https://github.com/KveinAxel/async-os" target="_blank" rel="noopener">https://github.com/KveinAxel/async-os</a></p>
+<a id="more"></a>
+<h2 id="课题背景"><a href="#课题背景" class="headerlink" title="课题背景"></a>课题背景</h2><h3 id="RISC-V-N拓展"><a href="#RISC-V-N拓展" class="headerlink" title="RISC-V N拓展"></a>RISC-V N拓展</h3><blockquote>
+<p>N 扩展允许用户态程序发生中断和例外后,直接进入用户态的处理程序,不触发外层运行环境响应。用户态中断主要用于支持存在 M 模式和 U 模式的安全嵌入式系统(见第 10章) 。不过,它也能支持类 Unix 操作系统中的用户态中断。当在 Unix 环境中使用时,传统的信号处理机制依然保留,而用户态中断可以用来做未来的扩展,产生诸如垃圾回收屏障(garbage collection barriers) 、整数溢出(integer overflow)、浮点陷入(floating-point traps)等用户态事件。</p>
+<p>——RISC-V 手册</p>
+</blockquote>
+<p>尽管RISC-V N拓展目前只是一个草案，但他带来的用户态中断已经让内核开发者垂涎许久。不管是不用陷入内核的外部中断带来的方便，还是对传统信号处理机制的优化，RISC-V N拓展都是看上去十分有益的尝试。</p>
+<h3 id="软硬协同的用户态中断"><a href="#软硬协同的用户态中断" class="headerlink" title="软硬协同的用户态中断"></a>软硬协同的用户态中断</h3><p>该系统是贺鲲鹏、尤予阳同学基于该草案进一步完善,提出了一种符合规范的模拟器、FPGA 实现。仓库地址是：<a href="https://github.com/Gallium70/rv-n-ext-impl" target="_blank" rel="noopener">https://github.com/Gallium70/rv-n-ext-impl</a> </p>
+<p>我本次的异步系统调用实现便是基于此系统，此系统提供的用户态中断实现可以方便地为异步系统调用提供高效地支持。</p>
+<h2 id="研究现状"><a href="#研究现状" class="headerlink" title="研究现状"></a>研究现状</h2><h3 id="异步操作系统设计方案"><a href="#异步操作系统设计方案" class="headerlink" title="异步操作系统设计方案"></a>异步操作系统设计方案</h3><p>该方案是一共经历了五版，非常详细地讨论了异步操作系统的设计方案，里面也提到了异步系统调用的设计，但该设计并未基于用户态中断机制，而提供了一种类似linux kernel中的io-uring的机制。</p>
+<p>他的机制如下：</p>
+<p><strong>第一次系统调用</strong>：</p>
+<ul>
+<li>用户:准备系统调用参数、发出系统调用请求</li>
+<li>内核:映射共享内存、获取系统调用参数、发起相应服务协程的异步执行、返回共享内存中的服务响应队列信息给用户进程;</li>
+<li>内核进程执行完服务协程后,在响应队列保存返回值;</li>
+</ul>
+<p><strong>第二次系统调用</strong>：</p>
+<ul>
+<li>用户进程在请求队列准备系统调用参数;在共享内存的响应队列中查看第一次系统调用的结果;</li>
+<li>内核进程在完成第一个服务协程后,在共享内存的响应队列中保存返回值,主动查询新的系统调用请求,并执行;如果没有新的请求,则让出 CPU;</li>
+</ul>
+<h2 id="研究工作"><a href="#研究工作" class="headerlink" title="研究工作"></a>研究工作</h2><p>根据异步操作系统设计方案与用户态中断的实现，我设计了一个<a href="https://kevinaxel.notion.site/5aa5bcf1955f49d9b3e1b5e59680a292" target="_blank" rel="noopener">异步系统调用的方案</a>。</p>
+<h3 id="用户视图"><a href="#用户视图" class="headerlink" title="用户视图"></a>用户视图</h3><ol>
+<li>用户利用异步系统调用函数和 Rust 的 async/await ,生成对应的 Future 树,交由对应的 UserExecutor 进行处理。</li>
+<li>UserExecutor 取出一个 UserTask,判断是否已经注册到UserReactor 。对没注册的任务 poll 一次后,若为 pending则注册到 UserReactor。对于其他注册的任务,查询UserReactor,若准备就绪就 Poll 一次并更新在 UserReactor的状态。</li>
+<li>对于其中的 Leaf Future ,在 UserExecutor 的执行流中,会发送系统调用,陷入内核,在内核简单注册后立即返回Pending。</li>
+<li>内核完成后,会向用户发送用户态中断</li>
+<li>用户态中断处理程序向 UserReactor 发送事件唤醒对应的UserTask</li>
+</ol>
+<h3 id="内核视图"><a href="#内核视图" class="headerlink" title="内核视图"></a>内核视图</h3><ol>
+<li>内核陷入程序判断是 UserEnvTrap 在将寄存器参数和执行流交由内核中的 syscall 函数处理。</li>
+<li>对于有异步拓展的 syscall 函数首先判断系统调用的异步参数(编码后的用户任务号)是否为 0. 0 代表是同步系统调用,非零则代表是异步系统调用</li>
+<li>异步版本的系统调用会将生成的 Future 交给 KernelExecutor,并返回Future 的注册信息(成功与否) 。</li>
+<li>陷入函数退出。</li>
+</ol>
+<h3 id="其他情况"><a href="#其他情况" class="headerlink" title="其他情况"></a>其他情况</h3><ul>
+<li>对于单核情况。用户注册完异步系统调用并陷入内核后,由于内核优先级高,内核会不断处理 KernelTask 在处理完毕后返回用户时,直接会触发用户态中断并唤醒对应的 UserTask</li>
+<li>对于多核情况。内核和用户进程位于两个硬件线程,用户进程利用异步机制,在发起系统调用后,可以避免阻塞等待,运行其他的任务。而内核也可以同时完成系统调用的内容。从而实现,用户进程和内核系统调用同时高负载运行。</li>
+</ul>
+<h2 id="最终进度"><a href="#最终进度" class="headerlink" title="最终进度"></a>最终进度</h2><ul>
+<li>[x] 内核态运行时</li>
+<li>[x] 用户态运行时</li>
+<li>[x] 系统调用实现<ul>
+<li>[x] pipe</li>
+<li>[x] close</li>
+<li>[x] read</li>
+<li>[x] write</li>
+</ul>
+</li>
+<li>[ ] 测例</li>
+<li>[ ] 文档</li>
+</ul>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ol>
+<li><p>repo地址：<a href="https://github.com/KveinAxel/async-os" target="_blank" rel="noopener">https://github.com/KveinAxel/async-os</a></p>
+</li>
+<li><p>rCore-N环境配置: <a href="https://kevinaxel.notion.site/431b8ff2281c4271b12cbc6adc638b0c" target="_blank" rel="noopener">https://kevinaxel.notion.site/431b8ff2281c4271b12cbc6adc638b0c</a></p>
+</li>
+<li>异步系统调用设计草案: <a href="https://kevinaxel.notion.site/5aa5bcf1955f49d9b3e1b5e59680a292" target="_blank" rel="noopener">https://kevinaxel.notion.site/5aa5bcf1955f49d9b3e1b5e59680a292</a></li>
+<li>异步操作系统设计方案: <a href="https://github.com/async-kernel/documents/blob/main/design/design.md" target="_blank" rel="noopener">https://github.com/async-kernel/documents/blob/main/design/design.md</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/summerofcode2021/" rel="tag"># summerofcode2021</a>
+              <a href="/blog/tags/async-os/" rel="tag"># async-os</a>
+              <a href="/blog/tags/author-kevinaxel/" rel="tag"># author:kevinaxel</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2021/09/06/2021%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%A4%8F%E4%BB%A4%E8%90%A5%E6%80%BB%E7%BB%93-Rustsbi%E7%A7%BB%E6%A4%8D-yunfneg2/" rel="prev" title="2021操作系统夏令营总结-Rustsbi移植-yunfneg2">
+      <i class="fa fa-chevron-left"></i> 2021操作系统夏令营总结-Rustsbi移植-yunfneg2
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2021/09/10/2021%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%A4%8F%E4%BB%A4%E8%90%A5%E6%80%BB%E7%BB%93-%E9%BB%84%E6%96%87%E7%A6%B9/" rel="next" title="2021操作系统夏令营总结-黄文禹">
+      2021操作系统夏令营总结-黄文禹 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
