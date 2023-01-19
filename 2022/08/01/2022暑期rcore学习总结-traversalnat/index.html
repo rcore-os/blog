@@ -30,7 +30,7 @@
 <meta property="og:description" content="rust深入理解引用和所有权有助于减少与rust编译器的斗争。">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2022-08-01T11:08:46.000Z">
-<meta property="article:modified_time" content="2023-01-16T13:31:09.594Z">
+<meta property="article:modified_time" content="2023-01-19T06:29:00.774Z">
 <meta property="article:author" content="rcore-os Group">
 <meta property="article:tag" content="rcore-lab">
 <meta property="article:tag" content="summerofcode2022">
@@ -272,7 +272,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+                <time title="Modified: 2023-01-19 06:29:00" itemprop="dateModified" datetime="2023-01-19T06:29:00+00:00">2023-01-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -297,6 +297,7 @@
       
         <h3 id="rust"><a href="#rust" class="headerlink" title="rust"></a>rust</h3><p>深入理解引用和所有权有助于减少与rust编译器的斗争。</p>
 <a id="more"></a>
+
 <p><strong>引用在rust中是一个类型</strong>，引用的底层实现是指针，正如指针在 C/C++ 中是一个独立类型，在使用引用时也需要将之作为一个类型看待，需要与 C++ 中的引用区分开来。使用引用作为参数的函数只能接受引用，传入一个非引用类型会导致编译器报错，理解了这里可以减少大部分与编译器斗争的时间。</p>
 <ol>
 <li><code>vec.iter().map(|x| {})</code> 中 x 类型是一个引用，<code>vec.iter().map(|&amp;x| {})</code> 此时 x 类型便是解引用后的类型，在匿名函数中解引用，需要对应的类型支持 Copy Trait，否则会导致所有权问题。</li>
@@ -312,10 +313,9 @@
 2. 使用 L1 在二级目录中找到 PTE
     1. 若PTE 无效，则需要申请一个新的物理页作为三级页表目录，并修改 PTE 中 PPN 记录三级页表目录的物理页号
     2. 使用 PTE 中 PPN （物理页号）找到三级页表目录物理地址
-3. 使用 L0 在三级目录中找到 PTE，修改 PTE 中的 PPN 为 ptr ，根据参数修改 Flags
-</code></pre><h3 id="文件"><a href="#文件" class="headerlink" title="文件"></a>文件</h3><h4 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">在磁盘上的索引节点区域，每个块上都保存着若干个索引节点 DiskInode</span><br><span class="line"><span class="keyword">const</span> INODE_DIRECT_COUNT: <span class="built_in">usize</span> = <span class="number">28</span>;</span><br><span class="line"><span class="comment">// 控制 在 128 字节</span></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">DiskInode</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> size: <span class="built_in">u32</span>, <span class="comment">// 文件/目录内容的字节数</span></span><br><span class="line">    <span class="keyword">pub</span> direct: [<span class="built_in">u32</span>; INODE_DIRECT_COUNT], </span><br><span class="line">    <span class="keyword">pub</span> indirect1: <span class="built_in">u32</span>, </span><br><span class="line">    <span class="keyword">pub</span> indirect2: <span class="built_in">u32</span>,</span><br><span class="line">    type_: DiskInodeType, <span class="comment">// 表示索引节点的类型</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+3. 使用 L0 在三级目录中找到 PTE，修改 PTE 中的 PPN 为 ptr ，根据参数修改 Flags</code></pre><h3 id="文件"><a href="#文件" class="headerlink" title="文件"></a>文件</h3><h4 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">在磁盘上的索引节点区域，每个块上都保存着若干个索引节点 DiskInode</span><br><span class="line"><span class="keyword">const</span> INODE_DIRECT_COUNT: <span class="built_in">usize</span> = <span class="number">28</span>;</span><br><span class="line"><span class="comment">// 控制 在 128 字节</span></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">DiskInode</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> size: <span class="built_in">u32</span>, <span class="comment">// 文件/目录内容的字节数</span></span><br><span class="line">    <span class="keyword">pub</span> direct: [<span class="built_in">u32</span>; INODE_DIRECT_COUNT], </span><br><span class="line">    <span class="keyword">pub</span> indirect1: <span class="built_in">u32</span>, </span><br><span class="line">    <span class="keyword">pub</span> indirect2: <span class="built_in">u32</span>,</span><br><span class="line">    type_: DiskInodeType, <span class="comment">// 表示索引节点的类型</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
 <p>可以将一个数据块（512字节）看做是一个 [block_id: u32; 128] 的数组，block_id 可以是下一级数据块或者下一个索引所在数据块。</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -325,8 +325,7 @@
 <th>二级索引（一个数据块）</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>Direct</td>
 <td>[block_id:  u32; INODE_DIRECT_COUNT]</td>
 <td></td>
@@ -336,7 +335,7 @@
 <td>Indirect1</td>
 <td>Block_id:  u32</td>
 <td><code>[block_id:u32;  BLOCK_SZ / 4]</code></td>
-<td><code> </code></td>
+<td><code></code></td>
 </tr>
 <tr>
 <td>Indirect2</td>
@@ -344,11 +343,8 @@
 <td><code>[block_id:u32;  BLOCK_SZ / 4]</code></td>
 <td><code>[block_id:u32;  BLOCK_SZ / 4]</code></td>
 </tr>
-</tbody>
-</table>
-</div>
-<h4 id="磁盘布局"><a href="#磁盘布局" class="headerlink" title="磁盘布局"></a>磁盘布局</h4><div class="table-container">
-<table>
+</tbody></table>
+<h4 id="磁盘布局"><a href="#磁盘布局" class="headerlink" title="磁盘布局"></a>磁盘布局</h4><table>
 <thead>
 <tr>
 <th>0</th>
@@ -356,8 +352,7 @@
 <th>SuperBlock  （记录下述每个区域使用的数据块数量）</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>1..</td>
 <td>索引节点位图</td>
 <td>BitMap 用于分配、释放DiskInode</td>
@@ -377,11 +372,8 @@
 <td>数据块区域</td>
 <td>[[u32; 128]] , 每个数据块为 [u32; 128]，共512 字节</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <p>使用索引节点区域中第一个 DiskInode 作为根目录的索引节点，该节点索引得到的文件记录根目录下的所有文件，这个文件可视为 [DirEntry] 数组，每一个DirEntry 记录着该目录项的文件名和 inode_number，inode_number 记录 DiskInode 在 索引节点区域 中的序号，要通过 inode_number 找到 DiskInode，需要得知索引节点区域的起始地址，并通过 inode_number 计算其所处的数据块地址和在数据块中的偏移。</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -390,15 +382,12 @@
 <th>对应文件/目录</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>0</td>
 <td>root inode</td>
 <td>“/“</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 
     </div>
 

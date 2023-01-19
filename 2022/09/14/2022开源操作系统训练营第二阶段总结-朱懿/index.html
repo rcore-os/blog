@@ -30,7 +30,7 @@
 <meta property="og:description" content="2022 开源操作系统训练营第二阶段总结2022.09 朱懿 在第一阶段学习了rust和操作系统实验的基础上，第二阶段我基于我的兴趣，选择了虚拟机的方向，经过前期的调查了解研究，发现，在夏令营第二阶段设计的虚拟化的几个方向中，对于偏向硬件的虚拟机方向，已经有人做出了实现。然而我注意到，目前为止，所有的工作仍然没有人注意到操作系统级的虚拟化的方向，也就是容器化的方向。因此，在自己感兴趣的前提下，第二">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2022-09-14T08:34:17.000Z">
-<meta property="article:modified_time" content="2023-01-16T13:31:09.582Z">
+<meta property="article:modified_time" content="2023-01-19T06:29:00.762Z">
 <meta property="article:author" content="rcore-os Group">
 <meta property="article:tag" content="summerofcode2022">
 <meta property="article:tag" content="author:ZhiyuanSue">
@@ -272,7 +272,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-01-16 13:31:09" itemprop="dateModified" datetime="2023-01-16T13:31:09+00:00">2023-01-16</time>
+                <time title="Modified: 2023-01-19 06:29:00" itemprop="dateModified" datetime="2023-01-19T06:29:00+00:00">2023-01-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -300,6 +300,7 @@
 <p>（当然，也因为没有前人在这方面的相关工作，我在这方面的学习研究，不能说举步维艰吧，只能说从0到1）</p>
 <p>因此，尽管最后在zcore上面的改造不算成功，但我会尽量详尽的结合我在项目里面的log记录，省却大量无用的吐槽，希望为后来者提供一些可行的资料和设计思路。</p>
 <a id="more"></a>
+
 <h2 id="项目背景及前期学习路线"><a href="#项目背景及前期学习路线" class="headerlink" title="项目背景及前期学习路线"></a>项目背景及前期学习路线</h2><h3 id="项目背景"><a href="#项目背景" class="headerlink" title="项目背景"></a>项目背景</h3><p>容器化的虚拟化，最典型的代表就是docker——我想来读这篇文档的人肯定用过的。</p>
 <p>容器化需要内核支持namespace和cgroup相关的功能，在此基础之上封装了一些东西。其中，namespace主要用于各类资源的隔离，而cgroup则用于控制各类资源的使用。而zcore（包括rcore）本身并没有支持这些。因此，我试图进行相关内容的学习，并且在zcore的基础上，简单实现namespace的功能。至于cgroup的部分，我涉及的不多。但总体而言，需要更多的系统调用的改写。</p>
 <p>下面的学习路线，如果有所缺失的部分，可以读我列举出来的参考，以及我的ppt（大概是简单的不能再简单的简单版）。需要阅读了解的内容颇多，而为了适应zcore做的调整和设计上的适应也不少。</p>
@@ -312,9 +313,11 @@
 <p>在zircon中，增加了一个create_with_ext函数，用于创建包括了Linux扩展的进程控制块。</p>
 <p>而在上层的Linux层中（在zcore/linux_object/process.rs），实现了一个扩展的trait，用于创建和从processor访问linux processor。</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">pub trait ProcessExt &#123;</span><br><span class="line">    fn create_linux(job: &amp;Arc&lt;Job&gt;, rootfs: Arc&lt;dyn FileSystem&gt;) -&gt; ZxResult&lt;Arc&lt;Self&gt;&gt;;</span><br><span class="line">    fn linux(&amp;self) -&gt; &amp;LinuxProcess;</span><br><span class="line">    fn fork_from(parent: &amp;Arc&lt;Self&gt;, vfork: bool) -&gt; ZxResult&lt;Arc&lt;Self&gt;&gt;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
 <p>这里面的create_linux调用了前面的create_with_ext函数，去进行创建。</p>
 <p>而linux函数，通过不知道怎么弄出来的特别方式，得到了一个linuxprocess的引用</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fn linux(&amp;self) -&gt; &amp;LinuxProcess &#123;</span><br><span class="line">        self.ext().downcast_ref::&lt;LinuxProcess&gt;().unwrap()</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
 <p>做mnt ns时让我无奈的地方也在于此，LinuxProcess里面总共定义了三个，root_inode，parent，inner，其中，parent肯定不能改，inner是可以通过一些办法更改的，但是root_inode则理论上是可以chroot来更改的，然而由于这在这里写死了，我实在改不了root_inode，要么大修。</p>
 <p>总之，在syscall里面，要得到zircon，就调用zircon_process，或者self.thread.proc，这是一样的，如果要得到zircon process的扩展，在此基础上调用linux，就用self.thread.proc().linux()，也即是self.zircon_process().linux()</p>
 <p>之所以强调这部分，是因为syscall的进入点都是从某个进程实例开始的，理解这部分才好继续下去。</p>
@@ -346,7 +349,7 @@
 <p>我的调试目标是riscv64的linux。绝大部分的改动也是在这个Linux层面去进行改动的。</p>
 <h3 id="增加自己写的C测例"><a href="#增加自己写的C测例" class="headerlink" title="增加自己写的C测例"></a>增加自己写的C测例</h3><p>这里我走过不少弯路，包括但不限于，花费大量时间去编译x86到musl的rust交叉编译器（这个玩意儿本身没有直接安装的办法，只能去下载源码然后进行编译，然而他的源码，整个包加上附加的子模块，加起来应该有好几个gb，偏偏又都是国外的镜像，不翻墙很慢。）然后编译完了之后还发现找不到头文件</p>
 <p>但是实际上，完全无需那么麻烦，一个可行的做法如下</p>
-<p>在zcore/linux-syscall/test下面增加一个你自己写的C文件。然后运行cargo other-test —arch riscv64，随后你就能在zcore运行起来之后的bin文件夹下面发现你写的项目，从而进行测试。</p>
+<p>在zcore/linux-syscall/test下面增加一个你自己写的C文件。然后运行cargo other-test –arch riscv64，随后你就能在zcore运行起来之后的bin文件夹下面发现你写的项目，从而进行测试。</p>
 <p>当然，这些个C代码调用的系统调用接口，使用的就是你zcore的linux层面的系统调用。</p>
 <h2 id="zcore的namespace改造实现"><a href="#zcore的namespace改造实现" class="headerlink" title="zcore的namespace改造实现"></a>zcore的namespace改造实现</h2><p>这一部分主要描述我试图做的改造。</p>
 <p>我不得不承认我在这方面的改动没有全部完成，尤其是测试样例和修bug等等，可惜夏令营就那么点时间。</p>
