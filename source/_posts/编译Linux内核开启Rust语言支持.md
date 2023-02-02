@@ -12,6 +12,8 @@ tags:
 
 我是在Debian 11下进行编译的，相信在其它的Linux发行版操作应该也没有问题，但没试过。
 
+<!-- more -->
+
 Rust-for-Linux组织的目标是为linux内核添加Rust支持，选择它提供的linux内核是为了得到更好的Rust支持。
 
 使用Clang作为Linux内核的默认编译器，因为它和Rust一样，都是LLVM的前端，这会让Rust和C之间有更好的互操作性。
