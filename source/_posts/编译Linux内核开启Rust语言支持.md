@@ -49,7 +49,8 @@ make LLVM=1 -j
 make ARCH=arm64 CLANG_TRIPLE=aarch64_linux_gnu LLVM=1 menuconfig
 make ARCH=arm64 CLANG_TRIPLE=aarch64_linux_gnu LLVM=1 -j
 
-# for riscv64，内核有bug,暂不能成功编译
+# for riscv64
+# 注： meuconfig时关闭kvm模块，否则内核有bug不能成功编译
 #make ARCH=riscv LLVM=1 menuconfig
 #make ARCH=riscv LLVM=1 LLVM_IAS=0 -j
 ```
@@ -93,3 +94,4 @@ dsesg | grep rust	# 验证rust示例运行起来
 6. 执行`make ARCH=riscv LLVM=1 LLVM_IAS=0 -j`提示`ERROR: modpost: "riscv_cbom_block_size" undefined`
 
    原因分析：使用gcc也报同样的问题。这是内核bug，待修复。
+   解决方法： 该错误出现在编译虚拟化模块kvm时出现，在内核配置中关掉这个模块即可: "Kernel-based Virtual Machine (KVM) support"
