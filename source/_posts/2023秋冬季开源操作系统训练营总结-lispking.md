@@ -2,11 +2,11 @@
 title: 2023秋冬季开源操作系统训练营总结-lispking
 date: 2023-11-01 22:10:55
 categories:
-	- report
+    - report
 tags:
-	- author: lispking
-	- summerofcode2023
-	- rcore-lab
+    - author: lispking
+    - summerofcode2023
+    - rcore-lab
 ---
 
 # 逆境中的学习与成长：我的开源操作系统训练营之旅
