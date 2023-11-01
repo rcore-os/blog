@@ -51,7 +51,7 @@ tags:
 
 后来查阅资料逐渐了解这些术语和概念。
 
-* rCore 是一个实内核，用于实现硬件抽象层
+* rCore 是一个用 Rust 编写的操作系统，兼容 Linux，支持 x86_64、RISCV32/64、AArch64 与 MIPS32 平台
 * bare metal 是指没有操作系统的硬件
 * qemu 是一个开源的硬件仿真器
 * ELF 是 Executable and Linkable Format（可执行和可链接格式）的缩写，是一种计算机可执行文件格式；
