@@ -1,7 +1,8 @@
 ---
 title: 2023开源操作系统训练营第二阶段总结报告-Beavercat7.md
 date: 2023-11-02 11:21:15
-tag: - author:Beavercat7
+tag: 
+    -author:Beavercat7
 ---
 
 
