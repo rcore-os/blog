@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="本次训练营对我最大的帮助在于，让我深入了解了操作系统底层的工作原理，通过教程的辅助和源码的阅读，我了解到了操作系统在进程线程管理、任务调度、内存分配、文件系统管理等方面的知识，对其实现的机制有了初步的认识。 从操作系统环境的搭建开始，我不断的给系统增加功能，引入进程、页表、地址空间、文件系统、同步机制，让操作系统能够运行一个个进程与线程，处理并发场景的任务，这是一场具有挑战却又精彩的旅程。 从进程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2023开源操作系统训练营第二阶段总结报告-weedien">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-weedien/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="本次训练营对我最大的帮助在于，让我深入了解了操作系统底层的工作原理，通过教程的辅助和源码的阅读，我了解到了操作系统在进程线程管理、任务调度、内存分配、文件系统管理等方面的知识，对其实现的机制有了初步的认识。 从操作系统环境的搭建开始，我不断的给系统增加功能，引入进程、页表、地址空间、文件系统、同步机制，让操作系统能够运行一个个进程与线程，处理并发场景的任务，这是一场具有挑战却又精彩的旅程。 从进程">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-11-02T19:12:30.000Z">
+<meta property="article:modified_time" content="2023-11-02T12:18:24.905Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:weedien">
+<meta property="article:tag" content="repo:github.com&#x2F;LearningOS&#x2F;2023a-rcore-weedien">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-weedien/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2023开源操作系统训练营第二阶段总结报告-weedien | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">110</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">107</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-weedien/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2023开源操作系统训练营第二阶段总结报告-weedien
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-11-02 19:12:30 / Modified: 12:18:24" itemprop="dateCreated datePublished" datetime="2023-11-02T19:12:30+00:00">2023-11-02</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本次训练营对我最大的帮助在于，让我深入了解了操作系统底层的工作原理，通过教程的辅助和源码的阅读，我了解到了操作系统在进程线程管理、任务调度、内存分配、文件系统管理等方面的知识，对其实现的机制有了初步的认识。</p>
+<p>从操作系统环境的搭建开始，我不断的给系统增加功能，引入进程、页表、地址空间、文件系统、同步机制，让操作系统能够运行一个个进程与线程，处理并发场景的任务，这是一场具有挑战却又精彩的旅程。</p>
+<p>从进程或线程的创建和调度角度来说，我了解到了操作系统如何把一个elf格式的文件转换为一个进程，为它分配地址空间、栈空间等，以及如何在进程中执行任务，以及创建新的线程。</p>
+<p>elf文件中定义了程序的内存布局，而操作系统将为它创建地址空间，给它分配进程号并将各个逻辑段存放在合适的位置，之后将进程添加到调度队列中，由CPU执行。其中很重要的数据结构为TrapContext，它记录了进程或者线程的上下文信息，在切换任务时发挥着巨大的作用。而其中又涉及到了内存的分配，当进程需要分配内存时，由页表完成从虚拟地址到物理地址的映射，整个映射的过程也是我学习过程的一个重难点，从分配物理页号到创建多级页表进行映射，以及如何使用虚拟地址向物理内存中写入数据，通过思考、绘图去展示整个过程，我慢慢的理解了其中的所以然，感受到了虚拟内存系统的精妙的哲思。</p>
+<p>文件系统部分，我学习到了一个简易文件系统的实现，对于文件系统如何管理磁盘文件、以及如何在内核中使用文件有了一个新的认识。首先最令我费解的是描述文件的一系列数据结构，难点在于DiskINode和INode的关系和作用。经过一遍遍理解和梳理，我认识磁盘上的第一个分块将会用于存储整个磁盘的元信息，包括各类块的数量，之后的块分别记录索引位图、索引、数据位图和数据。索引中记录了一个文件的类型、大小以及在磁盘上的块号，通过索引可以找到文件所在的位置，对文件进行读写，这个索引即是DiskINode，而INode用于记录DiskINode的位置，该数据结构将暴露给内核，方便在内核中对文件进行操作。</p>
+<p>在并发的学习过程中，我对锁的实现机制有了更多的了解。当某个线程去访问被上锁的临界区时，线程将会从任务调度队列中移入到等待队列，由此陷入等待（休眠），在锁释放的时候再从等待队列中唤醒线程，以达到同步的效果，从而避免数据不一致问题。也试着去实现了一个简单的死锁检测机制，但对该机制的原理理解的还不够，无法证明为何该算法能够实现死锁检测。</p>
+<p>教程和练习引导着我的学习与进步，让我对操作系统有了更多的理解，但它们无法为我解释所有的问题，也无法让我看懂所有的代码。当前的学习虽说已告一段落，但整个项目中还有很多细节值得我去细细品味。那些我未阅读或未理解的源码，以及关于os的设计原理–为什么要这样设计，是否有更加合适的设计方式，这对于我来说都是未完成的任务，也是将来需要探索的。</p>
+<p>最后，我想感谢训练营，能提供这么好的机会和资料来帮助我学习os，今后我也希望能有更多的机会去深入理解系统级别的设计与开发，加油！</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-weedien/" rel="tag"># author:weedien</a>
+              <a href="/blog/tags/repo-github-com-LearningOS-2023a-rcore-weedien/" rel="tag"># repo:github.com/LearningOS/2023a-rcore-weedien</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/02/Ichika-rcore-2023-reports/" rel="prev" title="Ichika-rcore-2023-reports">
+      <i class="fa fa-chevron-left"></i> Ichika-rcore-2023-reports
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
