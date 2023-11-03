@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="lab1实验总结和疑难点ch3的实验相对来说较为简单，由于系统调用任务增加任务各自的系统调用数量syscall_times并且要得到任务的相关属性taskinfo，所以在任务控制块TaskControl那里的inner模块中加入相关的变量记录即可。 lab2实验总结和疑难点ch4的实验开始就有一些难度，特别是mmap和munmap不知道该怎么实现，于是我使用逆推的办法，mmap和munmap都是">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LinusWangg-rCore-LearningSummary">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2023/11/03/LinusWangg-rCore-LearningSummary/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="lab1实验总结和疑难点ch3的实验相对来说较为简单，由于系统调用任务增加任务各自的系统调用数量syscall_times并且要得到任务的相关属性taskinfo，所以在任务控制块TaskControl那里的inner模块中加入相关的变量记录即可。 lab2实验总结和疑难点ch4的实验开始就有一些难度，特别是mmap和munmap不知道该怎么实现，于是我使用逆推的办法，mmap和munmap都是">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-11-03T09:57:45.000Z">
+<meta property="article:modified_time" content="2023-11-03T05:49:26.053Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:&lt;LinusWangg&gt;">
+<meta property="article:tag" content="repo:&lt;[rcore-os-repo_you_worked_on](https:&#x2F;&#x2F;github.com&#x2F;LearningOS&#x2F;2023a-rcore-LinusWangg)&gt;">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2023/11/03/LinusWangg-rCore-LearningSummary/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>LinusWangg-rCore-LearningSummary | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#lab1实验总结和疑难点"><span class="nav-number">1.</span> <span class="nav-text">lab1实验总结和疑难点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab2实验总结和疑难点"><span class="nav-number">2.</span> <span class="nav-text">lab2实验总结和疑难点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab3实验总结和疑难点"><span class="nav-number">3.</span> <span class="nav-text">lab3实验总结和疑难点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab4实验总结和疑难点"><span class="nav-number">4.</span> <span class="nav-text">lab4实验总结和疑难点</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#File"><span class="nav-number">4.1.</span> <span class="nav-text">File</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#TaskControlBlockInner"><span class="nav-number">4.2.</span> <span class="nav-text">TaskControlBlockInner</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Syscall"><span class="nav-number">4.3.</span> <span class="nav-text">Syscall</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#BlockDevice"><span class="nav-number">4.4.</span> <span class="nav-text">BlockDevice</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#BlockCache"><span class="nav-number">4.5.</span> <span class="nav-text">BlockCache</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ClockCacheManager"><span class="nav-number">4.6.</span> <span class="nav-text">ClockCacheManager</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#easy-fs布局"><span class="nav-number">5.</span> <span class="nav-text">easy-fs布局</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#SuperBlock"><span class="nav-number">5.1.</span> <span class="nav-text">SuperBlock</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Bitmap"><span class="nav-number">5.2.</span> <span class="nav-text">Bitmap</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#DiskInode"><span class="nav-number">5.3.</span> <span class="nav-text">DiskInode</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#DirEntry"><span class="nav-number">5.4.</span> <span class="nav-text">DirEntry</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#EasyFileSystem"><span class="nav-number">5.5.</span> <span class="nav-text">EasyFileSystem</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Inode"><span class="nav-number">5.6.</span> <span class="nav-text">Inode</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lab5实验总结和疑难点"><span class="nav-number">6.</span> <span class="nav-text">lab5实验总结和疑难点</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">118</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">116</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/03/LinusWangg-rCore-LearningSummary/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          LinusWangg-rCore-LearningSummary
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-11-03 09:57:45 / Modified: 05:49:26" itemprop="dateCreated datePublished" datetime="2023-11-03T09:57:45+00:00">2023-11-03</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <a id="more"></a>
+<h3 id="lab1实验总结和疑难点"><a href="#lab1实验总结和疑难点" class="headerlink" title="lab1实验总结和疑难点"></a>lab1实验总结和疑难点</h3><p>ch3的实验相对来说较为简单，由于系统调用任务增加任务各自的系统调用数量syscall_times并且要得到任务的相关属性taskinfo，所以在任务控制块TaskControl那里的inner模块中加入相关的变量记录即可。</p>
+<h3 id="lab2实验总结和疑难点"><a href="#lab2实验总结和疑难点" class="headerlink" title="lab2实验总结和疑难点"></a>lab2实验总结和疑难点</h3><p>ch4的实验开始就有一些难度，特别是mmap和munmap不知道该怎么实现，于是我使用逆推的办法，mmap和munmap都是要对一部分虚拟地址进行alloc和dealloc操作，所以从这一点出发找到了当前任务的memory_set，然后对该任务的memory_set那部分虚拟地址进行insert_frame和unmap即可，然后再用接口暴露给系统调用即可。</p>
+<h3 id="lab3实验总结和疑难点"><a href="#lab3实验总结和疑难点" class="headerlink" title="lab3实验总结和疑难点"></a>lab3实验总结和疑难点</h3><p>ch5的实验比ch4相对来说简单一点，sys_spawn只需要复制一遍fork改一些参数即可，轮转调度只需要在fetch_task的时候对每个task的当前stride进行比较，挑选得到相应的task即可。</p>
+<h3 id="lab4实验总结和疑难点"><a href="#lab4实验总结和疑难点" class="headerlink" title="lab4实验总结和疑难点"></a>lab4实验总结和疑难点</h3><p>ch6的实验很难，因为涉及的结构体很多以及各个结构体之间存在相互有关的关系，于是我根据文档整理了一下接口。</p>
+<h4 id="File"><a href="#File" class="headerlink" title="File"></a>File</h4><ol>
+<li>readable: 返回可读属性</li>
+<li>writable: 返回可写属性</li>
+<li>read(mut user_buf): user_buf获取输入信息, 返回1</li>
+<li>write(user_buf): 打印user_buf信息，返回长度</li>
+</ol>
+<h4 id="TaskControlBlockInner"><a href="#TaskControlBlockInner" class="headerlink" title="TaskControlBlockInner"></a>TaskControlBlockInner</h4><ol>
+<li>新增fd_table: Vec&lt;Option&lt;Arc&lt;dyn File + Send + Sync&gt;&gt;&gt;</li>
+</ol>
+<h4 id="Syscall"><a href="#Syscall" class="headerlink" title="Syscall"></a>Syscall</h4><ol>
+<li>sys_write(fd, buf, len)：fd为程序输入到那个文件，将文件的信息输出出来</li>
+<li>sys_read(fd, buf, len)：将用户输入放到buf中</li>
+<li>sys_openat(dirfd, path, sflags, mode)：用各种不同的读写方式打开文件</li>
+</ol>
+<h4 id="BlockDevice"><a href="#BlockDevice" class="headerlink" title="BlockDevice"></a>BlockDevice</h4><ol>
+<li>read_block(block_id, &amp;mut buf)：将blockid对应的块内容读到buf中</li>
+<li>write_block(block_id, &amp;buf)：将buf写到对应block</li>
+</ol>
+<p>一个块512字节，512*8bit</p>
+<h4 id="BlockCache"><a href="#BlockCache" class="headerlink" title="BlockCache"></a>BlockCache</h4><ol>
+<li>由512个8bit，block_id, block_device:Arc<dyn blockdevice>和modified组成</dyn></li>
+<li>addr_of_offset(offset)：返回offset位置的cache元素。</li>
+<li>get_ref(offset)：获取offset位置的模板T的对应指针。</li>
+<li>get_mut(offset)：同上但可以修改。</li>
+<li>read(offset): get_ref。</li>
+<li>modify(offset): get_mut。</li>
+<li>drop：如果修改了将结果写到对应block中。</li>
+</ol>
+<h4 id="ClockCacheManager"><a href="#ClockCacheManager" class="headerlink" title="ClockCacheManager"></a>ClockCacheManager</h4><ol>
+<li>由Arc&lt;Mutex<BlockCache>&gt;组成的VecDeque</BlockCache></li>
+<li>get_block_cache(block_id, block_device)：从VecDeque中获取对应的block_cache，如果queue满了则弹出强引用计数为1的cache然后存入queue，就是弹出自己再加入。</li>
+</ol>
+<h3 id="easy-fs布局"><a href="#easy-fs布局" class="headerlink" title="easy-fs布局"></a>easy-fs布局</h3><h4 id="SuperBlock"><a href="#SuperBlock" class="headerlink" title="SuperBlock"></a>SuperBlock</h4><ol>
+<li>由合法性验证的魔数magic，文件系统的总块数total_blocks，索引节点位图，索引节点区域，数据块位图，数据块区域组成。</li>
+<li>initialize()：有磁盘块管理器传入初始化参数</li>
+<li>is_valid():判断是否合法。</li>
+</ol>
+<h4 id="Bitmap"><a href="#Bitmap" class="headerlink" title="Bitmap"></a>Bitmap</h4><ol>
+<li>由start_block_id和blocks组成，起始块编号和块数</li>
+<li>alloc(block_device)：先得到bits64_pos和inner_pos为第blockid块磁盘中未完全分配，然后发现是这一块的第bits64_pos个64位没完全分配，再找到这个第64位的第一个0处于的比特位赋值为1，并返回这一位在整个Bitmap中从startblock一开始处于第几位。</li>
+</ol>
+<h4 id="DiskInode"><a href="#DiskInode" class="headerlink" title="DiskInode"></a>DiskInode</h4><ol>
+<li>由文件字节数size，直接块编号，间接块编号组成。</li>
+<li>initialze()，初始化。</li>
+<li>is_dir(): 是否为目录。</li>
+<li>is_file(): 是否为文件。</li>
+<li>get_block_id(inner_id, block_device): 获取inner_id对应的文件存储的blockid。</li>
+<li>data_blocks(): 得到一共占了多少数据块，向上取整。</li>
+<li>total_blocks(): 数据块与索引块的总和。</li>
+<li>blocks_num_needed(new_size): 得到从size扩容到new_size需要的额外数据块。</li>
+<li>increase_size(new_size, new_blocks, block_Device): 扩容函数。</li>
+<li>clear_size(block_Device): 清空文件内容，返回一个Vec重新送给磁盘块管理器进行调度。</li>
+<li>read_At(offset, buf, block_device): 将文件内容从offset字节开始的部分读到buf中。返回读到的字节数。</li>
+<li>write_at(): 同上实现但是需要increase_size。</li>
+</ol>
+<h4 id="DirEntry"><a href="#DirEntry" class="headerlink" title="DirEntry"></a>DirEntry</h4><ol>
+<li>由目录名和inode_number组成。</li>
+</ol>
+<h4 id="EasyFileSystem"><a href="#EasyFileSystem" class="headerlink" title="EasyFileSystem"></a>EasyFileSystem</h4><ol>
+<li>由block_device, inode_bitmap, data_bitmap, inode_area_start_block和data_area_Start_block组成。</li>
+<li>create(block_Device, total_blocks, inode_bitmap_blocks): 创建efs实例并且将第0快设置为超级块</li>
+<li>open(block_device)：将编号位0的超级块读出然后构造efs实例。</li>
+<li>get_disk_inode_pos(inode_id): 得到inode_id对应的数据块在第几块以及offset。</li>
+<li>get_Data_block_id(data_block_id)：同上，得到数据块所在的实际位置</li>
+<li>alloc_inode(), alloc_Data(): 返回alloc所在的数据块id。</li>
+<li>dealloc_Data(block_id): 将cache中blockid的块清零并且释放block_id-data_Area_Start_id的空间。</li>
+<li>root_inode(efs): 获取根目录的inode。</li>
+</ol>
+<h4 id="Inode"><a href="#Inode" class="headerlink" title="Inode"></a>Inode</h4><ol>
+<li>由block_id, block_offset, fs文件系统， block_Device组成。</li>
+<li>read_disk_inode()</li>
+<li>modify_disk_inode()</li>
+<li>find(name): 根据名字得到对应存inode的位置并且构造Inode。</li>
+<li>find_inode_id(name, disk_inode): 对文件系统进行遍历查找取出每个DirEntry并得到相应的目录名与name进行比对，返回DirEntry的Inodenumber。</li>
+<li>ls同上但是把每个dirent的名字记下来。</li>
+<li>create(name)：先查有没有当前name的inode，然后alloc一个新inode并且得到存储inode需要的数据块id和偏移，然后将新文件目录项插入到根目录内容中。</li>
+<li>clear(): </li>
+<li>read_at(offset, buf: &amp;mut [u8]): disknode.read_at.</li>
+<li>write_at同上，但需要扩容</li>
+<li>increa_size(new_size, disk_inode, fs): disk_inode.increase_size。</li>
+</ol>
+<p>然后继续使用逆推法得到Inode应该是整个的核心代码编写处，关键之处在于要得到inode_id，因为没有直接的name查询的接口，需要使用inode_id进行linkat和unlinkat的维护，疑难点在于接口太多，这一部分我借鉴了以往同学的报告才得以理解。</p>
+<h3 id="lab5实验总结和疑难点"><a href="#lab5实验总结和疑难点" class="headerlink" title="lab5实验总结和疑难点"></a>lab5实验总结和疑难点</h3><p>ch8的实验相对来说比较简单，在每个mutex和sem里记录分给了哪些任务的tid以及还有哪些任务tid在等待就可以得到allocation和need，available我两种方式都写了一下，一种是在process里直接维护，还有一种是每个mutex和sem各自维护，最后得到这些之后进行银行家算法即可。唯一的难点就是别忘记写sys_gettime，我因为没写这个系统调用卡了一天，期间使用过trace但是忽略了gettime的报错，一直trace的是我银行家算法里的数据allocation和need等。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-LinusWangg/" rel="tag"># author:<LinusWangg></a>
+              <a href="/blog/tags/repo-rcore-os-repo-you-worked-on-https-github-com-LearningOS-2023a-rcore-LinusWangg/" rel="tag"># repo:<[rcore-os-repo_you_worked_on](https://github.com/LearningOS/2023a-rcore-LinusWangg)></a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/03/axsl666-2023%E7%A7%8B%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" rel="prev" title="axsl666-2023秋第二阶段总结">
+      <i class="fa fa-chevron-left"></i> axsl666-2023秋第二阶段总结
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
