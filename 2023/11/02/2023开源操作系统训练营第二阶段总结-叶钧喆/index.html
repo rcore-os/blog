@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第二阶段总结学习感受 在参加rCore训练营之前，对于操作系统的相关知识我是比较模糊的，在平时的编程中往往只是简单用到一些比如协程、多线程、原子计数、互斥锁等等编程语言提供的编程模型，对于其内在实现基本一知半解，而在这次阅读了rCore相关教材之后，对这些函数背后所隐藏的机制有了更深的了解。在训练营的过程中，因为之前有用Rust经验，所以第一阶段Rustlings能够比较快速的解决，但是到了第二阶">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2022开源操作系统训练营第二阶段总结-叶钧喆">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8F%B6%E9%92%A7%E5%96%86/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第二阶段总结学习感受 在参加rCore训练营之前，对于操作系统的相关知识我是比较模糊的，在平时的编程中往往只是简单用到一些比如协程、多线程、原子计数、互斥锁等等编程语言提供的编程模型，对于其内在实现基本一知半解，而在这次阅读了rCore相关教材之后，对这些函数背后所隐藏的机制有了更深的了解。在训练营的过程中，因为之前有用Rust经验，所以第一阶段Rustlings能够比较快速的解决，但是到了第二阶">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-11-02T18:39:42.000Z">
+<meta property="article:modified_time" content="2023-11-03T05:22:13.623Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="author:ye-junzhe">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8F%B6%E9%92%A7%E5%96%86/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2022开源操作系统训练营第二阶段总结-叶钧喆 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第二阶段总结"><span class="nav-number">1.</span> <span class="nav-text">第二阶段总结</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#学习感受"><span class="nav-number">1.1.</span> <span class="nav-text">学习感受</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#学习总结"><span class="nav-number">1.2.</span> <span class="nav-text">学习总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Lab总结"><span class="nav-number">1.3.</span> <span class="nav-text">Lab总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Ch3-Lab"><span class="nav-number">1.3.1.</span> <span class="nav-text">Ch3 Lab</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Ch4-Lab"><span class="nav-number">1.3.2.</span> <span class="nav-text">Ch4 Lab</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Ch5-Lab"><span class="nav-number">1.3.3.</span> <span class="nav-text">Ch5 Lab</span></a></li></ol></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">117</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">114</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8F%B6%E9%92%A7%E5%96%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2022开源操作系统训练营第二阶段总结-叶钧喆
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-02 18:39:42" itemprop="dateCreated datePublished" datetime="2023-11-02T18:39:42+00:00">2023-11-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-11-03 05:22:13" itemprop="dateModified" datetime="2023-11-03T05:22:13+00:00">2023-11-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h1><h2 id="学习感受"><a href="#学习感受" class="headerlink" title="学习感受"></a>学习感受</h2><ul>
+<li>在参加rCore训练营之前，对于操作系统的相关知识我是比较模糊的，在平时的编程中往往只是简单用到一些比如协程、多线程、原子计数、互斥锁等等编程语言提供的编程模型，对于其内在实现基本一知半解，而在这次阅读了rCore相关教材之后，对这些函数背后所隐藏的机制有了更深的了解。在训练营的过程中，因为之前有用Rust经验，所以第一阶段Rustlings能够比较快速的解决，但是到了第二阶段，因为对于相关知识比较陌生所以做的比较慢一些，unsafe Rust、risc-v汇编这些平时接触非常少，所以在阅读相关代码的时候要查阅较多资料。目前虽然完成了第二阶段晋级的目标，但是感觉前方未知的领域更加宽广。</li>
+<li>rCore依托于Github的授课方式也让我大开眼界，第一次知道Gihub Classroom这个服务，老师们围绕OS的学习建立的这一整套学习方式（Github Actions、排行榜、直播课网站），不仅仅局限于书本，把计算机专业和教学的完美结合到一起。同时rCore的社区感觉也已经很庞大了，已经有许多人做出了自己的贡献，虽然我目前还没有厉害到可以给rCore提PR，但是希望以后可以。</li>
+</ul>
+<h2 id="学习总结"><a href="#学习总结" class="headerlink" title="学习总结"></a>学习总结</h2><ul>
+<li>其实我学习Rust的开端比较早，就是看到各大视频网站有很多关于Rust如何安全的宣传视频，当时也没有适用场景和刚需，单纯出于好奇就开始了自学，在学完之后也就仅限于用来做一些比如Advent of Code的编程题，但是其间经常由于Rust严格的检查而被Rust折磨🤣。rCore把Rust用到了系统级的编程领域，难度更是加大了，因为要理解这些代码，首先要理解其背后隐含的OS设计思想，这些就是我对于Rust学习的感受。</li>
+</ul>
+<h2 id="Lab总结"><a href="#Lab总结" class="headerlink" title="Lab总结"></a>Lab总结</h2><h3 id="Ch3-Lab"><a href="#Ch3-Lab" class="headerlink" title="Ch3 Lab"></a>Ch3 Lab</h3><p>第一次做OS相关Lab，在起步时熟悉整个代码框架是比较重要的，这样在做题时才能找到相关的接口，Ch3 lab主要关于task info的获取，需要编写函数来获取每个task的相关信息。</p>
+<ul>
+<li><p>为TaskControlBlock增加field</p>
+<ul>
+<li>start_time: usize</li>
+<li>syscall_count: [u32: MAX_SYSCALL_NUM]</li>
+</ul>
+</li>
+<li><p>os/src/task/mod.rs</p>
+</li>
+</ul>
+<ol>
+<li>为TaskManager实现syscall_count_increment()<br> 主要逻辑：<ul>
+<li>使用match来匹配syscall id，从而决定增加conut的对象。</li>
+<li>并在trap_handler中调用。</li>
+</ul>
+</li>
+<li>在run_first_task()中使用get_time_ms()获取当前时间</li>
+</ol>
+<ul>
+<li>os/src/syscall/mod.rs</li>
+</ul>
+<ol>
+<li>为TaskInfo实现reveal()<br> 主要逻辑：<ul>
+<li>计算运行时间</li>
+<li>从Task Control Block中获取task info<br>在sys_task_info()调用</li>
+</ul>
+</li>
+</ol>
+<h3 id="Ch4-Lab"><a href="#Ch4-Lab" class="headerlink" title="Ch4 Lab"></a>Ch4 Lab</h3><p>在初读关于内存空间的内容时经常一头雾水，各种术语经常忘了意思，需要经常翻速查表、文档和笔记。<br>因为地址空间的跳转，所以之前的trap的实现也要修改。</p>
+<ul>
+<li>os/mm/memory_set.rs<ul>
+<li>mmap<ul>
+<li>将vpn与ppn关联，从遍历整个VirtualPageNum，若已存在对应pte，则返回失败，若不存在则分配ppn</li>
+</ul>
+</li>
+<li>munmap<ul>
+<li>将vpn从page table移除</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>os/syscall/process.rs<ul>
+<li>sys_get_time()<ul>
+<li>用 translated_byte_buffer 将用户地址转换为对应的物理地址，然后读取TimeVal大小的内存</li>
+</ul>
+</li>
+<li>sys_task_info()<ul>
+<li>同理先转化为对应物理地址，然后读取TaskInfo大小的内存，就可以获取task_info</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="Ch5-Lab"><a href="#Ch5-Lab" class="headerlink" title="Ch5 Lab"></a>Ch5 Lab</h3><p>Lab 5实现spawn和stride调度算法，spawn一个子线程需要创建一个新的TaskControlBlock，然后再push到当前任务下</p>
+<ul>
+<li><p>os/syscall/process.rs</p>
+<ul>
+<li>sys_spawn()<ul>
+<li>首先获取app data(get_app_data_by_name), 再根据data生成新的task</li>
+</ul>
+</li>
+<li>sys_get_priority()</li>
+</ul>
+</li>
+<li><p>os/task/manager.rs</p>
+<ul>
+<li>实现stride算法<ul>
+<li>对TaskManager的ready_queue进行迭代，使用min_by_key()找到当前最优先的TaskControlBlock</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/author-ye-junzhe/" rel="tag"># author:ye-junzhe</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/02/Ichika-rcore-2023-reports/" rel="prev" title="Ichika-rcore-2023-reports">
+      <i class="fa fa-chevron-left"></i> Ichika-rcore-2023-reports
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-weedien/" rel="next" title="2023开源操作系统训练营第二阶段总结报告-weedien">
+      2023开源操作系统训练营第二阶段总结报告-weedien <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
