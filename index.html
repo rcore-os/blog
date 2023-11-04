@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">140</span>
+          <span class="site-state-item-count">141</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,94 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E7%A7%8B%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-xllhxd/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/04/2023%E7%A7%8B%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-xllhxd/" class="post-title-link" itemprop="url">2023年秋季开源操作系统训练营第二阶段总结-xllhxd</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-11-04 22:19:00 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T22:19:00+00:00">2023-11-04</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>不得不承认，自己的代码量在面对这五个实验的时候显得捉襟见肘。由于在此之前我没有进行任何项目的书写，或者说我只写过单独的 <code>code.c</code> 这样的东西，这次实验对我是一个不小的挑战。再加上初次接触 Rust 一些语言特性：闭包、各种集合也让我有点吃力。但万幸最近时间比较充裕，可以花充分的时间来做这件事，整个实验花费了两周的时间，将近五个小时，很少有过的这么快的时间了。</p>
+<h1 id="实验总结"><a href="#实验总结" class="headerlink" title="实验总结"></a>实验总结</h1><p>由于我对实验的整个框架的了解也不是那么清楚，我只能以写实验时候进行的猜想来对这五个实验进行总结。</p>
+<h2 id="lab1"><a href="#lab1" class="headerlink" title="lab1"></a>lab1</h2><p>第一个实验让我实现获取进程信息。在基本的操作系统的理解下，我们应该知道进程的信息应该存储在进程控制块（process control block, PCB）中。但 task.rs 并没有向我们暴露什么可以直接访问的接口，而在 mod.rs 中，我们可以发现其实例化了一个 <code>TaskManager</code>，所以我们在这个文件中增加一个函数 <code>get_tcb()</code> 来获取当前进程的进程控制块，然后将信息传递给 <code>TaskInfo</code> 结构体即可。</p>
+<h2 id="lab2"><a href="#lab2" class="headerlink" title="lab2"></a>lab2</h2><p>第二个实验中向外提供的接口并没有发生变化，仍然是 task/mod.rs 下实例化的 <code>TaskManager</code>。而在进行这个实验之前，我们必须知道我们为什么要重写 <code>sys_get_time</code> 和 <code>sys_task_info</code>。这是因为，我们传给系统调用的指针指向的地址为用户进程的虚拟地址空间中的虚拟地址，这是操作系统无法直接访问的，需要增加一层指针转换的过程。知道了这一点之后，重写的任务就并不困难了。</p>
+<p>而 <code>sys_mmap</code> 和 <code>sys_munmap</code> 的实现，可能开始没有思路，但可以首先把书中所有可能出现的错误排除掉，之后我们进行映射时既可以选择虚拟地址也可以选择虚拟页号，我选择了虚拟地址。而我们进行地址空间的映射，必然需要用到 mm 这个 crate 下的内容。不难想到 mm/memeory_set.rs 是这次实验的重点。在其中我们看到了 <code>MemorySet</code> 这个结构体，而我们如何获得这个结构体呢，我们在 <code>TaskManager</code> 中找到了 <code>TaskControlBlock</code> 并且 <code>TaskControlBlockInner</code> 中有 <code>memory_set</code> 这个成员。然后我们寻找 <code>MemorySet</code> 中有哪些我们可以用到的方法。显然 <code>sys_mmap</code> 可以使用 <code>insert_framed_area()</code> 方法完成，之后我们仿照其实现 <code>remove_framed_area()</code> 方法用以实现 <code>sys_munmap</code>。这里我采用了遍历所有的虚拟地址页并释放页表的方法。而在遍历的过程中有两种选择：</p>
+<ul>
+<li>直接使用页表号</li>
+<li>使用 <code>VPNRange</code> 结构，进而使用迭代器</li>
+</ul>
+<p>其中后者比较复杂，因为 <code>VPNRange</code> 没有直接暴露出来，需要改为 pub 属性并在 mod.rs 中导出，但由于后续实验中不再提供 ViruralPageNumber 的 <code>step()</code> 方法，所以有更好的兼容性。</p>
+<h2 id="lab3"><a href="#lab3" class="headerlink" title="lab3"></a>lab3</h2><p>实验三相较于前两个实验的变化比较大，首先就是我们不再提供 task/mod.rs 中的 <code>TaskManager</code> 结构体，而是将其放到了 task/manager.rs 中。而从这个实验开始如果我们想获取当前的进程使用 <code>current_task()</code> 这个方法（这里说的并不严谨，在实验五中引入线程之后，task 应该表示线程，但在这里还是进程）。同时一个比较偷懒的地方就是这个实验并不测试 <code>sys_task_info</code> 系统调用，我们可以选择不再实现。</p>
+<p><code>sys_mmap</code> 和 <code>sys_munmap</code> 的实现和实验二是一样的，不多说。</p>
+<p><code>sys_spwan</code> 的实现开始让我有点困扰，因为最开始没有注意到 <code>get_app_data_by_name()</code> 这个方法。知道之后我们可以通过这个方法获取 ELF 文件的数据，再通过 <code>TaskControlBlock</code> 的 <code>new()</code> 方法新建进程控制块，之后我们需要设置当前进程的子进程和新创建进程的父进程，二者还是有一定不同的。之后将新建的进程加入队列即可。</p>
+<p>而关于 stride 调度算法，整个算法没有什么难度，但我最开始没有想清楚这里的调度是指的就绪态的进程的调度，而纠结到底在 task/task.rs、task/processos.rs、task/manager.rs 中哪里实现。在看了 <a href="https://github.com/xushanpu123/xsp-daily-work/blob/master/%E6%9A%91%E6%9C%9Frcore%E5%AE%9E%E9%AA%8C%E7%AC%94%E8%AE%B0/chapter5%EF%BC%9A%E8%BF%9B%E7%A8%8B%E7%AE%A1%E7%90%86.md" target="_blank" rel="noopener">chapter 5 : 进程管理</a> 后发现应在 manager.rs 中实现。这里只需要每次选择 stride 值最小的加入就绪队列即可，这里需要在 <code>TaskControlBlock</code> 中加入相应的内容。</p>
+<p><code>sys_set_priority</code> 比较简单，不多赘述。</p>
+<h2 id="lab4"><a href="#lab4" class="headerlink" title="lab4"></a>lab4</h2><p>这个实验不再检查 <code>sys_task_info</code> 和 调度算法，可以不用实现。</p>
+<p><code>sys_mamp</code> 和 <code>sys_munmap</code> 是一样的，不再赘述。</p>
+<p><code>sys_spwan</code> 变得不太一样了，因为我们有文件系统的出现，所以此时如果想要获取 ELF 的所有数据则要先获得其 inode，之后再进行，而我们调用 <code>open_file()</code> 函数来完成这件事情。</p>
+<p>这个实验卡了我很长时间，主要是向外提供的 <code>DiskInode</code>、<code>Inode</code>、<code>OSInode</code>虽然比较清楚，但还是很难确定什么时候用哪个，而且有些时候需要和 block_id 以及 block_offset 打交道还是比较麻烦的。然后有一点就是实例化了一个 <code>ROOT_INODE</code> 来惯例所有的内容，这里我开始很不理解为什么其他的文件需要用根目录的 inode 来进行管理，后来才发现需要在这里完成 <code>DirEntry</code> 的更新。我们首先根据 inode 获得文件的 block_id 和 block_offset，然后获取缓存并加锁，然后更新链接数目，之后再更新 <code>DirEntry</code>。</p>
+<p>而 <code>sys_unlinkat</code> 我的实现并不完整，但通过了测试。因为考虑到可能删除最后一个链接之后，我们需要清空 <code>DirEntry</code>，我选择了遍历现在的目录项，并将所有我们不 unlink 的目录项放到一个向量中，之后释放所有的目录项，将向量中的内容写入到目录项。而我所说的不完整，则是我没有实现如果 unlink 之后链接数不为零，需要将其写回目录项，我没有想太清楚如何实现这个事情。</p>
+<h2 id="lab5"><a href="#lab5" class="headerlink" title="lab5"></a>lab5</h2><p>首先我的实现稍显臃肿，因为 mutex 的思索检测可以不使用银行家算法来完成。而在这里我的整体思路则是通过修改 sync/mutex.rs 和 sync/semaphore.rs 中的结构体的内容，获得可以银行家算法中的三个向量。而在 <code>mutex_lock</code> 和 <code>down</code> 中更新三个向量，之后的思路如下面的代码：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> if_finish = <span class="built_in">vec!</span>[<span class="literal">false</span>; task_count];</span><br><span class="line"></span><br><span class="line"><span class="keyword">loop</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task_id: <span class="built_in">isize</span> = -<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..task_count &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> task_id_can_run = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="number">0</span>..mutex_count &#123;</span><br><span class="line">            <span class="keyword">if</span> if_finish[i] || need[i][j] &gt; available[j] &#123;</span><br><span class="line">                task_id_can_run = <span class="literal">false</span>;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> task_id_can_run &#123;</span><br><span class="line">            task_id = i <span class="keyword">as</span> <span class="built_in">isize</span>;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> task_id == -<span class="number">1</span> <span class="keyword">as</span> <span class="built_in">isize</span> &#123;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 释放可以运行的线程的资源</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..mutex_count &#123;</span><br><span class="line">        available[i] += allocated[task_id <span class="keyword">as</span> <span class="built_in">usize</span>][i];</span><br><span class="line">        if_finish[task_id <span class="keyword">as</span> <span class="built_in">usize</span>] = <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..task_count &#123;</span><br><span class="line">    <span class="keyword">if</span> !if_finish[i] &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">0xdead</span>;</span><br><span class="line">    &#125; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果找到不能运行的线程则发生死锁。</p>
+<h1 id="后记"><a href="#后记" class="headerlink" title="后记"></a>后记</h1><p>这次的实验过程还是比较艰难的，而且最开始得知只有两周的时间，加之自己 Rust 基础并不好，所以最开始写的很是急躁，但后来平复一下，开始慢慢自己猜整体框架的思路，以及找一些自己可以用到 API，有点没想到自己可以完成这五个实验。在这个过程中参考了：</p>
+<ul>
+<li><a href="https://github.com/xushanpu123/xsp-daily-work/tree/master/%E6%9A%91%E6%9C%9Frcore%E5%AE%9E%E9%AA%8C%E7%AC%94%E8%AE%B0" target="_blank" rel="noopener">暑期 rcore 实验笔记</a></li>
+<li><a href="https://hangx-ma.github.io/" target="_blank" rel="noopener">HangX-Ma</a></li>
+</ul>
+<p>非常感谢大家讲解自己的思路，也感谢上课的老师以及群友。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lighkLife/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -258,7 +346,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-11-04 16:15:16 / Modified: 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T16:15:16+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 16:15:16 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T16:15:16+00:00">2023-11-04</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -341,7 +429,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-11-04 16:08:16 / Modified: 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T16:08:16+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 16:08:16 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T16:08:16+00:00">2023-11-04</time>
             </span>
 
           
@@ -390,215 +478,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E7%A7%8B%E5%86%ACOS%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-watchpoints/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/04/2023%E7%A7%8B%E5%86%ACOS%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-watchpoints/" class="post-title-link" itemprop="url">2023秋冬OS训练营第二阶段总结-watchpoints</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-11-04 14:15:53 / Modified: 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T14:15:53+00:00">2023-11-04</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h2><p>作为上班族，每天下班很晚了，本来没有多余时间，并且之前没有接触过Rust</p>
-<p>看到 从零开始用 <strong>Rust</strong> 语言写一个基于 <strong>RISC-V</strong> 架构的 类 Unix 内核这样标题 </p>
-<p>直接打退堂鼓。</p>
-<blockquote>
-<p>转你一想 这就是自己本来期望形式，参与开源方向，操作系统 作为软件工程师 基本功，不管结果如何必须参与。</p>
-</blockquote>
-<h2 id="一阶段总结"><a href="#一阶段总结" class="headerlink" title="一阶段总结"></a>一阶段总结</h2><ul>
-<li><p>选择看什么资料，根据看c++经验，一定选择英文原版 代替看中文翻译，很多翻译遗漏很多信息。我直接选择 rustlings-100exercises README.md </p>
-</li>
-<li><p>因为时间有限，没有采取全部看完book，然后做题，</p>
-<p>采取看一章节，做题 顺序</p>
-<p><a href="https://github.com/LearningOS/rustlings-100exercises-template/blob/main/exercises/README.md" target="_blank" rel="noopener">https://github.com/LearningOS/rustlings-100exercises-template/blob/main/exercises/README.md</a> </p>
-<p>rustlings 设计 很合理 提供  README和章节练习。为我节省大量时间</p>
-</li>
-<li><p>选择在线开发环境</p>
-<p>群里分享了：rustlings流程web版.pdf 然后5分钟搭建好了环境，更适合上班 环境 和家里环境随时切换。</p>
-</li>
-<li><p>遇到不懂怎么办？</p>
-<p>学习Rust出现新名词 ：借用  让你莫不这头脑，我没有从概念理解 这些概念，</p>
-<p>并按照文字提示 翻译</p>
-<p>用c++设计进行类比：常量指针，指针常量， 类 深度拷贝 移动构造 ，move语义</p>
-<p>拷贝构造，还有STL </p>
-</li>
-</ul>
-<h3 id="小结："><a href="#小结：" class="headerlink" title="小结："></a>小结：</h3><p>  为了节省时间，我采用云环境（5分钟搭建完成）</p>
-<p>  做题顺序按照README.md 推荐方式  README对我帮助很大</p>
-<h2 id="二阶段总结"><a href="#二阶段总结" class="headerlink" title="二阶段总结"></a>二阶段总结</h2><h3 id="ch1-amp-ch2"><a href="#ch1-amp-ch2" class="headerlink" title="ch1 &amp; ch2"></a>ch1 &amp; ch2</h3><ul>
-<li>存在问题：</li>
-</ul>
-<p>一个hello，world 例子是怎么运行的,代码从编译到产生可执行程序，然后加载到内存，程序入口是哪里 尤其是linker.ld entry.asm这2个文件。</p>
-<p>尤其汇报指令。需要加强。之前看程序自我修养，</p>
-<p>还有csapp 感觉看懂到，现在看来根本不懂，用了不少时间。</p>
-<p>尤其看到别人满分了，担心着急，我还没真正投入开始呢。</p>
-<ul>
-<li>解决方式：</li>
-</ul>
-<p>为了方便反复运行程序 我搭建vmare+本地环境。</p>
-<p>rcore提供框架，让这些知识变成例子，</p>
-<p>最后不依赖系统库运行在起来。这个演示例子非常好。</p>
-<h3 id="小结-：hello，world-例子"><a href="#小结-：hello，world-例子" class="headerlink" title="小结 ：hello，world 例子"></a>小结 ：hello，world 例子</h3><ol>
-<li><p>项目中 每个模块都个mod.rs文件 ，这一般是模块提供对提供功能。</p>
-</li>
-<li><p>程序入口地址</p>
-</li>
-</ol>
-<h2 id="chapter3-练习"><a href="#chapter3-练习" class="headerlink" title="chapter3 练习"></a>chapter3 练习</h2><p>题目要求：</p>
-<p>ch3 中，我们的系统已经能够支持多个任务分时轮流运行，我们希望引入一个新的系统调用 <code>sys_task_info</code> 以获取当前任务的信息，定义如下：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_task_info</span></span>(ti: *<span class="keyword">mut</span> TaskInfo) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h4><ol>
-<li><p>从单元测试  ch3_taskinfo.rs 了解到 ，直接创建了task，该task 可能执行很多系统调用系统调用最终都是通过 sys_call 进行，在该函数增加 add_syscall_count。</p>
-</li>
-<li><p>数据结构：TaskManagerInner 记录了正在运行的任务 current_task 和任务列表tasks，全局变量 只有一个。</p>
-</li>
-<li><p>main.rs 函数启动时候  加载任务 并且运行第一任务</p>
-<p> loader::load_apps();</p>
-<p>task::run_first_task();</p>
-</li>
-</ol>
-<h4 id="小结：系统调用"><a href="#小结：系统调用" class="headerlink" title="小结：系统调用"></a>小结：系统调用</h4><p>ch1 和ch2 是ch3 基础，下面这段代码 需要后面花费更多时间学习</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">pub fn rust_main() -&gt; ! &#123;</span><br><span class="line">    clear_bss();</span><br><span class="line">    kernel_log_info();</span><br><span class="line">    heap_alloc::init_heap();</span><br><span class="line">    trap::init();</span><br><span class="line">    loader::load_apps();</span><br><span class="line">    trap::enable_timer_interrupt();</span><br><span class="line">    timer::set_next_trigger();</span><br><span class="line">    task::run_first_task();</span><br><span class="line">    panic!(&quot;Unreachable in rust_main!&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="chapter4练习"><a href="#chapter4练习" class="headerlink" title="chapter4练习"></a>chapter4练习</h2><h3 id="实验要求"><a href="#实验要求" class="headerlink" title="实验要求"></a>实验要求</h3><h3 id="重写-sys-get-time-和-sys-task-info"><a href="#重写-sys-get-time-和-sys-task-info" class="headerlink" title="重写 sys_get_time 和 sys_task_info"></a>重写 sys_get_time 和 sys_task_info</h3><p>引入虚存机制后，原来内核的 sys_get_time 和 sys_task_info 函数实现就无效了。请你重写这个函数，恢复其正常功能。</p>
-<h3 id="mmap-和-munmap-匿名映射"><a href="#mmap-和-munmap-匿名映射" class="headerlink" title="mmap 和 munmap 匿名映射"></a>mmap 和 munmap 匿名映射</h3><p><a href="https://man7.org/linux/man-pages/man2/mmap.2.html" target="_blank" rel="noopener">mmap</a> 在 Linux 中主要用于在内存中映射文件， 本次实验简化它的功能，仅用于申请内存。</p>
-<p>请实现 mmap 和 munmap 系统调用，mmap 定义如下：</p>
-<h3 id="思路：地址空间"><a href="#思路：地址空间" class="headerlink" title="思路：地址空间"></a>思路：地址空间</h3><ol>
-<li><p>为什么 重写 sys_get_time 和 sys_task_info ？这从地址空间说起，原文：</p>
-<p><strong>内核如何访问应用的数据？</strong></p>
-<p>应用应该不能直接访问内核的数据，但内核可以访问应用的数据，这是如何做的？由于内核要管理应用，所以它负责构建自身和其他应用的多级页表。如果内核获得了一个应用数据的虚地址，内核就可以通过查询应用的页表来把应用的虚地址转换为物理地址，内核直接访问这个地址</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"> <span class="keyword">let</span> info = TaskInfo::new();  <span class="comment">//info 这用户空间地址</span></span><br><span class="line"> <span class="built_in">assert_eq!</span>(<span class="number">0</span>, task_info(&amp;info));<span class="comment">//经过系统调用后，用户空间地址</span></span><br><span class="line"><span class="comment">//传递到内核空间，用户空间虚拟地址 对内核来说无法直接使用，需要转化</span></span><br></pre></td></tr></table></figure>
-</li>
-<li><p>疑惑地方：我看懂这个数据结构<strong>页表项</strong> (PTE, Page Table Entry)  是一个整数）</p>
-<p>里面包含了一个物理页号 + 标志位</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// 一个物理页号 PhysPageNum 和一个页表项标志位 PTEFlags 生成一个页表项 </span></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(ppn: PhysPageNum, flags: PTEFlags) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        PageTableEntry &#123;</span><br><span class="line">            bits: ppn.<span class="number">0</span> &lt;&lt; <span class="number">10</span> | flags.bits <span class="keyword">as</span> <span class="built_in">usize</span>,</span><br><span class="line">            <span class="comment">// 最低的 8 位 [7:0] 则是标志位。</span></span><br><span class="line">            <span class="comment">//其中 [53:10] 这 44 位是物理页号</span></span><br><span class="line">            <span class="comment">// SV39 分页模式下的页表项，其中 这 位是物理页号，最低的 位 则是标志位</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-
-
-</li>
-</ol>
-<p>虚拟页号 同样也是整数，虚拟页号 和 物理页号对应起来？</p>
-<p>经过群里讨论 和看资料，初步理解 虚拟页号当作索引，页表项是数组内容建立关系，这句话初步帮助理解。不代表真实现。</p>
-<p>另外一个结构：PageTable</p>
-<p>a 通过虚拟页号找到页表项(里面又物理页号)</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Find PageTableEntry by VirtPageNum</span></span><br><span class="line"><span class="comment">/// 通过虚拟页号找到页表项(里面又物理页号)</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">find_pte</span></span>(&amp;<span class="keyword">self</span>, vpn: VirtPageNum) -&gt; <span class="built_in">Option</span>&lt;&amp;<span class="keyword">mut</span> PageTableEntry&gt; </span><br><span class="line"><span class="keyword">let</span> idxs = vpn.indexes();</span><br><span class="line">https:<span class="comment">//rcore-os.cn/rCore-Tutorial-Book-v3/chapter4/4sv39-implementation-2.html</span></span><br><span class="line">VirtPageNum 的 indexes 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回</span><br></pre></td></tr></table></figure>
-
-<p>b 函数：translated_byte_buffer 为参考例子实现了</p>
-<p>实现来了 从虚拟地址转化成物理地址</p>
-<p>3  map 和 unmap 虚拟地址是一个连续内存，其中一个虚拟地址转化成物理地址，</p>
-<p>多个虚拟地址转转化思路很清楚了，具体实现：MemorySet 新增map_range函数</p>
-<p>这里对map封装</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">map</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, page_table: &amp;<span class="keyword">mut</span> PageTable) &#123;</span><br><span class="line">        <span class="keyword">for</span> vpn <span class="keyword">in</span> <span class="keyword">self</span>.vpn_range &#123;</span><br><span class="line">            <span class="keyword">self</span>.map_one(page_table, vpn);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>最后通过下面函数封装完成ch4。</p>
-<ul>
-<li><p>PageTable  find_pte </p>
-</li>
-<li><p>MemorySet  map_one  unmap_one</p>
-<p>不然无法实现，里面细节不少。</p>
-</li>
-</ul>
-<h2 id="chapter5-练习"><a href="#chapter5-练习" class="headerlink" title="chapter5 练习"></a>chapter5 练习</h2><p>实现分支：ch5-lab</p>
-<p>实验目录要求不变</p>
-<p>通过所有测例</p>
-<h3 id="思路-1"><a href="#思路-1" class="headerlink" title="思路"></a>思路</h3><ol>
-<li><p>为什么重新实现 sys_task_info sys_mmap函数？</p>
-<ul>
-<li><p>引入处理器管理结构 Processor 负责从任务管理器 TaskManager 中分出去的维护 CPU 状态的职责</p>
-</li>
-<li><p>这里注意 语法细节</p>
-  <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">///Get current task in moving semanteme</span></span><br><span class="line"> <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">take_current</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;TaskControlBlock&gt;&gt; &#123;</span><br><span class="line">        <span class="keyword">self</span>.current.take()</span><br><span class="line"> &#125;</span><br><span class="line"><span class="comment">///Get current task in cloning semanteme</span></span><br><span class="line"> <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">current</span></span>(&amp;<span class="keyword">self</span>) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;TaskControlBlock&gt;&gt; &#123;</span><br><span class="line">        <span class="keyword">self</span>.current.as_ref().map(Arc::clone)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-</li>
-<li><p>sys_spawn  </p>
-</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//功能：新建子进程，使其执行目标程序。</span></span><br><span class="line"><span class="comment">// "ch5b_user_shell\0"</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_spawn</span></span>(_path: *<span class="keyword">const</span> <span class="built_in">u8</span>) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><p>细节：参考 初始进程initproc的创建 【里面有很多知识点】</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">TaskControlBlock::new(get_app_data_by_name(<span class="string">"initproc"</span>).unwrap())</span><br><span class="line">https:<span class="comment">//rcore-os.cn/rCore-Tutorial-Book-v3/chapter5/3implement-process-mechanism.html</span></span><br></pre></td></tr></table></figure>
-</li>
-<li><p>细节：参考  fn sys_exec(path: *const u8)  对_path处理 需要地址转化。</p>
-</li>
-<li><p>细节：父子进程关系设定。 parent: Option&lt;Weak<TaskControlBlock>&gt;</TaskControlBlock></p>
-<p>weak指针类型</p>
-</li>
-</ul>
-<ol start="3">
-<li><p>进程优先级 </p>
-<p>每次需要调度时，从当前 runnable 态的进程中选择 stride 最小的进程调度 </p>
-<p>改写fetch函数，修改当前任务的stride 使用take 还是as_ref。</p>
-</li>
-</ol>
-<h3 id="小总-进程"><a href="#小总-进程" class="headerlink" title="小总:进程"></a>小总:进程</h3><ul>
-<li><p>这一章节完全是Rust语法细节 引用，借用 ，weak智能指针（避免循环引用）</p>
-</li>
-<li><p>例如 “ch5b_user_shell\0” 后面执行过程不很清楚，我更加深入学习load实现。</p>
-</li>
-</ul>
-<h3 id="未完待续"><a href="#未完待续" class="headerlink" title="未完待续"></a>未完待续</h3>
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/axsl666-2023%E7%A7%8B%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -623,7 +502,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-11-04 13:47:15" itemprop="dateCreated datePublished" datetime="2023-11-04T13:47:15+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T15:59:42+00:00">2023-11-04</time>
             </span>
 
           
@@ -826,7 +705,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-11-04 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T13:47:14+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T15:59:42+00:00">2023-11-04</time>
             </span>
 
           
@@ -849,6 +728,215 @@
             </div>
           <!--/noindex-->
         
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E7%A7%8B%E5%86%ACOS%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-watchpoints/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/04/2023%E7%A7%8B%E5%86%ACOS%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-watchpoints/" class="post-title-link" itemprop="url">2023秋冬OS训练营第二阶段总结-watchpoints</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-11-04 14:15:53 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T14:15:53+00:00">2023-11-04</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h2><p>作为上班族，每天下班很晚了，本来没有多余时间，并且之前没有接触过Rust</p>
+<p>看到 从零开始用 <strong>Rust</strong> 语言写一个基于 <strong>RISC-V</strong> 架构的 类 Unix 内核这样标题 </p>
+<p>直接打退堂鼓。</p>
+<blockquote>
+<p>转你一想 这就是自己本来期望形式，参与开源方向，操作系统 作为软件工程师 基本功，不管结果如何必须参与。</p>
+</blockquote>
+<h2 id="一阶段总结"><a href="#一阶段总结" class="headerlink" title="一阶段总结"></a>一阶段总结</h2><ul>
+<li><p>选择看什么资料，根据看c++经验，一定选择英文原版 代替看中文翻译，很多翻译遗漏很多信息。我直接选择 rustlings-100exercises README.md </p>
+</li>
+<li><p>因为时间有限，没有采取全部看完book，然后做题，</p>
+<p>采取看一章节，做题 顺序</p>
+<p><a href="https://github.com/LearningOS/rustlings-100exercises-template/blob/main/exercises/README.md" target="_blank" rel="noopener">https://github.com/LearningOS/rustlings-100exercises-template/blob/main/exercises/README.md</a> </p>
+<p>rustlings 设计 很合理 提供  README和章节练习。为我节省大量时间</p>
+</li>
+<li><p>选择在线开发环境</p>
+<p>群里分享了：rustlings流程web版.pdf 然后5分钟搭建好了环境，更适合上班 环境 和家里环境随时切换。</p>
+</li>
+<li><p>遇到不懂怎么办？</p>
+<p>学习Rust出现新名词 ：借用  让你莫不这头脑，我没有从概念理解 这些概念，</p>
+<p>并按照文字提示 翻译</p>
+<p>用c++设计进行类比：常量指针，指针常量， 类 深度拷贝 移动构造 ，move语义</p>
+<p>拷贝构造，还有STL </p>
+</li>
+</ul>
+<h3 id="小结："><a href="#小结：" class="headerlink" title="小结："></a>小结：</h3><p>  为了节省时间，我采用云环境（5分钟搭建完成）</p>
+<p>  做题顺序按照README.md 推荐方式  README对我帮助很大</p>
+<h2 id="二阶段总结"><a href="#二阶段总结" class="headerlink" title="二阶段总结"></a>二阶段总结</h2><h3 id="ch1-amp-ch2"><a href="#ch1-amp-ch2" class="headerlink" title="ch1 &amp; ch2"></a>ch1 &amp; ch2</h3><ul>
+<li>存在问题：</li>
+</ul>
+<p>一个hello，world 例子是怎么运行的,代码从编译到产生可执行程序，然后加载到内存，程序入口是哪里 尤其是linker.ld entry.asm这2个文件。</p>
+<p>尤其汇报指令。需要加强。之前看程序自我修养，</p>
+<p>还有csapp 感觉看懂到，现在看来根本不懂，用了不少时间。</p>
+<p>尤其看到别人满分了，担心着急，我还没真正投入开始呢。</p>
+<ul>
+<li>解决方式：</li>
+</ul>
+<p>为了方便反复运行程序 我搭建vmare+本地环境。</p>
+<p>rcore提供框架，让这些知识变成例子，</p>
+<p>最后不依赖系统库运行在起来。这个演示例子非常好。</p>
+<h3 id="小结-：hello，world-例子"><a href="#小结-：hello，world-例子" class="headerlink" title="小结 ：hello，world 例子"></a>小结 ：hello，world 例子</h3><ol>
+<li><p>项目中 每个模块都个mod.rs文件 ，这一般是模块提供对提供功能。</p>
+</li>
+<li><p>程序入口地址</p>
+</li>
+</ol>
+<h2 id="chapter3-练习"><a href="#chapter3-练习" class="headerlink" title="chapter3 练习"></a>chapter3 练习</h2><p>题目要求：</p>
+<p>ch3 中，我们的系统已经能够支持多个任务分时轮流运行，我们希望引入一个新的系统调用 <code>sys_task_info</code> 以获取当前任务的信息，定义如下：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_task_info</span></span>(ti: *<span class="keyword">mut</span> TaskInfo) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h4 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h4><ol>
+<li><p>从单元测试  ch3_taskinfo.rs 了解到 ，直接创建了task，该task 可能执行很多系统调用系统调用最终都是通过 sys_call 进行，在该函数增加 add_syscall_count。</p>
+</li>
+<li><p>数据结构：TaskManagerInner 记录了正在运行的任务 current_task 和任务列表tasks，全局变量 只有一个。</p>
+</li>
+<li><p>main.rs 函数启动时候  加载任务 并且运行第一任务</p>
+<p> loader::load_apps();</p>
+<p>task::run_first_task();</p>
+</li>
+</ol>
+<h4 id="小结：系统调用"><a href="#小结：系统调用" class="headerlink" title="小结：系统调用"></a>小结：系统调用</h4><p>ch1 和ch2 是ch3 基础，下面这段代码 需要后面花费更多时间学习</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">pub fn rust_main() -&gt; ! &#123;</span><br><span class="line">    clear_bss();</span><br><span class="line">    kernel_log_info();</span><br><span class="line">    heap_alloc::init_heap();</span><br><span class="line">    trap::init();</span><br><span class="line">    loader::load_apps();</span><br><span class="line">    trap::enable_timer_interrupt();</span><br><span class="line">    timer::set_next_trigger();</span><br><span class="line">    task::run_first_task();</span><br><span class="line">    panic!(&quot;Unreachable in rust_main!&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="chapter4练习"><a href="#chapter4练习" class="headerlink" title="chapter4练习"></a>chapter4练习</h2><h3 id="实验要求"><a href="#实验要求" class="headerlink" title="实验要求"></a>实验要求</h3><h3 id="重写-sys-get-time-和-sys-task-info"><a href="#重写-sys-get-time-和-sys-task-info" class="headerlink" title="重写 sys_get_time 和 sys_task_info"></a>重写 sys_get_time 和 sys_task_info</h3><p>引入虚存机制后，原来内核的 sys_get_time 和 sys_task_info 函数实现就无效了。请你重写这个函数，恢复其正常功能。</p>
+<h3 id="mmap-和-munmap-匿名映射"><a href="#mmap-和-munmap-匿名映射" class="headerlink" title="mmap 和 munmap 匿名映射"></a>mmap 和 munmap 匿名映射</h3><p><a href="https://man7.org/linux/man-pages/man2/mmap.2.html" target="_blank" rel="noopener">mmap</a> 在 Linux 中主要用于在内存中映射文件， 本次实验简化它的功能，仅用于申请内存。</p>
+<p>请实现 mmap 和 munmap 系统调用，mmap 定义如下：</p>
+<h3 id="思路：地址空间"><a href="#思路：地址空间" class="headerlink" title="思路：地址空间"></a>思路：地址空间</h3><ol>
+<li><p>为什么 重写 sys_get_time 和 sys_task_info ？这从地址空间说起，原文：</p>
+<p><strong>内核如何访问应用的数据？</strong></p>
+<p>应用应该不能直接访问内核的数据，但内核可以访问应用的数据，这是如何做的？由于内核要管理应用，所以它负责构建自身和其他应用的多级页表。如果内核获得了一个应用数据的虚地址，内核就可以通过查询应用的页表来把应用的虚地址转换为物理地址，内核直接访问这个地址</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"> <span class="keyword">let</span> info = TaskInfo::new();  <span class="comment">//info 这用户空间地址</span></span><br><span class="line"> <span class="built_in">assert_eq!</span>(<span class="number">0</span>, task_info(&amp;info));<span class="comment">//经过系统调用后，用户空间地址</span></span><br><span class="line"><span class="comment">//传递到内核空间，用户空间虚拟地址 对内核来说无法直接使用，需要转化</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>疑惑地方：我看懂这个数据结构<strong>页表项</strong> (PTE, Page Table Entry)  是一个整数）</p>
+<p>里面包含了一个物理页号 + 标志位</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// 一个物理页号 PhysPageNum 和一个页表项标志位 PTEFlags 生成一个页表项 </span></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(ppn: PhysPageNum, flags: PTEFlags) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        PageTableEntry &#123;</span><br><span class="line">            bits: ppn.<span class="number">0</span> &lt;&lt; <span class="number">10</span> | flags.bits <span class="keyword">as</span> <span class="built_in">usize</span>,</span><br><span class="line">            <span class="comment">// 最低的 8 位 [7:0] 则是标志位。</span></span><br><span class="line">            <span class="comment">//其中 [53:10] 这 44 位是物理页号</span></span><br><span class="line">            <span class="comment">// SV39 分页模式下的页表项，其中 这 位是物理页号，最低的 位 则是标志位</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+
+
+</li>
+</ol>
+<p>虚拟页号 同样也是整数，虚拟页号 和 物理页号对应起来？</p>
+<p>经过群里讨论 和看资料，初步理解 虚拟页号当作索引，页表项是数组内容建立关系，这句话初步帮助理解。不代表真实现。</p>
+<p>另外一个结构：PageTable</p>
+<p>a 通过虚拟页号找到页表项(里面又物理页号)</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Find PageTableEntry by VirtPageNum</span></span><br><span class="line"><span class="comment">/// 通过虚拟页号找到页表项(里面又物理页号)</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">find_pte</span></span>(&amp;<span class="keyword">self</span>, vpn: VirtPageNum) -&gt; <span class="built_in">Option</span>&lt;&amp;<span class="keyword">mut</span> PageTableEntry&gt; </span><br><span class="line"><span class="keyword">let</span> idxs = vpn.indexes();</span><br><span class="line">https:<span class="comment">//rcore-os.cn/rCore-Tutorial-Book-v3/chapter4/4sv39-implementation-2.html</span></span><br><span class="line">VirtPageNum 的 indexes 可以取出虚拟页号的三级页索引，并按照从高到低的顺序返回</span><br></pre></td></tr></table></figure>
+
+<p>b 函数：translated_byte_buffer 为参考例子实现了</p>
+<p>实现来了 从虚拟地址转化成物理地址</p>
+<p>3  map 和 unmap 虚拟地址是一个连续内存，其中一个虚拟地址转化成物理地址，</p>
+<p>多个虚拟地址转转化思路很清楚了，具体实现：MemorySet 新增map_range函数</p>
+<p>这里对map封装</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">map</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, page_table: &amp;<span class="keyword">mut</span> PageTable) &#123;</span><br><span class="line">        <span class="keyword">for</span> vpn <span class="keyword">in</span> <span class="keyword">self</span>.vpn_range &#123;</span><br><span class="line">            <span class="keyword">self</span>.map_one(page_table, vpn);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>最后通过下面函数封装完成ch4。</p>
+<ul>
+<li><p>PageTable  find_pte </p>
+</li>
+<li><p>MemorySet  map_one  unmap_one</p>
+<p>不然无法实现，里面细节不少。</p>
+</li>
+</ul>
+<h2 id="chapter5-练习"><a href="#chapter5-练习" class="headerlink" title="chapter5 练习"></a>chapter5 练习</h2><p>实现分支：ch5-lab</p>
+<p>实验目录要求不变</p>
+<p>通过所有测例</p>
+<h3 id="思路-1"><a href="#思路-1" class="headerlink" title="思路"></a>思路</h3><ol>
+<li><p>为什么重新实现 sys_task_info sys_mmap函数？</p>
+<ul>
+<li><p>引入处理器管理结构 Processor 负责从任务管理器 TaskManager 中分出去的维护 CPU 状态的职责</p>
+</li>
+<li><p>这里注意 语法细节</p>
+  <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">///Get current task in moving semanteme</span></span><br><span class="line"> <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">take_current</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;TaskControlBlock&gt;&gt; &#123;</span><br><span class="line">        <span class="keyword">self</span>.current.take()</span><br><span class="line"> &#125;</span><br><span class="line"><span class="comment">///Get current task in cloning semanteme</span></span><br><span class="line"> <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">current</span></span>(&amp;<span class="keyword">self</span>) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;TaskControlBlock&gt;&gt; &#123;</span><br><span class="line">        <span class="keyword">self</span>.current.as_ref().map(Arc::clone)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>sys_spawn  </p>
+</li>
+</ol>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//功能：新建子进程，使其执行目标程序。</span></span><br><span class="line"><span class="comment">// "ch5b_user_shell\0"</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_spawn</span></span>(_path: *<span class="keyword">const</span> <span class="built_in">u8</span>) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>细节：参考 初始进程initproc的创建 【里面有很多知识点】</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">TaskControlBlock::new(get_app_data_by_name(<span class="string">"initproc"</span>).unwrap())</span><br><span class="line">https:<span class="comment">//rcore-os.cn/rCore-Tutorial-Book-v3/chapter5/3implement-process-mechanism.html</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>细节：参考  fn sys_exec(path: *const u8)  对_path处理 需要地址转化。</p>
+</li>
+<li><p>细节：父子进程关系设定。 parent: Option&lt;Weak<TaskControlBlock>&gt;</TaskControlBlock></p>
+<p>weak指针类型</p>
+</li>
+</ul>
+<ol start="3">
+<li><p>进程优先级 </p>
+<p>每次需要调度时，从当前 runnable 态的进程中选择 stride 最小的进程调度 </p>
+<p>改写fetch函数，修改当前任务的stride 使用take 还是as_ref。</p>
+</li>
+</ol>
+<h3 id="小总-进程"><a href="#小总-进程" class="headerlink" title="小总:进程"></a>小总:进程</h3><ul>
+<li><p>这一章节完全是Rust语法细节 引用，借用 ，weak智能指针（避免循环引用）</p>
+</li>
+<li><p>例如 “ch5b_user_shell\0” 后面执行过程不很清楚，我更加深入学习load实现。</p>
+</li>
+</ul>
+<h3 id="未完待续"><a href="#未完待续" class="headerlink" title="未完待续"></a>未完待续</h3>
       
     </div>
 
@@ -892,7 +980,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-11-04 12:00:00 / Modified: 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T12:00:00+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 12:00:00 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T12:00:00+00:00">2023-11-04</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -967,7 +1055,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-11-04 11:50:51 / Modified: 13:47:15" itemprop="dateCreated datePublished" datetime="2023-11-04T11:50:51+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 11:50:51 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T11:50:51+00:00">2023-11-04</time>
             </span>
 
           
@@ -1078,7 +1166,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-11-04 03:31:08 / Modified: 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T03:31:08+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 03:31:08 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T03:31:08+00:00">2023-11-04</time>
             </span>
 
           
@@ -1266,7 +1354,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2023-11-04 00:00:00 / Modified: 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T00:00:00+00:00">2023-11-04</time>
+              <time title="Created: 2023-11-04 00:00:00 / Modified: 15:59:42" itemprop="dateCreated datePublished" datetime="2023-11-04T00:00:00+00:00">2023-11-04</time>
             </span>
 
           
@@ -1303,81 +1391,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-tianpingan/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-tianpingan/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-tianpingan.md</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-11-04 00:00:00 / Modified: 13:47:14" itemprop="dateCreated datePublished" datetime="2023-11-04T00:00:00+00:00">2023-11-04</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2023rCore-训练营第二阶段总结"><a href="#2023rCore-训练营第二阶段总结" class="headerlink" title="2023rCore 训练营第二阶段总结"></a>2023rCore 训练营第二阶段总结</h1><p>参加本次rcore训练营的原因是希望找人和我一起写课程来督促我成长，因为本人做事很容易烂尾。</p>
-<p>之前做过类似的操作系统lab，并且也用过rust，所以前三个实验还是比较顺利完成了，这次报名也是希望能进一步参与后面的项目。</p>
-<p>下面简单总结一下在第二阶段我完成的各个实验情况。</p>
-<h2 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h2><p>rcore 的前几个实验难度不是很大，读懂代码结构，按照需求去实现就行了。</p>
-<p>本次实验在要实现一个当前任务信息查询调用。</p>
-<p>而这个系统调用sys_task_info调用的实现建立在对TaskManager的修改的基础上。</p>
-<p>我们只需要在TaskManagerInner中的TaskControlBlock里添加syscall_times来统计该任务的各个系统调用次数的统计，并在系统调用时，以及任务切换时进行相应数据的修改就行了。</p>
-<h2 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h2><p>本次实验是在有了分页机制的前提下，重写了ch3中的sys_write和sys_task_info。</p>
-<p>由于我们引入了虚拟存储机制，所以要把数据写到任务地址空间需要根据我们的页表得到其实际物理地址再写入。mmp与munmap都已在memroy_set中帮我们实现，我们只需要简单封装一下即可，同时我们要注意访问权限的管理。</p>
-<h2 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h2><p>本次实验任务简单，spawn一个新任务就是创建一个空白子进程然后加载对应程序即可，</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>通过这个阶段的学习，我巩固和掌握了很多操作系统的知识，并且在实践中得到了很大的收益。</p>
-<p>实验的逐步进行让我能够在已经写好的代码基础上增加对系统的理解并进行修改，从而使我的思维得到不断蜕变。此外，采用增加功能的实验方式让我感觉像在编写自己的操作系统，因此更加认真地学习，从中获取更多知识，并得到积极的反馈。</p>
-<p>此外，第二阶段的实践使我的 Rust 编程技能得到了进一步提升。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/blog/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/14/">14</a><a class="extend next" rel="next" href="/blog/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/blog/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/15/">15</a><a class="extend next" rel="next" href="/blog/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
