@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="开始阶段有一年私有云平台开发经验的 Go 开发工程师，有些许的 Rust 基础， 没有 Rust 相关的项目，对操作系统相关的东西一知不解。 在群友的闲聊下发现有 “Linux 源码趣读” 的系列文章，趁空闲的时间过了一遍，对操作系统的整体结构有一定认识，群友说这个讲的蛮浅显的，但是感觉对我这种没有啥操作系统基础的还是有很大的帮助的。 学习感受一章一章的剥开操作系统的面纱，硬件机制、操作系统理">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2023开源操作系统训练营第二阶段总结报告-Linyuqiz">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Linyuqiz/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="开始阶段有一年私有云平台开发经验的 Go 开发工程师，有些许的 Rust 基础， 没有 Rust 相关的项目，对操作系统相关的东西一知不解。 在群友的闲聊下发现有 “Linux 源码趣读” 的系列文章，趁空闲的时间过了一遍，对操作系统的整体结构有一定认识，群友说这个讲的蛮浅显的，但是感觉对我这种没有啥操作系统基础的还是有很大的帮助的。 学习感受一章一章的剥开操作系统的面纱，硬件机制、操作系统理">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-11-04T22:56:45.000Z">
+<meta property="article:modified_time" content="2023-11-05T14:44:00.562Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="[object Object]">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Linyuqiz/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2023开源操作系统训练营第二阶段总结报告-Linyuqiz | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#开始阶段"><span class="nav-number">1.</span> <span class="nav-text">开始阶段</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#学习感受"><span class="nav-number">2.</span> <span class="nav-text">学习感受</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#学习总结"><span class="nav-number">3.</span> <span class="nav-text">学习总结</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#ch0"><span class="nav-number">3.1.</span> <span class="nav-text">ch0</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch1"><span class="nav-number">3.2.</span> <span class="nav-text">ch1</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch2"><span class="nav-number">3.3.</span> <span class="nav-text">ch2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch3"><span class="nav-number">3.4.</span> <span class="nav-text">ch3</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch4"><span class="nav-number">3.5.</span> <span class="nav-text">ch4</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch5"><span class="nav-number">3.6.</span> <span class="nav-text">ch5</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#后续计划"><span class="nav-number">4.</span> <span class="nav-text">后续计划</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">146</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">145</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Linyuqiz/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2023开源操作系统训练营第二阶段总结报告-Linyuqiz
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-04 22:56:45" itemprop="dateCreated datePublished" datetime="2023-11-04T22:56:45+00:00">2023-11-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-11-05 14:44:00" itemprop="dateModified" datetime="2023-11-05T14:44:00+00:00">2023-11-05</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <a id="more"></a>
+
+<h1 id="开始阶段"><a href="#开始阶段" class="headerlink" title="开始阶段"></a>开始阶段</h1><p>有一年私有云平台开发经验的 Go 开发工程师，有些许的 Rust 基础， 没有 Rust 相关的项目，对操作系统相关的东西一知不解。</p>
+<p>在群友的闲聊下发现有 “Linux 源码趣读” 的系列文章，趁空闲的时间过了一遍，对操作系统的整体结构有一定认识，群友说这个讲的蛮浅显的，但是感觉对我这种没有啥操作系统基础的还是有很大的帮助的。</p>
+<h1 id="学习感受"><a href="#学习感受" class="headerlink" title="学习感受"></a>学习感受</h1><p>一章一章的剥开操作系统的面纱，硬件机制、操作系统理论整体联络起来，渐渐实现一个可用的操作系统。</p>
+<p>就目前完成到 ch5 来讲，Guide 的 ch4、ch5 的这部分内容不怎么连贯，基础比较差的我就只能硬读了。听说 rCore-Tutorial V3 的内容更全一点，等后面也对照这学习一下每章节的内容。</p>
+<h1 id="学习总结"><a href="#学习总结" class="headerlink" title="学习总结"></a>学习总结</h1><p>似乎任何事情都逃不过这句话：“会者不难， 难者不会”，真正的难其实是对未知的恐惧。目前算是完成了这次训练营的基本过线目标：完成前三个作业。现在回头来看，都无非是对操作系统概念的学习和理解，并把这些理解到的概念真正转化成工程代码的一个过程。例如实验中你本就拥有一个完整的模拟环境，运算设备、硬件机制、目前标准的系统调用接口参考、经典理论(SV39 分页机制)等等，需要用自己理解操作系统概念去把这些东西组合在一起，最终提供一个基于底层基础设备提供的机制，为上层用户提供一个可靠的、安全的运行环境。</p>
+<p>未知的事物并不可怕，可怕的是你认为它是永远无法被理解的。</p>
+<h2 id="ch0"><a href="#ch0" class="headerlink" title="ch0"></a>ch0</h2><p>这一部分是构建实验环境：本质上就是安装 Rust 工具链和编译安装 Qemu 模拟器。在尝试使用 classroom 在线环境失败后，决定本地部署环境。据目前所了解到的虚拟环境模拟工具来看(需要一个 Ubuntu 的系统环境)，有传统虚拟机软件(Parallel、VMWare 等)、MutilPass(Ubuntu 系统特供)以及更加流行的 Docker 容器模拟，由于对桌面环境不是强需便直接排除了，、MutilPass 和 Docker 自己都比较熟悉，因更倾向于 MutilPass 的使用方式，所以最开始拿 MutilPass 创建的 Ubuntu 虚拟机安装环境，通过 VSCode 的 ssh 插件直接远程虚拟机开始基础环境部署，运行第一个 “Hello World！”。</p>
+<p>后续训练营的群友有推荐使用 Orbstack 这款软件，了解之下发现确实好用，随而更换到这个软件，它的优势：<br>1、共享宿主机内核：CPU 全部共享到虚拟机、内存几乎接近全部也是给到虚拟机，创建一个 Ubuntu 虚拟机只要十几秒。<br>2、提供 Docker 命令：可以替换掉 Docker， 又可以少装一个软件了。<br>3、提供单节点 K8s 集群：像 Docker 一样，更加轻量、启动快。<br>4、唯一缺点：目前只支持了 MacOS 系统(刚好是 Mac)，可能是因为是使用 Swift 开发的，看后续是否会支持 Linux。</p>
+<h2 id="ch1"><a href="#ch1" class="headerlink" title="ch1"></a>ch1</h2><p>这一部分主要是一步一步的讲解了如何从零开始构建一个可以运行在 Qemu 上的 Rust 操作系统程序：Hello World！，接触到了一些基础概念：系统级标准输出、系统级异常处理、内存基本布局，这些在具体的代码转化后是如何展现的，以及操作系统的入口：entry.asm 文件。</p>
+<p>简单来讲，系统加电后会固定去读区特定的位置，也就是操作系统入口文件里的这部分内容，从而就进入了我们编写的 Rust 操作系统程序的 rust_main 入口，当然固定读取的操作是硬件提供的。</p>
+<h2 id="ch2"><a href="#ch2" class="headerlink" title="ch2"></a>ch2</h2><p>这一部分实现一个最简单的批处理系统。电脑内存本质上就只一个线性的存储结构：这一部分将系统程序需要占用的部分之外的存储结构以固定的布局方式排列在内存上，通过一个程序一个程序的加载执行来达到一次运行可以完成多个任务的系统。这部分也涉及到了 SU 态相关的东西。</p>
+<h2 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h2><p>操作系统在一定程度来讲算是一个处于“死循环”的程序，因为各种“中断”操作将读写设备、CPU 计算、任务处理等灵活的控制起来。这部分主要利用了“时钟中断”和任务切换这两部分内容来完成了一个分时多任务系统，通过时钟控制 CPU 不被某个程序长时间占用，这也是最基本的任务调度实现。</p>
+<p>这一章的作业是提供一个系统调用来获取当前执行任务的基本信息，不考虑其他影响因素：也就是记录任务的启动时间、各种系统调用的次数和状态，当前已经存在“任务”的存储模型 Task，在其中记录信息并在状态流转处记录即可。</p>
+<h2 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h2><p>这一章介绍了 SV39 多级页表机制理论，基于该理论实现了实验里的多级页表，物理地址、虚拟地址的基本定义和对应的基本操作，以及 MMU 机制和 sapt 的理论定义模型，包含了对多级页表的重要解释，同时也通过图介绍了整个内存中操作系统和用户程序的布局。</p>
+<p>这一章的作业是在开启多级页表机制下，适配 ch3 的作业实现，并完成 内存分配 mmap、和内存释放 mummap 系统调用： 基本的思路就是如何在多级分页开启的时候从内存获取到对应数据结构的地址并赋值，有物理地址和虚拟地址间的转换、页表的访问权限设置相关的内容。</p>
+<h2 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h2><p>这一章基于多级页表机制对任务执行这块进行再次抽象，加入了任务编号、任务队列管理，主要是对任务抽象的部分是需要花些时间需要理解理解。</p>
+<p>这一章的作业是老作业迁移适配外，在实现 spawm 和 priority 系统调用接口功能：最主要的还是在对分级页表比较熟悉的情况下，对已经实现的任务管理功能，如 exec、fork 等实现的理解后，spawn 其实就是创建一个新的 TaskControlBlock 并添加到任务队列，并绑定给当前 TaskControlBlock 的 child 下，但同时也别忘记了给这个新的 TaskControlBlock 绑定 parent。另一个 priority 就用户可以设置这个值来简单的控制下程序执行的顺序，来让某些程序优先执行。</p>
+<h1 id="后续计划"><a href="#后续计划" class="headerlink" title="后续计划"></a>后续计划</h1><p>看时间情况继续学习后续的 ch6、ch7、ch8 的内容，完成整个训练营任务。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/object-Object/" rel="tag"># [object Object]</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/04/2023%E7%A7%8B%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-xllhxd/" rel="prev" title="2023年秋季开源操作系统训练营第二阶段总结-xllhxd">
+      <i class="fa fa-chevron-left"></i> 2023年秋季开源操作系统训练营第二阶段总结-xllhxd
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/05/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-ChenDe/" rel="next" title="2023开源操作系统训练营第二阶段总结报告-ChenDe">
+      2023开源操作系统训练营第二阶段总结报告-ChenDe <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
