@@ -1,7 +1,6 @@
 ---
 title: 2023开源操作系统训练营一二阶段总结-TheSayOL
 date: 2023-11-04 18:52:58
-tags:
 categories:
     - report
 tags:
