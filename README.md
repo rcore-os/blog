@@ -22,11 +22,8 @@
    ## 博客分类/标签信息
    
    打开 Hexo 为我们建好的 `<blog-title>.md`，我们会看到这样的开头：
+```
    
-   ```
-   
-   ```
-
 ---
 
 title: <blog-title>
@@ -122,4 +119,3 @@ tags:
   * https://ming.theyan.gs/2019/10/hexo-github_action-github_pages/
 * 目前已经实现在 pr/push 后自动更新博客，现在测试一下标签/分类功能以及图片功能是否正常，如果正常的话更新博客发布教程。
 * 经过一番折腾这些功能都比较正常了...
-```
