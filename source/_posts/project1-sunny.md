@@ -1,7 +1,8 @@
 ---
 title: 2023秋季开源操作系统训练营第三阶段总结报告test by OSLearning365
 date: 2023-11-16 10:52:42
-categories: report
+categories: 
+    - oscamp 2023fall arceos unikernel
 tags:
     - author: OSLearning365
     - repo: https://github.com/OSLearning365/arceos-tutorial-book
