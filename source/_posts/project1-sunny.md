@@ -20,8 +20,16 @@ tags:
 ### 感想/收获
 
 ```
-{% asset_img testpic.jpg 测试图片 %}
+{% asset_img testpic.jpg test %}
 ```
+
+
+
+<div style="text-align:center">
+   <img src=".\project1-sunny\testpic.jpg.svg" alt="图片测试" style="zoom:70%"/>
+</div>
+
+![testpic](.\project1-sunny\testpic.jpg)
 
 ### 建议
 
