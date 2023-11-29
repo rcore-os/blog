@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="Arceos unikernel summaryExercise 1实验中 payload 中的 app.bin 文件是通过一系列工具组合编译处理打包而来的，在实验一中，只是用 objdump 工具将 elf 文件中的一些调试信息和元信息删除掉，并通过 dd 命令生成一个32M 的空文件并将应用放在空文件的开始位置，在 arceos 中 loader app 运行的时候，将镜像写入给 qemu 的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2023开源操作系统训练营第三阶段项目一基本任务总结报告">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2023/11/20/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="Arceos unikernel summaryExercise 1实验中 payload 中的 app.bin 文件是通过一系列工具组合编译处理打包而来的，在实验一中，只是用 objdump 工具将 elf 文件中的一些调试信息和元信息删除掉，并通过 dd 命令生成一个32M 的空文件并将应用放在空文件的开始位置，在 arceos 中 loader app 运行的时候，将镜像写入给 qemu 的">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://rcore-os.cn/arceos-tutorial-book/assets/ArceOS.svg">
+<meta property="article:published_time" content="2023-11-20T14:05:55.000Z">
+<meta property="article:modified_time" content="2023-11-29T06:43:30.228Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="[object Object]">
+<meta property="article:tag" content="2023秋冬季开源操作系统训练营">
+<meta property="article:tag" content="第三阶段总结报告">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://rcore-os.cn/arceos-tutorial-book/assets/ArceOS.svg">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2023/11/20/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2023开源操作系统训练营第三阶段项目一基本任务总结报告 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Arceos-unikernel-summary"><span class="nav-number">1.</span> <span class="nav-text">Arceos unikernel summary</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Exercise-1"><span class="nav-number">1.0.1.</span> <span class="nav-text">Exercise 1</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Exercise-2"><span class="nav-number">1.0.2.</span> <span class="nav-text">Exercise 2</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Exercise-3"><span class="nav-number">1.0.3.</span> <span class="nav-text">Exercise 3</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Exercise-4"><span class="nav-number">1.0.4.</span> <span class="nav-text">Exercise 4</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Exercise-5"><span class="nav-number">1.0.5.</span> <span class="nav-text">Exercise 5</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Exercise-6"><span class="nav-number">1.0.6.</span> <span class="nav-text">Exercise 6</span></a></li></ol></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">180</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">177</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/20/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2023开源操作系统训练营第三阶段项目一基本任务总结报告
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-20 14:05:55" itemprop="dateCreated datePublished" datetime="2023-11-20T14:05:55+00:00">2023-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-11-29 06:43:30" itemprop="dateModified" datetime="2023-11-29T06:43:30+00:00">2023-11-29</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="Arceos-unikernel-summary"><a href="#Arceos-unikernel-summary" class="headerlink" title="Arceos unikernel summary"></a>Arceos unikernel summary</h1><h3 id="Exercise-1"><a href="#Exercise-1" class="headerlink" title="Exercise 1"></a>Exercise 1</h3><p>实验中 payload 中的 app.bin 文件是通过一系列工具组合编译处理打包而来的，在实验一中，只是用 objdump 工具将 elf 文件中的一些调试信息和元信息删除掉，并通过 dd 命令生成一个32M 的空文件并将应用放在空文件的开始位置，在 arceos 中 loader app 运行的时候，将镜像写入给 qemu 的 pflash 供 loader 访问。参考练习提示：“可以为镜像设置一个头结构”，并考虑到后面的练习会有在一个镜像中写入多个 app 的操作，可以想到这个头结构是在 “镜像制作” 过程中被结构的，也就是可以在 dd 命令生成的空 32M 镜像上做文章，而不需要深入到 hello_app 的编译和链接过程。所以可以考虑写一个脚本，计算编译处理过后的 bin 文件的大小，并将其写入到 32M 的空文件头部，作为这个镜像的头结构，并在后续镜像内存中写入 app 的数据。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> struct</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义头部结构</span></span><br><span class="line">header_format = <span class="string">'&gt;Q'</span>  </span><br><span class="line">header_size = struct.calcsize(header_format)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 读取原始应用程序二进制文件</span></span><br><span class="line"><span class="keyword">with</span> open(<span class="string">'test.bin'</span>, <span class="string">'rb'</span>) <span class="keyword">as</span> f:</span><br><span class="line">    app_data = f.read()</span><br><span class="line">app_size = len(app_data)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 计算应用程序大小</span></span><br><span class="line">print(app_size)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建新的二进制文件</span></span><br><span class="line"><span class="keyword">with</span> open(<span class="string">'test_app.bin'</span>, <span class="string">'wb'</span>) <span class="keyword">as</span> f:</span><br><span class="line">    <span class="comment"># 写入头部（包含应用程序大小）</span></span><br><span class="line">    f.write(struct.pack(header_format, app_size))</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># 附加原始应用程序数据</span></span><br><span class="line">    f.write(app_data)</span><br></pre></td></tr></table></figure>
+
+<p>这是一个简单的 py 镜像处理脚本，对于一个单应用而言，头结构只需要存储一个整数，注意这里的头结构的数据存储的大小端顺序要和 loader 中解析 头结构 的代码要一致。这里选择大端序存储的 8 字节无符号整数，这样生成的镜像开头就会先存储一个 64 位的数据作为这个 app 的长度，可以用 xxd -ps 命令查看：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">root@08e03dc057f5:~/phease3/test_app/test4<span class="comment"># xxd -ps test_app.bin</span></span><br><span class="line">000000000000000e411106e422e00008730050100000</span><br></pre></td></tr></table></figure>
+
+<p>可以看到前 8 字节保存的数据为 app 的大小：14，在 loader 里面首先根据大端序读取镜像头，就可以知道 app 的实际大小了。</p>
+<h3 id="Exercise-2"><a href="#Exercise-2" class="headerlink" title="Exercise 2"></a>Exercise 2</h3><p>练习二需要在镜像中存在两个应用，完成练习一后思路便明朗了起来，直接在原先的 py 脚本上处理即可：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">- header_format = <span class="string">'&gt;Q'</span></span><br><span class="line">+ header_format = <span class="string">'&gt;QQ'</span> <span class="comment">#表示头结构存储了两个64位无符号整数（大端序）</span></span><br><span class="line"></span><br><span class="line">+ <span class="keyword">with</span> open(<span class="string">'nop.bin'</span>, <span class="string">'rb'</span>) <span class="keyword">as</span> f:</span><br><span class="line">+     app0_data = f.read()</span><br><span class="line">+ app0_size = len(app0_data)</span><br><span class="line"></span><br><span class="line">- f.write(struct.pack(header_format, app_size))</span><br><span class="line">+ f.write(struct.pack(header_format, app_size, app0_size))</span><br><span class="line"></span><br><span class="line">  f.write(app_data)</span><br><span class="line">+ f.write(app0_data)</span><br></pre></td></tr></table></figure>
+
+<p>在 loader app 中，解析出两个 app 的长度之后，即可计算出每个 app 的起始地址和长度，并打印相关数据即可。</p>
+<h3 id="Exercise-3"><a href="#Exercise-3" class="headerlink" title="Exercise 3"></a>Exercise 3</h3><p>按照练习二的思路，制作一个包含两个 app 的镜像，loader 复制解析每个 app 的长度和将 pflash 上的 app data 拷贝到内存。并分批次的将 app 的数据拷贝到内核可执行地址空间，来逐个运行 app。hello_app 通过编译器处理后，在 arceos unikernel 中，运行 app 等价于函数调用，而编译器在编译 app 的时候已经处理好了调用栈以及 ra 寄存器等，所以只需要 jalr 到 app 的开头，等待程序运行无误后便可将控制权转交给 loader ，运行在实验二的基础上，需要修改内联汇编的代码，将最后一行 <code>j    .</code> 删掉以保证程序正常运行。大致运行过程为从 loader app 将 hello_app 的内存载入到可读可写可执行的内存区域并跳转到该 app，运行完成后回到 loader app 接着这一流程载入并运行下一应用。</p>
+<h3 id="Exercise-4"><a href="#Exercise-4" class="headerlink" title="Exercise 4"></a>Exercise 4</h3><p>根据 arceos 的框架设计</p>
+<p><img src="https://rcore-os.cn/arceos-tutorial-book/assets/ArceOS.svg" alt="arceos arch"></p>
+<p>ax_terminate 功能在 axhal 模块被定义并通过 arceos_api 的 arceos_api::sys::ax_terminate 函数暴露给 app，loader app 要实现 terminate 调用需要引入 arceos_api crate，定义一个 abi_terminate 函数，在函数内部调用 arceos_api::sys::ax_terminate ，并在 abi_table 注册这个调用即可。这个实验实现较为简单，但是在这一步的时候 loader app 内部的 main 文件涵盖的内容太多了，所以就想到了模块化，新建了 parse 和 abi 文件，将处理镜像头结构的代码转移到 parse，abi 相关调用转移到 abi 文件。</p>
+<h3 id="Exercise-5"><a href="#Exercise-5" class="headerlink" title="Exercise 5"></a>Exercise 5</h3><p>在做练习五的时候，首先先尝试多次 abi 调用，将实验五的 main 函数的代码独立出来成为 putchar 函数：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">putchar</span></span>(c: <span class="built_in">char</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> arg0 = c <span class="keyword">as</span> <span class="built_in">u8</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">unsafe</span> &#123; core::arch::asm!(<span class="string">"</span></span><br><span class="line"><span class="string">        li      t0, &#123;abi_num&#125;</span></span><br><span class="line"><span class="string">        slli    t0, t0, 3</span></span><br><span class="line"><span class="string">        add     t1, t0, a7</span></span><br><span class="line"><span class="string">        ld      t1, (t1)</span></span><br><span class="line"><span class="string">        jalr    t1"</span>,</span><br><span class="line">        abi_num = <span class="keyword">const</span> SYS_PUTCHAR,</span><br><span class="line">        <span class="keyword">in</span>(<span class="string">"a0"</span>) arg0,</span><br><span class="line">    ) &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接着在 main 函数中多次调用 putchar 函数，制作成镜像后在 arceos 中运行，会报 LoadPageFault 错误。在进行了艰难的 debug 后，发现 a7 寄存器在第一次调用后，其值就失效了，猜测也许是在 print 调用中等过程导致这个寄存器的值发生了更改，而内联汇编编译过后 app 也并没有自动保存这个调用者寄存器，最终在尝试下，发现可以先将 abi_table 的地址先取出来作为一个全局的静态变量 ABI_TABLE_ADDRESS 中，然后在 putchar 函数中，先 ld 这个值的符号， 将这个值存储在一个临时寄存器中，再进行后续计算：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">putchar</span></span>(c: <span class="built_in">char</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> arg0 = c <span class="keyword">as</span> <span class="built_in">u8</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">unsafe</span> &#123; core::arch::asm!(<span class="string">"</span></span><br><span class="line"><span class="string">        li      t0, &#123;abi_num&#125;</span></span><br><span class="line"><span class="string">        slli    t0, t0, 3</span></span><br><span class="line"><span class="string">        ld      t2, &#123;abi_table&#125;</span></span><br><span class="line"><span class="string">        add     t1, t0, t2</span></span><br><span class="line"><span class="string">        ld      t1, (t1)</span></span><br><span class="line"><span class="string">        jalr    t1"</span>,</span><br><span class="line">        abi_num = <span class="keyword">const</span> SYS_PUTCHAR,</span><br><span class="line">        abi_table = sym ABI_TABLE_ADDRESS,</span><br><span class="line">        <span class="keyword">in</span>(<span class="string">"a0"</span>) arg0,</span><br><span class="line">    ) &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过反汇编命令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cargo objdump --release --target riscv64gc-unknown-none-elf --bin hello_app -- -d</span><br></pre></td></tr></table></figure>
+
+<p>反汇编发现 rust 若按照第一种方式，编译器会将代码编译为两次在一个寄存器中取值，然而这个值会在 abi 调用后失效。在交流群里询问才得知需要在内联汇编上加上一行 clobber_abi(“C”)，这时编译器会帮你自动加上某个 abi 的 function call 的 caller-saved 的寄存器会在内联汇编被使用的提示，从而会保证程序上下文寄存器的值在函数调用前后都有效。具体的 ref： <a href="https://doc.rust-lang.org/reference/inline-assembly.html" target="_blank" rel="noopener">https://doc.rust-lang.org/reference/inline-assembly.html</a>.</p>
+<p>在测试完多次 abi 调用没有问题后，封装了一个 puts 函数：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">puts</span></span>(s: &amp;<span class="built_in">str</span>) &#123;</span><br><span class="line">    s.bytes().for_each(|c| putchar(c <span class="keyword">as</span> <span class="built_in">char</span>))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Exercise-6"><a href="#Exercise-6" class="headerlink" title="Exercise 6"></a>Exercise 6</h3><p>我们看一下练习六的要求</p>
+<ol>
+<li>仿照 hello_app 再实现一个应用，唯一功能是打印字符 ‘D’。</li>
+<li>现在有两个应用，让它们分别有自己的地址空间。</li>
+<li>让 loader 顺序加载、执行这两个应用。这里有个问题，第一个应用打印后，不能进行无限循环之类的阻塞，想办法让控制权回到 loader，再由 loader 执行下一个应用。</li>
+</ol>
+<p>对于第一个要求：我们可以在练习二的基础上制作一个包含两个 app 的镜像，并可以在 loader 中读取 pfalsh 中的 app data。对于第三个要求顺序加载执行，我们的 parse 模块会解析每个 app 的起始地址和长度，按照练习三中提到的执行流程即可，且我们删掉了汇编中的 <code>j    .</code> ，以及在练习六种我们加上了 <code>clobber_abi(&quot;C&quot;)</code> 来保证寄存器在调用前后都有效，以保证程序正常返回到 loader，对于第二条要求，在第三条顺序执行加载的情况下可以得到保证。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/object-Object/" rel="tag"># [object Object]</a>
+              <a href="/blog/tags/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" rel="tag"># 2023秋冬季开源操作系统训练营</a>
+              <a href="/blog/tags/%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" rel="tag"># 第三阶段总结报告</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/19/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Cptraser/" rel="prev" title="2023开源操作系统训练营第三阶段项目一基本任务总结报告-Cptraser">
+      <i class="fa fa-chevron-left"></i> 2023开源操作系统训练营第三阶段项目一基本任务总结报告-Cptraser
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lispking/" rel="next" title="2023秋冬季开源操作系统训练营第三阶段总结报告_lispking">
+      2023秋冬季开源操作系统训练营第三阶段总结报告_lispking <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
