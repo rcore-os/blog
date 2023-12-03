@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="总结报告第一周实验总结exercise 1&amp;2: 改变println！宏以及引入haspmap这里我是直接查询chatgpt知道可以通过在println!加入特殊符号来改变颜色,于是改变了底层的println!实现了。 后者我则是有点找不着头脑，因为本身的rust基础就是训练营的第一周和第二周，而这种程度根本无法跟得上后续的项目级别的开发，二阶段也只是调用api，到了第三阶段才发现自己连c">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2023开源操作系统训练营第三阶段总结报告-蒋文卓">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2023/11/29/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E8%92%8B%E6%96%87%E5%8D%93/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="总结报告第一周实验总结exercise 1&amp;2: 改变println！宏以及引入haspmap这里我是直接查询chatgpt知道可以通过在println!加入特殊符号来改变颜色,于是改变了底层的println!实现了。 后者我则是有点找不着头脑，因为本身的rust基础就是训练营的第一周和第二周，而这种程度根本无法跟得上后续的项目级别的开发，二阶段也只是调用api，到了第三阶段才发现自己连c">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-11-29T14:30:43.000Z">
+<meta property="article:modified_time" content="2023-12-03T00:57:54.031Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:Beavercat7">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2023/11/29/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E8%92%8B%E6%96%87%E5%8D%93/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2023开源操作系统训练营第三阶段总结报告-蒋文卓 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#总结报告"><span class="nav-number">1.</span> <span class="nav-text">总结报告</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第一周实验总结"><span class="nav-number"></span> <span class="nav-text">第一周实验总结</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#exercise-1-amp-2-改变println！宏以及引入haspmap"><span class="nav-number"></span> <span class="nav-text">exercise 1&amp;2: 改变println！宏以及引入haspmap</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#exercise-3-amp-4-引入early算法和解析dtb文件"><span class="nav-number"></span> <span class="nav-text">exercise 3&amp;4 引入early算法和解析dtb文件</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#exercise-5-将协作式调度算法fifo改造为抢占式调度算法"><span class="nav-number"></span> <span class="nav-text">exercise 5 将协作式调度算法fifo改造为抢占式调度算法</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#第二周实验总结"><span class="nav-number"></span> <span class="nav-text">第二周实验总结</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#exercise-1-amp-2"><span class="nav-number"></span> <span class="nav-text">exercise 1&amp;2</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#exercise-3-amp-4"><span class="nav-number"></span> <span class="nav-text">exercise 3&amp;4</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#exercise-5-amp-6"><span class="nav-number"></span> <span class="nav-text">exercise 5&amp;6</span></a></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">190</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">180</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/29/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E8%92%8B%E6%96%87%E5%8D%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2023开源操作系统训练营第三阶段总结报告-蒋文卓
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-29 14:30:43" itemprop="dateCreated datePublished" datetime="2023-11-29T14:30:43+00:00">2023-11-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-12-03 00:57:54" itemprop="dateModified" datetime="2023-12-03T00:57:54+00:00">2023-12-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="总结报告"><a href="#总结报告" class="headerlink" title="总结报告"></a>总结报告</h3><h2 id="第一周实验总结"><a href="#第一周实验总结" class="headerlink" title="第一周实验总结"></a>第一周实验总结</h2><h1 id="exercise-1-amp-2-改变println！宏以及引入haspmap"><a href="#exercise-1-amp-2-改变println！宏以及引入haspmap" class="headerlink" title="exercise 1&amp;2: 改变println！宏以及引入haspmap"></a>exercise 1&amp;2: 改变println！宏以及引入haspmap</h1><p>这里我是直接查询chatgpt知道可以通过在println!加入特殊符号来改变颜色,于是改变了底层的println!实现了。</p>
+<p>后者我则是有点找不着头脑，因为本身的rust基础就是训练营的第一周和第二周，而这种程度根本无法跟得上后续的项目级别的开发，二阶段也只是调用api，到了第三阶段才发现自己连cargo管理项目和lib.rs文件都不知道是什么作用,导致自己花了很多时间去找bug,后来通过在项目群里询问大佬才发现自己的问题，当然对于引入hashmap的操作，也是借鉴了石磊老师的注释大法，通过报错信息和一步步释放自己想要的代码来逐步达到目的，这让我节省了很多时间。</p>
+<h1 id="exercise-3-amp-4-引入early算法和解析dtb文件"><a href="#exercise-3-amp-4-引入early算法和解析dtb文件" class="headerlink" title="exercise 3&amp;4 引入early算法和解析dtb文件"></a>exercise 3&amp;4 引入early算法和解析dtb文件</h1><p>前者我是直接通过将buddy算法和bitmap算法两个内存分配和页分配的算法结合起来拼凑起来实现的。</p>
+<p>后者我是通过使用群里大佬分享的库，以及询问邝劲强大佬关于库的使用方法，他给予了我一些提示，于是成功实现了这个练习。</p>
+<h1 id="exercise-5-将协作式调度算法fifo改造为抢占式调度算法"><a href="#exercise-5-将协作式调度算法fifo改造为抢占式调度算法" class="headerlink" title="exercise 5 将协作式调度算法fifo改造为抢占式调度算法"></a>exercise 5 将协作式调度算法fifo改造为抢占式调度算法</h1><p>这里我是直接参考了round_robin.算法的实现进行修改，然后比较顺利的通过。</p>
+<h2 id="第二周实验总结"><a href="#第二周实验总结" class="headerlink" title="第二周实验总结"></a>第二周实验总结</h2><h1 id="exercise-1-amp-2"><a href="#exercise-1-amp-2" class="headerlink" title="exercise 1&amp;2"></a>exercise 1&amp;2</h1><p>这里我使用了非常规的方法，直接使用了脚本来获取文件大小等信息</p>
+<p>后者通过脚本将两个文件合并到一起，后来才发现这种做法是不可取的，少了在loader的一环,这也导致我后续练习5的bug找了很久。</p>
+<h1 id="exercise-3-amp-4"><a href="#exercise-3-amp-4" class="headerlink" title="exercise 3&amp;4"></a>exercise 3&amp;4</h1><p>这两个实验则相对于简单很多，第一个实验就是改一下汇编代码’nop’和’wfi’</p>
+<p>后者就是仿照puthello和putchar然后加一个axstd::process::exit函数的调用就行了。</p>
+<h1 id="exercise-5-amp-6"><a href="#exercise-5-amp-6" class="headerlink" title="exercise 5&amp;6"></a>exercise 5&amp;6</h1><p>其实在我心目中，反而是第一个和第二个实验最难，我对文件那块不太熟悉，练习5和练习6的思路和策略我觉得想得很快，无非是因为要写内联汇编而已，这里我也是首先犯了没有保存a7寄存器的错误，后续发现不再是loadfault的错误而是IllegalInstruction的错误信息，一直找不到错误的重点在哪里，在此过程中，在助教和群友的帮助下，尝试了通过其他寄存器如s11来保存a7，通过全局静态变量来保存a7寄存器，通过在loader传入a0而非a7寄存器到helloapp的_start函数的第一个参数来保存abi表地址一共三个办法，得出一定不是</p>
+<p>helloapp本身的问题，而是loader的文件，然后通过排查，发现是load_size的大小太小了，一直写得指导书的32，后面改大一点通过了</p>
+<p>练习6意识到需要改正练习1和练习2没有在loader加入头结构和相关函数的问题，于是添加上去，实现了分别调用两个地址空间的应用。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-Beavercat7/" rel="tag"># author:Beavercat7</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/29/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%83%9D%E6%B7%BC/" rel="prev" title="2023开源操作系统训练营第三阶段总结报告-郝淼">
+      <i class="fa fa-chevron-left"></i> 2023开源操作系统训练营第三阶段总结报告-郝淼
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2023/11/29/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-dooooling/" rel="next" title="2023开源操作系统训练营第三阶段项目一总结报告-dooooling">
+      2023开源操作系统训练营第三阶段项目一总结报告-dooooling <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
