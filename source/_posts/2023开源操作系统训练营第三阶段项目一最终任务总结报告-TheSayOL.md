@@ -2,10 +2,11 @@
 title: 2023开源操作系统训练营第三阶段项目一最终任务总结报告-TheSayOL
 date: 2023-12-01 18:52:58
 categories:
-    - report
+    - oscamp 2023fall arceos unikernel
 tags:
     - author:TheSayOL
-    - repo:[<rcore-os-repo_you_worked_on>](https://github.com/TheSayOL/arceos)
+    - 2023秋冬季开源操作系统训练营
+    - 第三阶段总结报告
 ---
 
 # 2023秋冬季开源操作系统训练营第三阶段总结报告
