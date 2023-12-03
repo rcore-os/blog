@@ -257,7 +257,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-12-03 07:49:48" itemprop="dateCreated datePublished" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+              <time title="Created: 2023-12-03 07:50:15" itemprop="dateCreated datePublished" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
             </span>
 
           
@@ -460,7 +460,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-12-03 07:49:48" itemprop="dateCreated datePublished" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+              <time title="Created: 2023-12-03 07:50:15" itemprop="dateCreated datePublished" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
             </span>
 
           
@@ -532,7 +532,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -567,10 +567,9 @@
 <li>现有的基于GNU/LD的链接器可以比较好的行使其职能，重复实现一个实际上没有必要实现的链接器会丢失原先所实现的优化，同时因为测试相对于前者而言更少，反而可能会导致更多错误，然而在这种实现的链接器面前，除非同时支持大量的编译工具，否则意义实际上不太大，只能算是个展示玩具。</li>
 </ol>
 <p>/// BLUE PRINT<br>///<br>/// 1. LOAD APPLICATION<br>/// 2. SYMBOL RESOLUTION: make sure all symbol has been meet.<br>/// 3. RELOCATION:<br>///     [1] RELOCATION SECTION:<br>///         merges all sections of the same type into a new aggregate section of the same typecombine<br>///         BC we only need  SHT_PROGBITS thus not care about others (copy).<br>///     [2] RELOCATE SYMBOL REFERENCES IN SECTIONS:<br>///         Modify references to each symbol in code and data sections so that they point to the correct run-time address</p>
-<p>下面的代码并没有实际通过测试，实际上重定向部分的代码还没有开始实际测试，就算未来有按照这个方法实现的必要，类似郝淼同学重新实现 elf crates 甚至在原先基础上进行修改的行为是必要的，现有的调用过程太长，使用起来不太舒服。</p>
+<p>下面的伪代码实际完成了符号加载工作，重定向部分的代码还没有开始实际测试，就算未来有按照这个方法实现的必要，类似郝淼同学重新实现 elf crates 甚至在原先基础上进行修改的行为是必要的，现有的调用过程太长，使用起来不太舒服。</p>
 <p>直接通过 shdr.e_type 实现对于符号的定位，根据CSAPP的说明，使用多个集合对于符号进行处理，实现符号匹配效果</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">match</span> elf_file.ehdr.e_type &#123;</span><br><span class="line">            ET_REL =&gt; &#123; <span class="built_in">println!</span>(<span class="string">"Detect ET_REL"</span>);</span><br><span class="line">                <span class="keyword">let</span> (symtabs, strtabs) = elf_file</span><br><span class="line">                    .symbol_table()</span><br><span class="line">                    .expect(<span class="string">"Failure when parse symtabs from elf file"</span>)</span><br><span class="line">                    .expect(<span class="string">"Failure when parse symtabs from elf file"</span>);</span><br><span class="line"></span><br><span class="line">                <span class="keyword">for</span> sym <span class="keyword">in</span> symtabs.iter() &#123;</span><br><span class="line">                    <span class="comment">// Because the corresponding values are not publicly available, we have to gain all of it</span></span><br><span class="line">                    <span class="keyword">let</span> sym_name = strtabs.get(sym.st_name <span class="keyword">as</span> <span class="built_in">usize</span>).expect(<span class="string">"Failure to get section name"</span>);</span><br><span class="line">                    <span class="keyword">if</span> sym_name == <span class="string">""</span> &#123; <span class="keyword">continue</span>; &#125;</span><br><span class="line"></span><br><span class="line">                    <span class="keyword">let</span> elf_file = ElfBytes::&lt;AnyEndian&gt;::minimal_parse(read_only_elf).expect(<span class="string">"Could Not Load ELF File From MEM"</span>);</span><br><span class="line">                    <span class="keyword">if</span> sym.is_undefined() &#123;</span><br><span class="line">                        info!(<span class="string">"U: push &#123;sym_name&#125;"</span>);</span><br><span class="line">                        info!(<span class="string">"sym: &#123;:?&#125;"</span>, sym);</span><br><span class="line">                        U.push((<span class="built_in">String</span>::from(sym_name), sym.clone(), elf_file))</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        info!(<span class="string">"D: push &#123;sym_name&#125;"</span>);</span><br><span class="line">                        D.push((sym, elf_file));</span><br><span class="line">                    &#125;  </span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">let</span> elf_file = ElfBytes::&lt;AnyEndian&gt;::minimal_parse(read_only_elf).expect(<span class="string">"Could Not Load ELF File From MEM"</span>);</span><br><span class="line">                elfs.push(elf_file);</span><br><span class="line">            &#125;,</span><br><span class="line">            ET_DYN =&gt; &#123; <span class="built_in">println!</span>(<span class="string">"Detect ET_DYN"</span>);</span><br><span class="line">                <span class="comment">// test each elf file if it contains a unresolved symbols</span></span><br><span class="line">                <span class="keyword">let</span> <span class="keyword">mut</span> remove = <span class="built_in">Vec</span>::new();</span><br><span class="line">                <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..U.len() &#123;</span><br><span class="line">                    <span class="keyword">let</span> sym_name = &amp;U.get(i).unwrap();</span><br><span class="line">                    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(obj_sym) = elf_file_contains_symbol(&amp;elf_file, sym_name.<span class="number">0</span>.clone()) &#123;</span><br><span class="line">                        <span class="comment">// detect symbol sucessed</span></span><br><span class="line">                        info!(<span class="string">"detect symbol &#123;&#125; sucessed"</span>, sym_name.<span class="number">0</span>);</span><br><span class="line">                        <span class="keyword">let</span> elf_file = ElfBytes::&lt;AnyEndian&gt;::minimal_parse(read_only_elf).expect(<span class="string">"Could Not Load ELF File From MEM"</span>);</span><br><span class="line">                        elfs.push(elf_file);</span><br><span class="line">                        remove.push(i);</span><br><span class="line">                        <span class="keyword">let</span> elf_file = ElfBytes::&lt;AnyEndian&gt;::minimal_parse(read_only_elf).expect(<span class="string">"Could Not Load ELF File From MEM"</span>);</span><br><span class="line">                        info!(<span class="string">"sym: &#123;:?&#125;"</span>, obj_sym);</span><br><span class="line">                        info!(<span class="string">"sym: &#123;:p&#125;"</span>, &amp;obj_sym);</span><br><span class="line">                        D.push((obj_sym, elf_file));</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">for</span> idx <span class="keyword">in</span> (<span class="number">0</span>..remove.len()).rev() &#123;</span><br><span class="line">                    U.remove(idx);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            ET_EXEC | ET_CORE | ET_LOOS | ET_HIOS | _ =&gt; &#123;</span><br><span class="line">                error!(<span class="string">"Input a file with unsupported type: &#123;&#125;"</span>, elf_file.ehdr.e_type);</span><br><span class="line">            &#125;,</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
-
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">match ehdr.e_type &#123;</span><br><span class="line">    ET_REL &#x3D;&gt; &#123; &#x2F;&#x2F; </span><br><span class="line">        foreach symtabs &#123;</span><br><span class="line">            if sym.is_undefined() &#123;</span><br><span class="line">                &#x2F;&#x2F; 加入 U 未定义符号组</span><br><span class="line">            &#125; else &#123;|</span><br><span class="line">                &#x2F;&#x2F; 加入 D 已解析符号组 </span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        &#x2F;&#x2F; 加入总管辖 elf 文件组 TODO 目前只实现了添加，并没有实现基于往复判断的剪枝</span><br><span class="line">    &#125;,</span><br><span class="line">    ET_DYN &#x3D;&gt; &#123;</span><br><span class="line">        foreach symbol in U &#123;</span><br><span class="line">            if contains undefined symbols &#123;</span><br><span class="line">                &#x2F;&#x2F; 从 U 未定义符号组删除本符号</span><br><span class="line">                &#x2F;&#x2F; 加入 D 已解析符号组</span><br><span class="line">                &#x2F;&#x2F; 加入总管辖 elf 文件组 TODO 目前只实现了添加，并没有实现基于往复判断的剪枝</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
       
     </div>
 
@@ -620,7 +619,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -704,7 +703,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -783,7 +782,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -953,7 +952,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1032,7 +1031,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1126,7 +1125,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
 
           
@@ -1190,7 +1189,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-12-03 07:49:48" itemprop="dateModified" datetime="2023-12-03T07:49:48+00:00">2023-12-03</time>
+                <time title="Modified: 2023-12-03 07:50:15" itemprop="dateModified" datetime="2023-12-03T07:50:15+00:00">2023-12-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
