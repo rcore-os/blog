@@ -2,7 +2,7 @@
 title: blog-hehepig166
 date: 2024-04-25 10:19:26
 tags:
-    - author: hehepig166
+    - author:hehepig166
 mathjax: true
 ---
 
