@@ -2,10 +2,10 @@
 title: 2024spring-oscamp-record
 date: 2024-04-26 17:55:50
 categories:
-	- rustlings
+- rustlings
 tags:
-	- author:JocelynFlores-kyo
-	- repo:https://github.com/LearningOS/rust-rustlings-2024-spring-JocelynFlores-kyo
+- author:JocelynFlores-kyo
+- repo:https://github.com/LearningOS/rust-rustlings-2024-spring-JocelynFlores-kyo
 ---
 
 # 2024春季开源操作系统训练营第一阶段总结
