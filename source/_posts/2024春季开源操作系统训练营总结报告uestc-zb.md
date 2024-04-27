@@ -2,7 +2,7 @@
 title: 2024春季开源操作系统训练营总结报告uestc-zb
 date: 2024-04-27 23:40:14
 categories:
-    - <catogory>
+    - 2024春夏季开源操作系统训练营
 tags:
     - author:uestc-zb
     - repo:Rust-blog
