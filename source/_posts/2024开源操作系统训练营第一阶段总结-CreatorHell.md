@@ -1,6 +1,6 @@
 
 ---
-title: 2024-rcore-summary-CreatorHell
+title: 2024开源操作系统训练营第一阶段总结-CreatorHell
 date: 2024-04-27 13:31:47
 categories:
 	- report
