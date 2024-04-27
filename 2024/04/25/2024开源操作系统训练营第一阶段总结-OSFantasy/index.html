@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第一阶段 - Rust学习0 前言Rust作为rCore操作系统的开发语言，学习并掌握它对于后面学习rCore OS是非常重要的（关于我Rust学了个大概就去硬啃rCore差点自闭这件事）。 这次训练营也是我二刷了，上次23秋季由于被学校抓去打互联网+等比赛了，🤦‍♂️实在是没有时间弄了，进了二阶段就没然后了。  一阶段时间过的好快，感觉还没学多少就过去了（时间都用去debug操作系统大赛的fa">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024开源操作系统训练营第一阶段总结-OSFantasy">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/04/25/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-OSFantasy/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第一阶段 - Rust学习0 前言Rust作为rCore操作系统的开发语言，学习并掌握它对于后面学习rCore OS是非常重要的（关于我Rust学了个大概就去硬啃rCore差点自闭这件事）。 这次训练营也是我二刷了，上次23秋季由于被学校抓去打互联网+等比赛了，🤦‍♂️实在是没有时间弄了，进了二阶段就没然后了。  一阶段时间过的好快，感觉还没学多少就过去了（时间都用去debug操作系统大赛的fa">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E7%BF%BB%E8%BD%A6.gif">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/32505a01374ea248b005d24e057e69da.png">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/QQ%E5%9B%BE%E7%89%8720240425173300.gif">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/4f0a8fc3601565ed6fab6b7ce506f375.gif">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/54e8072598ba9d75c642cbbefc71cc35.jpg">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/13a7d07756aae4d99f0acd1cb497b570.gif">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/800a36d0ca944c3b35410e3dfabdbae9.jpg">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20240425175537.jpg">
+<meta property="article:published_time" content="2024-04-25T12:16:19.000Z">
+<meta property="article:modified_time" content="2024-04-27T00:54:08.259Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:OSFantasy">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;LearningOS&#x2F;rust-rustlings-2024-spring-OSFantasy">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E7%BF%BB%E8%BD%A6.gif">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/04/25/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-OSFantasy/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024开源操作系统训练营第一阶段总结-OSFantasy | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第一阶段-Rust学习"><span class="nav-number">1.</span> <span class="nav-text">第一阶段 - Rust学习</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#0-前言"><span class="nav-number">1.1.</span> <span class="nav-text">0 前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-环境与工具软件等"><span class="nav-number">1.2.</span> <span class="nav-text">1 环境与工具软件等</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-git和github"><span class="nav-number">1.2.1.</span> <span class="nav-text">1.1 git和github</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-Linux操作系统（Ubuntu、CentOS）"><span class="nav-number">1.2.2.</span> <span class="nav-text">1.2 Linux操作系统（Ubuntu、CentOS）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-RustRover"><span class="nav-number">1.2.3.</span> <span class="nav-text">1.3 RustRover</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Rust知识"><span class="nav-number">1.3.</span> <span class="nav-text">2 Rust知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-Rust学习资料"><span class="nav-number">1.3.1.</span> <span class="nav-text">2.1 Rust学习资料</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-个人觉得Rust比较有意思的知识点"><span class="nav-number">1.3.2.</span> <span class="nav-text">2.2 个人觉得Rust比较有意思的知识点</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-1-所有权（Ownership）和生命周期（Lifetimes）"><span class="nav-number">1.3.2.1.</span> <span class="nav-text">2.2.1 所有权（Ownership）和生命周期（Lifetimes）:</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-2-借用检查（Borrowing）"><span class="nav-number">1.3.2.2.</span> <span class="nav-text">2.2.2 借用检查（Borrowing）:</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-3-模式匹配（Pattern-Matching）"><span class="nav-number">1.3.2.3.</span> <span class="nav-text">2.2.3 模式匹配（Pattern Matching）:</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-4-并发（Concurrency）"><span class="nav-number">1.3.2.4.</span> <span class="nav-text">2.2.4 并发（Concurrency）:</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-5-错误处理（Error-Handling）"><span class="nav-number">1.3.2.5.</span> <span class="nav-text">2.2.5 错误处理（Error Handling）:</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-总结"><span class="nav-number">1.4.</span> <span class="nav-text">3 总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-图片记录"><span class="nav-number">1.5.</span> <span class="nav-text">4 图片记录</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">227</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">226</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/25/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-OSFantasy/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024开源操作系统训练营第一阶段总结-OSFantasy
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-04-25 12:16:19" itemprop="dateCreated datePublished" datetime="2024-04-25T12:16:19+00:00">2024-04-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-04-27 00:54:08" itemprop="dateModified" datetime="2024-04-27T00:54:08+00:00">2024-04-27</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="第一阶段-Rust学习"><a href="#第一阶段-Rust学习" class="headerlink" title="第一阶段 - Rust学习"></a>第一阶段 - Rust学习</h1><h2 id="0-前言"><a href="#0-前言" class="headerlink" title="0 前言"></a>0 前言</h2><p>Rust作为rCore操作系统的开发语言，学习并掌握它对于后面学习rCore OS是非常重要的（关于我Rust学了个大概就去硬啃rCore差点自闭这件事）。</p>
+<p>这次训练营也是我二刷了，上次23秋季由于被学校抓去打互联网+等比赛了，🤦‍♂️实在是没有时间弄了，进了二阶段就没然后了。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E7%BF%BB%E8%BD%A6.gif" alt="翻车gif"></p>
+<p>一阶段时间过的好快，感觉还没学多少就过去了（时间都用去debug操作系统大赛的fatfs了🤦‍♂️）。所以总结的内容就比较普普通通了，各位大佬见谅🙏。</p>
+<h2 id="1-环境与工具软件等"><a href="#1-环境与工具软件等" class="headerlink" title="1 环境与工具软件等"></a>1 环境与工具软件等</h2><p>由于本人并不是CS相关专业，过去主攻的是EE，所以CS里面的很多东西过去都没接触过。从23年秋季第一次接触训练营开始到现在，接触到了很多过去没有用过的工具软件以及一些开发环境，在此简单的列举了一些。</p>
+<h3 id="1-1-git和github"><a href="#1-1-git和github" class="headerlink" title="1.1 git和github"></a>1.1 git和github</h3><p>是的，你没有看错。我之前真没怎么用过git和github。一方面原因是，上大学后搞的都是嵌入式裸机的开发，远古单片机IDE（Keil）不支持高级的代码版本管理，加上我的学习路线上也没碰到过使用代码版本管理，索性代码直接放本地（别人要的话就u盘拷贝🤦‍♂️），就很少用git去把代码放仓库（之前实习时迫不得已去折腾了下）。另一方面是，git和github有些时候真的太卡了（之前不会挂代理也不敢挂梯子）。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/32505a01374ea248b005d24e057e69da.png" alt="keil"></p>
+<p>不过，现在熟悉了git的各个命令后，配合上github去做项目的代码版本管理是真爽呀。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/QQ%E5%9B%BE%E7%89%8720240425173300.gif" alt="胡桃摇"></p>
+<p>个人过去常用的git命令和个人理解如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">git clone 			&#x2F;&#x2F; 将repo(仓库)克隆到本地</span><br><span class="line">git pull			&#x2F;&#x2F; 合并远程repo的更新到本地</span><br><span class="line">git add .			&#x2F;&#x2F; 将更改的文件放入暂存区</span><br><span class="line">git commit -m &quot;&lt;message&gt;&quot; 	&#x2F;&#x2F; 创建一个新的提交，-m 后便是提交的消息</span><br><span class="line">git push		 	&#x2F;&#x2F; 将提交推到远程仓库</span><br><span class="line">git branch			&#x2F;&#x2F; 查看现有的分支</span><br><span class="line">git branch &lt;new_branch&gt;		&#x2F;&#x2F; 创键新的分支</span><br><span class="line">git checkout &lt;branch&gt;		&#x2F;&#x2F; 切换到某分支</span><br><span class="line">git status			&#x2F;&#x2F; 查看本地仓库状态</span><br></pre></td></tr></table></figure>
+<p>还有一些比如本地新建的分支需要推到远程、放弃某文件的修改等命令，就没去记了。我是做相关操作的时候，看一下报错建议的命令或在搜一下、问一下gpt，然后改一下。</p>
+<p>另外初次使用可能需要配置用户信息：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git config --global user.name &quot;Your Name&quot;</span><br><span class="line">git config --global user.email your.email@example.com</span><br></pre></td></tr></table></figure>
+<h3 id="1-2-Linux操作系统（Ubuntu、CentOS）"><a href="#1-2-Linux操作系统（Ubuntu、CentOS）" class="headerlink" title="1.2 Linux操作系统（Ubuntu、CentOS）"></a>1.2 Linux操作系统（Ubuntu、CentOS）</h3><p>虽说之前玩jeston和个人博客的时候也用过，但是基本上就是靠readme+baidu+CtrlCV+GPT（而且用了就忘），这次也算是又学习并加深了了解吧。这里就简单的列一下这期间用到的还记得的命令吧（大佬们清点喷555）</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/4f0a8fc3601565ed6fab6b7ce506f375.gif" alt="派蒙抱大腿"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">ls                      	# 列出当前目录下的文件和文件夹</span><br><span class="line">cd [目录名]			# 改变当前目录</span><br><span class="line">sudo [命令]			# 以超级用户身份执行命令</span><br><span class="line">sudo apt install [包名]		# 以超级用户身份通过apt安装软件包</span><br><span class="line">apt-get install [包名]		# 通过apt-get安装软件包</span><br><span class="line">touch [文件名]			# 创建一个空文件或修改文件的时间戳</span><br><span class="line">vim [文件名]			# 打开文件进行编辑</span><br><span class="line">rm [文件名&#x2F;目录名]		# 删除文件或目录</span><br><span class="line">make				# 用于编译程序的命令</span><br><span class="line">cp [源文件&#x2F;目录] [目标文件&#x2F;目录]	# 复制文件或目录</span><br><span class="line">mv [源文件&#x2F;目录] [目标文件&#x2F;目录]	# 移动或重命名文件或目录</span><br><span class="line">mkdir [目录名]			# 创建一个新的目录</span><br><span class="line">rmdir [目录名]			# 删除一个空目录</span><br><span class="line">pwd				# 显示当前工作目录的路径</span><br><span class="line">cat [文件名]			# 查看文件内容</span><br><span class="line">file [文件名]			# 查看文件信息</span><br><span class="line">tar [选项] [文件名]		# 打包或解包文件</span><br><span class="line">gzip [文件名]			# 压缩文件</span><br><span class="line">gunzip [文件名]			# 解压缩文件</span><br><span class="line">wget [URL]                      # 从网络上下载文件</span><br><span class="line">curl [URL]                      # 传输数据的工具，支持多种协议</span><br><span class="line">ssh [用户名]@[IP地址]		# 通过SSH协议远程登录到另一台计算机</span><br><span class="line">scp [源文件&#x2F;目录] [用户名]@[IP地址]:[目标路径] # 通过SSH远程拷贝文件</span><br><span class="line">df -h				# 显示磁盘使用情况</span><br><span class="line">du -h [文件名&#x2F;目录名]		# 显示文件或目录的磁盘使用情况</span><br><span class="line">free -m                         # 显示内存使用情况</span><br><span class="line">top                             # 显示实时的系统进程信息</span><br><span class="line">ps                              # 显示当前进程的快照</span><br><span class="line">kill [进程号]			# 结束一个进程</span><br><span class="line">logout                          # 注销当前会话</span><br><span class="line">reboot                          # 重新启动计算机</span><br><span class="line">shutdown -h now                 # 立即关机</span><br><span class="line">fdisk		              	# 一个用于磁盘分区的程序，可以创建、删除、修改和重新组织分区表</span><br><span class="line">losetup 			# 用于设置和控制Loop设备，它可以将一个文件模拟成块设备，常用于挂载文件系统镜像</span><br></pre></td></tr></table></figure>
+<h3 id="1-3-RustRover"><a href="#1-3-RustRover" class="headerlink" title="1.3 RustRover"></a>1.3 RustRover</h3><p>强烈推荐，我刚开始是用的VSCode+RA插件或Vim+YouCompleteMe。后来换成rr后，感觉开发真的舒服了好多。一是因为二阶段写OS，在ubuntu里我用的VSCode写一会就会崩，比较卡。用Vim的话，代码文件一多切来切去麻烦的很；二是因为他的各个界面和PyCharm、IDEA是一样的，上手很快；三是多了很多有用的功能，比如你use了某个外部creat，rr会自动帮你在cargo.toml中加上依赖。</p>
+<p>RustRover下载地址：<a href="https://www.jetbrains.com/zh-cn/rust/" target="_blank" rel="noopener">https://www.jetbrains.com/zh-cn/rust/</a></p>
+<p>Linux环境安装步骤：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">1. 下载</span><br><span class="line">2. cd到下载的路径</span><br><span class="line">3. 解压下载的安装包：</span><br><span class="line">4. cd到解压的路径</span><br><span class="line">5. cd bin</span><br><span class="line">6. .&#x2F;rustrover.sh</span><br><span class="line">7. 勾选一些东西确认安装后，等待片刻，便会进入到欢迎界面</span><br></pre></td></tr></table></figure>
+<p>在欢迎界面左下角点击设置图标，再点击(Create Desktop Entry)将rustrover添加到桌面目录。之后便可以使用了。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/54e8072598ba9d75c642cbbefc71cc35.jpg" alt="xiao"></p>
+<h2 id="2-Rust知识"><a href="#2-Rust知识" class="headerlink" title="2 Rust知识"></a>2 Rust知识</h2><h3 id="2-1-Rust学习资料"><a href="#2-1-Rust学习资料" class="headerlink" title="2.1 Rust学习资料"></a>2.1 Rust学习资料</h3><p>1.<a href="https://course.rs/about-book.html" target="_blank" rel="noopener">Rust 中文圣经</a></p>
+<p>2.<a href="https://rustwiki.org/zh-CN/book/" target="_blank" rel="noopener">Rust 程序设计语言</a></p>
+<p>3.<a href="https://rustwiki.org/docs/" target="_blank" rel="noopener">Rust 中文文档汇总</a></p>
+<p>4.<a href="https://rustwiki.org/zh-CN/" target="_blank" rel="noopener">Rust 官方文档中文翻译</a></p>
+<p>5.<a href="https://fasterthanli.me/articles/a-half-hour-to-learn-rust" target="_blank" rel="noopener">Rust 半小时学习</a><br>半小时看不完呀！</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/13a7d07756aae4d99f0acd1cb497b570.gif" alt="派蒙吃惊"></p>
+<h3 id="2-2-个人觉得Rust比较有意思的知识点"><a href="#2-2-个人觉得Rust比较有意思的知识点" class="headerlink" title="2.2 个人觉得Rust比较有意思的知识点"></a>2.2 个人觉得Rust比较有意思的知识点</h3><h4 id="2-2-1-所有权（Ownership）和生命周期（Lifetimes）"><a href="#2-2-1-所有权（Ownership）和生命周期（Lifetimes）" class="headerlink" title="2.2.1 所有权（Ownership）和生命周期（Lifetimes）:"></a>2.2.1 所有权（Ownership）和生命周期（Lifetimes）:</h4><ul>
+<li>Rust的所有权和生命周期机制，可以防止诸如空悬指针、缓冲区溢出等内存安全问题。</li>
+<li>在Rust中，每个值都有且只有一个所有者。</li>
+<li>而在C语言中，并没有所有权概念，内存管理完全由程序员负责，这就可能导致内存泄漏和野指针等问题。<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> s1 = <span class="built_in">String</span>::from(<span class="string">"hello"</span>);</span><br><span class="line">    <span class="keyword">let</span> s2 = s1;</span><br><span class="line">    <span class="comment">// 此时 s1 已经失效，不能被使用</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C</span></span><br><span class="line"><span class="keyword">char</span> *s1 = <span class="string">"hello"</span>;</span><br><span class="line"><span class="keyword">char</span> *s2 = s1; </span><br><span class="line"><span class="comment">// 此时 s1 和 s2 都指向相同的内存</span></span><br></pre></td></tr></table></figure>
+<h4 id="2-2-2-借用检查（Borrowing）"><a href="#2-2-2-借用检查（Borrowing）" class="headerlink" title="2.2.2 借用检查（Borrowing）:"></a>2.2.2 借用检查（Borrowing）:</h4></li>
+<li>Rust的数据借用可以允许多个读访问，但只要有一个可变借用，就不能有其他读或写访问。</li>
+<li>C语言没有这样的机制，因此需要手动管理指针和数据的共享。<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> s = <span class="built_in">String</span>::from(<span class="string">"hello"</span>);</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">let</span> r1 = &amp;<span class="keyword">mut</span> s;</span><br><span class="line">        <span class="comment">// 在此作用域内，不能借用 s 的其他引用</span></span><br><span class="line">    &#125; <span class="comment">// r1 超出作用域，s 可以被再次借用</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C</span></span><br><span class="line"><span class="keyword">char</span> s[] = <span class="string">"hello"</span>;</span><br><span class="line"><span class="keyword">char</span> *p1 = s;</span><br><span class="line"><span class="keyword">char</span> *p2 = s; <span class="comment">// p1 和 p2 都指向相同的内存</span></span><br></pre></td></tr></table></figure>
+<h4 id="2-2-3-模式匹配（Pattern-Matching）"><a href="#2-2-3-模式匹配（Pattern-Matching）" class="headerlink" title="2.2.3 模式匹配（Pattern Matching）:"></a>2.2.3 模式匹配（Pattern Matching）:</h4></li>
+<li>Rust提供了强大的模式匹配功能，可以用于枚举、结构体、元组和字面量等。</li>
+<li>C语言没有内置的模式匹配功能，通常需要使用<code>switch</code>语句和多个<code>if-else</code>链来实现。<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">Coin</span></span> &#123;</span><br><span class="line">    Penny,</span><br><span class="line">    Nickel,</span><br><span class="line">    Dime,</span><br><span class="line">    Quarter,</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">let</span> coin = Coin::Penny;</span><br><span class="line"><span class="keyword">match</span> coin &#123;</span><br><span class="line">    Coin::Penny =&gt; <span class="built_in">println!</span>(<span class="string">"Penny"</span>),</span><br><span class="line">    Coin::Nickel =&gt; <span class="built_in">println!</span>(<span class="string">"Nickel"</span>),</span><br><span class="line">    Coin::Dime =&gt; <span class="built_in">println!</span>(<span class="string">"Dime"</span>),</span><br><span class="line">    Coin::Quarter =&gt; <span class="built_in">println!</span>(<span class="string">"Quarter"</span>),</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C </span></span><br><span class="line"><span class="keyword">switch</span> (coin) &#123;</span><br><span class="line">    <span class="keyword">case</span> PENNY:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"Penny"</span>);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> NICKEL:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"Nickel"</span>);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> DIME:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"Dime"</span>);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> QUARTER:</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"Quarter"</span>);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="2-2-4-并发（Concurrency）"><a href="#2-2-4-并发（Concurrency）" class="headerlink" title="2.2.4 并发（Concurrency）:"></a>2.2.4 并发（Concurrency）:</h4></li>
+<li>Rust提供了安全并发的工具，如<code>std::thread</code>、<code>Arc</code>（原子引用计数）和<code>Mutex</code>（互斥锁）。</li>
+<li>C语言标准库没有内置的并发工具，通常需要使用操作系统提供的线程库（如POSIX线程）和同步原语。<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust</span></span><br><span class="line"><span class="keyword">use</span> std::thread;</span><br><span class="line"><span class="keyword">let</span> handle = thread::spawn(|| &#123;</span><br><span class="line">    <span class="comment">// 在新线程中运行的代码</span></span><br><span class="line">&#125;);</span><br><span class="line">handle.join().unwrap();</span><br></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C </span></span><br><span class="line"><span class="keyword">pthread_t</span> thread;</span><br><span class="line"><span class="keyword">int</span> status = pthread_create(&amp;thread, <span class="literal">NULL</span>, &amp;thread_function, <span class="literal">NULL</span>);</span><br><span class="line"><span class="keyword">if</span> (status != <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="comment">// 错误处理</span></span><br><span class="line">&#125;</span><br><span class="line">pthread_join(thread, <span class="literal">NULL</span>);</span><br></pre></td></tr></table></figure>
+<h4 id="2-2-5-错误处理（Error-Handling）"><a href="#2-2-5-错误处理（Error-Handling）" class="headerlink" title="2.2.5 错误处理（Error Handling）:"></a>2.2.5 错误处理（Error Handling）:</h4></li>
+<li>Rust使用<code>Result</code>和<code>Option</code>类型来处理可能的错误或空值，这鼓励开发人员进行显式的错误处理。</li>
+<li>C语言通常使用整数错误码和返回值，这可能导致错误被忽略或错误处理。<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">open_file</span></span>(file_name: &amp;<span class="built_in">str</span>) -&gt; <span class="built_in">Result</span>&lt;File, io::Error&gt; &#123;</span><br><span class="line">    File::open(file_name)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">open_file</span><span class="params">(<span class="keyword">const</span> <span class="keyword">char</span> *file_name)</span> </span>&#123;</span><br><span class="line">    FILE *file = fopen(file_name, <span class="string">"r"</span>);</span><br><span class="line">    <span class="keyword">if</span> (!file) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>; <span class="comment">// 返回错误码</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>; <span class="comment">// 表示成功</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="3-总结"><a href="#3-总结" class="headerlink" title="3 总结"></a>3 总结</h2>说来惭愧，这次训练营第一阶段大部分时间花在折腾OS大赛上了。本来到rCore的ch7时都挺顺利的，结果尝试去运行OS大赛的FAT32镜像里的测例就碰壁了。先是easyfs和fat32不是一个东西，得把照着rCore写的OS的fs换成支持fat32的，瞎折腾了两周总算是能读取fat32里的文件了。然后又发现大赛OS的elf文件导入OS运行又有问题，瞎折腾也搞不出来了（基础不牢靠，不懂为啥会loadpage Fault），索性打算重新复习。</li>
+</ul>
+<p>这次训练营又学到了很多新的知识，不过也能很清楚地感觉到掌握的不牢靠，后面还需不断加强巩固。同时我也知道了如果自己后面想往OS方向发展，还有很多需要去学习的。说实话，刚开始搞rCore的时候感觉还挺好的，而后到了ch4后，计组等知识的欠缺就很致命了，搞的差点放弃了（fat32那也是，不过好在搞出来了）。然后到了运行OS大赛的elf这就真搞不懂了，只能试着去好好复习下Rust、看看计组、CSAPP等后，再来看看了。</p>
+<p>感激社区提供了这样一个学习平台，它为我打开了一扇探索操作系统奥秘的大门。希望后续的学习我还能够坚持下去吧！</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/800a36d0ca944c3b35410e3dfabdbae9.jpg" alt="npn"></p>
+<h2 id="4-图片记录"><a href="#4-图片记录" class="headerlink" title="4 图片记录"></a>4 图片记录</h2><p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20240425175537.jpg" alt="1"></p>
+<p>照着rCore写的FeatOS移植FAT32文件系统成功</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-OSFantasy/" rel="tag"># author:OSFantasy</a>
+              <a href="/blog/tags/repo-https-github-com-LearningOS-rust-rustlings-2024-spring-OSFantasy/" rel="tag"># repo:https://github.com/LearningOS/rust-rustlings-2024-spring-OSFantasy</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/04/25/blog-hehepig166/" rel="prev" title="blog-hehepig166">
+      <i class="fa fa-chevron-left"></i> blog-hehepig166
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/04/25/2024rust-camp-stage1-summarize-HYL/" rel="next" title="2024rust_camp_stage1_summarize_HYL">
+      2024rust_camp_stage1_summarize_HYL <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
