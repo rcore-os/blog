@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">235</span>
+          <span class="site-state-item-count">236</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">18</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-count">242</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,92 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lwshang/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lwshang/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-lwshang</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-06 18:56:05" itemprop="dateCreated datePublished" datetime="2023-11-06T18:56:05+00:00">2023-11-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="rCore-OS-学习总结"><a href="#rCore-OS-学习总结" class="headerlink" title="rCore OS 学习总结"></a>rCore OS 学习总结</h1><p>本次训练营是 Rust 与操作系统的有机结合。我对 Rust 已经足够熟悉，因此侧重操作系统部分的第二阶段更加吸引我。</p>
+<p>从一个裸机程序开始，随着需求的复杂化，我们需要逐步添加各种系统调用的实现，最终完成了一个麻雀虽小五脏俱全的操作系统。</p>
+<h2 id="1-应用程序与基本执行环境"><a href="#1-应用程序与基本执行环境" class="headerlink" title="1. 应用程序与基本执行环境"></a>1. 应用程序与基本执行环境</h2><p>操作系统和应用一样都是软件程序。区别在于，操作系统需要几乎直接与硬件交互，不像普通应用程序可以使用标准库提供的各种功能，毕竟标准库构建在系统调用上，而系统调用又是由操作系统提供的。</p>
+<p>在操作系统与硬件之间还有一层 SBI (Supervisor Binary Interface)。在后续的编程实验中，我们直接使用编译好的 RustSBI BootLoader 二进制文件。</p>
+<p>RustSBI 规定了 OS 在内存中的位置，那么编译 OS 时需要调整链接器使其生成符合要求的内存布局。</p>
+<h2 id="2-批处理程序"><a href="#2-批处理程序" class="headerlink" title="2. 批处理程序"></a>2. 批处理程序</h2><p>操作系统最主要的作用就是运行应用程序，而且往往是多于一个应用。一种最直接的想法是把操作系统和多个应用打包在一起，输入计算机后，依次执行每一个应用。</p>
+<p>我们希望当应用出错时，操作系统可以继续执行剩余的其他任务。由此特权级机制被引入。</p>
+<h2 id="3-多道程序与分时多任务"><a href="#3-多道程序与分时多任务" class="headerlink" title="3. 多道程序与分时多任务"></a>3. 多道程序与分时多任务</h2><p>一个一个运行应用不够灵活，我们希望能够对多任务进行调度。那么必然就需要能够支持任务切换，即保存/加载上下文。</p>
+<p>调度则主要有两种情况：一是任务主动让出处理器，<code>sys_yield</code>；二是通过时钟中断定时触发任务的切换。</p>
+<h2 id="4-地址空间"><a href="#4-地址空间" class="headerlink" title="4. 地址空间"></a>4. 地址空间</h2><p>操作系统和应用全都直接访问物理地址通常是低效的。引入虚拟地址机制，让每个应用都拥有逻辑上连续的大量内存，可以使应用的编写更加灵活。</p>
+<p>RISC-V 64 平台采用了 SV39 多级页表机制，通过 <code>satp</code> CSR 来控制是否启用。</p>
+<h2 id="5-进程及进程管理"><a href="#5-进程及进程管理" class="headerlink" title="5. 进程及进程管理"></a>5. 进程及进程管理</h2><p>此前，所有任务都是操作系统直接管理的。我们很自然的会希望可以由任务来创建子任务，并且可以管理更多物理/虚拟资源。于是引入进程的概念。</p>
+<p>理解进程，最核心的就是相关的系统调用：<code>fork</code>, <code>exec</code> 和 <code>waitpid</code>。</p>
+<h2 id="6-文件系统与I-O重定向"><a href="#6-文件系统与I-O重定向" class="headerlink" title="6. 文件系统与I/O重定向"></a>6. 文件系统与I/O重定向</h2><p>文件可代表很多种不同类型的I/O 资源。狭义的文件系统可以对持久存储设备 (Persistent Storage) I/O 资源进行管理。</p>
+<p>这一节，我们第一次尝试将一组功能从内核中分离出来成为独立的库，交由内核引入使用。</p>
+<h2 id="7-进程间通信"><a href="#7-进程间通信" class="headerlink" title="7. 进程间通信"></a>7. 进程间通信</h2><p>进程间交换数据大大加强了程序的能力。实现进程间通信的主要方式之一是管道。</p>
+<h2 id="8-并发"><a href="#8-并发" class="headerlink" title="8. 并发"></a>8. 并发</h2><p>操作系统通过不断切换任务实现并发，因为进程间资源是相对隔离的，这种并发容易实现但开销较大。</p>
+<p>我们想要在进程内，共享资源的情况下实现低开销的并发，这就引入了线程的概念。</p>
+<p>一个进程的多个线程共享资源，但需要能互斥地访问资源，避免数据不一致。为此，我们可以用锁、信号量、条件变量等同步原语。</p>
+<h2 id="实验感想"><a href="#实验感想" class="headerlink" title="实验感想"></a>实验感想</h2><p>rCore 主要目标还是实现一个 Unix-like 的操作系统，编程实验也基本都是实现 Linux 最关键的一些系统调用。</p>
+<p>而 Unix/Linux 本就是与 C 语言一体的。这些 C 风格的系统调用接口，用 Rust 实现起来总是很奇怪，有种削足适履的感觉。</p>
+<p>我在思考，如果抛弃这些 C 风格的接口，从 Rust 出发重新设计接口，或许可以更好地利用 Rust 的众多优秀特性。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-eastwoodeer/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +350,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
 
           
@@ -344,7 +430,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
 
           
@@ -418,7 +504,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
 
           
@@ -495,7 +581,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -597,7 +683,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
 
           
@@ -673,7 +759,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
 
           
@@ -783,7 +869,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
 
           
@@ -867,7 +953,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -944,7 +1030,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
+                <time title="Modified: 2024-04-27 01:11:54" itemprop="dateModified" datetime="2024-04-27T01:11:54+00:00">2024-04-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -977,75 +1063,6 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
             </div>
           <!--/noindex-->
         
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/05/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5-yuluo-zy/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/05/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5-yuluo-zy/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-yuluo-zy</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-05 12:42:01" itemprop="dateCreated datePublished" datetime="2023-11-05T12:42:01+00:00">2023-11-05</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-27 01:11:21" itemprop="dateModified" datetime="2024-04-27T01:11:21+00:00">2024-04-27</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2023开源操作系统训练营第二阶段总结报告"><a href="#2023开源操作系统训练营第二阶段总结报告" class="headerlink" title="2023开源操作系统训练营第二阶段总结报告"></a>2023开源操作系统训练营第二阶段总结报告</h1><h2 id="学习动机与兴趣"><a href="#学习动机与兴趣" class="headerlink" title="学习动机与兴趣"></a>学习动机与兴趣</h2><p>使用rust已经很久了， 但是一直没有机会可以深入学习Rust编程和操作系统原理。对于Rust，它的内存安全性、”零开销抽象”和Cargo包管理工具等特性吸引了我（ps:  cpp的包管理差的有点子多)。在训练营里面, 我可以深入了解了RISC-V架构。虽然之前可能只是听说过，但在训练营中，我学习了SBI和RISC-V指令集的使用。相对于传统的x86架构，RISC-V的指令集更为简洁，文档也相对清晰，这为理解底层原理提供了很好的机会。</p>
-<h2 id="实验内容与技术挑战"><a href="#实验内容与技术挑战" class="headerlink" title="实验内容与技术挑战"></a>实验内容与技术挑战</h2><p>训练营的实验内容广泛，涵盖了操作系统的核心概念，包括多道程序的放置与加载、虚拟内存管理、进程管理、文件系统、管道和线程支持等。但是目前 文件系统和异步这方面的内容还没有看太明白。</p>
-<p>在实验中，我遇到了不少技术挑战。例如，在虚拟内存管理实验中，我们需要处理虚拟地址到物理地址的映射，而在进程管理实验中，我们必须正确处理任务切换和多任务调度。这些挑战锻炼了问题解决能力和编程技巧。</p>
-<p>同时 UPSafeCell的使用，也给我的工作中有一定启发。 我通过使用sdk中UnsafeCell结构体, 结合atomic变量来完成ReadGuard。 成功去除了锁依赖， 使用无锁编程的方式解决并发效率问题。 这种学习并能实践的感觉，让我觉得不虚此行。</p>
-<h2 id="学习总结"><a href="#学习总结" class="headerlink" title="学习总结"></a>学习总结</h2><p>整个训练营让我更深入地理解了操作系统的原理和底层机制。通过实际的内核开发和编程实践，积累了宝贵的经验，不仅掌握了Rust编程，还深刻理解了操作系统的内部工作原理。我对于Rust的掌握也有了显著提高。</p>
-
       
     </div>
 
