@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">309</span>
+          <span class="site-state-item-count">310</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-count">23</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">315</span>
+        <span class="site-state-item-count">317</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,102 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/01/07/%E8%BF%90%E7%94%A8code-debug%E6%8F%92%E4%BB%B6%E5%9C%A8VSCode%E4%B8%AD%E8%B0%83%E8%AF%95ArceOS-Unikernel/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/01/07/%E8%BF%90%E7%94%A8code-debug%E6%8F%92%E4%BB%B6%E5%9C%A8VSCode%E4%B8%AD%E8%B0%83%E8%AF%95ArceOS-Unikernel/" class="post-title-link" itemprop="url">运用code-debug插件在VSCode中调试ArceOS(Unikernel)</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-01-07 18:59:39" itemprop="dateCreated datePublished" datetime="2024-01-07T18:59:39+00:00">2024-01-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p><a href="https://github.com/chenzhiy2001/code-debug" target="_blank" rel="noopener">code-debug</a>是一个支持跨特权级调试的VSCode插件。在这篇文章中，我将介绍利用这个调试插件在VSCode上对ArceOS进行源代码级调试的过程。</p>
+<p>首先我们需要下载  <code>gdb-multiarch</code> :</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install gdb-multiarch</span><br></pre></td></tr></table></figure>
+<p>接着我们运行一下 ArceOS，从而生成 bin 和 elf 文件. 这里以RISC-V上的单核<code>arceos-helloworld</code>为例:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make A&#x3D;apps&#x2F;helloworld&#x2F; ARCH&#x3D;riscv64 LOG&#x3D;info SMP&#x3D;1 run</span><br></pre></td></tr></table></figure>
+<p>在 ArceOS 的输出中，我们发现了 QEMU的启动参数:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-riscv64 -m 128M -smp 1 -machine virt -bios default -kernel apps&#x2F;helloworld&#x2F;&#x2F;helloworld_riscv64-qemu-virt.bin -nographic</span><br></pre></td></tr></table></figure>
+
+<p>我们将这些启动参数转移到配置文件 <code>launch.json</code> 中：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">//launch.json</span></span><br><span class="line">   &#123;</span><br><span class="line">    <span class="attr">"version"</span>: <span class="string">"0.2.0"</span>,</span><br><span class="line">    <span class="attr">"configurations"</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="attr">"type"</span>: <span class="string">"gdb"</span>,</span><br><span class="line">            <span class="attr">"request"</span>: <span class="string">"launch"</span>,</span><br><span class="line">            <span class="attr">"name"</span>: <span class="string">"Attach to Qemu"</span>,</span><br><span class="line">            <span class="attr">"executable"</span>: <span class="string">"$&#123;userHome&#125;/arceos/apps/helloworld/helloworld_riscv64-qemu-virt.elf"</span>,</span><br><span class="line">            <span class="attr">"target"</span>: <span class="string">":1234"</span>,</span><br><span class="line">            <span class="attr">"remote"</span>: <span class="literal">true</span>,</span><br><span class="line">            <span class="attr">"cwd"</span>: <span class="string">"$&#123;workspaceRoot&#125;"</span>,</span><br><span class="line">            <span class="attr">"valuesFormatting"</span>: <span class="string">"parseText"</span>,</span><br><span class="line">            <span class="attr">"gdbpath"</span>: <span class="string">"gdb-multiarch"</span>,</span><br><span class="line">            <span class="attr">"showDevDebugOutput"</span>:<span class="literal">true</span>,</span><br><span class="line">            <span class="attr">"internalConsoleOptions"</span>: <span class="string">"openOnSessionStart"</span>,</span><br><span class="line">            <span class="attr">"printCalls"</span>: <span class="literal">true</span>,</span><br><span class="line">            <span class="attr">"stopAtConnect"</span>: <span class="literal">true</span>,</span><br><span class="line">            <span class="attr">"qemuPath"</span>: <span class="string">"qemu-system-riscv64"</span>,</span><br><span class="line">            <span class="attr">"qemuArgs"</span>: [</span><br><span class="line">                <span class="string">"-M"</span>,</span><br><span class="line">                <span class="string">"128m"</span>,</span><br><span class="line">                <span class="string">"-smp"</span>,</span><br><span class="line">                <span class="string">"1"</span>,</span><br><span class="line">                <span class="string">"-machine"</span>,</span><br><span class="line">                <span class="string">"virt"</span>,</span><br><span class="line">                <span class="string">"-bios"</span>,</span><br><span class="line">                <span class="string">"default"</span>,</span><br><span class="line">                <span class="string">"-kernel"</span>,</span><br><span class="line">                <span class="string">"apps/helloworld/helloworld_riscv64-qemu-virt.bin"</span>,</span><br><span class="line">                <span class="string">"-nographic"</span>,</span><br><span class="line">                <span class="string">"-s"</span>,</span><br><span class="line">                <span class="string">"-S"</span></span><br><span class="line">            ],</span><br><span class="line"></span><br><span class="line">         <span class="attr">"KERNEL_IN_BREAKPOINTS_LINE"</span>:<span class="number">65</span>, <span class="comment">// src/trap/mod.rs中内核入口行号。可能要修改</span></span><br><span class="line">         <span class="attr">"KERNEL_OUT_BREAKPOINTS_LINE"</span>:<span class="number">124</span>, <span class="comment">// src/trap/mod.rs中内核出口行号。可能要修改</span></span><br><span class="line">         <span class="attr">"GO_TO_KERNEL_LINE"</span>:<span class="number">30</span>, <span class="comment">// src/trap/mod.rs中，用于从用户态返回内核的断点行号。在rCore-Tutorial-v3中，这是set_user_trap_entry函数中的stvec::write(TRAMPOLINE as usize, TrapMode::Direct);语句。</span></span><br><span class="line">        &#125;,</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们在<code>qemuArgs</code>中添加了 <code>-s -S</code> 参数，这样qemu在启动的时候会打开gdb调试功能并且停在第一条指令处，方便我们设置断点. </p>
+<p>此外，应当注意<code>executable</code>参数指向包含符号表的elf文件，而不是去除符号表后的bin文件。</p>
+<p>由于ArceOS是unikernel，没有用到用户态，因此以下这三个参数不需要填写：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">"KERNEL_IN_BREAKPOINTS_LINE":65, // src/trap/mod.rs中内核入口行号。可能要修改</span><br><span class="line">"KERNEL_OUT_BREAKPOINTS_LINE":124, // src/trap/mod.rs中内核出口行号。可能要修改</span><br><span class="line">"GO_TO_KERNEL_LINE":30, // src/trap/mod.rs中，用于从用户态返回内核的断点行号。在rCore-Tutorial-v3中，这是set_user_trap_entry函数中的stvec::write(TRAMPOLINE as usize, TrapMode::Direct);语句。</span><br></pre></td></tr></table></figure>
+
+
+<p>最后我们再次按f5开始调试ArceOS. 我们发现Qemu虚拟机启动，ArceOS停在了第一条指令</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">oslab@oslab:~/arceos$  qemu-system-riscv64 -M 128m -smp 1 -machine virt -bios default -kernel apps/helloworld/helloworld_riscv64-qemu-virt.bin -nographic -s -S</span><br></pre></td></tr></table></figure>
+<p>接下来我们设置断点。比如我们在Hello, World输出语句打一个断点，然后按”▶️”.我们会发现断点触发了：</p>
+<img src="/blog/.io//2024/01/07/%E8%BF%90%E7%94%A8code-debug%E6%8F%92%E4%BB%B6%E5%9C%A8VSCode%E4%B8%AD%E8%B0%83%E8%AF%95ArceOS-Unikernel/code-debug-brk.png" class title="断点触发">
+
+<p>以上，通过一些简单的设置，我们就得以用code-debug调试器插件调试一个新OS.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/01/07/Unikernel%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E5%8F%B6%E9%92%A7%E5%96%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +360,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
 
           
@@ -337,7 +433,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
 
           
@@ -405,7 +501,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
 
           
@@ -474,7 +570,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -561,7 +657,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -645,7 +741,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -724,7 +820,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -894,7 +990,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -973,7 +1069,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
+                <time title="Modified: 2024-04-28 12:36:50" itemprop="dateModified" datetime="2024-04-28T12:36:50+00:00">2024-04-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1018,70 +1114,6 @@
 </ul>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这一个月的生活还是非常充实的。没有独立完成最后的实习任务有点遗憾。通过这次的学习，让我对 unikernel 有了较为深刻的理解。也跟老师同学们学到了很多。希望这个活动以后越办越好。</p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/12/01/blog-title/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/12/01/blog-title/" class="post-title-link" itemprop="url"><blog-title></a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-12-01 23:40:02" itemprop="dateCreated datePublished" datetime="2023-12-01T23:40:02+00:00">2023-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-28 12:35:15" itemprop="dateModified" datetime="2024-04-28T12:35:15+00:00">2024-04-28</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          
       
     </div>
 
