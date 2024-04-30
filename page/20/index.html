@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">340</span>
+          <span class="site-state-item-count">341</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,116 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/05/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Piako/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/05/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Piako/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-Piako</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-05 17:01:44" itemprop="dateCreated datePublished" datetime="2023-11-05T17:01:44+00:00">2023-11-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="rCore学习记录"><a href="#rCore学习记录" class="headerlink" title="rCore学习记录"></a>rCore学习记录</h1><h2 id="在Lab开始之前"><a href="#在Lab开始之前" class="headerlink" title="在Lab开始之前"></a>在Lab开始之前</h2><p><strong>配置环境</strong></p>
+<p>本来想直接用物理机直接进行配置实验环境的</p>
+<p>但是ArchLinux默认的qemu版本是8.1，和仓库中rustsbi要求的版本有冲突。</p>
+<p>所以最后还是改用了docker来搭建环境……😢</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">make build_docker</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 用同一个docker容器进行全部实验，不想实验一次创建一次</span></span><br><span class="line">docker run -it -v $&#123;PWD&#125;:/mnt -w /mnt rCore bash</span><br></pre></td></tr></table></figure>
+
+
+<p>修改ci-user中的makefile</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">env:</span><br><span class="line">    rustup uninstall nightly &amp;&amp; rustup install nightly</span><br><span class="line">	(rustup target list | grep &quot;riscv64gc-unknown-none-elf (installed)&quot;) || rustup target add riscv64gc-unknown-none-elf</span><br><span class="line">    cargo install cargo-binutils</span><br><span class="line">	rustup component add rust-src</span><br><span class="line">	rustup component add llvm-tools-preview</span><br></pre></td></tr></table></figure>
+
+<p>将<code>rustup uninstall nightly &amp;&amp; rustup install nightly</code> 注释掉，避免每次本地测试的时候都下载一遍</p>
+<h2 id="Lab-1"><a href="#Lab-1" class="headerlink" title="Lab 1"></a>Lab 1</h2><p>lab1 本身难度其实并不大。感觉主要还是结合之前的章节熟悉一下 rCore 项目代码的整体结构，</p>
+<p>但是由于我对系统结构还不是很熟悉，所以还是花了比较多的时间。</p>
+<ul>
+<li>实现 <code>sys_task_info</code>  系统调用：</li>
+</ul>
+<p>在 TCB 中添加记录系统调用次数的信息，每次系统调用时，根据 syscall id 更新相应数据。</p>
+<p>我这里就直接粗暴地用桶方法记录了这些信息。</p>
+<p>后面写到 lab3 的时候，发现我之前 sys_task_info 中的获取时间的方式有些问题。正确的应该需要记录进程第一次<strong>运行</strong>的时间，然后记录时间差。</p>
+<h2 id="Lab-2"><a href="#Lab-2" class="headerlink" title="Lab 2"></a>Lab 2</h2><p>感觉在前三个 lab 中，lab2 算是相对比较难的一个了。主要的时间都花在了这里。</p>
+<p>因为有了虚拟内存的机制，所以要重写 lab1 中系统调用</p>
+<ul>
+<li><p>实现 mmap 和 munmap 系统调用</p>
+<ul>
+<li>mmap</li>
+</ul>
+<p>需要注意，port参数不能直接转成MapPermission，两者有区别，并非仅仅是类型不同。<br>在进行map前，需要检查对应的虚拟内存地址是不是已经被使用过了，这里可以检查 vpn_range的 start 和 end 看看是否被使用<br>下面的munmap同理</p>
+<ul>
+<li>munmap</li>
+</ul>
+<p>基本上就是map的逆操作</p>
+</li>
+</ul>
+<p>可以根据代码画个结构图，方便理解虚拟内存的结构。</p>
+<h2 id="Lab-3"><a href="#Lab-3" class="headerlink" title="Lab 3"></a>Lab 3</h2><ul>
+<li>实现 <code>sys_spawn</code> 系统调用：</li>
+</ul>
+<p>感觉还是比较简单，使用 <code>translated_str</code> 把 path 指针转成 程序名称，然后就可以创建进程，加入进程队列。要记得把新建的进程push到父进程的child中。</p>
+<ul>
+<li>实现 stride 调度：</li>
+</ul>
+<p>TCB 上再添加上 priority, stride 的信息，然后每次进程切换的时候更新一下。</p>
+<p>进程插入进程队列时比较下 stride 的大小就行。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>回顾学习的过程，我觉得完成lab重要的是要有一个清晰的思路，明白自己要做什么，明白要怎么做，要对lab有一个整体上的认识。自己阅读代码的能力还是差了一些，以后要加强。</p>
+<p>通过学习rCore，我感觉我对于操作系统的理解更深了，不像以前只是浮于表面，只记得一些概念，而对于操作系统的实现没有真切地感知。</p>
+<p>最后要感谢老师、助教们辛苦的付出，让我们能够学习到这样好的开源课程，让我们有机会更加深入了解操作系统。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/05/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-StaRainorigin/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +374,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
 
           
@@ -348,7 +458,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -425,7 +535,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -507,7 +617,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
 
           
@@ -576,7 +686,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -658,7 +768,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
 
           
@@ -732,7 +842,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
 
           
@@ -803,7 +913,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -896,7 +1006,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
+                <time title="Modified: 2024-04-30 08:06:19" itemprop="dateModified" datetime="2024-04-30T08:06:19+00:00">2024-04-30</time>
               </span>
 
           
@@ -955,753 +1065,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-TheSayOL/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-TheSayOL/" class="post-title-link" itemprop="url">2023开源操作系统训练营一二阶段总结-TheSayOL</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-04 18:52:58" itemprop="dateCreated datePublished" datetime="2023-11-04T18:52:58+00:00">2023-11-04</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-04-30 08:05:19" itemprop="dateModified" datetime="2024-04-30T08:05:19+00:00">2024-04-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><code>rCore</code>实验参考文档: <a href="http://learningos.cn/rCore-Tutorial-Guide-2023A/" target="_blank" rel="noopener">rCore-Tutorial-Guide-2023A 文档</a></p>
-<p>几年前便久闻<code>Rust</code>大名, 想入门但不得其法.</p>
-<p>去年初学操作系统, 阅读的<a href="https://chyyuu.gitbooks.io/ucore_os_docs/content/" target="_blank" rel="noopener">uCore文档</a>, 但因自身水平过低, 看了几章就败下阵来, 抄抄答案草草收场. 当时也听说还有个<code>rCore</code>版本, 但囿于各种事务缠身, 最后不了了之.</p>
-<p>今年兜兜转转, 还是捧起操作系统, 参加了老师推荐的训练营, 没想到是<code>rCore</code>, 令人感叹. 时间有限, 未能观看网课, 颇为遗憾. 所幸文档内容足够丰富, 获益匪浅. </p>
-<p>从<code>C</code>到<code>Rust</code>, 从<code>X86</code>到<code>RV64</code>, 系统的实现方法大相径庭, 但终归也有不变之处, 或许能看清这部分, 才能明晰操作系统吧. 去年对操作系统一无所知的我没能看清, 今年的我, 但愿能略窥一二.</p>
-<p>以下为这两个阶段所遇到的一些问题和记录</p>
-<h2 id="Rust"><a href="#Rust" class="headerlink" title="Rust"></a>Rust</h2><p>啃书. 阶段一的题目倒也亲民.</p>
-<h2 id="ch0-配置环境"><a href="#ch0-配置环境" class="headerlink" title="ch0 配置环境"></a>ch0 配置环境</h2><p>按部就班, 参照文档. </p>
-<p>工作环境为<code>WSL2-Ubuntu_18</code>.</p>
-<p>编译 qemu 的时候出错, 提示<code>can&#39;t find ninja</code></p>
-<ul>
-<li>参考<a href="https://github.com/cirosantilli/linux-kernel-module-cheat/issues/142" target="_blank" rel="noopener">这个ISSUE</a></li>
-<li><code>apt install ninja-build</code></li>
-</ul>
-<h2 id="ch1-应用程序与基本执行环境"><a href="#ch1-应用程序与基本执行环境" class="headerlink" title="ch1: 应用程序与基本执行环境"></a>ch1: 应用程序与基本执行环境</h2><h3 id="rust-analyzer-报错"><a href="#rust-analyzer-报错" class="headerlink" title="rust-analyzer 报错"></a>rust-analyzer 报错</h3><p>使用<code>#![no_std]</code>时候, <code>rust-analyzer</code>提示错误, 但是可以编译, 无伤大雅</p>
-<ul>
-<li>提示: <code>can&#39;t find crate for &#39;test&#39;</code></li>
-<li><a href="https://github.com/rust-lang/rust-analyzer/issues/10659#issuecomment-954739511" target="_blank" rel="noopener">这个issue给出了解决方法</a></li>
-</ul>
-<h3 id="echo-的用法"><a href="#echo-的用法" class="headerlink" title="echo 的用法"></a>echo 的用法</h3><p>打印上一条指令返回给系统的退出信号</p>
-<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-riscv64 target/riscv64gc-unknown-none-elf/debug/os; <span class="built_in">echo</span> $?</span><br></pre></td></tr></table></figure>
-
-<h3 id="QEMU-的使用"><a href="#QEMU-的使用" class="headerlink" title="QEMU 的使用"></a>QEMU 的使用</h3><p>两种运行模式</p>
-<ul>
-<li><code>User mode</code>: 即用户态模拟，如<code>qemu-riscv64</code>, 能够模拟不同处理器的用户态指令的执行, 可以直接解析<code>ELF</code>文件</li>
-<li><code>System mode</code>: 即系统态模式, 如<code>qemu-system-riscv64</code>程序, 模拟一个完整的硬件系统, 包括处理器、内存及其他外部设备</li>
-</ul>
-<p>参数</p>
-<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-riscv64 \</span><br><span class="line">    -machine virt \</span><br><span class="line">    -nographic \</span><br><span class="line">    -bios $(BOOTLOADER) \</span><br><span class="line">    -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>-machine virt</code>: 预设模拟的机器 </li>
-<li><code>bios $(BOOTLOADER)</code>: 指定<code>BootLoader</code>程序文件路径</li>
-<li><code>device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)</code>: 将<code>file</code>指定路径的文件, 加载到模拟的内存中的<code>addr</code>位置</li>
-</ul>
-<p>执行上述命令, 将会执行: </p>
-<ul>
-<li>机器加电, 此时通用寄存器清零, <code>PC</code>指向<code>0x1000</code>, 即<code>ROM</code>引导代码</li>
-<li>很快跳转到<code>0x80000000</code>, 即<code>bootloader</code>处, 完成初始化, 接着跳转到内核位置, <code>rustSBI</code>默认内核在<code>0x80200000</code>处.</li>
-<li>跳转到<code>$(KERNEL_BIN)</code>, 执行操作系统的第一条指令。</li>
-</ul>
-<h3 id="链接器脚本"><a href="#链接器脚本" class="headerlink" title="链接器脚本"></a>链接器脚本</h3><p><code>链接脚本 (Linker Script)</code>: 使得最终生成的可执行文件的内存布局符合我们的预期</p>
-<p><code>cargo</code>设置</p>
-<ul>
-<li><code>-Clink-arg=-Tsrc/linker.ld</code>: 设置链接器脚本<code>linker.ld</code>路径 </li>
-<li><code>-Cforce-frame-pointers=yes</code>: 强制编译器生成带有帧指针（frame pointer）的代码, 以便进行调试和异常处理等操作</li>
-</ul>
-<p><code>rCORE</code>的<code>linker.ld</code></p>
-<ul>
-<li>架构<code>OUTPUT_ARCH(riscv)</code></li>
-<li>入口<code>ENTRY(_start)</code></li>
-<li>定义全局变量<code>BASE_ADDRESS = 0x80200000;</code>, 这是<code>RustSBI</code> 期望的内核起始地址</li>
-<li>定义全局变量<code>skernel = .;</code>和<code>ekernel = .;</code>, 意思是<code>kernel</code>段的起始和结束地址<ul>
-<li>可以在<code>rust</code>里用<code>extern &quot;C&quot; {skernel();}</code>拿到<code>skernel</code>的地址<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">OUTPUT_ARCH(riscv)</span><br><span class="line">ENTRY(_start)</span><br><span class="line">BASE_ADDRESS &#x3D; 0x80200000;</span><br><span class="line"></span><br><span class="line">SECTIONS </span><br><span class="line">&#123;</span><br><span class="line">    . &#x3D; BASE_ADDRESS;</span><br><span class="line">    skernel &#x3D; .;</span><br><span class="line">    &#x2F;&#x2F; ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-</li>
-</ul>
-</li>
-</ul>
-<h2 id="ch2-Trap"><a href="#ch2-Trap" class="headerlink" title="ch2: Trap"></a>ch2: Trap</h2><h3 id="用户库"><a href="#用户库" class="headerlink" title="用户库"></a>用户库</h3><p>用户库里实现<code>_start</code>: </p>
-<ul>
-<li>和大多数<code>libc</code>一样, 提供了<code>csu</code>, 完成在用户<code>main()</code>之前的环境设置, 以及<code>main()</code>之后的收尾工作.</li>
-<li><code>#[link_section = &quot;.text.entry&quot;]</code>, 在<code>linker.ld</code>里, 将这个段放在了<code>.text</code>的最开始, 即入口<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="meta">#[link_section = <span class="meta-string">".text.entry"</span>]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">_start</span></span>(argc: <span class="built_in">usize</span>, argv: <span class="built_in">usize</span>) -&gt; ! &#123;</span><br><span class="line">    clear_bss();</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">    exit(main(argc, v.as_slice()));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<p>用户库里实现 main: </p>
-<ul>
-<li><code>#[linkage = &quot;weak&quot;]</code>弱链接, 即<code>c</code>里的<code>weak_alias</code></li>
-<li>如果用户没有提供<code>main()</code>, 将会链接这个进去, 这样就不会在链接阶段报错, 而是会在运行时报错(额, 行吧)<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="meta">#[linkage = <span class="meta-string">"weak"</span>]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>(_argc: <span class="built_in">usize</span>, _argv: &amp;[&amp;<span class="built_in">str</span>]) -&gt; <span class="built_in">i32</span> &#123;</span><br><span class="line">    <span class="built_in">panic!</span>(<span class="string">"Cannot find main!"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-</li>
-</ul>
-<h3 id="链接脚本"><a href="#链接脚本" class="headerlink" title="链接脚本"></a>链接脚本</h3><p>我们使用链接脚本 user/src/linker.ld 规定用户程序的内存布局：</p>
-<ul>
-<li>将程序的起始物理地址调整为 0x80400000 ，三个应用程序都会被加载到这个物理地址上运行；</li>
-<li>将 _start 所在的 .text.entry 放在整个程序的开头 0x80400000； 批处理系统在加载应用后，跳转到 0x80400000，就进入了用户库的 _start 函数；</li>
-<li>提供了最终生成可执行文件的 .bss 段的起始和终止地址，方便 clear_bss 函数使用。</li>
-</ul>
-<p>问题: user/src/linker.ld 实际上不是 0x80400000 而是 0x0?</p>
-<ul>
-<li>解决: 文档里说是用了 linker.ld, 实际上根本没用, 用的是 build.py</li>
-</ul>
-<h3 id="risc-v-通用寄存器-CSR-ABI"><a href="#risc-v-通用寄存器-CSR-ABI" class="headerlink" title="risc-v 通用寄存器, CSR, ABI"></a>risc-v 通用寄存器, CSR, ABI</h3><blockquote>
-<p><a href="https://zhuanlan.zhihu.com/p/577987327" target="_blank" rel="noopener">参考知乎</a></p>
-</blockquote>
-<p>RISC-V 寄存器编号从 0<del>31 ，表示为 x0</del>x31 , 对应 abi 如下</p>
-<ul>
-<li>x0: 零寄存器</li>
-<li>x1: ra</li>
-<li>x2: sp</li>
-<li>x3: gp(通用指针)</li>
-<li>x4: tp(线程指针)</li>
-<li>x5: t0(临时寄存器或备用链接寄存器)</li>
-<li>x6<del>x7: t1</del>t2(临时寄存器)</li>
-<li>x8: s0/fp(帧指针)</li>
-<li>x9: s1(需要保存的寄存器)</li>
-<li>x10<del>x11: a0</del>a1(参数/返回值)</li>
-<li>x12<del>x17: a2</del>a7(参数)</li>
-<li>x18<del>x27: s2</del>s11(需要保存的寄存器)</li>
-<li>x28<del>x31: t3</del>t6(临时)</li>
-</ul>
-<p>对于 syscall: </p>
-<ul>
-<li>a0~a6 参数</li>
-<li>a0 返回值 </li>
-<li>a7 用来传递 syscall ID。</li>
-</ul>
-<p>仅考虑<code>U</code>特权级触发<code>Trap</code>, 并切换到<code>S</code>特权级, 相关<code>CSR</code>如下</p>
-<ul>
-<li>sstatus: 用<code>SPP</code>等字段给出<code>Trap</code>处在哪个特权级</li>
-<li>sepc: 记录触发<code>Trap</code>的指令地址</li>
-<li>scause: <code>Trap</code>原因</li>
-<li>stval: <code>Trap</code>附加信息</li>
-<li>stvec: <code>Trap</code>处理代码的入口地址</li>
-</ul>
-<p>发生<code>Trap</code>时, 硬件会自动完成如下这些事情</p>
-<ul>
-<li>修改<code>sstatus</code>的<code>SPP</code>字段</li>
-<li>修改<code>sepc</code>, <code>scause</code>, <code>stval</code>, </li>
-<li>跳转到<code>stvec</code>指定的地址, 并修改特权级为<code>S</code></li>
-</ul>
-<p><code>stvec</code>相关细节</p>
-<ul>
-<li>MODE 位于 [1:0], 若为<code>00</code>, 则意味着<code>Direct</code>模式, 无论<code>Trap</code>原因如何, 处理入口都是<code>BASE&lt;&lt;2</code></li>
-<li>BASE 位于 [63:2], 表示处理入口</li>
-</ul>
-<p>从<code>Trap</code>返回, 使用<code>S</code>特权级的特权指令: <code>sret</code>, 硬件会完成以下功能：</p>
-<ul>
-<li>将当前的特权级设置为 sstatus 的 SPP 字段</li>
-<li>跳转到 sepc 寄存器指向的指令</li>
-</ul>
-<h3 id="lazy-static"><a href="#lazy-static" class="headerlink" title="lazy_static"></a>lazy_static</h3><p>外部库<code>lazy_static</code>提供的宏<code>lazy_static!</code>: 全局变量运行时初始化</p>
-<ul>
-<li>默认下, 全局变量必须在编译期设置初始值, 但有些全局变量需要运行时数据才能初始化</li>
-<li><code>lazy_static!</code>声明的全局实例, 只有第一次被使用到的时候才会初始化</li>
-</ul>
-<h3 id="riscv-汇编"><a href="#riscv-汇编" class="headerlink" title="riscv 汇编"></a>riscv 汇编</h3><p><code>fence.i</code>: 清理<code>i-cache</code>: </p>
-<ul>
-<li>切换应用会修改会被<code>CPU</code>取指的内存区域, 使得<code>i-cache</code>和内存不一致</li>
-<li>使用指令手动清空, 让里面所有的内容全部失效</li>
-</ul>
-<p><code>.align 2</code>: 4 字节对齐, 这是 RISC-V 特权级规范的要求</p>
-<p><code>csrrw rd, csr, rs</code>: 将<code>csr</code>写入<code>rd</code>, 再将<code>rs</code>写入<code>csr</code></p>
-<p>宏:</p>
-<ul>
-<li>启用宏功能<code>.altmacro</code></li>
-<li>宏开始<code>.macro NAME ARG</code></li>
-<li>宏结束<code>.endm</code></li>
-</ul>
-<p>循环伪指令<code>.rept</code>, 循环结束<code>.endr</code></p>
-<h3 id="如何启动第一个应用"><a href="#如何启动第一个应用" class="headerlink" title="如何启动第一个应用"></a>如何启动第一个应用</h3><p>操作系统初始化完成之后, 处于<code>S</code>特权级, 通过<code>sret</code>, 可以切换到<code>U</code>特权级运行应用, 而之前要完成如下这些工作：</p>
-<ul>
-<li>跳转到应用程序入口点, 假设是<code>0x80400000</code></li>
-<li>切换到用户栈</li>
-<li>在<code>__alltraps</code>时我们要求<code>sscratch</code>指向内核栈, 在这里完成</li>
-<li>切换特权级</li>
-</ul>
-<p>通过复用<code>__restore</code>的代码来实现上述工作</p>
-<ul>
-<li>在内核栈上压入一个伪造的<code>Trap</code>上下文</li>
-<li>调用<code>__restore</code>函数, 让这些寄存器到达启动应用程序所需要的上下文状态</li>
-</ul>
-<h2 id="ch3-分时任务管理"><a href="#ch3-分时任务管理" class="headerlink" title="ch3: 分时任务管理"></a>ch3: 分时任务管理</h2><h3 id="任务切换的流程"><a href="#任务切换的流程" class="headerlink" title="任务切换的流程"></a>任务切换的流程</h3><p>流程</p>
-<ul>
-<li>初始是操作系统在运行</li>
-<li>os 把所有任务导入内存, 并为他们初始化了 task 结构(tcb): s0~11, ra, sp, 状态(ready) <ul>
-<li>ra 指向 __restore</li>
-<li>sp 指向 任务上下文: 即这个任务的所有寄存器内容, 一般在下处理机之前保存, 但是因为是初次运行, 所以初始由 os 虚构.</li>
-</ul>
-</li>
-<li>os 启动第一个任务 task0: 将其设置为 running, 调用 __switch(_unused, task0)</li>
-<li>__switch 把当前的 s0~11, ra, sp 保存到 _unused 指向的 task 结构里, 再把 task0 指向的 task 结构里的内容恢复到对应寄存器, ret</li>
-<li>此时会返回到 ra 指向的, 也就是 __restore 里, 她根据 sp 指向的上下文, 把里面的东西恢复到寄存器里<ul>
-<li>先恢复 sstatus, sepc, sscratch ; 再到通用寄存器x0~x31(x0(零), x2(sp), x4(tp)不需要恢复) ; 最后 sp ; sret</li>
-</ul>
-</li>
-<li>sret 发生降级, 根据 ra(x1) 返回执行, 而这个 ra 由 os 虚构, 指向 task 的第一行代码</li>
-<li>此时运行 task0 …</li>
-<li>…</li>
-<li>…</li>
-<li>该是任务切换的时候了! 下面是理由, 无论是哪个理由, 都会进入系统调用.<ul>
-<li>理由1: 时钟中断, 发现时片用尽, 直接帮你切换</li>
-<li>理由2: 该任务主动放弃, sys_yield </li>
-</ul>
-</li>
-<li>进入内核态, 开始系统调用, 第一件事就是保存当前上下文, 即 __restore 的反操作, 把所有关键寄存器入栈, 然后将 sp 设置为内核栈</li>
-<li>此时看看系统调用想干嘛: 原来是切换任务, 于是开始切换任务</li>
-<li>首先遍历任务数组, 找到一个 ready, 比如 task1, 设为 running, 再把当前任务设置为 ready, 然后进入 __switch(task0, task1)</li>
-<li>__switch 一样的操作: 把 task0 的东西保存, 把 task1 的东西写入寄存器, 然后 ret</li>
-<li>ret 又回到了 os 事先设计好的 __restore, 然后重复, task1 正式开始运行</li>
-<li>…</li>
-<li>…</li>
-<li>…</li>
-<li>该是任务切换的时候了! 首先进入系统调用</li>
-<li>首先给 task1 保存当前上下文, 然后进入内核栈, 开始切换任务</li>
-<li>遍历任务数组, 找到一个 ready, 假设是 task0 吧, 设为 running, 把 task1 改为 ready, 然后 __switch(task1, task0)</li>
-<li>__switch 把 task1 的东西保存, 把 task0 的东西写入寄存器: s0~s11, ra, sp, 然后 ret.</li>
-<li>有意思的来了: 这时候的 s0~11, ra, sp 是什么呢? <ul>
-<li>回忆下 task0 当时在干嘛: 首先是 task0 进入内核态保存了用户态的上下文, 然后把 ready 和 running 互换, 然后 __switch</li>
-<li>所以 ra 应该是 __switch 的下一行, 因为调用完了要返回嘛, sp 就是此时的内核栈, s0~11 就是正在用的寄存器, 因为是被调用者保存的, 所以 __switch 得帮你保持原样. </li>
-</ul>
-</li>
-<li>总之, __switch ret 了, 根据 ra, 回到 task0 在内核态里调用 __switch 的下一行, 回忆一下, 为什么进入内核态了?<ul>
-<li>因为时钟中断/sys_yield</li>
-</ul>
-</li>
-<li>所以 __switch 的下一行应该是系统调用返回, 怎么返回来着? 回一下系统调用的过程: <ul>
-<li>首先是程序调用相关函数, 发生了 Trap </li>
-<li>Trap 的入口是 all_trap </li>
-<li>all_trap 进行用户态寄存器的保存, 然后修改 sp 指向内核栈, 然后调用 trap_handler, 参数是上下文</li>
-<li>trap_handler 读取 scause, 发现是系统调用, 先修改上下文里的 pc(sepc)(让他+4), 然后根据系统调用号进行调用, 返回值存在上下文的 x10 里, 返回</li>
-<li>all_trap 继续, 进行 __restore</li>
-</ul>
-</li>
-<li>所以 __switch 的下一行应该是 __restore: 这不是完美对上了吗!<ul>
-<li>__restore 先恢复 sstatus, sepc, sscratch ; 再到通用寄存器x0~x31(x0(零), x2(sp), x4(tp)不需要恢复) ; 最后 sp ; sret</li>
-</ul>
-</li>
-<li>这回回到了 task0 的上次停住的地方了, 一样的寄存器, 一点没变, 对于 task0 来说, 毫无感知</li>
-<li>继续运行!</li>
-</ul>
-<p>为什么要 drop(inner): </p>
-<ul>
-<li>因为调用 __switch 之后这个 task 的状态就停滞在那里了, 转而运行别的 task 了</li>
-<li>但是任务切换本质只是 pc 和上下文改变, 所以这个 inner 实际上还处于被借用状态, 得等到 task0 恢复了, 并且从该函数返回了, 才能 drop, 在这之前没人可以再次借用</li>
-</ul>
-<h3 id="RISC-V-架构中的嵌套中断-不会发生"><a href="#RISC-V-架构中的嵌套中断-不会发生" class="headerlink" title="RISC-V 架构中的嵌套中断: 不会发生"></a>RISC-V 架构中的嵌套中断: 不会发生</h3><p>默认情况下，当 Trap 进入某个特权级之后，在 Trap 处理的过程中同特权级的中断都会被屏蔽。</p>
-<ul>
-<li>当 Trap 发生时，sstatus.sie 会被保存在 sstatus.spie 字段中，同时 sstatus.sie 置零， 这也就在 Trap 处理的过程中屏蔽了所有 S 特权级的中断；</li>
-<li>当 Trap 处理完毕 sret 的时候， sstatus.sie 会恢复到 sstatus.spie 内的值。</li>
-<li>也就是说，如果不去手动设置 sstatus CSR ，在只考虑 S 特权级中断的情况下，是不会出现 嵌套中断 (Nested Interrupt) 的。</li>
-</ul>
-<h3 id="实验任务-获取任务信息"><a href="#实验任务-获取任务信息" class="headerlink" title="实验任务: 获取任务信息"></a>实验任务: 获取任务信息</h3><h4 id="任务介绍"><a href="#任务介绍" class="headerlink" title="任务介绍"></a>任务介绍</h4><p>引入一个新的系统调用 <code>sys_task_info</code> 以获取当前任务的信息，定义如下：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_task_info</span></span>(ti: *<span class="keyword">mut</span> TaskInfo) -&gt; <span class="built_in">isize</span> &#123;  <span class="comment">// ti: 待查询任务信息</span></span><br><span class="line">  <span class="comment">// syscall ID: 410</span></span><br><span class="line">  <span class="comment">// 返回值：执行成功返回 0，错误返回 -1</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">TaskInfo</span></span> &#123;  </span><br><span class="line">    status: TaskStatus,  <span class="comment">// 任务控制块相关信息（任务状态）,  一定是 Running</span></span><br><span class="line">    syscall_times: [<span class="built_in">u32</span>; MAX_SYSCALL_NUM],  <span class="comment">// 任务使用的系统调用及调用次数,  MAX_SYSCALL_NUM=500 。调用 `sys_task_info` 也会对本次调用计数。</span></span><br><span class="line">    time: <span class="built_in">usize</span>  <span class="comment">// 系统调用时刻距离任务第一次被调度时刻的时长（单位ms）</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
-<h4 id="实现思路"><a href="#实现思路" class="headerlink" title="实现思路"></a>实现思路</h4><p>sys_task_info</p>
-<ul>
-<li>这也是个系统调用, 调用号为 410, 所以应该修改 <code>syscall/mod.rs</code>的…已经帮我改好了那没事了</li>
-</ul>
-<p>status </p>
-<ul>
-<li>在 <code>task/mod.rs</code> 里暴露一个接口 <code>get_current_status()</code></li>
-<li>当然返回值肯定是 running</li>
-</ul>
-<p>syscall_times </p>
-<ul>
-<li>存在哪里: 这是个程序本身强相关的数组, 所以要放入 tcb 里, 并且一开始就初始化</li>
-<li>如何记录: 每次 syscall 的时候, 进入 trap_handler, 如果是系统调用, 就拿到系统调用号<code>index</code><ul>
-<li>在 <code>task/mod.rs</code> 里暴露一个接口 <code>set_current_syscall_times(index)</code>, 修改数组里对应的地方 + 1 </li>
-</ul>
-</li>
-<li>在 <code>task/mod.rs</code> 里暴露一个接口 <code>get_current_syscall_times()</code>, 返回这个数组</li>
-</ul>
-<p>time</p>
-<ul>
-<li>存在哪里: 和程序本身强相关, 在 tcb 里记录第一次启动的时间<code>first_start_time</code>, 并且一开始就初始化</li>
-<li>如何记录: 当这个程序第一次被调用的时候, 修改<code>first_start_time</code>为当前时间.<ul>
-<li>选择在<code>task/mod.rs</code>的<code>run_next_task()</code>里, 新增: 如果<code>next</code>的<code>first_start_time</code>为0, 就设置为当前时间</li>
-</ul>
-</li>
-<li>在 <code>task/mod.rs</code> 里暴露一个接口 <code>get_current_first_start_time()</code></li>
-</ul>
-<p>思考题: 虽然系统调用接口采用桶计数，但是内核采用相同的方法进行维护会遇到什么问题？是不是可以用其他结构计数？</p>
-<ul>
-<li>内核统计本身系统调用次数? 内核本身还需要系统调用?</li>
-</ul>
-<h2 id="ch4-分页"><a href="#ch4-分页" class="headerlink" title="ch4: 分页"></a>ch4: 分页</h2><p>后期补充: 本章内容繁多信息量大, 开头埋下的跳板伏笔迟迟不能回收, 增加了理解和记忆压力, 导致当时阅读得颇为吃力, 辛辛苦苦看了大半只觉头昏脑胀不知所云. 快结束时, 终有一段注解点明要义</p>
-<blockquote>
-<p>目前我们的设计是有一个唯一的内核地址空间存放内核的代码、数据，同时对于每个应用维护一个它们自己的地址空间，因此在 Trap 的时候就需要进行地址空间切换，而在任务切换的时候无需进行（因为这个过程全程在内核内完成）。而教程前两版以及 ucore 中的设计是每个应用都有一个地址空间，可以将其中的逻辑段分为内核和用户两部分，分别映射到内核和 用户的数据和代码，且分别在 CPU 处于 S/U 特权级时访问。此设计中并不存在一个单独的内核地址空间。</p>
-</blockquote>
-<p>颇有推理小说的风味, 开头倒叙留下悬念, 结尾反转推翻读者前面的一切推理, 不禁令人拍案叫绝.</p>
-<ul>
-<li>此前只见过 ucore 的实现, 即内核和用户空间不隔离, 这次也先入为主了, 只能感叹所学甚微.</li>
-</ul>
-<p>遂将内容倒着梳理一遍.</p>
-<h3 id="跳板"><a href="#跳板" class="headerlink" title="跳板"></a>跳板</h3><p>在 <code>ucore</code> 里, 每个用户内存空间里的高 <code>1G</code> 都是内核代码</p>
-<ul>
-<li>用户态无法读写高<code>1G</code>的空间</li>
-<li>如果<code>Trap</code>, 进入内核态, 就可以跳转到高<code>1G</code>的空间里执行内核代码</li>
-</ul>
-<p>在<code>rcore</code>, 内核空间和用户空间是隔离的, 也就是说 </p>
-<ul>
-<li>用户哪怕<code>Trap</code>进入内核态, 也需要切换页表才能访问内核空间</li>
-<li>众所周知, <code>Trap</code>后, 会进入内核态, 并跳转到 <code>__alltraps</code>, 这期间是没机会切换页表的</li>
-<li>所以<code>__alltraps</code>需要在用户空间里的某个地方, 而且在所有用户空间里都要有相同的虚拟地址</li>
-<li>在<code>__alltraps</code>执行过程中, 需要执行切换页表的指令</li>
-<li>执行之后<code>PC + 1</code>, 指向了: 内核空间里的一块地方! 这下尴尬了</li>
-<li>显然, <code>__alltraps</code>也要在内核空间里也有一份, 而且虚拟地址必须和用户空间里一样.  </li>
-</ul>
-<p>这就是跳板: 内核和用户空间里, 相同的虚拟地址, 都有<code>__alltraps</code>和<code>__restore</code>这两个函数.</p>
-<ul>
-<li><code>rcore</code>里, 让这个虚拟地址为, 虚拟空间最高的一页.</li>
-<li>本质上, 这个和<code>ucore</code>里高<code>1G</code>都映射到内核空间是一样的, 只不过映射得更少, 仅两个函数, 这样更安全(也更麻烦).</li>
-</ul>
-<p>考虑一次简单的<code>Trap</code>:</p>
-<ul>
-<li>用户进入内核态, 调用<code>__alltraps</code>, 切换页表, 保存上下文, 执行处理例程 … 且慢! 切换页表何时发生为好?<ul>
-<li>首先执行处理例程肯定要在最后, 那么先切换页表还是先保存上下文?</li>
-<li>如果先切换页表<ul>
-<li>此时进入内核空间里, 将上下文保存到内核栈里, 一切照旧</li>
-<li>执行<code>__restore</code>, 将上下文弹出, 再切换页表, 再<code>sret</code>, 完美 … 吗?</li>
-<li>很遗憾: 修改页表寄存器的指令, 需要另一个寄存器, 但是, 将上下文弹出之后, 所有通用寄存器都无法使用了, 根本不能切换页表</li>
-<li>你或许会说: 有没有另一个寄存器, 如同修改<code>sp</code>的<code>sscratch</code>一样 – 答案就是, 还真没 </li>
-</ul>
-</li>
-</ul>
-</li>
-<li>因此只能先保存上下文, 再切换页表<ul>
-<li>上下文存在哪里?<ul>
-<li>为了不影响到用户, 选择在跳板的下方, 虚拟空间的次高页, 申请一页, 写入上下文</li>
-<li>这样需要多申请一页, 而不能优雅的写到内核栈里, 很遗憾, 但是没办法, 谁让<code>RV</code>不给多一个寄存器呢</li>
-</ul>
-</li>
-<li>上下文保存了什么? – 之前的上下文是所有通用寄存器, 以及几个关键 CSR, 现在只存这些, 够了吗?<ul>
-<li>每个进程都有自己的内核栈, 都有自己的页表, 都需要找个地方存起来</li>
-<li><code>rcore</code>: 就和上下文保存在一起了(反正那一页很空)</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>继续: 执行处理例程<code>trap_handler</code> … 且慢! 怎么执行? 还是<code>call trap_handler</code>?<ul>
-<li><code>RV</code>小知识: <code>call</code>其实是伪指令, <code>call trap_handler</code>会被编译成相对跳转, 即<code>linker.ld</code>里, 这条<code>call</code>指令, 到<code>trap_handler</code>的距离 </li>
-<li>然而, 在我们特意设计之下, <code>__alltraps</code>执行的时候, <code>pc</code>并不在<code>.text</code>里, 而是在次高页里, 使用<code>call</code>会跳到错误的地方</li>
-</ul>
-</li>
-<li>因此我们只能手动跳转到<code>trap_handler</code> – 额, 先思考, 跳转地址从哪里来?<ul>
-<li>显然, 我们需要定一个地方, 提前保存好<code>trap_handler</code>的地址, 可以存在哪里呢? </li>
-<li><code>rcore</code>: 就和上下文保存在一起了(反正那一页很空)</li>
-</ul>
-</li>
-<li>处理例程执行结束之后, 调用一个新函数, <code>trap_return</code>, 其负责手动跳转到<code>__restore</code>, 并提供两个参数, 页表和上下文的地址<ul>
-<li>此处如何手动跳转: 因为这是<code>Rust</code>函数, 只要获得提前标记好跳板的地址, 就能跳过去了.</li>
-</ul>
-</li>
-<li>终于到了<code>__restore</code> <ul>
-<li>因为把上下文保存到用户空间了, 所以这里要先切换页表, 所以需要一个参数, 页表</li>
-<li>因为上下文不再保存到栈里, 所以需要一个参数, 上下文</li>
-<li>然后把上下文弹出, 用<code>sscratch</code>切换<code>sp</code>, <code>sret</code>, 完美!</li>
-</ul>
-</li>
-</ul>
-<p>考虑第一次执行用户程序, 也就是直接<code>__restore</code>的情况:</p>
-<ul>
-<li>首先, 在<code>__restore</code>之前, 内核要为这个进程申请几页, 作为内核栈 </li>
-<li>接着, 内核还得先为这个进程, 生成用户空间:<ul>
-<li>首先为用户生成一个页表 </li>
-<li>然后申请很多页, 把用户程序的各个段读入内存里</li>
-<li>还要申请几页, 作为用户栈</li>
-<li>还要申请一页, 映射到跳板</li>
-<li>最后申请一页, 构造一个上下文存进去</li>
-</ul>
-</li>
-<li>别忘了, 内核还要生成一个<code>TCB</code>, 上面这些信息, 就一起存到<code>TCB</code>里吧!<ul>
-<li>还记得构造的<code>TCB</code>里, 还有什么吗? 没错就是任务上下文<code>s0~11, ra, sp</code>, 以及<code>状态(ready)</code> </li>
-</ul>
-</li>
-<li>准备完全, 运行应用: 将<code>s0~11, ra, sp</code>恢复, <code>ret</code>, 跳转到<code>ra</code>, 也就是上文提到的新函数<code>trap_return</code><ul>
-<li><code>trap_return</code>负责给<code>__restore</code>送参数: 这就是为什么需要新函数, 因为有足足两个地方都要用到!</li>
-<li><code>sp</code>就是这个进程的内核栈, 毕竟恢复任务上下文之后, 就算是正式恢复到这个进程了, 接下来的操作应该用该进程的内核栈来操作.</li>
-</ul>
-</li>
-<li><code>trap_return</code>之后, 终于跳转到<code>__restore</code>了, 看看<code>__restore</code>做了什么, 实际上和从<code>Trap</code>返回是一样的 <ul>
-<li>先切换页表到用户空间</li>
-<li>然后把上下文倒腾出来, 切换<code>sp</code>和<code>sscratch</code>, <code>sret</code></li>
-</ul>
-</li>
-</ul>
-<h3 id="虚拟内存管理"><a href="#虚拟内存管理" class="headerlink" title="虚拟内存管理"></a>虚拟内存管理</h3><blockquote>
-<p>所谓虚拟内存管理, 实际上就是实现两个东西</p>
-<ul>
-<li>物理页管理器</li>
-<li>虚拟映射物理地址的方法<br>什么? 虚拟内存管理器? 完全不需要!</li>
-<li>能用的虚拟地址, 都存在页表里了</li>
-<li>虚拟地址告诉进程了, 他应该自己保存好 </li>
-</ul>
-</blockquote>
-<h3 id="物理页管理器"><a href="#物理页管理器" class="headerlink" title="物理页管理器"></a>物理页管理器</h3><p>实际上就是有一个数据结构, 他负责</p>
-<ul>
-<li>管理空闲物理页</li>
-<li>有人来要一页, 怎么分配</li>
-<li>有人来还一页, 怎么回收<br>只要实现一页一页的就行了, 很多页的分配和回收, 循环调用就好了</li>
-<li>因为物理页不会有连续一块的借用的说法, 那是虚拟页的说法.</li>
-</ul>
-<p><code>rcore</code>的极简<code>栈式</code>的物理页管理器</p>
-<ul>
-<li>有两个数组, 记录没分配过的物理页号, 和已回收的物理页号</li>
-<li>总共可用的物理页: 从<code>ekernel</code>(内核数据的结束)开始, 到<code>0x80800000</code>(硬编码)结束</li>
-</ul>
-<p>仅暴露接口<code>frame_alloc</code></p>
-<ul>
-<li>返回一个<code>FrameTracker</code>, 内容其实就是物理页号</li>
-<li>为什么没有回收接口? – <code>RAII</code>思想<ul>
-<li><code>FrameTracker</code>实现了<code>Drop Trait</code>: 将该物理页号<code>push</code>到数组里</li>
-<li>也就是说, 等到这个程序自然消亡之后, <code>FrameTracker</code>也会自动<code>Drop</code>, 即自动回收内存</li>
-</ul>
-</li>
-</ul>
-<blockquote>
-<p>注意, 现在还没有实现动态内存分配</p>
-<p>注意, 现在还没有实现动态内存分配</p>
-<p>注意, 现在还没有实现动态内存分配</p>
-</blockquote>
-<h3 id="硬件MMU-清空快表的指令"><a href="#硬件MMU-清空快表的指令" class="headerlink" title="硬件MMU, 清空快表的指令"></a>硬件MMU, 清空快表的指令</h3><p><code>rv64</code> 的分页机制, 通过修改<code>satp</code>来开启</p>
-<ul>
-<li><code>satp</code>: 一个<code>CSR</code>, 指示了页表位置和分页模式<ul>
-<li><code>mode</code>: <code>4</code>位, 分页模式, <code>bare</code>(0000), <code>sv39</code>(1000)</li>
-<li><code>ASID</code>: <code>16</code>位 </li>
-<li><code>PPN</code>: <code>44</code>位, 一级页表的物理页号</li>
-</ul>
-</li>
-</ul>
-<p><code>sv39</code>只使用虚拟地址的低<code>39</code>位, 转换为<code>56</code>位的物理地址</p>
-<ul>
-<li>其他位必须和有效地址的最高位一致, 即虚拟地址只有高<code>256G</code>和低<code>256G</code>是有效的</li>
-<li>为什么是<code>39</code>: <ul>
-<li>一页<code>4KB</code>, 一个页表项<code>64</code>位, 一页可以存<code>512</code>个页表项, 也就是<code>9</code>位索引</li>
-<li>而<code>sv39</code>使用三级页表, 总共需要<code>27</code>位索引, 再加上页偏移<code>12</code>位, 所以只需要<code>39</code>位有效 </li>
-</ul>
-</li>
-</ul>
-<p>页表项</p>
-<ul>
-<li><code>保留</code>: <code>10</code>位</li>
-<li><code>PPN</code>: <code>44</code>位, 物理页号</li>
-<li><code>RSW</code>: 2位(9:8)</li>
-<li><code>标志位</code>: 8 位(7:0), DAGUXWRV – dirty, access, G(粒度?), user(用户可访问), XWR(执行,写,读), V(有效)<ul>
-<li>RWX若不全为0, 则意味着这是最后一级页表.</li>
-</ul>
-</li>
-</ul>
-<p><code>sfence.vma</code>清空快表</p>
-<h3 id="内核和应用的内存视图"><a href="#内核和应用的内存视图" class="headerlink" title="内核和应用的内存视图"></a>内核和应用的内存视图</h3><blockquote>
-<p>rcore 采用了 ucore 设计的改进版, 即</p>
-<p>内核空间不再是用户空间的高 1G, 而是独立出来, 和用户空间隔离</p>
-<p>当然, 没法做到完全隔离, 内核和用户的高一页, 还是得映射到一起, 充当 ‘跳板’</p>
-</blockquote>
-<p>内核的内存视图</p>
-<ul>
-<li>此处是虚拟内存最高处, 往下<code>256GB</code>是有效地址</li>
-<li><code>跳板</code>页</li>
-<li>各个进程的内核栈从此处分配, 注意各个栈之间要有保护页<ul>
-<li>保护页: 这一页直接被跳过, 也就是说, 其虚拟地址永远不会写入页表里, 对其访问会直接异常, 这样可以防止栈溢出, 覆盖其他数据</li>
-</ul>
-</li>
-<li>…</li>
-<li>…</li>
-<li>…</li>
-<li>此处是虚拟内存<code>0x80800000</code>(硬编码), 即可用物理页的结束</li>
-<li>可用的物理页框</li>
-<li><code>.bss</code></li>
-<li><code>.data</code></li>
-<li><code>.rodata</code></li>
-<li><code>.text</code></li>
-<li>此处是虚拟内存<code>0x80200000</code>(硬编码), 即内核数据的起始处<br>注意到内核数据, 虚拟地址和物理地址一样, 都是<code>0x80200000</code>开始, 这是故意的</li>
-<li>在内核的页表里, 将内核数据的虚拟地址和物理地址, 进行了恒等映射</li>
-<li>这样做, 方便内核直接用物理地址访问内存.<ul>
-<li>注意, 虽然这是内核虚拟空间视图, 但是物理空间里, 可以使用的物理空间是真真切切的<code>0x80200000~0x80800000</code></li>
-<li>使用恒等映射, 内核访问用户空间就可以少走一步<ul>
-<li>内核得到一个用户地址 va, 如何访问</li>
-<li>先获取当前进程的页表, 查表得到 pa</li>
-<li>这时候, 内核需要通过 pa 反推出内核空间的 va</li>
-<li>恒等映射: va 就是 pa! </li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<blockquote>
-<p>有点抽象, 虽然这里是内核虚拟空间, 但是其中有一部分是物理空间. 既是虚幻也是现实.</p>
-<p>不如说用户空间也是? 凡是保存了数据的, 实际上都是物理空间.</p>
-</blockquote>
-<p>应用的内存视图</p>
-<ul>
-<li>此处是虚拟内存最高处, 往下<code>256GB</code>是有效地址</li>
-<li><code>跳板</code>页</li>
-<li>上下文页:  <del>越想越气, 每个进程要多申请一页, 浪费</del></li>
-<li>…</li>
-<li>…</li>
-<li>…</li>
-<li>…</li>
-<li>申请<code>X</code>页作为用户栈</li>
-<li>保护页</li>
-<li><code>.bss</code></li>
-<li><code>.data</code></li>
-<li><code>.rodata</code></li>
-<li><code>.text</code></li>
-<li>此处是虚拟内存最低处(0), 往上<code>256GB</code>是有效地址</li>
-</ul>
-<h3 id="虚拟地址到物理地址的映射"><a href="#虚拟地址到物理地址的映射" class="headerlink" title="虚拟地址到物理地址的映射"></a>虚拟地址到物理地址的映射</h3><blockquote>
-<p>再次声明: 此时并没有实现动态内存分配, 记录内存使用情况仅仅是加载程序的时候记录分配的页</p>
-<p><code>rcore</code>采用段页式设计, 但是分段仅仅为了区分不同的访问权限<code>rwxu</code></p>
-<p><code>rcore</code>给每个进程生成一个<code>MemorySet</code>, 记录内存使用情况, 保存在<code>TCB</code>里</p>
-<p>RAII: <code>MemorySet</code>保存了所有这个程序申请的<code>FrameTracker</code>, 程序消失的时候, 系统会释放<code>TCB</code>, 从而自动回收所有页框</p>
-</blockquote>
-<p><code>MemorySet</code>有两个成员: 页表和段数组(<code>vec[MemoryArea]</code>)</p>
-<ul>
-<li>页表很简单: 维护了一级页表的物理页号, 以及为了新建二三级页表, 所申请的<code>FrameTracker</code></li>
-<li>段数组: <ul>
-<li>为每个段生成一个<code>MemoryArea</code>, 根据视图决定虚拟地址</li>
-<li>每个<code>MemoryArea</code>生成的时候, 都会判断要不要为了这个段, 申请页框<ul>
-<li>比如内核数据就不需要申请</li>
-<li>如果申请了页框, 就要把这段映射关系先记录下来, 尤其是<code>FrameTracker</code>得存下来</li>
-</ul>
-</li>
-<li>随后就要把<code>MemoryArea</code>插入段数组里, 插入的时候, 就把其记录的映射关系给写到页表里.</li>
-</ul>
-</li>
-<li><code>MemorySet</code>还负责设置跳板: 其实就是给页表写入, 把高一页映射到那两个函数所在的, 物理页</li>
-</ul>
-<h3 id="重写-sys-get-time-和-sys-task-info"><a href="#重写-sys-get-time-和-sys-task-info" class="headerlink" title="重写 sys_get_time 和 sys_task_info"></a>重写 sys_get_time 和 sys_task_info</h3><p>参数是一个指针, 需要往里面填数据.</p>
-<ul>
-<li>指针的值是个地址, 是个虚拟地址, 是个用户给的虚拟地址, 所以当然是用户的页表上的虚拟地址</li>
-<li>内核使用的是自己的页表, 所以无法直接使用这个指针写数据, 因为自己的页表映射的物理地址和用户页表映射的物理地址不一样.</li>
-<li>但是内核可以查用户的页表, 得到这个指针实际的物理地址, 内核需要向这个物理地址里写数据, 此时有两种实现<ul>
-<li>实现1: 因为内核使用恒等映射, 所以把这个物理地址当成虚拟地址访问, 就等于访问这个物理地址.</li>
-<li>实现2: 朝内核的页表里, 随便用一个虚拟地址映射这个物理地址, 访问完毕后将这个页表项改回原样.<ul>
-<li>我使用了0x0, 因为内核起点是0x800000, 代码里也没用到, 所以用完后直接清零这个页表项即可.</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h3 id="实现简易的动态分配内存-mmap-和-munmap"><a href="#实现简易的动态分配内存-mmap-和-munmap" class="headerlink" title="实现简易的动态分配内存: mmap 和 munmap"></a>实现简易的动态分配内存: mmap 和 munmap</h3><blockquote>
-<p>此处正式开始涉及到动态分配</p>
-</blockquote>
-<p><code>rCore</code>本身已经给出了极其丰富的 api, 直接调用即可.</p>
-<p>mmap: 将 _start 开始的虚拟地址, _len 个字节, 映射到某个物理内存, 内存属性为 _port.</p>
-<ul>
-<li>找到用户的 mem_set, 插入一个 map_area, 这将会自动申请物理页框, 自动修改页表.</li>
-</ul>
-<p>munmap: 将 _start 开始的虚拟地址, _len 个字节, 解除映射</p>
-<ul>
-<li>找到用户的 mem_set, 找到 _start 开头的 map_area, 将 _start + _len 作为新的开头, 对之前的部分调用 unmap<ul>
-<li>这将会自动释放物理页框, 自动修改页表.</li>
-</ul>
-</li>
-</ul>
-<h2 id="ch5-进程管理"><a href="#ch5-进程管理" class="headerlink" title="ch5: 进程管理"></a>ch5: 进程管理</h2><p>和 ch3 所设计的分时管理系统类似, 只是更为细致, 更多数据结构.</p>
-<p>阅读即可, 思考部分不多, 难点都已经帮忙实现好了.</p>
-<h3 id="实现-spawn"><a href="#实现-spawn" class="headerlink" title="实现: spawn"></a>实现: spawn</h3><p><code>TaskControlBlock::new(elf_data)</code></p>
-<ul>
-<li>根据 elf_data 建立 mem_set<ul>
-<li>新建一个空白 mem_set</li>
-<li>设置跳板</li>
-<li>解析<code>elf_data</code></li>
-<li>遍历所有<code>Load</code>类型的段, 新建对应<code>mem_area</code></li>
-<li>将<code>mem_area</code>推入<code>mem_set</code>, 此时会申请对应页框, 并写入数据</li>
-<li>为用户栈新建一个<code>mem_area</code>, 推入<code>mem_set</code></li>
-<li>在用户栈上方, 新建一个<code>mem_area</code>, 大小为<code>0</code>, (用于<code>sbrk</code>? 啥)</li>
-<li>为<code>trap</code>上下文, 新建一个<code>mem_area</code>, 占地一页</li>
-<li>返回<code>mem_set</code>, 用户栈顶, 入口点</li>
-</ul>
-</li>
-<li>拿到 trap 上下文的物理页号</li>
-<li>申请一个<code>pid</code>, 和一个内核栈</li>
-<li>新建一个<code>tcb</code><ul>
-<li>填入刚刚申请的<code>pid</code>和内核栈</li>
-<li>填入<code>trap</code>上下文物理页号</li>
-<li>基础大小: 用户栈顶</li>
-<li>任务上下文: <code>goto_trap_return</code>: <code>ra(trap_return), sp(内核栈), s0~11</code></li>
-<li>状态: <code>ready</code></li>
-<li><code>mem_set</code></li>
-<li>父亲: <code>none</code></li>
-<li>孩子: <code>vec::new</code></li>
-<li>退出码: 0</li>
-<li>堆底: 用户栈顶</li>
-<li>brk: 用户栈顶</li>
-<li>sys_call_times, first_run_time</li>
-</ul>
-</li>
-<li>修改新的<code>tcb</code>的<code>trap</code>上下文:<ul>
-<li>入口点</li>
-<li>用户<code>sp</code></li>
-<li>内核页表<code>token</code></li>
-<li>内核栈顶</li>
-<li><code>trap_handler</code></li>
-</ul>
-</li>
-<li>返回<code>tcb</code></li>
-</ul>
-<p>如果不用<code>fork, exec</code>来新建进程:</p>
-<ul>
-<li>建立<code>tcb</code>: <code>TaskControlBlock::new(elf_data)</code>, 这将会自动建立用户空间</li>
-<li>还需要对<code>tcb</code>修改<ul>
-<li>设置其父亲为当前进程(也要修改当前进程的孩子数组)</li>
-</ul>
-</li>
-<li>加入准备队列: <code>add_task</code></li>
-</ul>
-<h3 id="实现-stride-调度"><a href="#实现-stride-调度" class="headerlink" title="实现: stride 调度"></a>实现: stride 调度</h3><p>算法描述如下:</p>
-<ul>
-<li>为每个进程设置一个当前 <code>stride</code>, 表示已经运行的“长度”, 以及对应的<code>pass</code>值, 表示调度后 <code>stride</code> 需要进行的累加值</li>
-<li>每次调度时, 选择 <code>stride</code> 最小的调度, 将对应的 <code>stride</code> 加上其对应的步长 <code>pass</code> </li>
-<li>一个时间片后，回到上一步骤</li>
-</ul>
-<p>可以证明: </p>
-<ul>
-<li>如果令 <code>P.pass = BigStride / P.priority</code>, 则该调度方案为每个进程分配的时间将与其优先级成正比</li>
-<li>其中 <code>P.priority</code> 表示进程的优先权(大于1)，而 <code>BigStride</code> 表示一个预先定义的大常数, </li>
-</ul>
-<p>其他实验细节：</p>
-<ul>
-<li>stride 调度要求进程优先级 &gt;= 2,  所以设定进程优先级 &lt;= 1  会导致错误</li>
-<li>进程初始 stride 设置为 0 即可</li>
-<li>进程初始优先级设置为 16</li>
-</ul>
-<p>实现 tips:</p>
-<ul>
-<li>为了实现该调度算法，内核还要增加 <code>set_prio</code> 系统调用</li>
-<li>你可以在 <code>TCB</code> 加入新的字段来支持优先级等。</li>
-<li>为了减少整数除的误差 <code>BIG_STRIDE</code> 一般需要很大, 但可能溢出, 或许选择一个适中的数即可, 当然能进行溢出处理就更好了</li>
-<li>如何找到 stride 最小的进程: 优先级队列是不错的办法, 但是我们的实验测例很简单, 很推荐使用暴力</li>
-<li>注意设置进程的初始优先级。</li>
-</ul>
-<p><code>stride</code>溢出</p>
-<ul>
-<li>考虑进程A和B, 优先级为9和90, <code>BIG_STRIDE = 900</code>, 所以步长为100和10, 假设数字范围0~999.</li>
-<li>A运行1次, B运行10次</li>
-<li>某次调度: 当A和B都是900时, A先运行, A变成 900+100 = 0</li>
-<li>下次调度: 0 &lt; 900, 所以仍是 A 运行, 不合理</li>
-</ul>
-<p>解决思路</p>
-<ul>
-<li>已知: 最大的和最小的<code>stride</code>之差, 不会大于最大的<code>pass</code>, 证明如下<ul>
-<li>初始所有<code>stride</code>均为零, 假设最大<code>pass</code>先行动, 此时之差恰为最大的<code>pass</code>, 符合</li>
-<li>接下来她永远无法行动, 直到成为最小的<code>stride</code>, 情况还不如初始情况, 初始好歹是同一起跑线, 证毕</li>
-</ul>
-</li>
-<li>而因为<code>prio &gt;= 2</code>, 且<code>pass = BIG_STRIDE / prio</code>, 所以最大的和最小的<code>stride</code>之差, 不会大于<code>BIG_STRIDE / 2</code></li>
-<li>因此哪怕溢出也能比较大小<ul>
-<li>考虑: 数字范围 0~999, 那我们令<code>BIG_STRIDE = 900</code>, 那么A和B, 优先级为9和90, 步长为100和10</li>
-<li>同样运行到900, A先动, A变成0</li>
-<li>此时, B - A = 900 &gt; 最大的<code>pass</code>, -&gt; 发生溢出, 实际上是 A &gt; B</li>
-<li>B会连续运行, 直到B=990, 再次运行, 变成0, 之后回到最开始</li>
-</ul>
-</li>
-</ul>
-<p>考虑真实情况</p>
-<ul>
-<li>进程A,B, 优先级为 100 和 16, <code>BIG_STRIDE = 65535</code>, 所以步长为655和4095</li>
-<li>A运行 100 次到 65500, B运行 16 次到 65520.</li>
-<li>此时到B, B变成 4079</li>
-<li>进行 A - B = 61471 &gt; 最大步长 4095, 说明溢出, 所以 A &lt; B</li>
-<li>B - A = 4065 &lt;= 最大步长 4095, 说明没问题, 所以 B &gt; A</li>
-<li>无论如何都是 A 运行, A变成 669, 显然 A &lt; B, 而且不需要思考溢出问题, ok</li>
-</ul>
-<p>解决算法</p>
-<ul>
-<li>已知: 最大的和最小的<code>stride</code>之差, 不会大于最大的<code>pass</code></li>
-<li>所以进行判断, 对于 A - B, 如果结果<ul>
-<li>大于<code>max_pass</code>: A &lt; B</li>
-<li>其他: A &gt;= B</li>
-</ul>
-</li>
-</ul>
-<p>多进程情况</p>
-<ul>
-<li>数组V, stride 各不相同</li>
-<li>遍历 V, 得到最大步长 P</li>
-<li>假设 min_stride = V[0] , for i in V: <ul>
-<li>若 i.stride - min_stride &lt;= 最大步长: i 大, 不操作</li>
-<li>若 i.stride == min_stride: 步长一样, 判断优先级高者(数值大), 成为新的 min_stride</li>
-<li>其他情况: i 小, i 成为新的 min</li>
-</ul>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/19/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/19/">19</a><span class="page-number current">20</span><a class="page-number" href="/blog/page/21/">21</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/34/">34</a><a class="extend next" rel="next" href="/blog/page/21/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/19/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/19/">19</a><span class="page-number current">20</span><a class="page-number" href="/blog/page/21/">21</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/35/">35</a><a class="extend next" rel="next" href="/blog/page/21/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
