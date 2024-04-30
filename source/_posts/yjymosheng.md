@@ -2,19 +2,19 @@
 title: yjymosheng
 date: 2024-04-30 01:44:25
 tags:
-	- author:yjymosheng
-	- repo:https://github.com/yjymosheng/blog
+      - author:yjymosheng
+      - repo:https://github.com/yjymosheng/blog
 ---
 
-##初次认真学习rust每一个点##
+## 初次认真学习rust每一个点 ##
 
 通过某些渠道，第一次了解到操作系统训练营，以前我也有用rust写过一些内容，但严格来说这是我的第一次正式学习rust。学习了很多的内容，了解到了闭包，函数式编程，拓展了我的知识面，我第一次见到结构如此清晰的语言。
 
-##所有权的理解##
+## 所有权的理解 ##
 
 众所周知，rust很贪。所有权是其中的灵魂。我认为，其本质就是“作茧自缚”，减少了许多东西，又为方便开发与调试添加了许多东西。这些设计减少了许多的错误。所以简单的把所有权当作单线程的脑子就行，不要给它过多的行为。
 
-##错误处理中的Option Result##
+## 错误处理中的Option Result ##
 
 
 - Option 用于表达可能存在或者不存在的值，它有两种可能的状态：Some(值) 和 None。当你不确定一个值是否存在时，可以使用 Option 来处理这种情况。
