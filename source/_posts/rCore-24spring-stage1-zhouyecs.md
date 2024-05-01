@@ -13,6 +13,8 @@ tags:
 
 感谢活动主办方提供的宝贵平台和资源！
 
+希望自己至少能坚持做完二阶段。
+
 ## RUST
 
 学习资料：
@@ -23,15 +25,21 @@ rust语言圣经 https://course.rs
 
 rust练习实践 https://practice-zh.course.rs/
 
+rust by example https://doc.rust-lang.org/rust-by-example/
+
+半小时学习rust https://fasterthanli.me/articles/a-half-hour-to-learn-rust（已完成）
+
 rust algorithm club https://rust-algo.club/（已完成）
 
 《rust实战》https://www.amazon.com/Rust-Action-TS-McNamara/dp/1617294551
+
+（rust资料太多，慢慢学......）
 
 ## RISC-V
 
 之前学习过《计算机组成与设计（RISC-V版）》，所以这次只是简单地看了一下[PPT for RISC-V特权指令级架构](https://content.riscv.org/wp-content/uploads/2018/05/riscv-privileged-BCN.v7-2.pdf)，打算后面有时间学习[RISC-V手册：一本开源指令集的指南](http://riscvbook.com/chinese/RISC-V-Reader-Chinese-v2p1.pdf)和[Berkeley CS61C: Great Ideas in Computer Architecture (Machine Structures)](http://www-inst.eecs.berkeley.edu/~cs61c/sp18/)。
 
-## rustlings 记录
+## rustlings 难点记录
 
 rustlings 110题 https://github.com/LearningOS/rust-rustlings-2024-spring-zhouyecs
 
@@ -41,81 +49,58 @@ rustlings 110题 https://github.com/LearningOS/rust-rustlings-2024-spring-zhouye
 
 \- [Rust By Example](https://doc.rust-lang.org/rust-by-example/index.html) - Learn Rust by solving little exercises! It's almost like `rustlings`, but online
 
-| Exercise               | Book Chapter        |
-| ---------------------- | ------------------- |
-| variables              | §3.1                |
-| functions              | §3.3                |
-| if                     | §3.5                |
-| primitive_types        | §3.2, §4.3          |
-| vecs                   | §8.1                |
-| move_semantics         | §4.1-2              |
-| structs                | §5.1, §5.3          |
-| enums                  | §6, §18.3           |
-| strings                | §8.2                |
-| modules                | §7                  |
-| hashmaps               | §8.3                |
-| options                | §10.1               |
-| error_handling         | §9                  |
-| generics               | §10                 |
-| traits                 | §10.2               |
-| tests                  | §11.1               |
-| lifetimes              | §10.3               |
-| iterators              | §13.2-4             |
-| threads                | §16.1-3             |
-| smart_pointers         | §15, §16.3          |
-| macros                 | §19.6               |
-| clippy                 | §21.4               |
-| conversions            | n/a                 |
+做题的时候忘记边做边记录了，所以选了些难点记下来。
 
-### variables
+### 引用
 
-### functions
+这里和C/C++类似，引用使用 `&` ，解引用使用 `*` 。
 
-### if
+```rust
+fn main() {
+  let needle = 42;
+  let haystack = [1, 1, 2, 5, 14, 42, 132, 429, 1430, 4862]; 
+    
+  for reference in haystack.iter() {
+    let item = *reference;
+    if item == needle {
+      println!("{}", item); // 42
+    }
+  }
+}
+```
 
-### primitive_types
+### 字符串
 
-### vecs
+Rust中，`str`和`String`是两种不同的数据类型，特别容易搞混，`str`是字符串切片类型，是一个不可变引用，而`String`是字符串类型，是一个可变的字符串。
 
-### move_semantics
+```rust
+fn main() {
+  // 使用字符串字面量创建一个str类型的字符串切片
+  let str_slice = "Hello, World!";
+  println!("str_slice: {}", str_slice);
+  // 尝试修改str_slice会发生报错
 
-### structs
+  // 使用String结构体创建一个可变的字符串
+  let mut string = String::from("Hello");
+  println!("string: {}", string);
 
-### enums
+  // 修改String类型的字符串
+  string.push_str(", World!");
+  println!("string: {}", string);
+    
+  // String -> &str
+  let s1 = String::from("PKU");
+    
+  let s2 = &s1[..];
+  let s3 = s1.as_str();
+  
+  // &str -> String
+  let s4 = "THU";
+  
+  let s5 = s4.to_string();
+  let s6 = String::from(s4);
+  let s7 = s4.to_owned();
+}
+```
 
-### strings
-
-### modules
-
-### hashmaps
-
-### options
-
-### error_handling
-
-### generics
-
-### traits
-
-### tests
-
-### lifetimes
-
-### iterators
-
-### threads
-
-### smart_pointers
-
-### macros
-
-### clippy
-
-### conversions
-
-### quiz1
-
-### quiz2
-
-### quiz3
-
+还有更多就没写了，还是得多练练。
