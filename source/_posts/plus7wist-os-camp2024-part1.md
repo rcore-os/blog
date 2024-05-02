@@ -1,6 +1,10 @@
 ---
 title: OS-Camp-2024 Part-1 of plus7wist
 date: 2024-05-02 12:42:03
+categories:
+    - 2024春夏季开源操作系统训练营
+tags:
+    - author:plus7wist
 ---
 
 # 总结
