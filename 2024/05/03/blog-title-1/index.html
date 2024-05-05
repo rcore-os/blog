@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="开源rCore项目初识 time：about 2023&#x2F;8~10 最初接触操作系统的经历十分巧合，因为是刚从土木老哥转到cau的cs大类，刚入行的紧迫感鞭策我不断搜集信息。恰好本系某位大佬前辈（人称炸药哥）钟爱操作系统，已经不只一次向我们强烈安利此项目，但去年由于考研以及学（da）业（bai）繁（te）忙（bai），虽然报了名，但完全没做….. 今年又到了开营的时间，同时经过半年多的摸爬滚打，对于">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024春季开源操作系统第一阶段学习记录">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/05/03/blog-title-1/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="开源rCore项目初识 time：about 2023&#x2F;8~10 最初接触操作系统的经历十分巧合，因为是刚从土木老哥转到cau的cs大类，刚入行的紧迫感鞭策我不断搜集信息。恰好本系某位大佬前辈（人称炸药哥）钟爱操作系统，已经不只一次向我们强烈安利此项目，但去年由于考研以及学（da）业（bai）繁（te）忙（bai），虽然报了名，但完全没做….. 今年又到了开营的时间，同时经过半年多的摸爬滚打，对于">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-05-03T14:44:57.000Z">
+<meta property="article:modified_time" content="2024-05-05T07:23:24.431Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:thekingyx">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/05/03/blog-title-1/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024春季开源操作系统第一阶段学习记录 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#开源rCore项目初识"><span class="nav-number">1.</span> <span class="nav-text">开源rCore项目初识</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#配置rust编译环境"><span class="nav-number">2.</span> <span class="nav-text">配置rust编译环境</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#基本变量和if类型（包括综合quiz练习）"><span class="nav-number">3.</span> <span class="nav-text">基本变量和if类型（包括综合quiz练习）</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会"><span class="nav-number">3.0.1.</span> <span class="nav-text">心得体会</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#收获"><span class="nav-number">3.0.2.</span> <span class="nav-text">收获</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#基本数据类型和vec"><span class="nav-number">4.</span> <span class="nav-text">基本数据类型和vec</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会-1"><span class="nav-number">4.0.1.</span> <span class="nav-text">心得体会</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#收获-1"><span class="nav-number">4.0.2.</span> <span class="nav-text">收获</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#所有权"><span class="nav-number">5.</span> <span class="nav-text">所有权</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会-收获"><span class="nav-number">5.0.1.</span> <span class="nav-text">心得体会+收获</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#struct类型"><span class="nav-number">6.</span> <span class="nav-text">struct类型</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会-2"><span class="nav-number">6.0.1.</span> <span class="nav-text">心得体会</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#收获-2"><span class="nav-number">6.0.2.</span> <span class="nav-text">收获</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#枚举类型，包，模块"><span class="nav-number">7.</span> <span class="nav-text">枚举类型，包，模块</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会-3"><span class="nav-number">7.0.1.</span> <span class="nav-text">心得体会</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#收获-3"><span class="nav-number">7.0.2.</span> <span class="nav-text">收获</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#哈希表创建，option枚举，error系列练习"><span class="nav-number">8.</span> <span class="nav-text">哈希表创建，option枚举，error系列练习</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会-4"><span class="nav-number">8.0.1.</span> <span class="nav-text">心得体会</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#收获-4"><span class="nav-number">8.0.2.</span> <span class="nav-text">收获</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#泛型扩展，trait，生命周期，test练习，迭代器"><span class="nav-number">9.</span> <span class="nav-text">泛型扩展，trait，生命周期，test练习，迭代器</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会-5"><span class="nav-number">9.0.1.</span> <span class="nav-text">心得体会</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#收获-5"><span class="nav-number">9.0.2.</span> <span class="nav-text">收获</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#余下内容，Rc-lt-T-gt-，box等"><span class="nav-number">10.</span> <span class="nav-text">余下内容，Rc&lt; T &gt;，box等</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#心得体会-6"><span class="nav-number">10.0.1.</span> <span class="nav-text">心得体会</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#收获-6"><span class="nav-number">10.0.2.</span> <span class="nav-text">收获</span></a></li></ol></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">370</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">25</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">385</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/03/blog-title-1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024春季开源操作系统第一阶段学习记录
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-05-03 14:44:57" itemprop="dateCreated datePublished" datetime="2024-05-03T14:44:57+00:00">2024-05-03</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-05-05 07:23:24" itemprop="dateModified" datetime="2024-05-05T07:23:24+00:00">2024-05-05</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024春夏季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="开源rCore项目初识"><a href="#开源rCore项目初识" class="headerlink" title="开源rCore项目初识"></a>开源rCore项目初识</h3><ul>
+<li><p>time：about 2023/8~10</p>
+<p>最初接触操作系统的经历十分巧合，因为是刚从土木老哥转到cau的cs大类，刚入行的紧迫感鞭策我不断搜集信息。恰好本系某位大佬前辈（人称炸药哥）钟爱操作系统，已经不只一次向我们强烈安利此项目，但去年由于考研以及学（da）业（bai）繁（te）忙（bai），虽然报了名，但完全没做…..</p>
+<p>今年又到了开营的时间，同时经过半年多的摸爬滚打，对于自己今后发展方向也有了大致的轮廓，也算是借着rust的强大能力，帮我去理解RISC-V的原理，为今后科研打下基础！</p>
+<h3 id="配置rust编译环境"><a href="#配置rust编译环境" class="headerlink" title="配置rust编译环境"></a>配置rust编译环境</h3></li>
+<li><p>time：2024/4/11-2024/4/12</p>
+<p>心累的一晚上，由于第一次接触github，第一次安装wsl2，没有实际上手过跑在Linux环境下的项目，rustling的配置遇到了超级多的问题。习惯root权限进行Linux操作，这个坏习惯给我带来了巨大的困难，例如vscode无法访问wsl内文件，以及git无法提交代码至仓库……<br>多次修改权限无果后，最后决定全盘重新装（前前后后弄了3-4个小时），还好最后终于配置好了环境，终于可以开始和rust斗智斗勇了。</p>
+<h3 id="基本变量和if类型（包括综合quiz练习）"><a href="#基本变量和if类型（包括综合quiz练习）" class="headerlink" title="基本变量和if类型（包括综合quiz练习）"></a>基本变量和if类型（包括综合quiz练习）</h3></li>
+<li><p>time：2024/4/13</p>
+<h5 id="心得体会"><a href="#心得体会" class="headerlink" title="心得体会"></a>心得体会</h5><p>初见rust，接触前几道题并没有太大难度，经历基本的rust环境编译后，最初的几道题做起来真的舒心不少。quiz1练习提供了一个基本的语法综合训练。目前感觉rust并没有传说中那么大的难度qwq。</p>
+<h5 id="收获"><a href="#收获" class="headerlink" title="收获"></a>收获</h5><p>了解了if的使用方法，和c语言最大的不同就是变量不可修改（修改必须要mut），所有权以及的命名使用规则，理解起来还是比较容易的。</p>
+<h3 id="基本数据类型和vec"><a href="#基本数据类型和vec" class="headerlink" title="基本数据类型和vec"></a>基本数据类型和vec</h3></li>
+<li><p>time：2024/4/16</p>
+<h5 id="心得体会-1"><a href="#心得体会-1" class="headerlink" title="心得体会"></a>心得体会</h5><p> 最近课太多了，鸽了几天。不知道是，手生了还是变难了，总感觉难度陡增，尤其是vecs2，网上搜了一下都没太搞懂（后买翻答疑发现是后面的课程，我：“？？？？”）</p>
+<h5 id="收获-1"><a href="#收获-1" class="headerlink" title="收获"></a>收获</h5><p>发现基本数据类型和c还是有相似之处的，只是代码表达方式上要别扭很多，往往是，逻辑清楚，不知道怎么改。在vec的一系列题中，这种问题尤为明显。所有权类的题仔细思考后还是有思路的。</p>
+<h3 id="所有权"><a href="#所有权" class="headerlink" title="所有权"></a>所有权</h3></li>
+<li><p>time：2024/4/20</p>
+<h5 id="心得体会-收获"><a href="#心得体会-收获" class="headerlink" title="心得体会+收获"></a>心得体会+收获</h5><p>所有权类的题仔细思考后还是有思路的。最大的问题还是读代码的能力欠缺，面对“一大坨”代码无从下手，经历这一系列的作答，还是收获满满</p>
+<h3 id="struct类型"><a href="#struct类型" class="headerlink" title="struct类型"></a>struct类型</h3></li>
+<li><p>time：2024/4/20</p>
+<h5 id="心得体会-2"><a href="#心得体会-2" class="headerlink" title="心得体会"></a>心得体会</h5><p>难度骤增，这种类c的结构体真的很容易出现小毛病，对于我这种基础不牢的人来说真的是拉到了新的难度等级，每道题要花一些时间去想emmm，又到了快凌晨一点，睡！！</p>
+<h5 id="收获-2"><a href="#收获-2" class="headerlink" title="收获"></a>收获</h5><p>基本了解了struct的命名使用规则，深一脚浅一脚往下走叭</p>
+<h3 id="枚举类型，包，模块"><a href="#枚举类型，包，模块" class="headerlink" title="枚举类型，包，模块"></a>枚举类型，包，模块</h3></li>
+<li><p>time：2024/4/25</p>
+<h5 id="心得体会-3"><a href="#心得体会-3" class="headerlink" title="心得体会"></a>心得体会</h5><p>好吧，这周课程依旧很多,又拖了好久,新知识吸收速度好慢,今天的枚举总体来说类似struct，学习应用起来并不难。模块主要在封装层面用途很大，就是改变量名字很捉急……</p>
+<h5 id="收获-3"><a href="#收获-3" class="headerlink" title="收获"></a>收获</h5><p>了解枚举定义，以及如何创建成员，熟悉如何在不同模块中修改名称以及引入不同的库.</p>
+<h3 id="哈希表创建，option枚举，error系列练习"><a href="#哈希表创建，option枚举，error系列练习" class="headerlink" title="哈希表创建，option枚举，error系列练习"></a>哈希表创建，option枚举，error系列练习</h3></li>
+<li><p>time：2024/4/26</p>
+<h5 id="心得体会-4"><a href="#心得体会-4" class="headerlink" title="心得体会"></a>心得体会</h5><p>哈希表提供了一个可以快速管理数据的方法，但是读代码好痛苦，太不熟悉了。option同昨天的枚举相似，做起来熟练很多。error的习题考察的好综合，经常改着改着就把整个代码弄乱了……遂ctrl^z重新来过（捂脸）</p>
+<h5 id="收获-4"><a href="#收获-4" class="headerlink" title="收获"></a>收获</h5><p>了解哈希表以及option枚举类型如何使用，加深了对如何处理不同错误的理解，并了解如何修改（或许）</p>
+<h3 id="泛型扩展，trait，生命周期，test练习，迭代器"><a href="#泛型扩展，trait，生命周期，test练习，迭代器" class="headerlink" title="泛型扩展，trait，生命周期，test练习，迭代器"></a>泛型扩展，trait，生命周期，test练习，迭代器</h3></li>
+<li><p>time：2024/4/27</p>
+<h5 id="心得体会-5"><a href="#心得体会-5" class="headerlink" title="心得体会"></a>心得体会</h5><p>重新见到泛型，做的也得心应手起来了。越来越感觉在严谨的rust中，泛型真算一个万金油，又能保证封装，还能调用方便，赞。trait反而更像一个接口（就是我做的什么别人也可以借用的感觉）。<br>生命周期emmm,某个元素需不需要活，活多久，怎么活……都是其他语言没有的”独特”含义。虽然理解起来费劲，但是题目比较简单。test练习又是两眼一抹黑的翻资料去做，练习需要的广度比课程上要求的多得多。<br>迭代器给了一个遍历元素的方法，但是迭代器是惰性的，使用前需要先调用。</p>
+<h5 id="收获-5"><a href="#收获-5" class="headerlink" title="收获"></a>收获</h5><p>扩充了在方法中使用泛型的实例，了解trait如何在不同函数或结构体中实现，浅显的理解生命周期含义，知道test函数基本语法，迭代器如何声明与调用</p>
+<h3 id="余下内容，Rc-lt-T-gt-，box等"><a href="#余下内容，Rc-lt-T-gt-，box等" class="headerlink" title="余下内容，Rc&lt; T &gt;，box等"></a>余下内容，Rc&lt; T &gt;，box等</h3></li>
+<li><p>time：2024/4/28</p>
+<h5 id="心得体会-6"><a href="#心得体会-6" class="headerlink" title="心得体会"></a>心得体会</h5><p>后面的语法更趋向于数据某种数据结构，理解起来很容易，但运用很难。好在题目并不难，有的题哪怕不了解此类语法也能通过联系上下文做出来（虽然对于提升并没有什么帮助），不过鉴于此项目本质为写os，rust的深度学习就留在需要的时候了（手动狗头）</p>
+<h5 id="收获-6"><a href="#收获-6" class="headerlink" title="收获"></a>收获</h5><p>了解box，Rc，Arc，等结构体的使用环境，了解多线程如何创建，了解宏的创建和使用，接触代码分析工具Clippy。以及如何实现数据结构</p>
+</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-thekingyx/" rel="tag"># author:thekingyx</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/02/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-happygodwei/" rel="prev" title="2024春夏季开源操作系统训练营第一阶段总结报告-happygodwei">
+      <i class="fa fa-chevron-left"></i> 2024春夏季开源操作系统训练营第一阶段总结报告-happygodwei
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/03/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-ls-kelvin/" rel="next" title="2024春夏季开源操作系统训练营第一阶段总结报告-ls-kelvin">
+      2024春夏季开源操作系统训练营第一阶段总结报告-ls-kelvin <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
