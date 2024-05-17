@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="前言经过第一阶段的Rust练习和RISC-V语法的入门阅读，进入第二阶段，完成rCore的五个实验。第二阶段主要是进行操作系统的学习，并通过实验具象操作系统概念的实现。同时也在跟着Writing an OS in Rust写blog_os作为补充。 一些链接🔗 rCore-Tutorial学习实现：https:&#x2F;&#x2F;github.com&#x2F;Andrew211vibe&#x2F;rCore-Lab Writin">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024春夏季开源操作系统训练营Blog-第二阶段">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/04/23/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5Blog-%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="前言经过第一阶段的Rust练习和RISC-V语法的入门阅读，进入第二阶段，完成rCore的五个实验。第二阶段主要是进行操作系统的学习，并通过实验具象操作系统概念的实现。同时也在跟着Writing an OS in Rust写blog_os作为补充。 一些链接🔗 rCore-Tutorial学习实现：https:&#x2F;&#x2F;github.com&#x2F;Andrew211vibe&#x2F;rCore-Lab Writin">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-04-23T00:04:51.000Z">
+<meta property="article:modified_time" content="2024-05-17T02:24:03.185Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:Andrew211vibe">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;Andrew211vibe&#x2F;rCore-Lab">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/04/23/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5Blog-%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024春夏季开源操作系统训练营Blog-第二阶段 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#一些链接🔗"><span class="nav-number">2.</span> <span class="nav-text">一些链接🔗</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第二阶段总结"><span class="nav-number">3.</span> <span class="nav-text">第二阶段总结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">371</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">25</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">386</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/23/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5Blog-%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024春夏季开源操作系统训练营Blog-第二阶段
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-04-23 00:04:51" itemprop="dateCreated datePublished" datetime="2024-04-23T00:04:51+00:00">2024-04-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-05-17 02:24:03" itemprop="dateModified" datetime="2024-05-17T02:24:03+00:00">2024-05-17</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024春夏季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>经过第一阶段的Rust练习和RISC-V语法的入门阅读，进入第二阶段，完成rCore的五个实验。第二阶段主要是进行操作系统的学习，并通过实验具象操作系统概念的实现。同时也在跟着Writing an OS in Rust写blog_os作为补充。</p>
+<h1 id="一些链接🔗"><a href="#一些链接🔗" class="headerlink" title="一些链接🔗"></a>一些链接🔗</h1><ul>
+<li>rCore-Tutorial学习实现：<a href="https://github.com/Andrew211vibe/rCore-Lab" target="_blank" rel="noopener">https://github.com/Andrew211vibe/rCore-Lab</a></li>
+<li>Writing an OS in Rust实现：<a href="https://github.com/Andrew211vibe/blog_os_impl.git" target="_blank" rel="noopener">https://github.com/Andrew211vibe/blog_os_impl.git</a></li>
+<li>个人学习笔记：<a href="https://andrew211vibe.notion.site/2024-850ebd79bde0444f985e7c3c816f501f" target="_blank" rel="noopener">2024开源操作系统训练营 (notion.site)</a></li>
+</ul>
+<h1 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h1><p>整体rCore实验难度集中在最后三个实验中，第一二章节引入简单操作系统的架构，从裸机平台构建libOS，将整个OS作为一个库给用户使用，到加入特权级切换，让操作系统找到任务并运行实现批处理OS，第三章加入yield系统调用支持多道程序，并加入时钟中断实现抢占式多任务构成多道程序与分时多任务系统。第四章开启地址空间，进一步完善了OS的安全性，应用不再有直接访问物理内存的能力，并且只能通过虚拟地址读写自己的地址空间，无法访问破坏其它应用的地址空间，同时也给操作系统提供内存管理的灵活性，通过分页机制更好地管理物理页帧，页表管理虚拟地址到物理页帧的映射转换。第五章进一步强化任务的概念为进程，加入一个简单的shell，使得用户与操作系统之间的交互能力提高，可以动态地执行应用。第六章实现了一个easyfs文件系统，对操作系统提供持久化存储。第七章通过文件系统的支持建立进程间通信，让不同应用组合在一起运行。第八章引入线程和并发的概念，让操作系统从宏观层面实现多个应用的并发执行，实现内核态管理用户态运行的线程，并支持互斥锁、信号量和条件变量这三种资源。</p>
+<p>由于提早完成了第一阶段任务，得以提前开始第二阶段，前面通过阅读文档并复现代码熟悉整体架构，第二阶段正式开始后完成实验。</p>
+<ul>
+<li>lab1就是简单实现获取当前执行任务的信息，为了维护系统调用次数需要为每个任务维护一个数据结构用以记录，在每次调用之前通过syscall_id查询自增。执行时间单位是ms，初始化为任务第一次调度的时间。</li>
+<li>lab2因为地址空间的引入，首先是对先前的get_time和get_taskinfo接口进行修改以支持虚拟地址，实际就将用户传递的虚拟地址转换为对应的物理地址即可访问修改，不过需要注意可能会被分成两页。之后需要实现mmap和munmap接口，对虚拟内存的申请和释放，主要需要注意判断和处理可能错误，以及释放虚拟内存的步骤实现。</li>
+<li>lab3首先需要实现spawn接口，实际就是fork+exec，需要注意的是不必像fork一样复制父进程的地址空间。然后需要实现stride调度算法，需要注意调度算法所需状态的初始化和维护，可以选择通过堆或者维护单调队列来实现，不过测例简单也可以直接暴力搜索，还需注意处理溢出情况，避免调度进入死循环，同时优先级的维护还需实现set_priority系统调用。</li>
+<li>lab4是实现硬链接相关接口linkat和unlinkat，需要注意unlinkat对inode以及对应数据块的回收。</li>
+<li>lab5是实现死锁检测，需要注意维护检测算法所需的per-thread状态以及互斥量和信号量资源。</li>
+</ul>
+<p>额外题目还没实现，后续如果有时间再研究吧:)</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-Andrew211vibe/" rel="tag"># author:Andrew211vibe</a>
+              <a href="/blog/tags/repo-https-github-com-Andrew211vibe-rCore-Lab/" rel="tag"># repo:https://github.com/Andrew211vibe/rCore-Lab</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/04/22/%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" rel="prev" title="一阶段总结">
+      <i class="fa fa-chevron-left"></i> 一阶段总结
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/04/23/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5Blog-%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5/" rel="next" title="2024春夏季开源操作系统训练营Blog-第一阶段">
+      2024春夏季开源操作系统训练营Blog-第一阶段 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
