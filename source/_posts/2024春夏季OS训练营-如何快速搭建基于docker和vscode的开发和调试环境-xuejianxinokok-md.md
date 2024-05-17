@@ -4,6 +4,22 @@ date: 2024-05-17 09:23:01
 tags:
 ---
 
+
+
+一阶段学习参考
+
+
+
+- [转:Learn Rust the Dangerous Way-系列文章翻译-总述 - 掘金](https://juejin.cn/post/7358742048134365221)，这系列文章总结了rust改写c语言 ，非常经典
+
+- [*如何在rust 中实现 带有循环引用的数据结构 - 掘金](https://juejin.cn/post/7359110982227640374)
+
+
+
+----
+
+
+
 在学习os开发的时候如何使我们能够愉快的开始学习，而不在配置环境折腾的时间太长，以下是我的实践。
 
 我的系统是windows11,上边安装了dockerdesktop.
@@ -42,13 +58,9 @@ make run
 
 docker 镜像
 
-
 {% asset_img 2024-05-17-09-40-49-image.png 2024-05-17-09-40-49-image %}
 
-
 开发容器
-
-
 
 {% asset_img 2024-05-17-09-41-14-image.png 2024-05-17-09-41-14-image %}
 
@@ -58,24 +70,17 @@ docker 镜像
 
 为了支持docker dev container 需要安装以下插件
 
-
 {% asset_img 2024-05-17-09-42-12-image.png 2024-05-17-09-42-12-image %}
 
 点击以下红色标识位置连接到dev container
-
-
 
 {% asset_img 2024-05-17-09-46-03-image.png 2024-05-17-09-46-03-image.png %}
 
 然后打开/mnt/ 目录下的项目文件夹
 
-
-
 {% asset_img 2024-05-17-09-47-48-image.png 2024-05-17-09-47-48-image.png %}
 
 ## 2.2 安装调试插件
-
-
 
 {% asset_img 2024-05-17-09-49-01-image.png 2024-05-17-09-49-01-image.png %}
 
@@ -262,11 +267,7 @@ Breakpoint 1 at 0x8020618a: file src/main.rs, line 98.
 
 再输入 c
 
-
-
 {% asset_img 2024-05-14-14-13-18-image.png 2024-05-14-14-13-18-image.png %}
-
-
 
 {% asset_img 2024-05-14-14-20-57-image.png 2024-05-14-14-20-57-image.png %}
 
@@ -319,13 +320,9 @@ Breakpoint 1 at 0x8020618a: file src/main.rs, line 98.
 
 {% asset_img 2024-05-15-13-49-42-image.png 2024-05-15-13-49-42-image.png %}
 
-
-
 {% asset_img 2024-05-15-13-59-17-image.png 2024-05-15-13-59-17-image.png %}
 
-
 {% asset_img 2024-05-15-14-00-13-image.png 2024-05-15-14-00-13-image.png %}
-
 
 {% asset_img 2024-05-15-14-02-58-image.png 2024-05-15-14-02-58-image %}
 
@@ -420,8 +417,6 @@ qemu-syst 5049 root   10u  IPv6 8134404      0t0  TCP *:1234 (LISTEN)
 路漫漫...
 
 感谢训练营的老师们！！！
-
-
 
 ---
 
