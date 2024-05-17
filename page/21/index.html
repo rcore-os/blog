@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">373</span>
+          <span class="site-state-item-count">374</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">389</span>
+        <span class="site-state-item-count">390</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,155 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Gege-Wang/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Gege-Wang/" class="post-title-link" itemprop="url">2023秋冬季开源操作系统训练营第三阶段总结报告_Gege-Wang</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-20 18:28:07" itemprop="dateCreated datePublished" datetime="2023-11-20T18:28:07+00:00">2023-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="实验一-amp-实验二"><a href="#实验一-amp-实验二" class="headerlink" title="实验一 &amp; 实验二"></a>实验一 &amp; 实验二</h2><h3 id="实验问题"><a href="#实验问题" class="headerlink" title="实验问题"></a>实验问题</h3><p>练习 1：<br>main 函数中，固定设置 app_size = 32，这个显然是不合理甚至危险的。<br>请为 image 设计一个头结构，包含应用的长度信息，loader 在加载应用时获取它的实际大小。<br>执行通过。<br>练习 2：<br>在练习 1 的基础上，扩展 image 头结构，让 image 可以包含两个应用。<br>第二个应用包含唯一的汇编代码是 ebreak 。<br>如实验 1 的方式，打印出每一个应用的二进制代码。     </p>
+<h3 id="解题思路"><a href="#解题思路" class="headerlink" title="解题思路"></a>解题思路</h3><ol>
+<li>确定镜像头的内容<br>因为实验一二要将多个应用的二进制代码加载到 pflash 区域，所以为了更好的兼容和抽象，镜像的头应该包括：</li>
+</ol>
+<ul>
+<li>应用程序的个数</li>
+<li>每个应用程序的大小</li>
+<li>每个应用程序的起始地址<br>因此，最终确定的应用程序头如下：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">struct AppHeader &#123;</span><br><span class="line">    apps_num: usize,</span><br><span class="line">    app_size: Vec&lt;usize&gt;,</span><br><span class="line">    app_start: Vec&lt;*const u8&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<ol start="2">
+<li>确定镜像的加载办法<br>关于镜像的加载实际上在老师的示例代码中已经给出了，需要特别注意的是：<strong>pflash 要求的镜像大小必须是 32M，所以需要先生成一个 32M 的全零文件，再将二进制文件 dd 进去。</strong></li>
+</ol>
+<h3 id="解题方案"><a href="#解题方案" class="headerlink" title="解题方案"></a>解题方案</h3><ol>
+<li>首先确定镜像头的<br>在外部形成 pflash.img 镜像，包含应用的个数，每个应用的大小，每个应用的二进制文件<br>这使用一个脚本文件生成，镜像的生成办法在代码仓库：<a href="https://github.com/Gege-Wang/hello_app" target="_blank" rel="noopener">https://github.com/Gege-Wang/hello_app</a>。</li>
+</ol>
+<p>在 loader.rs 中建立一个 Appheader 结构体，并且从 pflash.img 中将 AppHeader 还原出来。<br>根据AppHeader 的信息加载每个应用。</p>
+<table>
+<thead>
+<tr>
+<th align="center">pflash</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">apps_num</td>
+</tr>
+<tr>
+<td align="center">app1_size</td>
+</tr>
+<tr>
+<td align="center">app2_size</td>
+</tr>
+<tr>
+<td align="center">…</td>
+</tr>
+<tr>
+<td align="center">appn_size</td>
+</tr>
+<tr>
+<td align="center">app1.bin</td>
+</tr>
+<tr>
+<td align="center">app2.bin</td>
+</tr>
+<tr>
+<td align="center">…</td>
+</tr>
+<tr>
+<td align="center">appn_bin</td>
+</tr>
+</tbody></table>
+<h3 id="需要解决的问题"><a href="#需要解决的问题" class="headerlink" title="需要解决的问题"></a>需要解决的问题</h3><p>在脚本文件中并没有指定二进制文件的顺序，这不合理，需要后期重构。<br>关于 rust 中各种类型的转换需要更加熟悉一些。</p>
+<h2 id="实验三"><a href="#实验三" class="headerlink" title="实验三"></a>实验三</h2><h3 id="实验问题-1"><a href="#实验问题-1" class="headerlink" title="实验问题"></a>实验问题</h3><p>批处理方式执行两个单行代码应用，第一个应用的单行代码是 nop ，第二个的是 wfi 。   </p>
+<h3 id="解题思路-1"><a href="#解题思路-1" class="headerlink" title="解题思路"></a>解题思路</h3><p>这个问题的关键是：<strong>如何执行第一个应用并且在第一个应用执行完成的时候开始执行第二个应用。</strong> 我在编译 nop 的时候发现应用大小是 4 ，然后内容是 [1, 0, 0, 0]，但是我瞄到群里先做出来的人的截图，都不是这个二进制，我感到很困惑。后来我开始想第一个应用结束之后怎么返回到 load.rs 然后继续执行。<code>jalr t2</code> 之后会保存下一条指令的地址，所以在应用一执行完之后返回就能回到 load.rs 这条指令。虽然我用这个方法能够做出来这个问题，但是却为后来的问题埋下了巨大的麻烦，事实证明，从应用返回这个方法需要非常多需要考量的地方，甚至可以说直接从应用返回是非常不可取的。</p>
+<h3 id="解题方案-1"><a href="#解题方案-1" class="headerlink" title="解题方案"></a>解题方案</h3><p>使用一个循环依次执行每个应用程序，在程序执行完之后加上 <code>ret</code> 指令返回。</p>
+<h3 id="需要解决的问题-1"><a href="#需要解决的问题-1" class="headerlink" title="需要解决的问题"></a>需要解决的问题</h3><p>或许要在外部实现一个批处理的程序，而不是由应用程序自己返回。</p>
+<h2 id="实验四"><a href="#实验四" class="headerlink" title="实验四"></a>实验四</h2><h3 id="实验问题-2"><a href="#实验问题-2" class="headerlink" title="实验问题"></a>实验问题</h3><p>本实验已经实现了1 号调用 - SYS_HELLO，2 号调用 - SYS_PUTCHAR，请实现 3 号调用 - SYS_TERMINATE 功能调用，作用是让 ArceOS 退出，相当于 OS 关机。   </p>
+<h3 id="解题思路-2"><a href="#解题思路-2" class="headerlink" title="解题思路"></a>解题思路</h3><p>虽然说这个好像是里面最简单的一个，但是我还是找了好几个来完成。我不太清楚 exit 和 terminate 是什么区别，其实我刚开始是用了 axtask 里面的 exit()来完成的，不知道退出号是什么，就那么随随便便退出了。感觉没什么底气，又开始搜索 terminate，还真的是有一个 axhal/misc 里面有一个terminate()，打印log 看起来比较正常了。</p>
+<h3 id="解题方案-2"><a href="#解题方案-2" class="headerlink" title="解题方案"></a>解题方案</h3><p>仿照 abi_hello 和 abi_putchar 实现就可以了。  </p>
+<h2 id="实验五"><a href="#实验五" class="headerlink" title="实验五"></a>实验五</h2><p><strong>特别感谢 @PeizhongQiu 的技术支持。</strong></p>
+<h3 id="实验问题-3"><a href="#实验问题-3" class="headerlink" title="实验问题"></a>实验问题</h3><p>按照如下要求改造应用 hello_app：   </p>
+<ol>
+<li>把三个功能调用的汇编实现封装为函数，以普通函数方式调用。例如，SYS_PUTCHAR 封装为 fn putchar(c: char) 。    </li>
+<li>基于打印字符函数 putchar 实现一个高级函数 fn puts(s: &amp;str) ，可以支持输出字符串。      </li>
+<li>应用 hello_app 的执行顺序是：Hello 功能、打印字符串功能、退出功能。    </li>
+</ol>
+<h3 id="解题思路-3"><a href="#解题思路-3" class="headerlink" title="解题思路"></a>解题思路</h3><p>封装成函数不困难，打印字符串也不困难，最困难的是第三个要求，完成这三项功能。<br>这里有一个重要的逻辑需要搞清楚。 ABI 是 Arceos 实现的，封装的函数是 应用 实现的。调用封装函数也是 应用 实现的。 整个的处理逻辑却是在 Arceos 的 load.rs 中实现的<br>从每一次 ABI 调用返回到 应用 的时候都需要返回到应用上一条指令的状态，这里有两个目的：一个是保存一些固定寄存器的值，比如 a7，另一个是保存封装函数的返回地址 ra。就像宏内核中系统调用需要保存上下文一样，ABI 调用的时候依旧需要保存上下文，这貌似是因为不是一个普通的函数调用，普通函数调用编译器会保存栈帧，不过这里需要自己保存，而按照怎样的规则保存是应用和操作系统约定的规范。       </p>
+<h3 id="解题方案-3"><a href="#解题方案-3" class="headerlink" title="解题方案"></a>解题方案</h3><p>我意识到要保存上下文，却没有想到一个好的办法， @PeizhongQiu 告诉我使用 clobber_abi(“C”)，能够保存上下文，并且在返回的时候恢复，这是一个非常好的消息，能够不费吹灰之力之力的完成后面的工作。不过这条命令做的事情也是需要进一步掌握的。</p>
+<h3 id="需要解决的问题-2"><a href="#需要解决的问题-2" class="headerlink" title="需要解决的问题"></a>需要解决的问题</h3><p>要清楚保存上下文发生的细节，才能完成应用程序二进制兼容的事情，这个问题很重要。</p>
+<h2 id="实验六"><a href="#实验六" class="headerlink" title="实验六"></a>实验六</h2><h3 id="实验问题-4"><a href="#实验问题-4" class="headerlink" title="实验问题"></a>实验问题</h3><ol>
+<li>仿照 hello_app 再实现一个应用，唯一功能是打印字符 ‘D’。    </li>
+<li>现在有两个应用，让它们分别有自己的地址空间。    </li>
+<li>让 loader 顺序加载、执行这两个应用。这里有个问题，第一个应用打印后，不能进行无限循环之类的阻塞，想办法让控制权回到 loader，再由 loader 执行下一个应用。    <h3 id="解题思路-4"><a href="#解题思路-4" class="headerlink" title="解题思路"></a>解题思路</h3>这里做完基础练习就没做什么改动就过了，为 APP 建立独立的页表，实现初始化和切换函数。在练习五的基础上进行加上独立的页表就可以了。</li>
+</ol>
+<h2 id="特别说明"><a href="#特别说明" class="headerlink" title="特别说明"></a>特别说明</h2><p>所有的代码实现都在仓库<a href="https://github.com/Gege-Wang/arceos" target="_blank" rel="noopener">https://github.com/Gege-Wang/arceos</a>，欢迎交流并提出指导意见。</p>
+<h2 id="实验总结"><a href="#实验总结" class="headerlink" title="实验总结"></a>实验总结</h2><p>非常开心参加 ArceOS unikernel 第三阶段的训练，在基础学习部分的训练大部分都是老师在指导书里给了详细的说明，石磊老师非常有耐心，助教老师也很给力，训练群里每个同学都很积极，让我感觉充满了动力。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lispking/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +413,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:57" itemprop="dateModified" datetime="2024-05-17T16:40:57+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -354,7 +503,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:56" itemprop="dateModified" datetime="2024-05-17T16:40:56+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -462,7 +611,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:56" itemprop="dateModified" datetime="2024-05-17T16:40:56+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -569,7 +718,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:56" itemprop="dateModified" datetime="2024-05-17T16:40:56+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
 
           
@@ -640,7 +789,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:56" itemprop="dateModified" datetime="2024-05-17T16:40:56+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
 
           
@@ -715,7 +864,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:57" itemprop="dateModified" datetime="2024-05-17T16:40:57+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -788,7 +937,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:56" itemprop="dateModified" datetime="2024-05-17T16:40:56+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -895,7 +1044,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:56" itemprop="dateModified" datetime="2024-05-17T16:40:56+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
 
           
@@ -960,7 +1109,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:57" itemprop="dateModified" datetime="2024-05-17T16:40:57+00:00">2024-05-17</time>
+                <time title="Modified: 2024-05-17 16:41:17" itemprop="dateModified" datetime="2024-05-17T16:41:17+00:00">2024-05-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -988,83 +1137,6 @@
 <h1 id="实验2"><a href="#实验2" class="headerlink" title="实验2"></a>实验2</h1><p>实验2使用 Rust 的全局的动态内存分配器的实现 buddy_system_allocator 完成在内核中使用堆空间。 基于 RISC-V 硬件支持的 SV39 多级页表实现地址空间、物理页的分配与回收。开始划分内核地址空间及应用地址空间，实现应用程序不在需要关注应用起始地址及存放位置。相比上一章节的中断和系统调用处理过程添加了跳板页面，来避免在用户模式进入内核模式或内核模式退回用户模式时导致的地址不一致。<br>lab2 实验中 lab1 实验的相关内容需要重新实现，因为内存分页后在用户态传递进来的参数地址是虚拟地址，内核的访问地址映射和物理地址一致，无法通过虚拟地址对传递进来的参数赋值，所以需要将虚拟地址转换为物理地址，才能完成赋值。 sys_mmap 的实现参考系统中 insert_framed_area 的实现，添加逻辑校验给定的地址中是否包含已经映射的地址即可。sys_munmap 根据 sys_mmap 的实现反推即可实现。</p>
 <h1 id="实验3"><a href="#实验3" class="headerlink" title="实验3"></a>实验3</h1><p>在实验3中，ch3 中我学习了多道程序的放置与加载，任务切换，如何管理多道程序。然后在练习中为了实现 sys_task_info 我在原本 TaskControlBlock 的基础上添加了 task_syscall_times 数组和 first_start_time 字段来记录获取 taskinfo 所需信息。在 syscall 中调用自己封装的 add_cuurent_task_syscall_times 来实现对 task_syscall_times 记录更新。而对于 first_start_time，我在程序第一次运行时更新来记录，使得在调用 sys_task_info 时能够准确获得程序的运行时长。</p>
 <h1 id="感想"><a href="#感想" class="headerlink" title="感想"></a>感想</h1><p>第一次接触结构如此清晰的OS课设，从历史演变的角度一步步搭建操作系统，每章的讲解图文并茂，将内核的功能与结构十分直观地剖析了出来。在遇到问题时老师们的讲解也帮助了我很多。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/12/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A%E2%80%94%E2%80%94fakerpawnno1/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/12/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A%E2%80%94%E2%80%94fakerpawnno1/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告——fakerpawnno1</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-12 14:33:03" itemprop="dateCreated datePublished" datetime="2023-11-12T14:33:03+00:00">2023-11-12</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-05-17 16:40:56" itemprop="dateModified" datetime="2024-05-17T16:40:56+00:00">2024-05-17</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p>最近正好在学习Rust，然后在rustcc上看到了相关的信息就想着来参加一下。记录一下整体的学习过程。  </p>
-<h3 id="第一阶段总结"><a href="#第一阶段总结" class="headerlink" title="第一阶段总结"></a>第一阶段总结</h3><p>因为断断续续学习过rust相关的语法，而且以前学校上过C++的课程，所以对于一些概念上的东西理解还是比较容易上手，但是因为工作了好几年，平时的工作代码量不高。所以第一阶段做一些概念上的test还可以。到了第二阶段刚开始有点捉襟见肘。</p>
-<h3 id="第一阶段总结-1"><a href="#第一阶段总结-1" class="headerlink" title="第一阶段总结"></a>第一阶段总结</h3><p>学校的操作系统以理论偏多，而且当时确实没有特别好的实验指导，记得当时还花重金买了一本《操作系统真相还原》，但是由于一些原因没有做下去。这次正好补上。<br>环境为了方便，就直接选择了docker，但是docker有个问题就是gdb调试的时候每次都要打开一个窗口，要有一点docker和tmux的基础。</p>
-<h4 id="Chapter-1"><a href="#Chapter-1" class="headerlink" title="Chapter 1"></a>Chapter 1</h4><p>第一章讲述了怎么写一个 Bare-metal 应用，涉及到了一些内存布局、汇编、链接器之类的知识，而且上学时候还是有好好学习的，所以压力不大，对于一些不懂的概念可以结合<a href="https://github.com/phil-opp/blog_os" target="_blank" rel="noopener">BlogOS</a>，但是要注意一些细节。</p>
-<h4 id="Chapter-2"><a href="#Chapter-2" class="headerlink" title="Chapter 2"></a>Chapter 2</h4><p>第二章，主要引入了特权级的概念，以前也知道这个，但是具体的是怎么实现的还真没有相关的了解。重点在于串起来整个应用的启动流程，先通过汇编指令在固定位置加载内核代码。内核代码中完成应用初始化后，最后再通过一个trap上下文来跳到应用态。整体因为不涉及地址空间所以还是比较简单。</p>
-<h4 id="Chapter-3-amp-Lab-1"><a href="#Chapter-3-amp-Lab-1" class="headerlink" title="Chapter 3 &amp; Lab 1"></a>Chapter 3 &amp; Lab 1</h4><p>第三章，引入了分时多任务，出现了<strong>任务切换</strong>的概念，核心在于任务切换是在两个 Trap 控制流间跳转，达到切换应用的目的。同时也引入了时钟中断，时钟中断主动在trap中处理切换。还有一个点就是用户态的时候，S的时钟中断是无法屏蔽的。</p>
-<p>实验1，这个实验其实是个人感觉前三个实验最难的，当时想了好几天，一直想精确的统计应用启动的时间，甚至想过通过寄存器的值来区别应用是否被切换了，但是没有成功，最后通过和群里的同学交流后，知道了不需要很精确。就直接在 TCB 里面加启动时间字段，初始化为0，在切换的时候在加一个启动时间的判断，注意第一个应用的启动时间可以直接在first_task中设置。syscall个数通过数组计数即可。</p>
-<h4 id="Chapter-4-amp-Lab-2"><a href="#Chapter-4-amp-Lab-2" class="headerlink" title="Chapter 4 &amp; Lab 2"></a>Chapter 4 &amp; Lab 2</h4><p>第四章，引入了页表。但这个其实当时上学理解的比较透彻，所以还是比较容易的，内核只有一个内核应用空间，内核空间创建的时候就对整个剩余可用的其中几个空间做了一个恒等映射，设置完之后启动页表硬件设置，然后平滑迁移的过程以及跳板的设计是比较精妙的，还有就是初始化为0的静态/全局变量也默认在.bss段。</p>
-<p>实验二，没有理解在指针指向的数据跨页的情况。个人理解即使数据跨页，变量在分配的时候虚拟地址是连续的，物理地址足够的情况下也应该是连续分配的，test没做相关的考虑。</p>
-<p>mmap和unmap分配内存主要在于增加限制条件的判断，最开始没有注意启动位置要对齐，导致用例不过，其他的没有什么问题。</p>
-<h4 id="Chapter-5-amp-Lab-3"><a href="#Chapter-5-amp-Lab-3" class="headerlink" title="Chapter 5 &amp; Lab 3"></a>Chapter 5 &amp; Lab 3</h4><p>第五章，引入了进程，了解到了 “idle task”。任务切换每次都要到 idle 控制流然后又从idle控制流通过调度算法切换到新任务。</p>
-<p>实验三 参照fork和exec的代码即可。</p>
-<h3 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h3><p>参加本次训练营真的受益匪浅，把os的理论和实践结合起来真的很有意义。因为平时还要工作，已经超过了第二阶段上课时间一周才做完前三个实验，后面努力做完剩余两个实验。感谢本次训练营的老师，能提供这么优秀的课程和资源！！！</p>
 
       
     </div>
