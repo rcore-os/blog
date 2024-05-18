@@ -1,5 +1,5 @@
 ---
-title: 2024OS训练营第一阶段总结-SaZiKK
+title: 2024OS训练营总结-SaZiKK
 date: 2024-04-24 21:57:58
 tags:
     - author:SaZiKK
