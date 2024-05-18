@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="本阶段的收获经过半月多的赶ddl（，加上老师群友们的无私帮助，我成功的完成了第二阶段的任务。 不仅对Rust的掌握程度更深了，并且对操作系统中很多概念有了实际上的理解。 包括且不限于：  特权态的切换 地址表，页表的管理 进程和线程的区别 执行流切换和恢复 线程调度  同时，这些知识很大程度上帮助我消除了对裸机编程的恐惧。对计算机底层的运行方式有了清楚的认知。 一个尝试-Rust in ch32v">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024春夏季开源操作系统训练营第二阶段总结报告-郑昱可">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/05/17/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%83%91%E6%98%B1%E5%8F%AF/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="本阶段的收获经过半月多的赶ddl（，加上老师群友们的无私帮助，我成功的完成了第二阶段的任务。 不仅对Rust的掌握程度更深了，并且对操作系统中很多概念有了实际上的理解。 包括且不限于：  特权态的切换 地址表，页表的管理 进程和线程的区别 执行流切换和恢复 线程调度  同时，这些知识很大程度上帮助我消除了对裸机编程的恐惧。对计算机底层的运行方式有了清楚的认知。 一个尝试-Rust in ch32v">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-05-17T08:27:17.000Z">
+<meta property="article:modified_time" content="2024-05-18T07:46:56.419Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="Oveln">
+<meta property="article:tag" content="2024春夏季开源操作系统训练营">
+<meta property="article:tag" content="第二阶段">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/05/17/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%83%91%E6%98%B1%E5%8F%AF/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024春夏季开源操作系统训练营第二阶段总结报告-郑昱可 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#本阶段的收获"><span class="nav-number">1.</span> <span class="nav-text">本阶段的收获</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#一个尝试-Rust-in-ch32v003"><span class="nav-number">1.1.</span> <span class="nav-text">一个尝试-Rust in ch32v003</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ch32-hal"><span class="nav-number">1.1.1.</span> <span class="nav-text">ch32-hal</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代码"><span class="nav-number">1.1.2.</span> <span class="nav-text">代码</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#理论和实践"><span class="nav-number">1.2.</span> <span class="nav-text">理论和实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#文件系统"><span class="nav-number">1.3.</span> <span class="nav-text">文件系统</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#进程-amp-线程"><span class="nav-number">1.4.</span> <span class="nav-text">进程&amp;线程</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">382</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">25</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">395</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/17/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%83%91%E6%98%B1%E5%8F%AF/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024春夏季开源操作系统训练营第二阶段总结报告-郑昱可
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-05-17 08:27:17" itemprop="dateCreated datePublished" datetime="2024-05-17T08:27:17+00:00">2024-05-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-05-18 07:46:56" itemprop="dateModified" datetime="2024-05-18T07:46:56+00:00">2024-05-18</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="本阶段的收获"><a href="#本阶段的收获" class="headerlink" title="本阶段的收获"></a>本阶段的收获</h1><p>经过半月多的赶ddl（，加上老师群友们的无私帮助，我成功的完成了第二阶段的任务。</p>
+<p>不仅对Rust的掌握程度更深了，并且对操作系统中很多概念有了实际上的理解。</p>
+<p>包括且不限于：</p>
+<ul>
+<li>特权态的切换</li>
+<li>地址表，页表的管理</li>
+<li>进程和线程的区别</li>
+<li>执行流切换和恢复</li>
+<li>线程调度</li>
+</ul>
+<p>同时，这些知识很大程度上帮助我消除了对裸机编程的恐惧。对计算机底层的运行方式有了清楚的认知。</p>
+<h2 id="一个尝试-Rust-in-ch32v003"><a href="#一个尝试-Rust-in-ch32v003" class="headerlink" title="一个尝试-Rust in ch32v003"></a>一个尝试-Rust in ch32v003</h2><p>在前几天结束第二阶段的作业后，我是打算了摸几天鱼，正好看到桌边吃灰的ch32v003单片机。</p>
+<blockquote>
+<p>ch32v003是一块携带了riscv指令集芯片的单片机，我手头上这块，实现了riscv标准中的mai,以及f。<br>美中不足的是，它只有S态和M态，并没有实现U态。</p>
+</blockquote>
+<p>于是我萌生出想法——为什么不试试将Rust代码运行在这上面呢。</p>
+<h3 id="ch32-hal"><a href="#ch32-hal" class="headerlink" title="ch32-hal"></a>ch32-hal</h3><p>Rust在嵌入式方面的库，在2024年的今天已经较为完善了。在createio中查找一番后，我看到了ch32-hal，以及与其配套的qingke-rt</p>
+<p>ch32-hal将ch32系列的单片机的外设进行了rust封装，使得在代码中能方便的进行调用和更改</p>
+<p>如修改SYSTICK的ctlr位，只需要以下代码</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SYSTICK.ctlr().modify(|w| w.set_ste(<span class="literal">false</span>));</span><br></pre></td></tr></table></figure>
+
+<p>qingke-rt则包含了运行时相关的内容，可以在main函数前添加#[qingke_rt::entry]，使得该函数称为编译后程序的入口函数</p>
+<p>并且qingke-rt也可以通过类似的方法定义中断处理函数。类似的工作，我们在rcore实验中是通过内联汇编手动修改相关寄存器实现的。</p>
+<h3 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h3><p>以下附上一个点灯代码</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[qingke_rt::entry]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() -&gt; ! &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> config = hal::Config::default();</span><br><span class="line">    config.rcc = hal::rcc::Config::SYSCLK_FREQ_48MHZ_HSE;</span><br><span class="line">    <span class="keyword">let</span> p = hal::init(config);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> delay = Delay;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> led = Output::new(p.PC2, Level::Low, <span class="built_in">Default</span>::default());</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        led.toggle();</span><br><span class="line"></span><br><span class="line">        delay.delay_ms(<span class="number">500</span>);</span><br><span class="line">        <span class="keyword">let</span> val = hal::pac::SYSTICK.cnt().read();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="理论和实践"><a href="#理论和实践" class="headerlink" title="理论和实践"></a>理论和实践</h2><p>之前在学习体系结构的知识时，书本上只有几张图来描述代码执行流的切换，于我而言并不直观。甚至很长一段时间我是当做文科的内容来学的。</p>
+<p>经过了本次实验后，令我印象最深的是__switch函数，通过寄存器内容的切换，便可切换到另一个执行流上。</p>
+<p>而执行流，在某一时刻无非是:</p>
+<ul>
+<li>pc指针的位置</li>
+<li>栈指针的位置</li>
+<li>若干存储在当前寄存器中的变量</li>
+</ul>
+<p>而对执行流，进一步抽象成包含若干线程的进程。</p>
+<p>对若干的进程进行管理，并为进程提供服务，就是操作系统。</p>
+<h2 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h2><p>在此之前，我对ntfs之类的文件系统没有一点了解。在这次实验中，了解了一个简单文件系统的实现，并且通过easyfs实现了一些功能。</p>
+<p>同时，简单了解到了对于硬件驱动的编写，以及将不同的硬件驱动，抽象成相同的软件内模型。在软件内进行多层抽象，每层抽象负责简单的几件事情。</p>
+<p>这样能够方便错误判断，多层抽象的思想我最先从网络原理中了解。easyfs的实现方式，进一步的说明多层抽象在计算机软件编写中，可以称得上是最佳实践了。</p>
+<h2 id="进程-amp-线程"><a href="#进程-amp-线程" class="headerlink" title="进程&amp;线程"></a>进程&amp;线程</h2><p>不去亲自阅读操作系统源码，是很难对进程和线程有明确的理解的。</p>
+<p>甚至很长一段时间，我对进程和线程并没有区分。而在OS内部，进程可以拥有多个线程，线程之间共享内存空间。</p>
+<p>对于这点的了解，不仅是系统编程领域，对我普通的软件编程也大有裨益。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/Oveln/" rel="tag"># Oveln</a>
+              <a href="/blog/tags/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" rel="tag"># 2024春夏季开源操作系统训练营</a>
+              <a href="/blog/tags/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5/" rel="tag"># 第二阶段</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/17/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%99%88%E9%9F%B5%E6%B6%B5/" rel="prev" title="2024春季开源操作系统训练营第二阶段总结-陈韵涵">
+      <i class="fa fa-chevron-left"></i> 2024春季开源操作系统训练营第二阶段总结-陈韵涵
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/17/2024%E6%98%A5%E5%A4%8F%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5-%E5%A6%82%E4%BD%95%E5%BF%AB%E9%80%9F%E6%90%AD%E5%BB%BA%E5%9F%BA%E4%BA%8Edocker%E5%92%8Cvscode%E7%9A%84%E5%BC%80%E5%8F%91%E5%92%8C%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83-xuejianxinokok-md/" rel="next" title="2024春夏季OS训练营:如何快速搭建基于docker和vscode的开发和调试环境-xuejianxinokok.md">
+      2024春夏季OS训练营:如何快速搭建基于docker和vscode的开发和调试环境-xuejianxinokok.md <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
