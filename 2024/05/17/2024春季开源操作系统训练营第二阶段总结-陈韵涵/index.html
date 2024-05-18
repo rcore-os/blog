@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第1~2章总的来说这两张花的时间是比较久的，因为完全没有学过操作系统，对概念上的理解用了一些时间，真的跟着代码学习的时候，不知道这些代码之间的联系，不知道用户程序和操作系统是怎么联系起来的。 因此总结了一个大概流程： build.py编译user里面的用户应用程序：  启动qemu和rustsbi，编译os  执行build.rs，将bin文件插入到link_app.S，生成link_app.S">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024春季开源操作系统训练营第二阶段总结-陈韵涵">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/05/17/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%99%88%E9%9F%B5%E6%B6%B5/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第1~2章总的来说这两张花的时间是比较久的，因为完全没有学过操作系统，对概念上的理解用了一些时间，真的跟着代码学习的时候，不知道这些代码之间的联系，不知道用户程序和操作系统是怎么联系起来的。 因此总结了一个大概流程： build.py编译user里面的用户应用程序：  启动qemu和rustsbi，编译os  执行build.rs，将bin文件插入到link_app.S，生成link_app.S">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2Fce4013a7-036b-4f96-ad8a-d1df978627bd%2FUntitled.png?table=block&id=6708e532-2ebf-47da-8e2a-43eae2e27118&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F5a2d1e07-da11-4184-b467-bbd18be7ce30%2FUntitled.png?table=block&id=177a16ce-556f-4b45-9890-5b6edd590b4c&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2Fda654f61-99ec-4b02-8e83-a51d7800dbc4%2FUntitled.png?table=block&id=fe934e8e-bbb7-4476-a852-dfa3851f794d&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F9eeae072-eabb-4c7a-99ee-ba555b47cf16%2FUntitled.png?table=block&id=c93ad5b8-d780-4e61-b926-2d5981b09740&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F5d217db3-2514-4954-bcef-a322819058d3%2FUntitled.png?table=block&id=a6081a8e-7120-4d1a-993d-ff8b8d9c0398&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F44bcf144-9c5b-4ba6-9a4e-d579b27f874c%2FUntitled.png?table=block&id=34b9f1a5-ba7f-47db-aa7e-c3abfd31c7f0&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+<meta property="og:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2Fac41c707-8033-4264-a2e7-dc7f81bb8cd9%2F7cbdd5ee-8c18-4cbf-9619-95fb3a5c34dd.png?table=block&id=4859c3ff-a516-4d00-a22a-7a4ce709b080&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+<meta property="article:published_time" content="2024-05-17T00:00:00.000Z">
+<meta property="article:modified_time" content="2024-05-18T07:27:02.099Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="[object Object]">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2Fce4013a7-036b-4f96-ad8a-d1df978627bd%2FUntitled.png?table=block&id=6708e532-2ebf-47da-8e2a-43eae2e27118&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/05/17/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%99%88%E9%9F%B5%E6%B6%B5/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024春季开源操作系统训练营第二阶段总结-陈韵涵 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第1-2章"><span class="nav-number">1.</span> <span class="nav-text">第1~2章</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第3章"><span class="nav-number">2.</span> <span class="nav-text">第3章</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第4章"><span class="nav-number">3.</span> <span class="nav-text">第4章</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第5章"><span class="nav-number">4.</span> <span class="nav-text">第5章</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第6章"><span class="nav-number">5.</span> <span class="nav-text">第6章</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第7-8章"><span class="nav-number">6.</span> <span class="nav-text">第7~8章</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">380</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">25</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">393</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/17/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%99%88%E9%9F%B5%E6%B6%B5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024春季开源操作系统训练营第二阶段总结-陈韵涵
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-05-17 00:00:00" itemprop="dateCreated datePublished" datetime="2024-05-17T00:00:00+00:00">2024-05-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-05-18 07:27:02" itemprop="dateModified" datetime="2024-05-18T07:27:02+00:00">2024-05-18</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="第1-2章"><a href="#第1-2章" class="headerlink" title="第1~2章"></a>第1~2章</h1><p>总的来说这两张花的时间是比较久的，因为完全没有学过操作系统，对概念上的理解用了一些时间，真的跟着代码学习的时候，不知道这些代码之间的联系，不知道用户程序和操作系统是怎么联系起来的。</p>
+<p>因此总结了一个大概流程：</p>
+<p>build.py编译user里面的用户应用程序：</p>
+<p><img src="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2Fce4013a7-036b-4f96-ad8a-d1df978627bd%2FUntitled.png?table=block&id=6708e532-2ebf-47da-8e2a-43eae2e27118&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2" alt="img"></p>
+<p>启动qemu和rustsbi，编译os</p>
+<p><img src="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F5a2d1e07-da11-4184-b467-bbd18be7ce30%2FUntitled.png?table=block&id=177a16ce-556f-4b45-9890-5b6edd590b4c&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2" alt="img"></p>
+<p><a href="http://xn--build-s06jr40t.rs" target="_blank" rel="noopener">执行build.rs</a>，将bin文件插入到link_app.S，生成link_app.S</p>
+<p>链接</p>
+<p><a href="http://main.xn--rsbatch-eb1ux83c.rs" target="_blank" rel="noopener">main.rs运行batch.rs</a>，开始批处理</p>
+<p>batch.rs首先初始化一个实例：APP_MANAGER: UPSafeCell<AppManager></AppManager></p>
+<p>从link_app.S里面找到_num_app符号，找到每个app的地址存进app_start数组，然后将其打印出来</p>
+<p>然后依次执行应用程序，其中应用程序出现错误或者开始下一个应用程序时，需要有用户态到内核态的切换。需要用到Trap.S</p>
+<p><img src="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2Fda654f61-99ec-4b02-8e83-a51d7800dbc4%2FUntitled.png?table=block&id=fe934e8e-bbb7-4476-a852-dfa3851f794d&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2" alt="img"></p>
+<p>开始批处理</p>
+<p><img src="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F9eeae072-eabb-4c7a-99ee-ba555b47cf16%2FUntitled.png?table=block&id=c93ad5b8-d780-4e61-b926-2d5981b09740&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2" alt="img"></p>
+<p>保存Trap上下文，之后进入trap_handler，正常情况下会返回并继续执行下一个应用程序</p>
+<p><img src="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F5d217db3-2514-4954-bcef-a322819058d3%2FUntitled.png?table=block&id=a6081a8e-7120-4d1a-993d-ff8b8d9c0398&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2" alt="img"></p>
+<p>这个函数不会返回，会一直将加载应用程序并把当前的应用程序的上下文压入内核栈，sret后就会自动执行下一个应用程序，直到完成</p>
+<h1 id="第3章"><a href="#第3章" class="headerlink" title="第3章"></a>第3章</h1><p>主要是学习分时操作系统，概念上还是比较好理解的</p>
+<h1 id="第4章"><a href="#第4章" class="headerlink" title="第4章"></a>第4章</h1><p>学习了地址空间，一开始对于这几个概念比较混淆：</p>
+<ul>
+<li>虚拟地址</li>
+<li>虚拟页号</li>
+<li>物理地址</li>
+<li>物理页号</li>
+<li>地址空间</li>
+</ul>
+<p>后来根据这个图搞懂了</p>
+<p><img src="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2F44bcf144-9c5b-4ba6-9a4e-d579b27f874c%2FUntitled.png?table=block&id=34b9f1a5-ba7f-47db-aa7e-c3abfd31c7f0&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2" alt="img"></p>
+<ul>
+<li><p>虚拟地址指的是在地址空间里面，数据的地址</p>
+</li>
+<li><p>虚拟页号指的是虚拟地址字段里面的一个字段，这个字段可以在物理页表上查到一个物理页号，最终通过多级页表，查找到这个虚拟地址对应的物理地址，从而真正在主存读写数据</p>
+</li>
+<li><p>每个应用的地址空间可以被分成若干个（虚拟） 页面 (Page) ，而可用的物理内存也同样可以被分成若干个（物理） 页帧 (Frame) ，虚拟页面和物理页帧的大小相同</p>
+</li>
+<li><p>地址空间：一系列有关联的逻辑段：</p>
+<p><strong>地址空间</strong>是一系列有关联的逻辑段，这种关联一般是指这些逻辑段属于一个运行的程序（目前把一个运行的程序称为任务，后续会称为进程）。 用来表明正在运行的应用所在执行环境中的可访问内存空间，在这个内存空间中，包含了<strong>一系列的不一定连续的逻辑段</strong>。 这样我们就有任务的地址空间、内核的地址空间等说法了</p>
+<p>也就是说，地址空间的逻辑段不一定连续，这就对应了编程题，如果要写的内容太大导致分页，应该直接将内容也分页塞入到其物理地址里面去</p>
+</li>
+</ul>
+<h1 id="第5章"><a href="#第5章" class="headerlink" title="第5章"></a>第5章</h1><p>需要记的就是进程是怎么调度的，switch函数的作用</p>
+<p>就是最初，先创建一个idle进程，然后将switch的参数设置为idle进程和第一个程序，使得第一个程序可以执行</p>
+<p>然后就调用 task 子模块提供的 suspend_current_and_run_next 函数可以暂停当前任务，并切换到下一个任务</p>
+<p>这一章完成后，一个应用程序可以主动交出CPU的使用权，这样一来，它需要等待某个资源的时候，CPU就可以去执行其他程序了</p>
+<h1 id="第6章"><a href="#第6章" class="headerlink" title="第6章"></a>第6章</h1><p>这一章的概念也看得我很晕</p>
+<p>主要是：</p>
+<ul>
+<li>索引节点和文件有什么关系？</li>
+<li>目录和索引节点又有什么关系？</li>
+<li>一级索引存在哪里？二级索引指向哪里？</li>
+<li>inode和DiskInode是如何映射起来的？</li>
+</ul>
+<p>因此画了这个示意图：</p>
+<p><img src="https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fba0aca6b-3b67-48e5-ac4d-8a0498157baa%2Fac41c707-8033-4264-a2e7-dc7f81bb8cd9%2F7cbdd5ee-8c18-4cbf-9619-95fb3a5c34dd.png?table=block&id=4859c3ff-a516-4d00-a22a-7a4ce709b080&spaceId=ba0aca6b-3b67-48e5-ac4d-8a0498157baa&width=2000&userId=4604a8da-3e33-4cbd-b5b3-bda19d665487&cache=v2" alt="img"></p>
+<p>对于lab，感觉比较难的是理解几个inode之间的关系，比如通过文件名如何查找其对应的inode_id？</p>
+<h1 id="第7-8章"><a href="#第7-8章" class="headerlink" title="第7~8章"></a>第7~8章</h1><p>终于要结束了</p>
+<p>第8章的概念比较好理解，对我来说比较难的是理解lab里面死锁检测算法的含义</p>
+<p>一开始写的时候只考虑了能否解开一个锁，总感觉哪里不对。后来发现，其实要考虑能否解开所有的锁，因为解锁的顺序是要考虑的，如果只考虑能否解开一个锁，那么这个解锁顺序可能无法实现。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/object-Object/" rel="tag"># [object Object]</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/15/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-w6rsty/" rel="prev" title="2024开源操作系统训练营第一阶段总结-w6rsty">
+      <i class="fa fa-chevron-left"></i> 2024开源操作系统训练营第一阶段总结-w6rsty
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/17/2024%E6%98%A5%E5%A4%8F%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5-%E5%A6%82%E4%BD%95%E5%BF%AB%E9%80%9F%E6%90%AD%E5%BB%BA%E5%9F%BA%E4%BA%8Edocker%E5%92%8Cvscode%E7%9A%84%E5%BC%80%E5%8F%91%E5%92%8C%E8%B0%83%E8%AF%95%E7%8E%AF%E5%A2%83-xuejianxinokok-md/" rel="next" title="2024春夏季OS训练营:如何快速搭建基于docker和vscode的开发和调试环境-xuejianxinokok.md">
+      2024春夏季OS训练营:如何快速搭建基于docker和vscode的开发和调试环境-xuejianxinokok.md <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
