@@ -1,5 +1,5 @@
 ---
-title: 2024OS训练营第一阶段总结-SaZiKK
+title: 2024OS训练营总结-SaZiKK
 date: 2024-04-24 21:57:58
 tags:
     - author:SaZiKK
@@ -11,7 +11,7 @@ tags:
 </div>
 
 
-## Rustling心得
+## 第一阶段 Rustling心得
 
 
 Rustlings对于rust的上手帮助很大，~~不过它的难度比较松弛，而额外添加的10道算法题又弥补了这一部分~~。尽管如此，我在完成rustlings过程中还是遇到了很多问题和疑惑，解决这些问题让我对rust的理解提高了很多
@@ -117,4 +117,9 @@ fn insert(&mut self, value: T) {
 }
 ```
 在算法题中涉及了好几次获取可变引用和unwrap，这里要注意的点是unwrap会导致所有权的转移，所以需要首先调用as_mut获取可变引用，再进行unwrap，防止出现所有权问题。
+
+## 第二阶段：
+
+第二阶段的总结发布在我的个人博客上：[笔记-rCoreLab实验笔记](https://sazikk.github.io/posts/%E7%AC%94%E8%AE%B0-rCoreLab%E5%AE%9E%E9%AA%8C%E7%AC%94%E8%AE%B0/)
+
 
