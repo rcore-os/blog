@@ -2,8 +2,8 @@
 title: <2024开源操作系统训练营总结报告——Air-Suck>
 date: 2024-05-21 19:59:36
 tags:
-	- author:Air-Suck
-	- repo:https://github.com/Air-Suck/Spring-rCore
+    - author:Air-Suck
+    - repo:https://github.com/Air-Suck/Spring-rCore
 ---
 
 # 2024春夏季开源操作系统训练营总结报告
