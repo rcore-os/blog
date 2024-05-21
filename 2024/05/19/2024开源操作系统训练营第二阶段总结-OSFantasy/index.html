@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第二阶段 - OS设计实现0 前言由于我是二刷了，所以一阶段很快就搞完了，然后提前了一个月左右弄二阶段。最后赶在了五一假期前做完了二阶段的Lab。（PS：不得不说，群友都好强，Orz） 然后我五一假期过后，训练营学习基本上就有些摆了（除了上课就没干啥了）。一方面原因是学校课程忽然要考试了，二是不得不重视英语学习了，三是自制力下降了很多。  虽然是二刷训练营了，但是这次是第一次参与到二阶段的学习中（">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024开源操作系统训练营第二阶段总结-OSFantasy">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/05/19/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-OSFantasy/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第二阶段 - OS设计实现0 前言由于我是二刷了，所以一阶段很快就搞完了，然后提前了一个月左右弄二阶段。最后赶在了五一假期前做完了二阶段的Lab。（PS：不得不说，群友都好强，Orz） 然后我五一假期过后，训练营学习基本上就有些摆了（除了上课就没干啥了）。一方面原因是学校课程忽然要考试了，二是不得不重视英语学习了，三是自制力下降了很多。  虽然是二刷训练营了，但是这次是第一次参与到二阶段的学习中（">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E8%9E%8D%E5%8C%96.png">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-19%20194056.png">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-19%20204200.png">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-19%20232241.png">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/PrivilegeStack.png">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-20%20211446.png">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/FATFS.jpg">
+<meta property="og:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-20%20214215.png">
+<meta property="article:published_time" content="2024-05-19T19:16:19.000Z">
+<meta property="article:modified_time" content="2024-05-21T11:52:31.028Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:OSFantasy">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;LearningOS&#x2F;2024s-rcore-OSFantasy">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E8%9E%8D%E5%8C%96.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/05/19/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-OSFantasy/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024开源操作系统训练营第二阶段总结-OSFantasy | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第二阶段-OS设计实现"><span class="nav-number">1.</span> <span class="nav-text">第二阶段 - OS设计实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#0-前言"><span class="nav-number">1.1.</span> <span class="nav-text">0 前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-环境与工具软件等"><span class="nav-number">1.2.</span> <span class="nav-text">1 环境与工具软件等</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#RustRover"><span class="nav-number">1.2.1.</span> <span class="nav-text">RustRover</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#qemu"><span class="nav-number">1.2.2.</span> <span class="nav-text">qemu</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-OS知识"><span class="nav-number">1.3.</span> <span class="nav-text">2 OS知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#操作系统概述"><span class="nav-number">1.3.1.</span> <span class="nav-text">操作系统概述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#异常控制流"><span class="nav-number">1.3.2.</span> <span class="nav-text">异常控制流</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RISC-V-特权级架构"><span class="nav-number">1.3.3.</span> <span class="nav-text">RISC-V 特权级架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#文件系统"><span class="nav-number">1.3.4.</span> <span class="nav-text">文件系统</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#移植FATFS"><span class="nav-number">1.3.5.</span> <span class="nav-text">移植FATFS</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-总结"><span class="nav-number">1.4.</span> <span class="nav-text">3 总结</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">387</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">25</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">398</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/19/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-OSFantasy/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024开源操作系统训练营第二阶段总结-OSFantasy
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-05-19 19:16:19" itemprop="dateCreated datePublished" datetime="2024-05-19T19:16:19+00:00">2024-05-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-05-21 11:52:31" itemprop="dateModified" datetime="2024-05-21T11:52:31+00:00">2024-05-21</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="第二阶段-OS设计实现"><a href="#第二阶段-OS设计实现" class="headerlink" title="第二阶段 - OS设计实现"></a>第二阶段 - OS设计实现</h1><h2 id="0-前言"><a href="#0-前言" class="headerlink" title="0 前言"></a>0 前言</h2><p>由于我是二刷了，所以一阶段很快就搞完了，然后提前了一个月左右弄二阶段。最后赶在了五一假期前做完了二阶段的Lab。（PS：不得不说，群友都好强，Orz）</p>
+<p>然后我五一假期过后，训练营学习基本上就有些摆了（除了上课就没干啥了）。一方面原因是学校课程忽然要考试了，二是不得不重视英语学习了，三是自制力下降了很多。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E8%9E%8D%E5%8C%96.png" alt="融化"></p>
+<p>虽然是二刷训练营了，但是这次是第一次参与到二阶段的学习中（上次二阶段还没开始就没搞了）。不得不说二阶段真的学到了好多关于OS相关的知识，同时代码的实操非常有用。（PS：Tutorial-Book-V3的step-by-step真的很棒）</p>
+<p>我本人是非计算机专业的，对于本次二阶段来说，基本上算是零基础了（没学过计组、操作系统概论、CSAPP、计算机体系结构等）。不过好在的是我对于单片机的开发还是比较熟悉的，在二阶段的学习中我也发现了OS开发和单片机开发的很多相似之处，比如：STM32有个东西叫HAL库，OS中有个东西叫HAL层(也就是SBI)，它两都是对硬件的一层抽象。</p>
+<h2 id="1-环境与工具软件等"><a href="#1-环境与工具软件等" class="headerlink" title="1 环境与工具软件等"></a>1 环境与工具软件等</h2><h3 id="RustRover"><a href="#RustRover" class="headerlink" title="RustRover"></a>RustRover</h3><p>还是强推RustRover。毕竟rCore的代码量可不小，用vim在多个文件间切换太麻烦了。而且RR可以方便的查看函数的使用和trait的impl。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-19%20194056.png" alt="RR"></p>
+<p>另外提一下，我在使用Ubuntu22上的RR2024.3时遇到了闪退问题。换回到RR2023后解决了。</p>
+<h3 id="qemu"><a href="#qemu" class="headerlink" title="qemu"></a>qemu</h3><p>这个主要是用来模拟一个risc-v64的机器在我们的x86_64的电脑上。</p>
+<p>在安装的时候可能会遇到一个坑，就是在执行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># 安装编译所需的依赖包</span><br><span class="line">sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \</span><br><span class="line">              gawk build-essential bison flex texinfo gperf libtool patchutils bc \</span><br><span class="line">              zlib1g-dev libexpat-dev pkg-config  libglib2.0-dev libpixman-1-dev libsdl2-dev libslirp-dev \</span><br><span class="line">              git tmux python3 python3-pip ninja-build</span><br><span class="line"># 下载源码包</span><br><span class="line"># 如果下载速度过慢可以使用我们提供的百度网盘链接：https:&#x2F;&#x2F;pan.baidu.com&#x2F;s&#x2F;1dykndFzY73nqkPL2QXs32Q</span><br><span class="line"># 提取码：jimc</span><br><span class="line">wget https:&#x2F;&#x2F;download.qemu.org&#x2F;qemu-7.0.0.tar.xz</span><br><span class="line"># 解压</span><br><span class="line">tar xvJf qemu-7.0.0.tar.xz</span><br><span class="line"># 编译安装并配置 RISC-V 支持</span><br><span class="line">cd qemu-7.0.0</span><br><span class="line">.&#x2F;configure --target-list&#x3D;riscv64-softmmu,riscv64-linux-user  # 在第九章的实验中，可以有图形界面和网络。如果要支持图形界面，可添加 &quot; --enable-sdl&quot; 参数；如果要支持网络，可添加 &quot; --enable-slirp&quot; 参数</span><br><span class="line">make -j$(nproc)</span><br></pre></td></tr></table></figure>
+
+<p>而后，可能会报错说缺少某个东西。这是因为第一步操作可能少了个需要的依赖。按照提示执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install &lt;缺少的某个依赖&gt;</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-OS知识"><a href="#2-OS知识" class="headerlink" title="2 OS知识"></a>2 OS知识</h2><h3 id="操作系统概述"><a href="#操作系统概述" class="headerlink" title="操作系统概述"></a>操作系统概述</h3><p>站在应用程序的角度来看，我们可以发现常见的应用程序其实是运行在由硬件、操作系统内核、运行时库、图形界面支持库等所包起来的一个 执行环境 (Execution Environment) 中，如下图所示。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-19%20204200.png" alt="OS结构"></p>
+<h3 id="异常控制流"><a href="#异常控制流" class="headerlink" title="异常控制流"></a>异常控制流</h3><p>在操作系统中，需要处理三类异常控制流：外设中断 (Device Interrupt) 、陷入 (Trap) 和异常 (Exception，也称Fault Interrupt)。</p>
+<p>陷入 (Trap) 是程序在执行过程中由于要通过系统调用请求操作系统服务而有意引发的事件。产生陷入后，操作系统需要执行系统调用服务来响应系统调用请求，这会破坏陷入前应用程序的控制流上下文，所以操作系统要保存与恢复陷入前应用程序的控制流上下文。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-19%20232241.png" alt="异常控制流：陷入"></p>
+<h3 id="RISC-V-特权级架构"><a href="#RISC-V-特权级架构" class="headerlink" title="RISC-V 特权级架构"></a>RISC-V 特权级架构</h3><p>RISC-V 架构中一共定义了 4 种特权级：</p>
+<table>
+<thead>
+<tr>
+<th>特权级</th>
+<th>编码</th>
+<th>名称</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>00</td>
+<td>用户/应用模式 (U)</td>
+<td>用于运行普通的用户应用程序。在这个模式下，应用程序不能执行特权指令，也不能直接访问硬件资源。</td>
+</tr>
+<tr>
+<td>1</td>
+<td>01</td>
+<td>监督模式 (S)</td>
+<td>通常用于运行操作系统内核。在这个模式下，操作系统可以执行特权指令来管理进程、内存和其他系统资源，但是它不能直接访问所有的硬件资源。</td>
+</tr>
+<tr>
+<td>2</td>
+<td>10</td>
+<td>虚拟监督模式 (H)</td>
+<td>用于运行虚拟化管理程序（Hypervisor），它可以在物理硬件上管理多个虚拟机监视器（VMM）。Hypervisor模式可以执行一些特定的管理操作，但不是所有的机器级指令都是可用的。</td>
+</tr>
+<tr>
+<td>3</td>
+<td>11</td>
+<td>机器模式 (M)</td>
+<td>用于运行固件和操作系统内核。机器模式可以执行所有的指令，并且可以直接访问所有的硬件资源。通常，机器模式下的代码负责硬件管理和启动时的引导。</td>
+</tr>
+</tbody></table>
+<p>其中，级别的数值越大，特权级越高，掌控硬件的能力越强。从表中可以看出， M 模式处在最高的特权级，而 U 模式处于最低的特权级。在CPU硬件层面，除了M模式必须存在外，其它模式可以不存在。</p>
+<p>从特权级架构的角度，去分析支持应用程序运行的执行环境栈，如下图所示：</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/PrivilegeStack.png" alt="特权级"></p>
+<p>其中，白色块表示一层执行环境，黑色块表示相邻两层执行环境之间的接口。这张图片给出了能够支持运行 Unix 这类复杂系统的软件栈。其中操作系统内核代码运行在 S 模式上；应用程序运行在 U 模式上。运行在 M 模式上的软件被称为 监督模式执行环境 (SEE, Supervisor Execution Environment)，如在操作系统运行前负责加载操作系统的 Bootloader – RustSBI。站在运行在 S 模式上的软件视角来看，它的下面也需要一层执行环境支撑，因此被命名为 SEE，它需要在相比 S 模式更高的特权级下运行，一般情况下 SEE 在 M 模式上运行。</p>
+<h3 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h3><p>在操作系统的管理下，应用程序不用理解持久存储设备的硬件细节，而只需对 文件 这种持久存储数据的抽象进行读写就可以了，由操作系统中的文件系统和存储设备驱动程序一起来完成繁琐的持久存储设备的管理与读写。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-20%20211446.png" alt="文件系统"></p>
+<h3 id="移植FATFS"><a href="#移植FATFS" class="headerlink" title="移植FATFS"></a>移植FATFS</h3><p>之前移植FATFS文件系统到FeatOS（其实就是照着rCore写的，改了一点）中时，学习FATFS结构打的草稿。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/FATFS.jpg" alt="FATFS"></p>
+<p>最后移植成功后，能够读取并运行FAT32文件系统镜像中的elf文件。</p>
+<h2 id="3-总结"><a href="#3-总结" class="headerlink" title="3 总结"></a>3 总结</h2><p>这次总算是圆满完成第二阶段了，同时也取得了不错的成绩。文件系统和并发让我印象深刻，打算后面完成第三阶段后再回来详细的搞搞ch6后面的东西。</p>
+<p><img src="https://osfantasyphoto.oss-cn-chengdu.aliyuncs.com/blog/os-lab/stage1/%E5%B1%8F%E5%B9%95%E6%88%AA%E5%9B%BE%202024-05-20%20214215.png" alt="成绩"></p>
+<p>感激社区提供了这样一个学习平台，它为我打开了一扇探索操作系统奥秘的大门。希望后续的学习我还能够坚持下去吧！</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-OSFantasy/" rel="tag"># author:OSFantasy</a>
+              <a href="/blog/tags/repo-https-github-com-LearningOS-2024s-rcore-OSFantasy/" rel="tag"># repo:https://github.com/LearningOS/2024s-rcore-OSFantasy</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/19/Map-for-Rust/" rel="prev" title="Summary of 2024s-rcore 1st stage  -- Map for Rust">
+      <i class="fa fa-chevron-left"></i> Summary of 2024s-rcore 1st stage  -- Map for Rust
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/05/21/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E7%9D%BF/" rel="next" title="2023开源操作系统训练营总结报告-周睿">
+      2023开源操作系统训练营总结报告-周睿 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
