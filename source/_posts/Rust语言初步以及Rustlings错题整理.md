@@ -1,13 +1,13 @@
 ---
 title: Rust语言初步以及Rustlings错题整理
-date: 2024-04-26 15:37:38
+date: 2024-05-18 15:37:38
 categories:
   - 2024春夏季开源操作系统训练营
 tags:
   - author:vvw12345
 ---
 
-# RUST语言初步及Rust错题整理
+# RUST语言学习和Rcore实验感想
 
 ## 写在前面
 
@@ -1995,3 +1995,291 @@ fn main() {
 }
 ```
 
+## Rcore实验感想
+
+### 写在前面
+
+由于实验要求不能够贴代码，因此本报告重点就是日记这种了……
+
+会简单的讲一下过程
+
+### Lab3
+
+看了一下自己写的东西……玛德我原本也贴了不少代码
+
+行吧……那就放些记录性的东西
+
+……
+
+报错挺多的，反正就照着编译器一个一个来吧……
+
+类型错误……
+
+<img src="D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240428141340827.png" alt="image-20240428141340827" style="zoom:67%;" />
+
+missing documentations for functions
+
+不写注释也不行 ~~笑~~
+
+<img src="D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240428142025031.png" alt="image-20240428142025031"  />
+
+
+
+
+
+### Lab4
+
+#### 重写sys_get_time和sys_task_info
+
+先看看原本的sys_get_time是如何实现的？
+
+对指针`*ts`所指向的内存空间赋值时间信息，在引入虚存之前应用空间和内核空间之间不存在隔离，二者都可以直接访问到`*ts`所在位置。在引入虚存之后，每个应用以及内核本身都有独立的地址空间，没办法访问了。
+
+因此我们需要想办法，使得OS能够访问到应用所在的位置，需要完成二者地址的翻译。
+
+……
+
+和mmap那个题目一样，sys_get_time以及sys_task_info也是需要在当前任务下才行
+
+为什么突然写回来了呢……（因为在线CI测了sys_get_time还有sys_task_info 发现自己写的根本就不对
+
+我知道哪里不行了 我的实现没问题 搞得我还重写了一次
+
+每次执行系统调用的时候忘记调用`add_syscall_num`
+
+#### mmap
+
+`insert_frame_area`函数是比较值得参考的一个函数
+
+不仅仅是函数实现的功能类似，用法也很值得学习
+
+……
+
+随后就是漫长的调试……
+
+这里注意到特殊的一行
+
+`[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.`
+
+先找到这行输出是哪里来的，发现在`Trap_handler`方法里面
+
+然后再考虑，发现其实我的程序连`mmap0`都没正常跑完
+
+但是正确分配了页面，要不然就不会有`start_va:0x10000000~end_va:0x10001000 map_perm:0x16`输出
+
+这里的`0x16`完全没问题（之前看成10进制了）
+
+`0001 0110` 代表`U`,`W`,`R`被置位 而测试用例`mmap0`给的是`3` 也就是`011` 也是对应`W`,`R`
+
+![image-20240518222104567](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240518222104567.png)
+
+妈的 我知道怎么搞了 之所以会不断出现`The Page you wanted has been alloced to others`的报错信息是因为之前在`sys_mmap`方法中对MemorySet中`mmap()`的调用是这样子的
+
+```rust
+// 获取内核实例 取得所有权完成分配(这样不对 你并没有找到实际你要分配的位置) 实际上你是给内核多次分配了 所以才这样子报错
+let num = KERNEL_SPACE.exclusive_access().mmap(start, len, port);
+//之所以这样子写主要还是因为参考了前面insert_frame_area的用法 没有具体考虑他使用的上下文
+```
+
+事实上应该找到当前运行的任务，只有当前运行的任务是知道自己的地址空间信息的，具体在`TCB`里面有一项`memory_set` 
+
+这里也走了点弯路 一开始我的想法是在`TaskControlBlock`中实现一个`get_current_tasks_area`（类似于之前`get_tasks_start_time`一样拿到时间）拿到`memory_set`的所有权或者引用之后，在`sys_mmap()`里面再用得到的`memory_set`来调用（我个人感觉主要还是仿照了前面代码的思路，就非要拿到一个类似于`KERNEL_SPACE`的地址空间，事实上没必要）
+
+……
+
+实现了`mmap`之后`munmap`就比较简单了
+
+这里写一个点 关于`munmap`的最后一个测试用例
+
+下面给一个比较滑头的办法 检查一下是不是页对齐就行（start硬编码写死了 所以其实你怎么写都差不多
+
+```rust
+// YOUR JOB: Implement munmap.
+pub fn sys_munmap(start: usize, len: usize) -> isize {
+    trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
+    if start % PAGE_SIZE != 0{
+        return -1;
+    }
+    let num = munmap_current_task(start, len);
+    num
+}
+```
+
+按理说应该是实现一个检测解除映射范围和现有的映射区域是否完全一致的方法
+
+明天再想吧……先看看能不能过在线CI
+
+懂了 在线CI看不到报错 我就说为什么lab4的测例全过了assert断言还是不行
+
+![image-20240505014117148](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240505014117148.png)
+
+这里可以看到比较详细的信息
+
+这里记录一下回退的点 本地执行CI之后需要删除一些未跟踪的文件
+
+```markdown
+git clean -f  删除未跟踪的文件（不包括目录）
+git clean -fd 删除未跟踪的文件和目录
+```
+
+
+
+![image-20240505171002449](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240505171002449.png)
+
+解决了 太sb了
+
+
+
+### Lab5
+
+#### 之前的测例实现过程
+
+经典内容……
+
+注意一个点 在Lab5里面把TaskManager拆分成了TaskManager和processor两个数据结构
+
+不过他们对进程信息的获取还是通过TaskControlBlock
+
+关于初始化信息补全
+
+忘记记录了……之前的测例实现基本就是cv，注意放到正确的数据结构里面重新实现一次就行
+
+遇到一个新问题
+
+![image-20240506003949090](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240506003949090.png)
+
+![image-20240506004011708](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240506004011708.png)
+
+这个`Write`系统调用莫名其妙多出这么多次数
+
+我决定在增加系统调用的方法中加一行调试，打印一下系统调用编号
+
+```rust
+/// 添加系统调用
+pub fn add_current_syscall_times(&mut self,syscall_id:usize){
+    let mut current_inner = self.current.as_mut().unwrap().inner_exclusive_access();
+    current_inner.syscall_times[syscall_id] += 1;
+    println!("{} + 1\n",syscall_id);
+}
+```
+
+![image-20240506010214962](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240506010214962.png)
+
+出现了奇怪的输出
+
+每次键入一个字符 对应着`read` `waitpid` `yield` `write`系统调用都+1了
+
+虽然输出流打断了我的输入流 但是功能应该还是正常的 只是我没有键入回车键 所以用户程序没有被正常执行起来
+
+应该是前面的实现有问题（
+
+在父进程通过`fork()`系统调用创建子进程的时候，子进程不应该继承父进程的系统调用次数和开始时间
+
+系统调用次数应该直接初始化为0才对（重新算
+
+```rust
+start_time:get_time_us() / 1000,
+syscall_times:[0;MAX_SYSCALL_NUM]
+```
+
+ok 这里可以过了
+
+现在又有新问题了 还是`ch3_taskinfo`的测例
+
+![image-20240506011435160](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240506011435160.png)
+
+好像还是过不了 但是断言错误的次数确实是减少了……
+
+好像是用`println!()`打印调试信息的问题，如果去掉的话`Write`系统调用的次数就不会增加
+
+![image-20240506013300058](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240506013300058.png)
+
+还真是 回头看了一下`console.rs`里面对`println!()`的实现 很明显是基于`Write`的
+
+不然平白无故你的OS怎么能打印东西的……把这事情给忘记了    ~~笑~~
+
+先一次性把时间信息都打印下来吧 后面就不看了
+
+![image-20240506013635316](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240506013635316.png)
+
+我切换分支到`ch4`重新跑一下这个用例 `t1=43` `t2=544` `t3=544` `info.time=501`是没有问题的 
+
+睡了 明天再说
+
+
+
+……睡觉的时候突然想到Lab5的`run_tasks()`方法应该是没有修改 所以没有把时间信息记录下来
+
+没错 就是在此处补一个记录时间的功能就ok了
+
+#### Spawn系统调用实现
+
+一遍过 感觉还是比较简单的…… 主要就是`fork()` `new()` 还有`exec()`的仿写
+
+注意对parent字段特殊处理
+
+`spawn`出来的进程的父进程应该为当前运行的进程
+
+#### Stride调度
+
+首先是在TCB里面增加进程优先级的字段`priority`和步长调度的参考数据`stride`
+
+其实是对初始化信息的补全
+
+一开始我是看到的`processor.rs`的`run_tasks()`模块，里面有一个`fetch_tasks()`的过程，取得目前应该运行的任务。但是`fetch_tasks()`是局限在`Task Manager`内部，缺少`Processor`结构，也就是当下的任务状态拿不到（就是有一种可能性是当下正在运行的进程`stride`还是最小）
+
+然后继续看源码 
+
+感觉这几个函数之间的关系有点懵
+
+……
+
+后面感觉还是得在`add`位置实现，也就是`fetch`还是从队头把进程取出来，但是在`add`增加进程的时候维护所有进程的`stride`顺序
+
+### Lab6
+
+#### 之前的测例
+
+首先就是要通过之前的测例 `sys_spawn`和之前会有一些区别
+
+主要就是获得程序数据的方式有差异
+
+#### 本实验测试点
+
+![image-20240510225304112](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240510225304112.png)
+
+差最后一个
+
+？？？
+
+byd什么勾八
+
+怎么实验还不能复现的 本地跑差一个点 在线ci全过了是吧
+
+![image-20240510225444383](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240510225444383.png)
+
+### Lab8
+
+如果启用死锁检测功能的话，主要的检测就是在上锁相关的操作检测是否合法
+
+这里有个困惑的点，就是一开始没搞懂`资源`到底是什么
+
+其实就是各类的`lock`……能够得到锁 就代表得到了某个特定的资源
+
+
+
+初始化是一门玄学……
+
+需要自己设置好两个常量`MAX_THREADS`和`MAX_RESOURES`的数量，代表当前可以获得的资源
+
+……
+
+#### 一些问题
+
+![image-20240516200029337](D:\116\sigs\blog\source\_posts\Rust语言初步以及Rustlings错题整理.assets\image-20240516200029337.png)
+
+就卡在这里了，也不知道怎么回事
+
+gpt问了一下
+
+……死锁了 我就说为什么寄了
