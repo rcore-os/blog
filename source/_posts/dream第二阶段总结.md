@@ -1,3 +1,15 @@
+
+
+---
+title: dream第二阶段总结
+date: 2024-05-31 20:00:41
+categories:
+    - 2024春夏季开源操作系统训练营
+tags:
+    - author:Eternal60f3
+    - repo:https://github.com/Eternal60f3/2024-rcore-repo
+---
+
 很感谢这次训练营的主办方。我这学期准备考研，然后就也想这弄一个项目。为复试增加点东西。
 
 rcore让我熟悉了gdb以及git的使用。借助vscode的插件也很方便的利用git来比对前后差异来debug。
