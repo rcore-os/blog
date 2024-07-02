@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第三阶段总结报告没想到为期40天的第三阶段这么快就结束了。现在回想一下这四十天几乎每天都在准备考试和参加训练营两个任务之间时间片轮转。但是很庆幸我还是走到了训练营的尾声。 在第三阶段的项目六：基于协程异步机制的操作系统&#x2F;驱动中，我了解到了我之前只是略有耳闻的异步，收获到了很多新知识。 首先我先阅读了《200行代码讲透RUST FUTURES》。在这里我又接触到了许多的新概念：绿色线程、Future">
+<meta property="og:type" content="article">
+<meta property="og:title" content="&lt;stage3 async Rust blog&gt;">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/06/29/stage3-async-Rust-blog/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第三阶段总结报告没想到为期40天的第三阶段这么快就结束了。现在回想一下这四十天几乎每天都在准备考试和参加训练营两个任务之间时间片轮转。但是很庆幸我还是走到了训练营的尾声。 在第三阶段的项目六：基于协程异步机制的操作系统&#x2F;驱动中，我了解到了我之前只是略有耳闻的异步，收获到了很多新知识。 首先我先阅读了《200行代码讲透RUST FUTURES》。在这里我又接触到了许多的新概念：绿色线程、Future">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-06-29T17:52:28.000Z">
+<meta property="article:modified_time" content="2024-07-02T02:47:55.491Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/06/29/stage3-async-Rust-blog/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title><stage3 async Rust blog> | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#第三阶段总结报告"><span class="nav-number">1.</span> <span class="nav-text">第三阶段总结报告</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">408</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">25</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">411</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/06/29/stage3-async-Rust-blog/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          <stage3 async Rust blog>
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-06-29 17:52:28" itemprop="dateCreated datePublished" datetime="2024-06-29T17:52:28+00:00">2024-06-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-07-02 02:47:55" itemprop="dateModified" datetime="2024-07-02T02:47:55+00:00">2024-07-02</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="第三阶段总结报告"><a href="#第三阶段总结报告" class="headerlink" title="第三阶段总结报告"></a>第三阶段总结报告</h2><p>没想到为期40天的第三阶段这么快就结束了。现在回想一下这四十天几乎每天都在准备考试和参加训练营两个任务之间时间片轮转。但是很庆幸我还是走到了训练营的尾声。</p>
+<p>在第三阶段的项目六：基于协程异步机制的操作系统/驱动中，我了解到了我之前只是略有耳闻的<strong>异步</strong>，收获到了很多新知识。</p>
+<p>首先我先阅读了《200行代码讲透RUST FUTURES》。在这里我又接触到了许多的新概念：绿色线程、Future、执行器、唤醒器。。。现在回想，看的过程实在是非常折磨，不仅要重新回顾本就不扎实的Rust语法，还要把多线程多协程带来的混乱执行流捋清楚。但是当我把它看完了之后，我才豁然开朗，我才明白Executor、Waker、Reactor、Future是如何协同工作以提高计算机的使用效率的。这为我后续阅读Embassy以及完成最终的成果打下了坚实的理论基础。</p>
+<p>在《200行代码讲透RUST FUTURES》提供的理论知识的加持下，我进一步阅读了《Embassy Book》。当回到我最熟悉的领域时，总是让人心旷神怡。在阅读《Embassy Book》的全过程中，我并没有遇到太多的障碍（可能这就是专业对口的优势吧），但是我却无时无刻不在感叹Embassy作者对Rust语言的了解程度、他对丑陋的硬件近乎完美的封装以及Embassy向用户提供的友好接口。这让我觉得Embassy好像并不是一个嵌入式运行时库，而更像是一个开销更低的操作系统。</p>
+<p>接下来就到了我觉得很有意义的部分。在这一小阶段，我对Embassy源码进行了逐步的调试，尝试理解Embassy的执行流。在Embassy中，有许多宏。Embassy的作者通过这些宏能够暴露给使用者干净、高效的接口，但是这对于我这种初学Rust，并且想理解Embassy执行流的人而言无疑是令人厌烦的。因为它隐藏了太多协程的细节（Rust语法对我而言也是很大的问题），所以我只能从头开始对Embassy源码进行调试。通过调试工具的帮助，我揭开了Embassy神秘的面纱：从创建执行器，到创建协程池；从创建主任务，到协程的不断循环执行。在此时我才真正领悟了Embassy的强大之处。</p>
+<p>终于到了coding部分。我与我的队友一起分工合作，成功使用Rust重构了uC/OS II的线程调度模块，并在uC/OS II的线程支持下应用了Embassy的协程机制。这使得Embassy的执行器对MCU不在是独占的，而是可以基于线程的调度算法进行轮转。并且在线程的支持下实现协程，进一步提高了我们的系统的并发度。而且有了线程的调度机制，我们也可以实现不同线程的协程在任意点切换。</p>
+<p>现在回想我在阶段三中完成的任务我才发现这些内容是多么地有意义。我了解到了Rust中的协程的实现机制，也了解到了Rust协程的一个实际应用——Embassy，最终我基于这些理论知识成功将Rust的协程使用起来，让我基本了解了一个能有效提高计算机系统性能的“秘籍“。</p>
+<p>三阶段固然有意义，但是如果没有他人的帮助，我绝对坚持不到现在。</p>
+<p>首先需要感谢我的队友。从三阶段一开始，我们就一直在交流关于Rust Future的各种细节。而到了调试Embassy的部分以及后面的coding，我们也都紧密配合。在调试Embassy的部分，如果没有他的学习成果，我很有可能就会被Embassy高级的Rust语法劝退；在coding部分，如果没有我们共同的努力，我们肯定不会在这么短的时间内使用一个我们都不熟悉的Rust重构一个操作系统的灵魂——线程调度模块，并且在这个基础上使用Embassy的协程机制。</p>
+<p>最后还需要感谢向勇老师。在向勇老师的悉心指导下，我和我的队友明确了我们将来的目标。我们希望在堆栈池的支持下，实现线程内部的协程抢占。并且在这个基础上进一步完善我们在阶段三产出的阶段性成果，并将其应用在我们的四轴飞行器中。</p>
+<p>再次回顾我的阶段三全过程，虽然我做事情不多，但是我仍收获颇丰。我相信不紧不慢依旧能走向未来。希望我今后也能保持着对异步、对Rust、对OS的满腔热爱，笃行不辍，履践致远。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/06/29/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%83%91%E6%98%B1%E5%8F%AF/" rel="prev" title="2024秋冬季开源操作系统训练营第三阶段总结报告_郑昱可">
+      <i class="fa fa-chevron-left"></i> 2024秋冬季开源操作系统训练营第三阶段总结报告_郑昱可
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/06/29/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%99%B6%E8%A6%81%E4%BB%B2/" rel="next" title="2024开源操作系统训练营第二阶段总结-tyz-own">
+      2024开源操作系统训练营第二阶段总结-tyz-own <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
