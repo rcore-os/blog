@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">408</span>
+          <span class="site-state-item-count">409</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,100 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/06/30/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E8%A2%81%E5%AD%90%E4%B8%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/06/30/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E8%A2%81%E5%AD%90%E4%B8%BA/" class="post-title-link" itemprop="url">2024春季开源操作系统训练营第各阶段总结报告-袁子为</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-06-30 17:48:28" itemprop="dateCreated datePublished" datetime="2024-06-30T17:48:28+00:00">2024-06-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024春夏季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="第三阶段总结报告"><a href="#第三阶段总结报告" class="headerlink" title="第三阶段总结报告"></a>第三阶段总结报告</h1><h2 id="完成的独立工作"><a href="#完成的独立工作" class="headerlink" title="完成的独立工作"></a>完成的独立工作</h2><h3 id="前期学习内容"><a href="#前期学习内容" class="headerlink" title="前期学习内容"></a>前期学习内容</h3><ul>
+<li>阅读《200行讲透Rust Future》(原文)</li>
+<li>阅读《Embassy Book》(原文)</li>
+<li>阅读《通过迭代 WebServer 逐步深入 Rust 异步编程》(原文)</li>
+</ul>
+<h3 id="项目实践内容"><a href="#项目实践内容" class="headerlink" title="项目实践内容"></a>项目实践内容</h3><ul>
+<li>首先由代码demo在debug单步执行中了解整个embassy的基础执行流程，关于executor和future部分有了自己的理解，于是产生了一个改进的思路，尤其是对于原来embassy的interrupt executor实现机制的改进思路</li>
+<li>由之前十分熟悉的UCOSII实时操作系统出发，进行功能裁剪和修改，适配到embassy的底层做一个线程运行时，让我们能够同时使用多个embassy thread executor，并且支持他们之间的优先级抢占，解决了原来interrupt executor方式支持的优先级抢占的两个问题：<ol>
+<li>优先级会占用中断，使得可用的外设中断减少，并且不灵活<br>项目的实现做到了不使用额外中断，只需要pendsv和systick中断来维护线程的切换以及时间片优先级的调度</li>
+<li>高优先级任务如果没有await的操作，也就是没有内部future会poll返回pending的话，其它低优先级任务不会得到执行，它会独占MCU/CPU，除非它被设计为timer wait一段时间来定时交出控制权<br>这里我们的项目实现是通过stride算法（略有修改），实现优先级抢占的线程调度算法，一个executor会独自占用一个线程，从而赋予了其优先级以及实现了executor之间的抢占，而且通过stride算法的调度策略，避免了高优先级executor独占MCU/CPU</li>
+</ol>
+</li>
+<li>调试工作的实施：学习到了rcore里面的makefile的思路，gdb配合openocd调试，通过读反汇编代码以及查看内存情况，解决了代码过程中的一些比如栈溢出，莫名进入hardfault，时钟频率不对等的bug</li>
+</ul>
+<h3 id="一些体会与收获"><a href="#一些体会与收获" class="headerlink" title="一些体会与收获"></a>一些体会与收获</h3><p>感觉前期的学习思考是最关键的时期，两周的时间都是花在看文章，跑跑demo程序，然后理解，思考，没有前面对于rust异步机制的理解，后面阅读embassy的代码肯定是无从下手的。中期的embassy部分，我觉得真的很需要一个真实的板子来跑它的示例程序，这样一步步调试着学习，能很快的明白整个流程，如果只是单纯看着代码做的话，很难把握整体的流程，而且调试过程中可以对embassy里面代码做修改，来查看你猜想的结果，这样对于细节处理的地方也能搞清楚，因为对于我这种情况（从训练营才开始接触rust语言）来说，单纯只读代码不运行，不调试，挑战性会很大，这是我自己学习embassy过程中的一点体会吧。</p>
+<p>还有对于后期项目开发的方式，我也有一些收获。首先是合作的开发方式选择，最开始和我的队友的确打算分branch分模块开发，但是，对于这部分硬件相关部分（并不是开发一个后端或者前端项目），而且还是在项目起草初期，我们很难把模块分得很细，而且中途更改会很多很频繁，所以我们选择现在很成熟的实时协作方式，在vscode上利用live share插件。到了开发中后期的项目debug以及调试模块的部分，的确可以分branch分模块开发，我们的流程基本是这样。然后是在嵌入式单片机调试方面的一些收获和经验吧，我在调试过程既用到了图形化调试，也用了gdb+dashboard的方式，我觉得这两个方式都很重要，很需要。在单片机上开了gdbserver过后，gdb命令行调试的反汇编查看效果，以及单汇编指令执行过程的效果看起来更好，能够在一些关键的bug查看上很方便（比如查看栈溢出的情况，看看是否溢出到把一些全局变量的内存单元改变了，还比如查看一些hardfault的进入原因，在我们用的cortex-m系列里面，它会把描述信息压入任务栈(也就是psp堆栈)，和riscv里面是放入在特定的寄存器里面，主要是查看进入异常的pc以及lr还有当时处理器的状态（xpsr），这样来debug），而图形化的调试更简单，能快速的查看一些其它小的bug，并且可视化查看代码也更方便，所以我的推荐是两个都使用。最后想谈谈我在移植UCOSII线程模块到embassy的项目的思考吧，其实观察到embassy这边的任务是一个统一的栈空间，而纯的线程支持的话就会是让每个线程独占一个栈，这样会导致栈的划分肯定是有内碎片的，所以统一的栈空间能让这些任务对于栈的利用率更好，一个任务的开销就变得更小，我们跑出来的测试效果也显示出在混合线程的情况下，任务的切换情况以及开销是优于纯的线程，只是和纯协程的情况几乎相同（在线程的切换systick较高10ms这种情况下），后续也想看看如果把线程和协程的混合更彻底，是否能真正做到无缝的task切换(目前实现方式的“缝隙”是源自于线程切换走后时间片的10ms会让另一边被切走的executor阻塞较长时间)</p>
+<h2 id="总结我的整个训练营的体会"><a href="#总结我的整个训练营的体会" class="headerlink" title="总结我的整个训练营的体会"></a>总结我的整个训练营的体会</h2><h3 id="开始"><a href="#开始" class="headerlink" title="开始"></a>开始</h3><p>我刚好是在4.7号训练营开营的时候报的名，在刚开始做这个训练营的任务的时候，我就觉得这些lab的设计真的很好，使用官方的rustlings这种资料以及rcore实验和详细的参考书。我因此变得很有兴趣并且毫不犹豫的分享给我身边的同学和室友，让他们也来参加。事实上我能有机会在这里发言，离不开在训练营当中和室友之间相互学习，讨论分享，这些让我学到了更多，做出了更好的成果，这也是我训练营里面额外的收获。</p>
+<h3 id="中间"><a href="#中间" class="headerlink" title="中间"></a>中间</h3><p>在前两个阶段的实验是对于操作系统的实践学习部分，很好的弥补了我在课内学习操作系统所缺乏的实践不足，这里我想引用LINUX之父说的一句话来说明这部分对于我学习操作系统的重要性: Talk is cheap. Show me the code。在这个过程里面，我慢慢的习惯上了命令行调试，自己也开始写脚本来做自动化的流程，从前不那么熟悉的makefile、shell脚本还有gdb都习惯起来了。不过不管怎么说，debug的过程还是有些煎熬的，遇到隐蔽的bug，还得看看内存或者看看寄存器。但是做实验的时候真的是干劲十足，那几天里面，每天就是起床，然后写lab，每过一个实验就去看看排行榜上排名提高了多少，正好就在5.1劳动节快结束的那几天把lab实验部分做完了，后面我就重新去看了rcore-tutorial book并且把它上面的思考题给做了，真的觉得这本书写得很不错的，是我入门操作系统看的第一本书，给我的印象很好。</p>
+<h3 id="结束"><a href="#结束" class="headerlink" title="结束"></a>结束</h3><p>然后就是参加项目6的过程了，最开始选择这个项目就是看到了embassy，查到它是一个嵌入式的异步框架，自己感兴趣的是在嵌入式方面，而异步这个内容对我是一个新鲜未知的东西，于是我就更有兴趣来从项目中学习新的内容，也有一点信心能做出点什么。但是完成这个项目学习后，我发现我的收获不止于这些内容，因为作为大二的学生，其实我就逐渐开始迷茫于自己到底要做什么了，特别是当我做了一些经典的lab比如：csapp、cs144以及rcore，并且也学了编译原理、数据库、计网、操作系统还有一堆的数学基础之后，我不知道自己能做出什么东西。我只知道自己对计算机的体系结构感兴趣，还想做与嵌入式相关的内容，但是该从什么地方切入，怎么才算作是做研究，我一点头绪也没有。而在参加项目6这6周的时间里面，它更重要的是给我打开了一个小的缺口，让我知道在操作系统这个广阔的领域里面可以接纳许多不同的诉求，许多学到的内容以及想要应用的场景都可以和操作系统相关联，或者说操作系统和许多地方都能联系起来。在我和我的队友这一个多月的项目所做的成果中，我们在研究异步操作系统的同时，也给我们之前在学校里面所涉及的四轴飞行器的项目优化有了思路，对于如何做研究，怎么做也有了认识，在我自己的目标里面，我是希望能做一些虽然长期且有挑战，但是很有意义的事情。而这次的经历，就让我知道在我本科接下来的时间里面可以在什么领域做工作，并且这些工作是极具挑战且很有意义的。</p>
+<h2 id="感谢"><a href="#感谢" class="headerlink" title="感谢"></a>感谢</h2><p>最后我想感谢和我一起工作的队友:施诺晖同学，我和他是室友，做这个项目和他交流学习中收获很多，后续开发过程中和他的合作让我能够高效的完成工作。</p>
+<p>还有很感谢向老师很耐心的指导而且老师也没push得很紧张，让我能在学校考试和训练营项目的交替中成功的都分得了合适的时间片完成任务。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/06/29/%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-xik/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +358,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -345,7 +439,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
 
           
@@ -467,7 +561,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -559,7 +653,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -651,7 +745,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
 
           
@@ -726,7 +820,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -836,7 +930,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -951,7 +1045,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
 
           
@@ -1016,7 +1110,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
+                <time title="Modified: 2024-07-14 13:34:14" itemprop="dateModified" datetime="2024-07-14T13:34:14+00:00">2024-07-14</time>
               </span>
 
           
@@ -1043,91 +1137,6 @@
 <p>首先说一说riscv方面吧，对于这一方面相对更加熟悉，之前也编写过riscv的处理器和模拟器，并且也使用c语言编写过裸机应用，对于riscv相关的知识方面，还是很顺滑的便掌握了。</p>
 <p>对于rust语言，写到这个阶段已经比第一阶段顺手多了，不过在使用这个语言时使用的很多设计理念，例如资源获取即初始化，等等设计方面的考量，还是学习到了很多。或许在完成这一部分内容之后，可以试着使用rust去重构之前写过的一些c语言项目了(乐)。</p>
 <p>随后是对于操作系统相关的知识，之前学习过一些操作系统的概念和知识，但是对于真正的将操作系统实现出来，还是第一次尝试做出来。以前学习操作系统时还尝试看过一些linux内核设计相关的书籍，最后的结果是看的比较稀里糊涂。通过这次操作系统设计之后，或许之后入门linux能够更加顺利一些。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/31/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-qiuanran/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/05/31/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-qiuanran/" class="post-title-link" itemprop="url">2024春夏季训练营第一阶段总结-qiuanran</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-05-31 01:17:02" itemprop="dateCreated datePublished" datetime="2024-05-31T01:17:02+00:00">2024-05-31</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-07-02 11:01:35" itemprop="dateModified" datetime="2024-07-02T11:01:35+00:00">2024-07-02</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在去年秋天听闻了这个训练营，机缘巧合之下结识了Rust和rcore。 也许是由于rust这门语言入门门槛比较高，加之当时没有其他更modern语言的学习经验，只做完Rustlings就已经打算放弃了。从去年秋天到现在一直在写Rust,也了解了许多系统方面的知识，就打算在这次训练营中弥补一些遗憾。</p>
-<h2 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h2><h3 id="心得"><a href="#心得" class="headerlink" title="心得"></a>心得</h3><p>第一阶段更多的是教初学者通过查手册、book或者是问AI来逐渐了解Rust的各种特性，如所有权机制（一个value只能对应一个所有者）、RAII机制（自动回收）、智能指针（个人认为智能指针的学习更多的应该落实于应用场景：即它为什么而存在的问题）、生命周期（我认为它的存在更多的是帮助编译器编译）等，这些是Rust比较有意思的机制，也是大大保障了代码安全性的由来。</p>
-<h3 id="体验"><a href="#体验" class="headerlink" title="体验"></a>体验</h3><p>有了去年以来一直积累的Rust经验，做Rustlings倒是非常快了。最后出的十道算法题非常有意思，大大加深了我对于智能指针的认识，虽然都是入门的算法题倒算是个很新奇的体验。</p>
-<h3 id="资料"><a href="#资料" class="headerlink" title="资料"></a>资料</h3><p><a href="https://github.com/LearningOS/rust-based-os-comp2024/blob/main/2024-spring-scheduling-1.md" target="_blank" rel="noopener">由训练营给出的学习资料</a>，同时也推荐Stanford的CS110L。 </p>
-<h2 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h2><h3 id="学习过程"><a href="#学习过程" class="headerlink" title="学习过程"></a>学习过程</h3><p>rcore这个类Unix内核对于了解各种OS的各种核心内容而言是非常有帮助的，实际上，若不是有了Rust的一些经验，很难理清由理论转换为具体实现的过程。</p>
-<p>对于rcore的学习，刚开始我十分痛苦，看着后面的实验要求一时间无计可施，只能由各种已经实现的syscall一个个去trace他们的调用关系，才有了一点点的大致思路。但具体实现起来又有其他的问题，这时候我的目光就放在了具体的数据结构上，需要彻底弄明白每一个数据结构的具体功能、与其他数据结构的关联，才能够说很好的掌握了整个流程。</p>
-<h3 id="rcore总结"><a href="#rcore总结" class="headerlink" title="rcore总结"></a>rcore总结</h3><ul>
-<li>Chapter1-2：需要关注于环境如何一步步搭建，如何切换特权级</li>
-<li>Chapter3：难点在于理解任务切换时候的流程：trap上下文的保存。应用在内核中处理时， 其 Trap 控制流调用__switch函数，这个函数非常重要，里面就是任务的上下文寄存器。</li>
-<li>Chapter4：对于我而言，虚拟内存几乎是最难的一个章节了，以至于看到实验要求的时候说注意数据被切分成两个不同的页表中时我甚至不知道它想表达什么，反复观看、查找资料之后才能艰难完成。</li>
-<li>Chapter5：关键在于理解有关进程的每一个数据结构，以及它的调度机制，重点需要弄明白suspend_current_and_run_next这个函数以及整个task的工作流程：take_current_task 来取出当前正在执行的任务，修改其进程控制块内的状态变成Running，随后将这个任务放入任务管理器的队尾。接着调用 schedule 函数来触发调度并切换任务。</li>
-<li>Chapter6：文件系统相比起前面的章节有些异常庞大了，需要抓住核心抽象以及它的层次结构。</li>
-<li>Chapter7：了解进程之间如何通信，关注于各种不同的通信方式。</li>
-<li>Chapter8：并发是OS绕不开的一个话题，掌握各种锁+线程的概念对于理解并发有奇效，但其实Rust的很受欢迎的异步并发并没有提及，想来是语言特性而不属于OS教学层面上的。推荐一个了解Rust异步并发非常好的读物：<a href="https://tokio.rs/tokio/tutorial/async" target="_blank" rel="noopener">Async in depth | Tokio - An asynchronous Rust runtime</a></li>
-</ul>
-<h3 id="一些心得"><a href="#一些心得" class="headerlink" title="一些心得"></a>一些心得</h3><p>我觉得最重要的，也是支撑我艰难走过rcore这道难关的就是一个观念，在南京大学的OS课程上反复强调的：操作系统就是一个应用程序。这也是我在进行每一个lab后最大的感触。在接管了trap之后，所有的一切都是逻辑上的开发，与不同的应用程序没有什么区别。</p>
-<h3 id="资料-1"><a href="#资料-1" class="headerlink" title="资料"></a>资料</h3><ul>
-<li>南京大学OS课程</li>
-<li>MIT6.S081: xv6 book</li>
-<li>CSAPP</li>
-</ul>
 
       
     </div>
