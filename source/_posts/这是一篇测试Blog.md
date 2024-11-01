@@ -2,7 +2,7 @@
 title: 这是一篇测试Blog
 date: 2020-07-15 14:34:11
 categories:
-	- 随笔
+	- 随笔j
 tags:
 	- author:wyfcyx
 	- repo:blog
