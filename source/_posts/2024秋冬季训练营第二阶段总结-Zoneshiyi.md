@@ -2,6 +2,8 @@
 title: 2024秋冬季训练营第二阶段总结-Zoneshiyi
 date: 2024-11-05 13:30:37
 tags:
+    - author:Zoneshiyi
+    - repo:[<rcore-os-repo_you_worked_on>](https://github.com/LearningOS/2024a-rcore-Zoneshiyi)
 ---
 # rCore
 
