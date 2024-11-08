@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">429</span>
+          <span class="site-state-item-count">431</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">430</span>
+        <span class="site-state-item-count">432</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,211 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/2024%E7%A7%8B%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94707state/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/07/2024%E7%A7%8B%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94707state/" class="post-title-link" itemprop="url">2024秋操作系统训练营第二阶段总结——707state</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-07 23:40:45" itemprop="dateCreated datePublished" datetime="2024-11-07T23:40:45+00:00">2024-11-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>去年就已经参加一次了，但是止步第一阶段，今年能做完第二阶段已经出乎我的意料了，收获良多。</p>
+<h1 id="syscall"><a href="#syscall" class="headerlink" title="syscall"></a>syscall</h1><p>syscall是怎么发起的，系统调用时发生了哪些事情，这些都是第一次接触。</p>
+<h2 id="收获"><a href="#收获" class="headerlink" title="收获"></a>收获</h2><h2 id="spawn实现"><a href="#spawn实现" class="headerlink" title="spawn实现"></a>spawn实现</h2><p>如果不考虑其他因素，其实spawn类似于vfork+exec。</p>
+<p>假定fork采用的是直接复制的策略，那vfork就是采用的阻塞父进程执行、获得父进程地址空间的引用、子进程运行、执行完成、恢复父进程。</p>
+<h2 id="fork-调用"><a href="#fork-调用" class="headerlink" title="fork 调用"></a>fork 调用</h2><p>主要部分是调用TaskControlBlock::fork, 返回父进程的TaskControlBlock的拷贝，并分配一个新的Pid。</p>
+<h2 id="Task部分各个结构的关系"><a href="#Task部分各个结构的关系" class="headerlink" title="Task部分各个结构的关系"></a>Task部分各个结构的关系</h2><h3 id="TaskControlBlock"><a href="#TaskControlBlock" class="headerlink" title="TaskControlBlock"></a>TaskControlBlock</h3><p>TaskControlBlock 代表一个任务或进程的控制块，用于存储任务的基本信息和状态。它包含了所有不会在运行时改变的内容，如进程ID (pid) 和内核栈 (kernel_stack)。此外，它还包含一个可变的 inner 字段，该字段封装了实际的任务状态信息：</p>
+<pre><code>pid：任务的唯一标识符。
+kernel_stack：内核栈，用于保存该任务在内核态运行的栈信息。
+inner：包含该任务的动态状态信息，用于存储在运行中可能变化的内容，如内存空间、任务上下文、进程树信息等。</code></pre><h3 id="TaskControlBlockInner"><a href="#TaskControlBlockInner" class="headerlink" title="TaskControlBlockInner"></a>TaskControlBlockInner</h3><p>TaskControlBlockInner 是 TaskControlBlock 的内部状态结构体，用于存储运行期间动态变化的内容，如任务的上下文、内存管理、父子关系等。每个 TaskControlBlockInner 都包含以下字段：</p>
+<pre><code>trap_cx_ppn：存储陷入上下文（Trap Context）的物理页号，用于保存用户态的CPU上下文。
+base_size：应用程序的基本大小，用于约束任务在内存中的地址空间。
+task_cx：任务上下文，表示当前任务的 CPU 状态。
+task_status：当前任务的状态（如 Ready、Running、Zombie）。
+memory_set：用于管理该任务的地址空间。
+parent 和 children：当前任务的父子进程关系。
+exit_code：任务退出时的状态码。
+heap_bottom 和 program_brk：用于管理堆内存的范围。</code></pre><h3 id="TaskManager"><a href="#TaskManager" class="headerlink" title="TaskManager"></a>TaskManager</h3><p>负责调度所有准备好运行的Task，它维护了一个 ready_queue 队列，包含了所有准备好运行的任务的 TaskControlBlock，从中取出任务并将其交给调度器：</p>
+<p>ready_queue：一个队列，存储处于“Ready”状态的任务。</p>
+<p>add 和 fetch：add 将任务添加到 ready_queue 中，fetch 从队列中取出任务进行调度。</p>
+<h1 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h1><h2 id="目录项"><a href="#目录项" class="headerlink" title="目录项"></a>目录项</h2><p>目录项</p>
+<p>对于文件而言，它的内容在文件系统或内核看来没有任何既定的格式，只是一个字节序列。目录的内容却需要遵从一种特殊的格式，它可以看成一个目录项的序列，每个目录项都是一个二元组，包括目录下文件的文件名和索引节点编号。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// easy-fs/src/layout.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> NAME_LENGTH_LIMIT: <span class="built_in">usize</span> = <span class="number">27</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">DirEntry</span></span> &#123;</span><br><span class="line">    name: [<span class="built_in">u8</span>; NAME_LENGTH_LIMIT + <span class="number">1</span>],</span><br><span class="line">    inode_number: <span class="built_in">u32</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> DIRENT_SZ: <span class="built_in">usize</span> = <span class="number">32</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> DirEntry &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">empty</span></span>() -&gt; <span class="keyword">Self</span>;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(name: &amp;<span class="built_in">str</span>, inode_number: <span class="built_in">u32</span>) -&gt; <span class="keyword">Self</span>;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">name</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;<span class="built_in">str</span>;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">inode_number</span></span>(&amp;<span class="keyword">self</span>) -&gt; <span class="built_in">u32</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在从目录中读取目录项，或将目录项写入目录时，需要将目录项转化为缓冲区（即字节切片）的形式来符合 read_at OR write_at 接口的要求</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// easy-fs/src/layout.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> DirEntry &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">as_bytes</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;[<span class="built_in">u8</span>] &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123;</span><br><span class="line">            core::slice::from_raw_parts(</span><br><span class="line">                <span class="keyword">self</span> <span class="keyword">as</span> *<span class="keyword">const</span> _ <span class="keyword">as</span> <span class="built_in">usize</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>,</span><br><span class="line">                DIRENT_SZ,</span><br><span class="line">            )</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">as_bytes_mut</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; &amp;<span class="keyword">mut</span> [<span class="built_in">u8</span>] &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123;</span><br><span class="line">            core::slice::from_raw_parts_mut(</span><br><span class="line">                <span class="keyword">self</span> <span class="keyword">as</span> *<span class="keyword">mut</span> _ <span class="keyword">as</span> <span class="built_in">usize</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>,</span><br><span class="line">                DIRENT_SZ,</span><br><span class="line">            )</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/2024%E7%A7%8B%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94707state/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/07/2024%E7%A7%8B%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94707state/" class="post-title-link" itemprop="url">2024秋操作系统训练营第一阶段总结——707state</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-07 23:32:00" itemprop="dateCreated datePublished" datetime="2024-11-07T23:32:00+00:00">2024-11-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Rustling总结"><a href="#Rustling总结" class="headerlink" title="Rustling总结"></a>Rustling总结</h1><p>我想成为Rustacean，通过rustling的练习，我学到一些没接触过的Rust知识</p>
+<h1 id="repr-attribute"><a href="#repr-attribute" class="headerlink" title="repr attribute"></a>repr attribute</h1><p>在c/c++中，常常使用<strong>attribute</strong>((align))的方式来确保内存对齐，repr在rust的功能久石让每一个数据能够按照k的整数倍分配，k通常是基本类型。</p>
+<h1 id="Rusty-阶乘"><a href="#Rusty-阶乘" class="headerlink" title="Rusty 阶乘"></a>Rusty 阶乘</h1><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">factorial</span></span>(num: <span class="built_in">u64</span>) -&gt; <span class="built_in">u64</span> &#123;</span><br><span class="line">    (<span class="number">1</span>..=num).fold(<span class="number">1</span>, |acc, x| acc * x)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>范围 (1..=num)：</p>
+<pre><code>这个表达式创建了一个从 1 到 num 的范围，包括 num 本身。..= 是一个闭区间语法，表示这个范围是包含起始值和结束值的。</code></pre><p>fold 方法：</p>
+<pre><code>fold 是一个高阶函数，它用于将一个迭代器中的所有元素合并成一个单一的值。
+它的第一个参数是初始值，在这里是 1。这个值会作为累加器的初始状态。
+第二个参数是一个闭包（匿名函数），它接受两个参数：acc（累加器的当前值）和 x（迭代器中的当前值）。
+在每一次迭代中，闭包会将 acc 和 x 相乘，并返回新的累加器值。</code></pre><h1 id="流敏感分析"><a href="#流敏感分析" class="headerlink" title="流敏感分析"></a>流敏感分析</h1><p>依靠 Borrow Checker 确保内存安全，原理如下：</p>
+<p>执行路径分析：Rust 编译器在编译过程中会为每个变量跟踪其借用状态或所有权。在程序的不同控制流（如条件判断、循环、函数调用等）中，编译器会检查在这些不同路径下变量的状态变化，并在所有路径中保持一致性。</p>
+<p>数据流分析：Rust 编译器通过数据流分析来确定变量的生存期、是否被借用、以及是否存在竞争条件。这个分析是流敏感的，意味着它会根据程序的控制流更新变量状态。</p>
+<p>作用域检查：编译器在分析时会检查变量是否在作用域内、是否已经被销毁或者转移所有权。通过流敏感分析，编译器能够精确确定哪些变量在某条执行路径中被有效引用或借用。</p>
+<h1 id="take"><a href="#take" class="headerlink" title="take"></a>take</h1><p>在 Rust 中，take() 方法通常用于在某些容器类型（如 Option、Result 等）中“取走”值，将原来的值替换为一个默认值（通常是 None 或 Err），同时返回原来的值。</p>
+<p>take() 经常用于以下场景：</p>
+<p>转移所有权：从一个可选值中取出所有权，并清空该值，避免复制或克隆。</p>
+<p>链表或树结构：当你遍历或修改链表或树结构时，可以用 take() 来“取走”节点的引用并避免借用冲突。</p>
+<h1 id="zero-cost-futures"><a href="#zero-cost-futures" class="headerlink" title="zero-cost futures"></a>zero-cost futures</h1><p>async/await实现的future类型不会引入任何额外的运行时开销。</p>
+<p>无运行时依赖：与其他编程语言（如 JavaScript 或 Python）不同，Rust 的 async/await 本身不依赖特定的运行时机制。Future 是惰性的，它本质上是一个状态机，只有在被轮询时才会前进。虽然需要某种形式的运行时（如 Tokio 或 async-std）来调度异步任务，但这些运行时并没有与 async/await 特性本身紧耦合。</p>
+<h1 id="Any-Trait"><a href="#Any-Trait" class="headerlink" title="Any Trait"></a>Any Trait</h1><p>Rust中的Any trait允许在运行时进行类型检查和类型转换。这个类型在处理动态类型时较为有用。</p>
+<p>功能：</p>
+<ol>
+<li><p>类型检查：通过is::<T>()方法，可以检查一个值是否是某种特定类型。</T></p>
+</li>
+<li><p>类型转换：使用downcast_ref::<T>()和downcast::<T>()方法，可以将一个&amp;dyn Any或者Box<dyn any>类型的值转换回具体类型T。</dyn></T></T></p>
+</li>
+</ol>
+<p>注意：Any trait只能用于’static 生命周期的类型，这意味着他不能用于包含非静态引用的类型。</p>
+<p>并且，Any会引入运行时开销，因为它依赖动态分派。</p>
+<h1 id="UnsafeCell"><a href="#UnsafeCell" class="headerlink" title="UnsafeCell"></a>UnsafeCell</h1><p>Rust 中内部可变性的核心原语。</p>
+<p>如果您使用的是 &amp;T，则通常在 Rust 中，编译器基于 &amp;T 指向不可变数据的知识来执行优化。例如通过别名或通过将 &amp;T 转换为 &amp;mut T 来可变的该数据，被认为是未定义的行为。 UnsafeCell<T> 选择退出 &amp;T 的不可变性保证：共享的引用 &amp;UnsafeCell<T> 可能指向正在发生可变的数据。这称为内部可变性。</T></T></p>
+<p>所有其他允许内部可变性的类型，例如 Cell<T> 和 RefCell<T>，在内部使用 UnsafeCell 来包装它们的数据。</T></T></p>
+<p>所有其他允许内部可变性的类型，例如 Cell<T> 和 RefCell<T>，在内部使用 UnsafeCell 来包装它们的数据。</T></T></p>
+<p>UnsafeCell API 本身在技术上非常简单: .get() 为其内容提供了裸指针 *mut T。正确使用该裸指针取决于您。</p>
+<p>如果您使用生命周期 ‘a (&amp;T 或 &amp;mut T 引用) 创建安全引用，那么您不得以任何与 ‘a 其余部分的引用相矛盾的方式访问数据。 例如，这意味着如果您从 UnsafeCell<T> 中取出 *mut T 并将其转换为 &amp;T，则 T 中的数据必须保持不可变 (当然，对 T 中找到的任何 UnsafeCell 数据取模)，直到引用的生命周期到期为止。 同样，如果您创建的 &amp;mut T 引用已发布为安全代码，则在引用终止之前，您不得访问 UnsafeCell 中的数据。</T></p>
+<p>对于没有 UnsafeCell&lt;<em>&gt; 的 &amp;T 和 &amp;mut T，在引用过期之前，您也不得释放数据。作为一个特殊的例外，给定一个 &amp;T，它在 UnsafeCell&lt;</em>&gt; 内的任何部分都可能在引用的生命周期期间被释放，在最后一次使用引用之后 (解引用或重新借用)。 因为您不能释放引用指向的部分，这意味着只有当它的每一部分 (包括填充) 都在 UnsafeCell 中时，&amp;T 指向的内存才能被释放。</p>
+<p>但是，无论何时构造或解引用 &amp;UnsafeCell<T>，它仍必须指向活动内存，并且如果编译器可以证明该内存尚未被释放，则允许编译器插入虚假读取。</T></p>
+<p>在任何时候，您都必须避免数据竞争。如果多个线程可以访问同一个 UnsafeCell，那么任何写操作都必须在与所有其他访问 (或使用原子) 相关之前发生正确的事件。</p>
+<p>为了帮助进行正确的设计，以下情况明确声明为单线程代码合法：</p>
+<p>&amp;T 引用可以释放为安全代码，并且可以与其他 &amp;T 引用共存，但不能与 &amp;mut T 共存</p>
+<p>&amp;mut T 引用可以发布为安全代码，前提是其他 &amp;mut T 和 &amp;T 都不共存。&amp;mut T 必须始终是唯一的。</p>
+<p>请注意，虽然可以更改 &amp;UnsafeCell<T> 的内容 (即使其他 &amp;UnsafeCell<T> 引用了该 cell 的别名) 也可以 (只要以其他方式实现上述不变量即可)，但是具有多个 &amp;mut UnsafeCell<T> 别名仍然是未定义的行为。 也就是说，UnsafeCell 是一个包装器，旨在通过 &amp;UnsafeCell&lt;<em>&gt; 与 shared accesses (i.e. 进行特殊交互 (引用) ； 通过 &amp;mut UnsafeCell&lt;</em>&gt; 处理 exclusive accesses (e.g. 时没有任何魔术) : 在该 &amp;mut 借用期间， cell 和包装值都不能被别名。</T></T></T></p>
+<p>.get_mut() 访问器展示了这一点，该访问器是产生 &amp;mut T 的 safe getter。</p>
+<p>UnsafeCell<T> 与其内部类型 T 具有相同的内存表示。此保证的结果是可以在 T 和 UnsafeCell<T> 之间进行转换。 将 Outer<T> 类型内的嵌套 T 转换为 Outer&lt;UnsafeCell<T>&gt; 类型时必须特别小心: 当 Outer<T> 类型启用 niche 优化时，这不是正确的。</T></T></T></T></T></p>
+<h1 id="std-mem-MaybeUninit"><a href="#std-mem-MaybeUninit" class="headerlink" title="std::mem::MaybeUninit"></a>std::mem::MaybeUninit</h1><p>Rust 编译器要求变量要根据其类型正确初始化。</p>
+<p>比如引用类型的变量必须对齐且非空。这是一个必须始终坚持的不变量，即使在 Unsafe 代码中也是如此。因此，零初始化引用类型的变量会导致立即未定义行为，无论该引用是否访问过内存。</p>
+<p>编译器利用这一点，进行各种优化，并且可以省略运行时检查。</p>
+<p>由调用者来保证MaybeUninit<T>确实处于初始化状态。当内存尚未完全初始化时调用 assume_init() 会导致立即未定义的行为。</T></p>
+<figure class="highlight rs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="meta">#![allow(unused)]</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line"><span class="keyword">use</span> std::mem::&#123;<span class="keyword">self</span>, MaybeUninit&#125;;</span><br><span class="line"><span class="comment">// 不符合：零初始化引用</span></span><br><span class="line"><span class="keyword">let</span> x: &amp;<span class="built_in">i32</span> = <span class="keyword">unsafe</span> &#123; mem::zeroed() &#125;; <span class="comment">// undefined behavior! ⚠️</span></span><br><span class="line"><span class="comment">// 等价于 `MaybeUninit&lt;&amp;i32&gt;`:</span></span><br><span class="line"><span class="keyword">let</span> x: &amp;<span class="built_in">i32</span> = <span class="keyword">unsafe</span> &#123; MaybeUninit::zeroed().assume_init() &#125;; <span class="comment">// undefined behavior! </span></span><br><span class="line"><span class="comment">// 不符合：布尔值必须初始化</span></span><br><span class="line"><span class="keyword">let</span> b: <span class="built_in">bool</span> = <span class="keyword">unsafe</span> &#123; mem::uninitialized() &#125;; <span class="comment">// undefined behavior! ⚠️</span></span><br><span class="line"><span class="comment">// 等价于 `MaybeUninit&lt;bool&gt;`:</span></span><br><span class="line"><span class="keyword">let</span> b: <span class="built_in">bool</span> = <span class="keyword">unsafe</span> &#123; MaybeUninit::uninit().assume_init() &#125;; <span class="comment">// undefined behavior! </span></span><br><span class="line"><span class="comment">// 不符合：整数类型也必须初始化</span></span><br><span class="line"><span class="keyword">let</span> x: <span class="built_in">i32</span> = <span class="keyword">unsafe</span> &#123; mem::uninitialized() &#125;; <span class="comment">// undefined behavior! ⚠️</span></span><br><span class="line"><span class="comment">// 等价于 `MaybeUninit&lt;i32&gt;`:</span></span><br><span class="line"><span class="keyword">let</span> x: <span class="built_in">i32</span> = <span class="keyword">unsafe</span> &#123; MaybeUninit::uninit().assume_init() &#125;; </span><br><span class="line"></span><br><span class="line"><span class="comment">// 不符合：Vec未初始化内存使用 set_len 是未定义行为</span></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> vec: <span class="built_in">Vec</span>&lt;<span class="built_in">u8</span>&gt; = <span class="built_in">Vec</span>::with_capacity(<span class="number">1000</span>);</span><br><span class="line"><span class="keyword">unsafe</span> &#123; vec.set_len(<span class="number">1000</span>); &#125;</span><br><span class="line">reader.read(&amp;<span class="keyword">mut</span> vec); <span class="comment">// undefined behavior!</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<p>主要就是这些收获。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/rcore-%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%82%B5%E5%8D%93%E7%82%9C/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +469,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -329,7 +534,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -401,7 +606,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -472,7 +677,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -548,7 +753,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -615,7 +820,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -680,7 +885,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -759,7 +964,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
               </span>
 
           
@@ -796,158 +1001,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/06/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%AD%99%E6%B5%B7%E5%8D%8E/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/06/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%AD%99%E6%B5%B7%E5%8D%8E/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第二阶段总结报告-孙海华</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-06 15:59:45" itemprop="dateCreated datePublished" datetime="2024-11-06T15:59:45+00:00">2024-11-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>写到这里，第二阶段就要告一段落了。rCore的文档真的写的很棒，作为一名非科班的CS爱好者，终于弥补了自己本科时期的遗憾，系统的学完了操作系统，也对git项目开发和rust有所入门。</p>
-<p>学完之后最大的感觉是补全了自己的计算机体系结构，之前一直在学一些语言层面的语法，思考代码主要是从逻辑层面，现在能思考一些比较深刻的东西，debug能力也有所增强。</p>
-<p>lab1算是对操作系统的基本入门，了解了用户态程序是如何一步步进入到内核态代码进行处理的。前三章读完之后，感觉分时多任务和上个月学的rtos的工作原理有点像，属于同一类系统。也对如何从0开始构建一个裸机应用，后面想试试用rust编写stm32,应该也会很方便。</p>
-<p>lab2加深了我对虚拟地址的一些理解，之前了解过可执行文件的地址空间，当时还在想一个应用有4G的地址空间，真的能存下这么多吗？这一章对页表机制讲得很深刻，解答了我之前所遇到的一些困惑。</p>
-<p>lab3的编写，让我对进程管理的一些api及实现有了全新的认识，之前的我只是一个pthread的调包工程师，现在对进程的实现和相关流程有了更为本质的理解。</p>
-<p>lab4实现的文件系统，来回看了好几遍，真的挺复杂的。最终完成lab,很有成就感，学习了rust的Trait实现，后面的项目可以参考这个架构。</p>
-<p>lab5的各种同步机制，算是对Rust同步机制的巩固，在项目中多次用到了多线程，想想挺可笑的，这些没有锁导致的问题，自己在初学阶段真的都有犯过，后面才有一步步接触到了这些同步机制。</p>
-<p>看完整个RCore教程，完成了第二阶段的实验，才发现自己浪费了太多时间在一些开发技术上面了。学完操作系统明白了，这些技术本质上都是相通的，无非是各个语言实现的不同，以后要花重点在这些基础上，做一些更偏底层的学习。</p>
-<p>最后，感谢训练营，感谢清华大学能提供这次机会学习操作系统，学到了很多，希望下一个阶段自己能坚持走到最后。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/05/greatbridf-%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/05/greatbridf-%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">greatbridf-二阶段rcore学习总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-05 23:05:28" itemprop="dateCreated datePublished" datetime="2024-11-05T23:05:28+00:00">2024-11-05</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:34:30" itemprop="dateModified" datetime="2024-11-08T10:34:30+00:00">2024-11-08</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="碎碎念"><a href="#碎碎念" class="headerlink" title="碎碎念"></a>碎碎念</h1><p>拖了好久最后还是写完了，中间碰到些奇怪的问题和bug，卡了好一大气，最后发现问题在什么地方的时候真的血压升高，一整个气烂了。但是最后还是解决了，感觉自己的能力有所提升吧。</p>
-<p><del>最后真的永远也习惯不了写各种报告（捂脸</del></p>
-<h1 id="学习总结"><a href="#学习总结" class="headerlink" title="学习总结"></a>学习总结</h1><h2 id="前三个lab"><a href="#前三个lab" class="headerlink" title="前三个lab"></a>前三个lab</h2><p>前三个lab的内容大致上还是比较简单，感谢各位老师和助教提供的框架，写的时候可以更注重于OS的机制以及riscv平台本身，不用关注太多的细节。报告里的思考题也挺有帮助的。</p>
-<p>前四个lab要求需要整合前面lab实现的功能，在写这几个lab的过程当中，一些部分的实现也在一直调整，变得更加合理以及方便使用。也发现自己一些问题，有时候还是要先想清楚把代码读好再动手，不然会浪费很多时间。</p>
-<h2 id="第四个lab"><a href="#第四个lab" class="headerlink" title="第四个lab"></a>第四个lab</h2><p>在这个lab上花的时间最长。代码写好以后调试始终是不对。最后发现<code>spawn</code>跑过去之后整个文件系统一整个挂掉了，<del>整个easy-fs乱成了一锅粥</del>。调试了好久好久也搞不清楚什么原因，最后还是换了种实现<code>spawn</code>的方法，先过了测试。猜测可能是在<code>exec</code>的时候不小心写了什么地方？玄学问题以后有时间的时候再研究研究吧。<del>如果真的是把fs的内容给覆写掉的了话，我也真厉害能写出这么恶心的代码。毕竟表面上看完全是不可能的</del></p>
-<h2 id="第五个lab"><a href="#第五个lab" class="headerlink" title="第五个lab"></a>第五个lab</h2><p>这个lab是要我们实现一个死锁检测的算法。这个算法之前在课上有学过，这下也算是见到本体了。觉得自己有时候对于并发编程的了解还是不够深入，可能如果加上一些实现并发的代码和lab会更好一些？希望能在后面的课程中学到更多的知识。</p>
-<h1 id="心得体会"><a href="#心得体会" class="headerlink" title="心得体会"></a>心得体会</h1><h2 id="rust"><a href="#rust" class="headerlink" title="rust"></a>rust</h2><p>算是开始接触rust有一段时间了<del>，和编译器斗争越来越熟练</del>。感觉rust是一门很有趣的语言，有时候会出现写其他语言的时候没有的一些奇怪的问题，但是解决了之后能对一些东西有更好的了解，平时会更注意一些。</p>
-<p>比如说rust的所有权系统，有时候会觉得很麻烦，但是这个系统也能帮助我们避免一些潜在的bug，也能让我们更好的理解内存和生命周期的管理。这些内容其实在写C/C++的时候也会遇到，但是表现的形式可能更加<strong>狂野</strong>一点。rust这样更加严格的检查让我们在写代码的时候，设计整个结构的时候更小心，考虑到更多的细节。之前在写C++的时候，发现C++11加入的<code>std::move</code>和<code>std::unique_ptr</code>等等，也是为了表达一些所有权等相关的语义，但是没有强制化的要求。rust的所有权系统更加严格，也更加直观。</p>
-<p>希望以后能够继续学习rust。</p>
-<h2 id="riscv"><a href="#riscv" class="headerlink" title="riscv"></a>riscv</h2><p>riscv和x86比起来简直就是天堂（</p>
-<p>riscv指令集更简单，更容易理解。在设计的时候就避免了很多x86遗留的历史设计问题，实现OS的时候更加方便。在学习riscv的过程中，也对计算机体系结构有了更深的了解。觉得riscv是一个很有潜力的平台，希望以后应用更普遍一些吧。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="page-number current">2</span><a class="page-number" href="/blog/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/43/">43</a><a class="extend next" rel="next" href="/blog/page/3/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="page-number current">2</span><a class="page-number" href="/blog/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/44/">44</a><a class="extend next" rel="next" href="/blog/page/3/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
