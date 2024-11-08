@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">431</span>
+          <span class="site-state-item-count">433</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,205 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/25/2024%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-wat3rmelon/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/04/25/2024%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-wat3rmelon/" class="post-title-link" itemprop="url">2024春夏开源操作系统训练营阶段总结-wat3rmelon</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-04-25 16:48:00" itemprop="dateCreated datePublished" datetime="2024-04-25T16:48:00+00:00">2024-04-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h2><p>两年前就有听说过rust了，但是只是简单的看了下the rust book，并没有实际使用rust进行编程。这次打算借着rcore进一步实践rust。</p>
+<p>目前的感受是rust的设计给了很多的限制，同时rust似乎也和cpp一样算是多范式的语言？就比如迭代一个列表既可以写成下面的形式</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> ... <span class="keyword">in</span> something.iter() &#123;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>写可以写成</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">something.iter().sum();</span><br></pre></td></tr></table></figure>
+<p>这样的形式。说实话，我不是很喜欢多范式的编程语言。因为选择太多了，对于我来说阅读别人的代码就会很麻烦。所以这里我更喜欢go的设计。</p>
+<p>此外我用rust刷了一些leetcode上的简单的算法题，感觉挺头疼的。需要关注特别多的细节，而且leetcode特别喜欢给i32类型数据，而rust中访问容器用的下标都是usize类型的。导致代码写起来一点也不美观。有特别多的<code>xx as usize</code></p>
+<p>此外，感觉rust的标准库看起来是提供了很多方法来代替本来可用指针操作的方法。比如vector的swap，一般情况下其它语言里可能是这样写</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">a,b = b,a</span><br></pre></td></tr></table></figure>
+
+<p>rust对数据类型还特别敏感，只要有越界就会报错，必须得用饱和减法<code>saturating_sub</code>之类的方式来处理。</p>
+<p>总之，我感觉rust的限制太多了，这让我对写好一个rust程序来说感觉心智负担很重。对于不依靠编辑器写完整程序没有信心。</p>
+<p>希望接下来的rcore能改变我当前对rust的看法。</p>
+<h2 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h2><p>第二阶段的难度算是渐进式的吧。第二阶段的lab里，我印象最深的部分分别是内存的地址空间，文件系统Inode组织，死锁检测。</p>
+<p>因此，下面我就对这三部分进行一些总结好了。</p>
+<h3 id="死锁检测"><a href="#死锁检测" class="headerlink" title="死锁检测"></a>死锁检测</h3><p>首先聊一下死锁检测吧，因为这个是最近做过的，所以印象比较深。这部分我之前一直只知道有一个银行家算法，所以一开始看到死锁检测这部分的算法跟银行家算法一样记录allocation和need的时候感觉优点懵。因为，在我原来的理解里，银行家算法应该是需要提前知道线程需要的资源的。</p>
+<p>后来动手实现后，才发现死锁检测算法和银行家算法是有区别的，银行家算法其实是死锁避免算法。死锁检测算法感觉主要针对的就是信号量上的资源分配，然后在每一次申请的时候检查，是否分配这次资源后，能够有一个序列走得通，如果有，就算无死锁，否则算有死锁。整体上的时间复杂度应该是 $O(nm)$ 的其中 $n$ 是线程数量， $m$ 是资源数量。</p>
+<p>平常写其它语言的时候并没有感觉到死锁检测的存在，可能就是因为这个时间复杂度随着资源数量和线程数量线性增长，所以不采用吧？</p>
+<h3 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h3><p>下面来聊一下文件系统，这部分实验的学习中，我感觉复杂的地方主要在于存在很多的抽象。文件系统本身存储diskInode，然后虚拟文件系统上抽象了Inode，OSInode，最后到操作系统中，它使用的是File trait抽象。</p>
+<p>抽象层数很多，因此让我挺晕的。这部分代码上面，感觉比较关键的是Inode的组织。超级快-&gt;Inode位图-&gt;数据位图-&gt;Inode区域-&gt;数据块区域。</p>
+<h3 id="地址空间"><a href="#地址空间" class="headerlink" title="地址空间"></a>地址空间</h3><p>这部分我觉得是非常有收获的一部分，让我感觉算是彻底理解了多级页表，段表的区别。在此之前一直不知道页表是怎样存储的，总是想着它是存到一个特殊的内存里。现在算是明白了页表不过是存储在普通的内存里的一个结构，然后CPU依靠token来区分当前的页表。</p>
+<p>SV39页表中，偏移为4KB，所以使用了后12位，剩余的 $39-12=27$刚刚好分成3部分，每部分占了 $27/3=9$ 位，也就是512个页表项，每个页表项占8字节，刚刚好可以将一个页存储满。</p>
+<p>然后是操作系统内核采用恒等映射，用户程序除了跳板页，其它的采用Framed映射。这样使得操作系统访问的虚拟地址就是物理地址，而用户程序访问的是虚拟地址。这种区分使得操作系统可以访问到用户的地址，用户程序无法访问操作系统的地址。实现了空间上的隔离。</p>
+<h2 id="第三阶段"><a href="#第三阶段" class="headerlink" title="第三阶段"></a>第三阶段</h2><p>第三阶段我选择的是项目一：ArceOS单内核Unikernel。该实习项目主要分为两部分：熟悉ArceOS阶段与完成实习任务阶段。</p>
+<h3 id="熟悉ArceOS阶段"><a href="#熟悉ArceOS阶段" class="headerlink" title="熟悉ArceOS阶段"></a>熟悉ArceOS阶段</h3><p>这一阶段主要是在ArceOS仓库下，完成一些简单的任务。分了两周来实现，第一周主要是尝试为ArceOS添加一些简单的功能。第二周则是练习从外部加载应用到arceos中，通过func call的方式使得外部应用可以打印字符。</p>
+<h4 id="第一周"><a href="#第一周" class="headerlink" title="第一周"></a>第一周</h4><ul>
+<li>练习1：支持彩色打印 println! 通过在输出的时候，在前后添加特殊符号，使得输出的颜色可以改变。</li>
+<li>练习2：支持HashMap数据类型 这一步我参考rust的HashMap实现，调用了相同的库完成。</li>
+<li>练习3：为内存分配器实现新的内存算法 这一步我主要是利用了现有的算法完成页分配与字节分配</li>
+<li>练习4：解析dtb并打印 这一步我觉得主要难点是dtb的解析，因为不清楚dtb长什么样的，学习后，调用一个crate完成了该任务。</li>
+<li>练习5：抢占式调度算法 这一步我记得我是参考了现有的抢占式调度算法，然后做了一个奇偶性的判断，每次出队前，如果这次出队是奇数，就放到队头，否则正常放到队尾。</li>
+</ul>
+<h4 id="第二周"><a href="#第二周" class="headerlink" title="第二周"></a>第二周</h4><p>本周主要是我的收获主要是对qemu的启动参数有了一些了解，然后就是了解了rust中手写asm的方法。</p>
+<h3 id="实习任务阶段"><a href="#实习任务阶段" class="headerlink" title="实习任务阶段"></a>实习任务阶段</h3><h4 id="第一周-rt-helloworld与rt-memtest与系统调用新增"><a href="#第一周-rt-helloworld与rt-memtest与系统调用新增" class="headerlink" title="第一周 rt_helloworld与rt_memtest与系统调用新增"></a>第一周 rt_helloworld与rt_memtest与系统调用新增</h4><p>我主要是在熟悉lkmodel，完成了原来arceos下的rt_helloworld与rt_memtest两个unikernel的实现。这一部分根据要求，必须要有axstd。因此我一开始的实现是将arceos下的axstd库直接拷贝过来，并且把它需要用到的库也进行了靠北，然后修改一些代码，使得可以编译通过。这个的结果在dev_task1_brute_force分支下。不过后来从群里得知，要尽量从lkmodel已经有的库开始，所以就重新实现了这部分，主要的方式是基于axlog2这个库，做了一些包装和宏的重新导出。</p>
+<p>本周的问题是</p>
+<ul>
+<li><p>在实现rt_memtest的时候，出现的全局分配器不存在的问题。<br>是为了解决这个问题，我发现是需要引用axalloc这个crate，同时还需要进行初始化。因此，出于实现方便，我在axstd文件夹下同时创建了一个axruntime crate，在其中编写了rust_main函数，在其中完成全局分配器的初始化。</p>
+</li>
+<li><p>同时在周的结尾，我遇到的问题是宏内核在我操作系统上无法成功运行btp下的测试，通过在微信群与老师交流，我得知主要的原因是glibc在不同操作系统下编译C文件的结果，使用到的系统调用是不同的。就比如init.c，在我的操作系统下编译出的结果需要使用到stat系统调用，而该系统调用在当前lkmodel中是未实现的，因此我尝试在lkmodel中添加该系统调用，主要实现在axsyscall crate中添加该系统调用的函数，然后再fileops中添加fstat函数，该函数的实现参考fstatat函数，这个函数的功能是在目录中获取文件信息。</p>
+</li>
+</ul>
+<p>通过对系统调用新增实现，成功让我的宏内核可以在我的操作系统中运行btp下的init.c程序。我的感受就是了解了不同指令集，linux给他们分配的系统调用号码是不一样的。同时不同操作系统版本的下的glibc生成的文件，使用的系统调用也不一样。</p>
+<h4 id="第二、三周-rt-loader"><a href="#第二、三周-rt-loader" class="headerlink" title="第二、三周 rt loader"></a>第二、三周 rt loader</h4><p>我在第二、三周完成了lkmodel下运行glibc静态编译的hello world的c应用。</p>
+<p>这一部分我主要是参考思路3PPT的实现，首先就是对opensbi与sbi-rt的修改，这一步我是clone了opensbi代码然后按照ppt的方法进行修改。对于sbi-rt的修改则是fork其仓库，修改后提交到自己的仓库下。最后在cargo.toml中添加依赖即可。</p>
+<p>剩下的就是修改qemu.mk脚本，向其中增加Pflash参数与bios参数。<br>如下所示,让其指向payload文件夹以此加载程序内容。</p>
+<figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">qemu_args-riscv64 := \</span><br><span class="line">  -machine virt \</span><br><span class="line">  -drive if=pflash,file=<span class="variable">$(CURDIR)</span>/payload/apps.bin,format=raw,unit=1 \</span><br><span class="line">  -bios ~/opensbi/build/platform/generic/firmware/fw_jump.bin  \</span><br><span class="line">  -kernel <span class="variable">$(OUT_BIN)</span></span><br><span class="line">  <span class="comment"># -bios default</span></span><br></pre></td></tr></table></figure>
+
+<p>此处payload我是复制org_arceos下的payload，运行mk.sh脚本即可生成apps.bin。其中包含了两个hello world程序，不过由于我没有实现多线程，所以我只能跑一个hello world程序，跑完后发出的exit调用会导致我的程序直接退出。如果实现多线程的话就只会线程退出，然后回到rt_loader。</p>
+<h5 id="地址空间管理问题"><a href="#地址空间管理问题" class="headerlink" title="地址空间管理问题"></a>地址空间管理问题</h5><p>使用rt_loader时，主要加载的是glibc静态编译的的elf程序，elf程序中存在两个数据段，一个是.text段，一个是.data段。程序想要运行就必须将这两个段搬运到对应的虚拟地址上去，否则程序无法运行。</p>
+<p>因此为了完成虚拟地址映射，需要进行地址空间的管理。主要是创建SV39页表，目前lkmodel中的paging完成了这个页表的管理，因此我一开始是参照这个crate与org_arceos的实现，在其中创建一个静态变量来存储用户程序的页表。并编写了map_region。</p>
+<p>但是这样做不太好，因为这样一次只能运行一个程序了，而且接下来我在运行程序的时候，它进行系统调用时，获取访问页表的手段是通过TCB中mm_struct来获取的。因此我对此进行了修改。</p>
+<p>主要是在我的axstd下添加了map_region函数，它的功能是获取当前的task，然后获取一个可变引用，然后在task中我添加了一个map_region方法，这个map_region方法最终会对task的mm成员变量进行map_region操作。大致的调用关系如下</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// rt_loader中的程序调用map_region方法</span></span><br><span class="line">vm::map_region(va, pa, num_pages &lt;&lt; PAGE_SHIFT, flags);</span><br><span class="line"></span><br><span class="line"><span class="comment">/// axstd的vm模块下的map_region</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">map_region</span></span>(va: <span class="built_in">usize</span>, pa: <span class="built_in">usize</span>, len: <span class="built_in">usize</span>, flags: <span class="built_in">usize</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task = task::current();</span><br><span class="line">    <span class="comment">// 向当前任务的mm中进行map_region</span></span><br><span class="line">    task.as_task_mut().map_region(va, pa, len, flags)</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">/// task的map_region方法</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">map_region</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>,va: <span class="built_in">usize</span>, pa: <span class="built_in">usize</span>, len: <span class="built_in">usize</span>, flags: <span class="built_in">usize</span>) &#123;</span><br><span class="line">    <span class="keyword">self</span>.mm.as_mut().map(|mm| &#123;</span><br><span class="line">        <span class="keyword">let</span> locked_mm = mm.lock();</span><br><span class="line">        locked_mm.map_region(va, pa, len, flags);</span><br><span class="line">        <span class="keyword">use</span> mm::VmAreaStruct;</span><br><span class="line">        <span class="keyword">let</span> vma = VmAreaStruct::new(va, va + len, <span class="number">0</span>, <span class="literal">None</span>, <span class="number">0</span>);</span><br><span class="line">        mm.lock().vmas.insert(va, vma);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/// mm的map_region方法</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">map_region</span></span>(&amp;<span class="keyword">self</span>, va: <span class="built_in">usize</span>, pa: <span class="built_in">usize</span>, len: <span class="built_in">usize</span>, _uflags: <span class="built_in">usize</span>) -&gt; PagingResult &#123;</span><br><span class="line">    <span class="keyword">let</span> flags =</span><br><span class="line">        MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE ; </span><br><span class="line">    <span class="keyword">self</span>.pgd</span><br><span class="line">        .lock()</span><br><span class="line">        .map_region(va.into(), pa.into(), len, flags, <span class="literal">true</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此处我实现的一个额外点在于调用map_region方法的时候，我同时会向mm struct中的vmas添加vma，也就是让程序知道这个地址空间被分段使用了。</p>
+<h4 id="task-ctx问题"><a href="#task-ctx问题" class="headerlink" title="task_ctx问题"></a>task_ctx问题</h4><p>在我的实现中，因为使用task记录了页表，因此我在我的axruntime库上添加了对axtask的初始化。同时我还初始化了axtrap，用于系统调用。</p>
+<p>最后存在的一个问题是，在lkmodel的系统调用处理过程中，它经常需要访问task_ctx，从中获取当前的task，然后进行相关的操作，比如mmap，mprotect，brk系统调用等。但是因为获取task_ctx失败，所以我一直卡在此处。</p>
+<p>听了符同学的提醒，我最终使用静态变量的方式将记录task_ctx，如下所示</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="keyword">static</span> <span class="keyword">mut</span> CURRENT_TASKCTX_PTR:<span class="built_in">Option</span>&lt;* <span class="keyword">const</span> SchedInfo&gt; = <span class="literal">None</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 然后在所有初始化task_ctx的位置</span></span><br><span class="line"><span class="comment">// 将 axhal::cpu::set_current_task_ptr(ptr);</span></span><br><span class="line"><span class="comment">// 修改为 CURRENT_TASKCTX_PTR = Some(ptr);</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 在所有获取task_ctx的位置</span></span><br><span class="line"><span class="comment">// 将 axhal::cpu::current_task_ptr();</span></span><br><span class="line"><span class="comment">// 修改为if let Some(ptr) = CURRENT_TASKCTX_PTR &#123;...&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="brk问题"><a href="#brk问题" class="headerlink" title="brk问题"></a>brk问题</h4><p>解决完了上述问题后，我还遇到的问题就是系统调用分配堆空间的问题。我一开始没有设置brk，因此它总是从默认的位置0开始向后分配堆空间，而这部分空间与程序运行的代码段产生了冲突。</p>
+<p>即代码段在0x10000-0x7e0000之间，而brk申请了0x1000-0x220000之间的空间。这导致了空间上的冲突，因此我后来在运行linux app之前，首先设置了brk的地址，将它设置为了数据段之后的位置。通过这样设置，就不会产生冲突了。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>总体来说，我完成了lkmodel下运行glibc静态编译的hello world的c应用。这让我对elf结构，qemu.log的调试，地址空间与系统调用都有了更进一步的了解。</p>
+<p>lkmodel的组件划分让我觉得非常地棘手，因为虽然是将组件进行了分类，但是感觉想要实现特定功能的话，我依然是需要理解每个组件之间的依赖关系，有时还需要理解每个组件的内部实现。这是我认为相比rcore-os来说，主要的难点。</p>
+<p>仓库链接是<a href="https://github.com/waterm310n/lkmodel" target="_blank" rel="noopener">lkmodel</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/25/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-cc/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/04/25/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-cc/" class="post-title-link" itemprop="url">2024春季开源操作系统训练营第一阶段总结-cc</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-04-25 16:02:48" itemprop="dateCreated datePublished" datetime="2024-04-25T16:02:48+00:00">2024-04-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="rust的学习"><a href="#rust的学习" class="headerlink" title="rust的学习"></a>rust的学习</h1><p>因为之前学过一些c++，有一定的基础，对rust的学习真的帮助挺大的。rust里的所有权，智能指针，移动语义都能在c++里找到对应的东西，rust学起来还是挺轻松的。</p>
+<p>相较于c++，rust使用起来真的太舒服了。使用match进行流程控制十分优雅，宏也比c++的宏更加强大，rust泛型编程的类型萃取使用起来也比c++方便，更不用说<code>cargo</code>包管理对c++简直就是降为打击。</p>
+<p>代价是rust的<code>unsafe</code>用起来有点丑陋。</p>
+<h1 id="rustlings实验"><a href="#rustlings实验" class="headerlink" title="rustlings实验"></a>rustlings实验</h1><p>前一百道题通过看 <a href="https://kaisery.github.io/trpl-zh-cn/" target="_blank" rel="noopener">Rust 程序设计</a> 、 <a href="https://doc.rust-lang.org/std/index.html" target="_blank" rel="noopener">rust官方api文档</a> 和问gpt都能够轻松的完成。</p>
+<p>后十道数据结构题目就遇到麻烦了，主要是对 rust <code>unsafe</code> 操作的不熟悉，写起来真的折磨。在认真学习了解rust 指针操作后，有算法基础数据结构实现还是比较好实现的。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>rust入门可以认真看完 《Rust 程序设计》，不理解的地方问gpt和百度。再写完rustlings, 最后在github上找个练手项目去理解代码尝试自己实现。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/25/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%A8%E4%BD%B3%E8%B1%AA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +463,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
 
           
@@ -331,7 +530,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
 
           
@@ -452,7 +651,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
 
           
@@ -523,7 +722,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
 
           
@@ -981,7 +1180,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1062,7 +1261,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
 
           
@@ -1150,7 +1349,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1231,7 +1430,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
+                <time title="Modified: 2024-11-08 10:35:56" itemprop="dateModified" datetime="2024-11-08T10:35:56+00:00">2024-11-08</time>
               </span>
 
           
@@ -1252,190 +1451,6 @@
 <h2 id="RISC-V"><a href="#RISC-V" class="headerlink" title="RISC-V"></a>RISC-V</h2><p>参加训练营是第一次接触RISC-V，目前正在学习《RISC-V-Reader》。RISC-V有一个很鲜明的特点是模块化，这似乎是技术发展的未来趋势，各种现代编程语言都<br>在使自己模块化，如Java，生活中常用的设备也在模块化，如笔记本电脑，手机，甚至我这个月刚买的小米鱼缸，RISC-V走在了ISA模块化的前沿。</p>
 <h2 id="下一步"><a href="#下一步" class="headerlink" title="下一步"></a>下一步</h2><p>目前打算在第二阶段开始前看完《RISC-V-Reader》，之后再补充一些操作系统的知识，为第二阶段的学习做好准备。</p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/24/2024Rust%E7%B3%BB%E7%BB%9F%E5%BC%80%E6%BA%90%E5%A4%8F%E4%BB%A4%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5Blog-Siricci/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/04/24/2024Rust%E7%B3%BB%E7%BB%9F%E5%BC%80%E6%BA%90%E5%A4%8F%E4%BB%A4%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5Blog-Siricci/" class="post-title-link" itemprop="url">2024Rust系统开源夏令营第一阶段Blog-Siricci</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-04-24 23:26:28" itemprop="dateCreated datePublished" datetime="2024-04-24T23:26:28+00:00">2024-04-24</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="开端"><a href="#开端" class="headerlink" title="开端"></a>开端</h1><p>从同学听到有关这个开源夏令营的事情，一方面对rust这种新兴语言颇为感兴趣，另一方面也正巧学习计算机系统知识，认识到计算机系统的精妙，也希望借此机会提高自己对计算机系统的理解，获得一定的开源经验。</p>
-<h1 id="链接"><a href="#链接" class="headerlink" title="链接"></a>链接</h1><p>主要的笔记都记录在notion中，主要包含我rustlings过程中的思考和体会，记录比较精简。<br><a href="https://ash-chair-1e2.notion.site/193e1434faf44e5587e71865fc9614af?v=6e2890c3bd084a77b864410b009d9706&amp;pvs=4" target="_blank" rel="noopener">https://ash-chair-1e2.notion.site/193e1434faf44e5587e71865fc9614af?v=6e2890c3bd084a77b864410b009d9706&amp;pvs=4</a></p>
-<h1 id="第一阶段总结"><a href="#第一阶段总结" class="headerlink" title="第一阶段总结"></a>第一阶段总结</h1><p>这一阶段主要是熟悉rust语法以及相关知识。在我的学习中看来，rust主要有以下几个难点：</p>
-<ol>
-<li>控制权转换。<ul>
-<li>rust中，move是默认语义，而浅拷贝（在rust中被称为引用）成为了次要语义，这使得程序需要不断地考虑生命周期</li>
-</ul>
-</li>
-<li>引用的简写<ul>
-<li>rust中让我最不能够理解的是引用的自动解引用功能，我认为一个强类型语言可以用更加明了的方式进行引用和非引用的区分。当然这只是我的浅薄观点，因为引用和非引用的自动转换实在让我伤透脑筋。</li>
-</ul>
-</li>
-<li>生命周期<ul>
-<li>实际上rust中存在对生命周期非常精准的控制，然而受限于我的学习速度，还没有对生命周期参数和控制有更深的了解。</li>
-</ul>
-</li>
-<li>大量的现代特性<ul>
-<li>在学习rust的过程中，我体会到了很多“旧语言”没有的特性，例如函数式编程、模板约束、宏的元编程等特性。这不禁让我想起了学习现代C++的某些特性（但是根本没有实际使用过）</li>
-</ul>
-</li>
-</ol>
-<h1 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h1><p>接下来，主要就是学习riscv指令集，同时准备把更多时间花在系统课程上，配合CSAPP学习一个操作系统的基础实现。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/24/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-TrisuyaN/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/04/24/2024%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-TrisuyaN/" class="post-title-link" itemprop="url">2024春季开源操作系统训练营第一阶段总结报告-TrisuyaN</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-04-24 22:38:04" itemprop="dateCreated datePublished" datetime="2024-04-24T22:38:04+00:00">2024-04-24</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-08 10:35:01" itemprop="dateModified" datetime="2024-11-08T10:35:01+00:00">2024-11-08</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>学习Rust有一段时间了，做rustlings中途没有写blog，正好总结一下作为初学者对Rust的一些关注点和总结。</p>
-<p>没写完，就先这样吧（逃）</p>
-<p>todo!();</p>
-<h1 id="Rust基本语法"><a href="#Rust基本语法" class="headerlink" title="Rust基本语法"></a>Rust基本语法</h1><h2 id="变量"><a href="#变量" class="headerlink" title="变量"></a>变量</h2><p>Rust变量声明使用<code>let</code>，类型放在变量名后面。例如：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> x: <span class="built_in">i32</span> = <span class="number">114514</span>;</span><br></pre></td></tr></table></figure>
-
-<p>Rust也能自动推断类型：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> i = <span class="number">114514</span>;</span><br><span class="line"><span class="keyword">let</span> s = <span class="string">"string"</span>.to_string();</span><br></pre></td></tr></table></figure>
-
-<p><code>i</code>被自动推断为<code>i32</code>，<code>s</code>被自动推断为<code>String</code></p>
-<p>有些情况Rust也不能自动推断类型，比如：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> v = <span class="built_in">vec!</span>[];</span><br></pre></td></tr></table></figure>
-
-<p>报错信息如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">error[E0282]: type annotations needed for &#96;Vec&lt;_&gt;&#96;</span><br><span class="line">  --&gt; exercises&#x2F;variables&#x2F;variables1.rs:10:9</span><br><span class="line">   |</span><br><span class="line">10 |     let v &#x3D; vec![];</span><br><span class="line">   |         ^   ------ type must be known at this point</span><br><span class="line">   |</span><br><span class="line">help: consider giving &#96;v&#96; an explicit type, where the placeholders &#96;_&#96; are specified</span><br><span class="line">   |</span><br><span class="line">10 |     let v: Vec&lt;_&gt; &#x3D; vec![];</span><br><span class="line">   |          ++++++++</span><br></pre></td></tr></table></figure>
-
-<p>这是因为Rust是一门<strong>静态类型语言</strong>在编译期必须得知变量类型的大小。</p>
-<h2 id="函数声明"><a href="#函数声明" class="headerlink" title="函数声明"></a>函数声明</h2><p>声明方式大致如下。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">func</span></span>(a: <span class="built_in">i32</span>, b: <span class="built_in">i32</span>) -&gt; <span class="built_in">i32</span> &#123;</span><br><span class="line">	a + b</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>…很多内容在其他语言都有类似的概念，只是语法稍有不同，<del>因为懒惰</del>不再赘述</p>
-<h1 id="Rust的特色"><a href="#Rust的特色" class="headerlink" title="Rust的特色"></a>Rust的特色</h1><p>作为一门年轻的语言，Rust整合了许多其他语言的优势，比如C/C++的底层系统编程能力、Ruby 的包管理器Bundler （cargo）等等。而除了严格的编译期检查、所有权和生命周期机制实现的内存安全，Rust也有许多其他大大小小的特色和亮点，比如：</p>
-<h2 id="组合优于继承"><a href="#组合优于继承" class="headerlink" title="组合优于继承"></a>组合优于继承</h2><h2 id="表达式"><a href="#表达式" class="headerlink" title="表达式"></a>表达式</h2><h2 id="模式匹配"><a href="#模式匹配" class="headerlink" title="模式匹配"></a>模式匹配</h2><h2 id="闭包"><a href="#闭包" class="headerlink" title="闭包"></a>闭包</h2><h2 id="使用Option来表达可能为空的值"><a href="#使用Option来表达可能为空的值" class="headerlink" title="使用Option来表达可能为空的值"></a>使用Option来表达可能为空的值</h2><h2 id="使用Result来处理异常"><a href="#使用Result来处理异常" class="headerlink" title="使用Result来处理异常"></a>使用Result来处理异常</h2><h2 id="各种智能指针"><a href="#各种智能指针" class="headerlink" title="各种智能指针"></a>各种智能指针</h2><h2 id="使用RefCell实现内部可变性"><a href="#使用RefCell实现内部可变性" class="headerlink" title="使用RefCell实现内部可变性"></a>使用RefCell实现内部可变性</h2><h1 id="Rust与数据结构和算法"><a href="#Rust与数据结构和算法" class="headerlink" title="Rust与数据结构和算法"></a>Rust与数据结构和算法</h1><p><del>学Rust当然要从链表写起！</del><br>==学Rust千万不要从链表写起！==</p>
-<h2 id="Rust如何实现链表？"><a href="#Rust如何实现链表？" class="headerlink" title="Rust如何实现链表？"></a>Rust如何实现链表？</h2><p>按照C/C++的一贯做法，我们可能会写出：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">node</span></span> &#123;</span><br><span class="line">	val: <span class="built_in">i32</span>,</span><br><span class="line">	next: <span class="built_in">Box</span>&lt;node&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>然而实际用起来，会发现你<strong>用不起来</strong>：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> n = node &#123;</span><br><span class="line">	val: <span class="number">114514</span>,</span><br><span class="line">	next: <span class="built_in">Box</span>::new(node &#123;</span><br><span class="line"></span><br><span class="line">	&#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>问题就在于Box里必须要有东西，即它<strong>任何时候</strong>必须指向一个有效的元素！别说链表末尾节点如何实现，我们甚至无法完成头节点（任何节点）这样一个递归定义的形式。</p>
-<p>于是我们想到使用Option来表示可能为空的值，从而能够定义单个节点。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">node</span></span> &#123;</span><br><span class="line">	val: <span class="built_in">i32</span>,</span><br><span class="line">	next: <span class="built_in">Option</span>&lt;<span class="built_in">Box</span>&lt;node&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="面向rCore的Rust"><a href="#面向rCore的Rust" class="headerlink" title="面向rCore的Rust"></a>面向rCore的Rust</h1><p>为了完成rCore，还需要深入了解Rust的哪些？</p>
-<h2 id="unsafe"><a href="#unsafe" class="headerlink" title="unsafe"></a>unsafe</h2><h2 id="外部接口"><a href="#外部接口" class="headerlink" title="外部接口"></a>外部接口</h2><h2 id="Rust编译和链接"><a href="#Rust编译和链接" class="headerlink" title="Rust编译和链接"></a>Rust编译和链接</h2><h2 id="Rust项目结构"><a href="#Rust项目结构" class="headerlink" title="Rust项目结构"></a>Rust项目结构</h2><h2 id="另外推荐：《Rust死灵书》"><a href="#另外推荐：《Rust死灵书》" class="headerlink" title="另外推荐：《Rust死灵书》"></a>另外推荐：《Rust死灵书》</h2>
       
     </div>
 
