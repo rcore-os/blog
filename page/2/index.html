@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">452</span>
+          <span class="site-state-item-count">453</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,164 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/08/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yck/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/08/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yck/" class="post-title-link" itemprop="url">2024 秋冬季开源操作系统训练营第一二阶段总结-yck</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-08 21:15:38" itemprop="dateCreated datePublished" datetime="2024-11-08T21:15:38+00:00">2024-11-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Rustlings"><a href="#Rustlings" class="headerlink" title="Rustlings"></a>Rustlings</h1><p>关于第一阶段的Rustlings，还是花了很多时间去学习Rust。一开始是直接去看《Rust程序设计语言》，看了大概大半个月吧，把一些较为简单的概念和程序过了一遍。也是第一次接触这类内存安全类语言，第一次看到所有权，引用的时候还有点畏惧，对于没怎么深入学习过C++的人来说学起来还是有些吃力的。后面又去看了《Rust圣经》，发现有趣多了，提供了很多代码案例，很有意思。最后也跟着写了一个rust小项目minigrep。rustlings也是边学边查文档边做，做起来很有意思很有成就感。</p>
+<h1 id="rcore实验"><a href="#rcore实验" class="headerlink" title="rcore实验"></a>rcore实验</h1><h2 id="rcore批处理系统编译逻辑"><a href="#rcore批处理系统编译逻辑" class="headerlink" title="rcore批处理系统编译逻辑"></a>rcore批处理系统编译逻辑</h2><ul>
+<li>link.ld链接脚本将程序分成.text、.rodata、.data、.bss。</li>
+<li>build.py会将app目录下的bin文件进行编译，将程序的text段加载到以0x8040000开始的用来存放app代码的内存空间，且规定每块app空间为0x2000。</li>
+<li>build.rs会遍历user目录下的build文件夹中刚才通过objcopy生成的bin文件，然后生成对应的link_app.S。其实就是将app下的bin文件进行装载，在每个app的内存空间开始和结尾设置标号，并暴露给os以供调用。</li>
+</ul>
+<h2 id="页表机制"><a href="#页表机制" class="headerlink" title="页表机制"></a>页表机制</h2><p>单页表：<strong>一块地址空间分为用户虚拟地址和内核虚拟地址，内核虚拟地址映射到内核物理地址</strong></p>
+<p>单页表会出现熔断漏洞</p>
+<p>比如在用户虚拟空间中有一段代码需要访问内核数据空间的页面，因为cpu流水线机制，数据可能已经被放在cache中。但如果这时候我们取值失败了但是由于已经把数据放在了cache中。下一次我们从用户态直接访问这几个页面的时候，总有那么一个页面访问的速度远比其他的页面快。</p>
+<p>双页表：<strong>分为用户地址空间和内核地址空间，用户地址空间又分内核态代码和用户态代码。</strong></p>
+<p>那么当我们在用户态访问内核数据时，其实是不知道数据放在哪的，这样就可以避免熔断漏洞。</p>
+<h2 id="exec"><a href="#exec" class="headerlink" title="exec"></a>exec</h2><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Load a new elf to replace the original application address space and start execution</span></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">exec</span></span>(&amp;<span class="keyword">self</span>, elf_data: &amp;[<span class="built_in">u8</span>]) &#123;</span><br><span class="line">        <span class="comment">// memory_set with elf program headers/trampoline/trap context/user stack</span></span><br><span class="line">        <span class="keyword">let</span> (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);</span><br><span class="line">        <span class="keyword">let</span> trap_cx_ppn = memory_set</span><br><span class="line">            .translate(VirtAddr::from(TRAP_CONTEXT_BASE).into())</span><br><span class="line">            .unwrap()</span><br><span class="line">            .ppn();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// **** access current TCB exclusively</span></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner_exclusive_access();</span><br><span class="line">        <span class="comment">// substitute memory_set</span></span><br><span class="line">        inner.memory_set = memory_set;</span><br><span class="line">        <span class="comment">// update trap_cx ppn</span></span><br><span class="line">        inner.trap_cx_ppn = trap_cx_ppn;</span><br><span class="line">        <span class="comment">// initialize base_size</span></span><br><span class="line">        inner.base_size = user_sp;</span><br><span class="line">        <span class="comment">// initialize trap_cx</span></span><br><span class="line">        <span class="keyword">let</span> trap_cx = inner.get_trap_cx();</span><br><span class="line">        *trap_cx = TrapContext::app_init_context(</span><br><span class="line">            entry_point,</span><br><span class="line">            user_sp,</span><br><span class="line">            KERNEL_SPACE.exclusive_access().token(),</span><br><span class="line">            <span class="keyword">self</span>.kernel_stack.get_top(),</span><br><span class="line">            trap_handler <span class="keyword">as</span> <span class="built_in">usize</span>,</span><br><span class="line">        );</span><br><span class="line">        <span class="comment">// **** release inner automatically</span></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="步骤-1：创建新的-MemorySet"><a href="#步骤-1：创建新的-MemorySet" class="headerlink" title="步骤 1：创建新的 MemorySet"></a>步骤 1：创建新的 <code>MemorySet</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">let (memory_set, user_sp, entry_point) &#x3D; MemorySet::from_elf(elf_data);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>调用 <code>MemorySet::from_elf</code> 解析传入的 ELF 数据，并创建一个新的 <code>MemorySet</code>，即新的地址空间。</li>
+<li>该函数返回以下三个值：<ul>
+<li><code>memory_set</code>：表示该进程的新内存映射集合，包含代码段、数据段、用户栈等信息。</li>
+<li><code>user_sp</code>：新用户栈的栈顶地址。</li>
+<li><code>entry_point</code>：新程序的入口地址，表示从此处开始执行新的 ELF 程序。</li>
+</ul>
+</li>
+</ul>
+<h3 id="步骤-2：获取新的-trap-cx-ppn"><a href="#步骤-2：获取新的-trap-cx-ppn" class="headerlink" title="步骤 2：获取新的 trap_cx_ppn"></a>步骤 2：获取新的 <code>trap_cx_ppn</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">let trap_cx_ppn &#x3D; memory_set</span><br><span class="line">    .translate(VirtAddr::from(TRAP_CONTEXT_BASE).into())</span><br><span class="line">    .unwrap()</span><br><span class="line">    .ppn();</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>通过 <code>translate</code> 方法，将 <code>TRAP_CONTEXT_BASE</code> 这个虚拟地址转换为物理页号（<code>trap_cx_ppn</code>）。</li>
+<li><code>trap_cx_ppn</code> 表示陷入上下文（<code>TrapContext</code>）所在的物理页号，用于进程的系统调用或异常处理。</li>
+</ul>
+<h3 id="步骤-3：独占访问当前进程控制块（TCB）"><a href="#步骤-3：独占访问当前进程控制块（TCB）" class="headerlink" title="步骤 3：独占访问当前进程控制块（TCB）"></a>步骤 3：独占访问当前进程控制块（TCB）</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">let mut inner &#x3D; self.inner_exclusive_access();</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>通过 <code>inner_exclusive_access</code> 方法独占访问当前进程的 <code>TaskControlBlockInner</code> 结构体，确保在以下步骤中可以对进程的内部状态进行修改。</li>
+</ul>
+<h3 id="步骤-4：替换-MemorySet"><a href="#步骤-4：替换-MemorySet" class="headerlink" title="步骤 4：替换 MemorySet"></a>步骤 4：替换 <code>MemorySet</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">inner.memory_set &#x3D; memory_set;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>将当前进程的 <code>memory_set</code> 替换为新创建的 <code>memory_set</code>，这样新加载的 ELF 程序就成为该进程的地址空间。</li>
+<li>这一步实现了对原应用程序地址空间的替换。</li>
+</ul>
+<h3 id="步骤-5：更新-trap-cx-ppn"><a href="#步骤-5：更新-trap-cx-ppn" class="headerlink" title="步骤 5：更新 trap_cx_ppn"></a>步骤 5：更新 <code>trap_cx_ppn</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">inner.trap_cx_ppn &#x3D; trap_cx_ppn;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>更新 <code>trap_cx_ppn</code> 字段，设置新的 <code>trap_cx_ppn</code>，确保进程的陷入上下文指针正确指向新的物理页。</li>
+</ul>
+<h3 id="步骤-6：初始化-base-size"><a href="#步骤-6：初始化-base-size" class="headerlink" title="步骤 6：初始化 base_size"></a>步骤 6：初始化 <code>base_size</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">inner.base_size &#x3D; user_sp;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>更新 <code>base_size</code> 字段为新的用户栈顶地址 <code>user_sp</code>。</li>
+<li><code>base_size</code> 用于保存用户栈的初始栈顶，便于栈空间管理。</li>
+</ul>
+<h3 id="步骤-7：初始化-trap-cx"><a href="#步骤-7：初始化-trap-cx" class="headerlink" title="步骤 7：初始化 trap_cx"></a>步骤 7：初始化 <code>trap_cx</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">let trap_cx &#x3D; inner.get_trap_cx();</span><br><span class="line">*trap_cx &#x3D; TrapContext::app_init_context(</span><br><span class="line">    entry_point,</span><br><span class="line">    user_sp,</span><br><span class="line">    KERNEL_SPACE.exclusive_access().token(),</span><br><span class="line">    self.kernel_stack.get_top(),</span><br><span class="line">    trap_handler as usize,</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>调用 <code>get_trap_cx</code> 获取当前进程的陷入上下文指针。</p>
+</li>
+<li><p>使用 </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">TrapContext::app_init_context</span><br></pre></td></tr></table></figure>
+
+<p> 函数重新初始化陷入上下文，设置新程序的执行信息：</p>
+<ul>
+<li><code>entry_point</code>：新程序的入口地址。</li>
+<li><code>user_sp</code>：用户栈顶地址。</li>
+<li><code>KERNEL_SPACE.exclusive_access().token()</code>：内核空间的访问令牌，确保正确的权限。</li>
+<li><code>self.kernel_stack.get_top()</code>：内核栈的栈顶地址，用于中断或系统调用时的上下文切换。</li>
+<li><code>trap_handler as usize</code>：陷入处理函数的地址，用于异常处理。</li>
+</ul>
+</li>
+</ul>
+<h3 id="结尾：释放-inner-锁"><a href="#结尾：释放-inner-锁" class="headerlink" title="结尾：释放 inner 锁"></a>结尾：释放 <code>inner</code> 锁</h3><p>在 <code>inner</code> 独占访问结束时，<code>inner_exclusive_access()</code> 产生的独占访问会自动释放，允许其他任务对该进程进行访问。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>该 <code>exec</code> 方法执行以下步骤来加载和执行一个新的 ELF 程序：</p>
+<ol>
+<li>从 ELF 数据中构建新的 <code>MemorySet</code>、用户栈顶地址、程序入口点。</li>
+<li>获取并设置新的陷入上下文物理页号 <code>trap_cx_ppn</code>。</li>
+<li>独占访问当前进程控制块，并逐步替换内存集、更新陷入上下文等信息。</li>
+<li>重新初始化陷入上下文，确保该进程从新的程序入口执行。</li>
+</ol>
+<h2 id="rcore调度策略"><a href="#rcore调度策略" class="headerlink" title="rcore调度策略"></a>rcore调度策略</h2><p>TaskManager任务管理器管理着一个任务就绪队列（先进先出策略），os初始化过后会在<code>run_tasks</code>中无限循环，取出任务及任务保存的寄存器<code>task_cx</code>，然后通过<code>__switch</code>切换<code>idle_task</code>到<code>next_task</code>(实际就是task_cx中寄存器的切换)，如果没有任务或当前任务释放控制权则会调用<code>schedule</code>切换到<code>idle_task</code></p>
+<h2 id="进程间通信"><a href="#进程间通信" class="headerlink" title="进程间通信"></a>进程间通信</h2><h3 id="管道（Pipe）"><a href="#管道（Pipe）" class="headerlink" title="管道（Pipe）"></a>管道（Pipe）</h3><p>可表示为两个文件描述符加一段<strong>内核空间</strong>中的内存</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 传入数组，转换成管道的读写端的文件描叙符</span><br><span class="line">int pipe(int pipefd[2]);</span><br></pre></td></tr></table></figure>
+
+<p>通过操作文件描述符来分别操作读写端进行进程间通信</p>
+<ul>
+<li>如何实现shell中管道符“|”功能</li>
+</ul>
+<p>可以fork两个子进程，pid1的执行流可以使用dup2函数将stdout重定向到pipefd[1] （写端），并关闭管道的读写端，执行第一条命令</p>
+<p>pid2的执行流使用dup2函数将stdin重定向到pipefd[0] （读端），关闭管道的读写端，执行第二条命令</p>
+<p>最后父进程关闭读写端并wait两个子进程</p>
+<p><strong>匿名管道</strong>：只能是<strong>具有血缘关系</strong>的进程之间通信；它只能实现一个进程写另一个进程读，而如果需要两者同时进行时，就得重新打开一个管道。</p>
+<p>为了使任意两个进程之间能够通信，就提出了<strong>命名管道</strong>（named pipe 或 FIFO）。<br>1、与管道的区别：提供了<strong>一个路径名与之关联</strong>，以FIFO文件的形式存储于文件系统中，能够<strong>实现任何两个进程之间通信</strong>。而匿名管道对于文件系统是不可见的，它仅限于在父子进程之间的通信。<br>2、FIFO是一个设备文件，在文件系统中以文件名的形式存在，因此即使进程与创建FIFO的进程不存在血缘关系也依然可以通信，前提是可以访问该路径。<br>3、FIFO(first input first output)总是遵循先进先出的原则，即第一个进来的数据会第一个被读走。</p>
+<h3 id="消息队列"><a href="#消息队列" class="headerlink" title="消息队列"></a>消息队列</h3><h3 id="信号（Signal）"><a href="#信号（Signal）" class="headerlink" title="信号（Signal）"></a>信号（Signal）</h3><p>在rCore中，当trap发生进入<code>trap_handler</code>函数，其中会调用<code>handle_signals</code>，循环调用<code>check_pending_signals</code>检测进程结构体中的成员来判断是否有<code>signal</code>到来，如果是内核信号，则在内核执行处理函数<code>call_kernel_signal_handler(signal)</code>，如果是用户信号则需要返回用户态执行处理函数<code>call_user_signal_handler(sig, signal)</code></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/08/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E3%80%81%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-dccif/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +422,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
 
           
@@ -334,7 +492,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
 
           
@@ -402,7 +560,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -504,7 +662,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -644,7 +802,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
 
           
@@ -732,7 +890,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
 
           
@@ -803,7 +961,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
 
           
@@ -826,82 +984,6 @@
             </div>
           <!--/noindex-->
         
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/08/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Jasonhonghh/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/08/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Jasonhonghh/" class="post-title-link" itemprop="url">2024秋冬开源操作系统训练营第二阶段总结-Jasonhonghh</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-08 10:58:18" itemprop="dateCreated datePublished" datetime="2024-11-08T10:58:18+00:00">2024-11-08</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="Rustlings"><a href="#Rustlings" class="headerlink" title="Rustlings"></a>Rustlings</h1><p><strong>这是我第一次刷Rustlings，还是很有收获的。最后新增的一些算法题也很有意思，不过整体来说还是适合有Rust语法知识基础的人学习。最后几个算法题刷的很慢，我的数据结构和算法学的不是很好，在这里有学到很多。不过我也参考了许多资料。如果有人看的话，也算一点收获叭。整体来说Rust写起来很爽！</strong></p>
-<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><h2 id="Rust语法基础"><a href="#Rust语法基础" class="headerlink" title="Rust语法基础"></a>Rust语法基础</h2><p><strong>初学者应该主要从三个方面了解Rust：Rust语法基础，Cargo以及Rust的标准库和官方文档。</strong></p>
-<p><a href="https://kaisery.github.io/trpl-zh-cn/" target="_blank" rel="noopener">Rust 程序设计语言 - Rust 程序设计语言 简体中文版</a></p>
-<p><strong>这是社区推荐的的</strong><a href="https://doc.rust-lang.org/stable/book/#the-rust-programming-language" target="_blank" rel="noopener">The Rust Programming Language</a>的中文翻译版本。主要讲Rust语法基础，国内有开源作者撰写了<a href="https://course.rs/about-book.html" target="_blank" rel="noopener">Rust语言圣经</a>两本书的内容比较相似，后者语言比较生动，内容也比较丰富，前者的话语言精炼一些，个人比较推荐去读前者，读不懂的时候再去看Rust语言圣经的版本，会有新的收获。</p>
-<h2 id="The-Cargo-Book"><a href="#The-Cargo-Book" class="headerlink" title="The Cargo Book"></a>The Cargo Book</h2><p><a href="https://doc.rust-lang.org/stable/cargo/" target="_blank" rel="noopener">Introduction - The Cargo Book</a></p>
-<p><strong>The Cargo Book是关于Cargo的一本书，初学者可能只会使用到Cargo的一少部分命令和参数，但实际上，Rust受到广泛关注的一个原因，就来自于强大的构建和包管理工具Cargo，值得注意的是这本书的中文翻译版本最后的更新时间是2019年，相关的内容和英文最新版差别比较大，最好读英文版本。</strong></p>
-<h2 id="Rust标准库文档"><a href="#Rust标准库文档" class="headerlink" title="Rust标准库文档"></a>Rust标准库文档</h2><p><a href="https://doc.rust-lang.org/std/all.html" target="_blank" rel="noopener">List of all items in this crate</a></p>
-<p><strong>Rust的标准库文档涵盖了基础阶段大部分的内容，结构体、宏、智能指针等等都在标准库文档中有详细的说明，Rust程序相比其他许多语言确实比较在学习和编写上难度更大 ，但是Rust设计者们也在极力减少开发者的心智负担，对于一些数据类型和结构，标准库中定义了一些好用的方法和属性，方便大家学习和使用。另外，标准库中也定义了一些基本的API接口，方便开发。总之Rust标准库是一座宝库。</strong></p>
-<h2 id="Rust"><a href="#Rust" class="headerlink" title="Rust"></a>Rust</h2><p><a href="https://crates.io/" target="_blank" rel="noopener">crates.io: Rust Package Registry</a></p>
-<p><strong>crate.io是提供了诸多Rust开发者开发的库，可以直接在cargo.toml里面配置库名和版本就能使用，很方便，基础阶段Rust标准库文档是小宝库，在后续进阶开发阶段，crate.io就是名副其实的大宝库。言下之意是，基础阶段暂时不用看这个。</strong></p>
-<h2 id="Youtube"><a href="#Youtube" class="headerlink" title="Youtube"></a>Youtube</h2><p><a href="https://www.youtube.com/watch?v=ogCvZC-o0ms&list=PLNZe95GmIRd_lrbSdcjCT2V7uG4pVhn0S" target="_blank" rel="noopener">Rustlings 5.0 | Intro | Learn Rust Interactively</a></p>
-<p>**目前国内的Rust学习资源还在初级阶段，B站上暂时没有很完善的教程，推荐一个油管博主的视频，讲到比较陌生不好理解的地方，博主会把Rust基础教程和标准库文档贴出来，对着讲解，还是很有收获的，还能教你怎么快速找到自己需要查的知识点。但是这个博主是之前录的视频，没有训练营版本Rustlings最后一些练习的讲解。</p>
-
       
     </div>
 
@@ -951,7 +1033,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
 
           
@@ -996,7 +1078,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/08/RUST-oscamp-stage-1-2-Hornos3/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/08/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Jasonhonghh/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -1010,7 +1092,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2024/11/08/RUST-oscamp-stage-1-2-Hornos3/" class="post-title-link" itemprop="url">RUST-oscamp stage 1-2 - Hornos3</a>
+            <a href="/blog/2024/11/08/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Jasonhonghh/" class="post-title-link" itemprop="url">2024秋冬开源操作系统训练营第二阶段总结-Jasonhonghh</a>
         </h2>
 
         <div class="post-meta">
@@ -1020,24 +1102,15 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-08 10:28:28" itemprop="dateCreated datePublished" datetime="2024-11-08T10:28:28+00:00">2024-11-08</time>
+              <time title="Created: 2024-11-08 10:58:18" itemprop="dateCreated datePublished" datetime="2024-11-08T10:58:18+00:00">2024-11-08</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-09 06:40:08" itemprop="dateModified" datetime="2024-11-09T06:40:08+00:00">2024-11-09</time>
+                <time title="Modified: 2024-11-09 08:18:00" itemprop="dateModified" datetime="2024-11-09T08:18:00+00:00">2024-11-09</time>
               </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
 
           
 
@@ -1050,10 +1123,18 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>有关于Rust基础，是笔者在做毕设时因需要而学的，故而阶段一没有花费什么精力。但是对于阶段二，情况则截然不同。笔者没有听从项目文档的建议，选择了单枪匹马完成所有5个任务，期间也出现了许多迷之错误…</p>
-<p>对于Rust这门编程语言来说，笔者个人认为，虽然它可以被用来编写底层的代码，包括bootloader、UEFI、OS内核等等，但是它的编译器已经决定了Rust的上限。笔者不才，曾经研究过一部分Rust的反编译分析，发现Rust对于栈内存的使用似乎非常奢侈。与C语言不同，Rust对于Shadowing的处理不是复用原来的栈内存空间，而是直接使用新的空间。另外Rust的结构也相比C臃肿很多，这就导致Rust作为底层架构的开发语言时，使用的内存空间要远多于C语言，粗略估计，实现同一种功能的情况下，Rust平均需要比C至少多1倍的栈内存空间。在时间效率上，Rust要实现与C语言相同的时间效率，编写的unsafe代码定然不少，对于开发人员的要求也必然不低，在这一点上，Rust相较于C可能并没有提升太多的编程效率。因此，使用Rust与C编写底层代码各有千秋，Rust定然无法取代C，而C也必然要接受Rust的发展。当前，Rust底层生态严重不足，导致上层建筑难以跟进，一旦Rust适配了足够多的ISA与外设，将大大方便底层中较高级别的编程开发，但对于MCU等内存需求、效率需求高的场景，C依然是不可替代的选择。</p>
-<p>在此附上笔者的blog网址，其中有之前编写的9篇Rust逆向分析blog：<a href="hornos3.github.io">网址</a>（<del>界面丑了点，不要在意</del>）</p>
-<p>根据笔者对于Rust反编译的研究理解发现，Rust的各类结构具有一定的特征，在进行调试时，如果能够识别出此类特征，就能将汇编代码与源代码相对应，从而大致恢复源代码的执行逻辑，甚至直接逆向还原出源代码。正是因为笔者对Rust汇编的理解，在本次实验阶段二中的调试才能更快地找到问题所在。</p>
+          <h1 id="Rustlings"><a href="#Rustlings" class="headerlink" title="Rustlings"></a>Rustlings</h1><p><strong>这是我第一次刷Rustlings，还是很有收获的。最后新增的一些算法题也很有意思，不过整体来说还是适合有Rust语法知识基础的人学习。最后几个算法题刷的很慢，我的数据结构和算法学的不是很好，在这里有学到很多。不过我也参考了许多资料。如果有人看的话，也算一点收获叭。整体来说Rust写起来很爽！</strong></p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><h2 id="Rust语法基础"><a href="#Rust语法基础" class="headerlink" title="Rust语法基础"></a>Rust语法基础</h2><p><strong>初学者应该主要从三个方面了解Rust：Rust语法基础，Cargo以及Rust的标准库和官方文档。</strong></p>
+<p><a href="https://kaisery.github.io/trpl-zh-cn/" target="_blank" rel="noopener">Rust 程序设计语言 - Rust 程序设计语言 简体中文版</a></p>
+<p><strong>这是社区推荐的的</strong><a href="https://doc.rust-lang.org/stable/book/#the-rust-programming-language" target="_blank" rel="noopener">The Rust Programming Language</a>的中文翻译版本。主要讲Rust语法基础，国内有开源作者撰写了<a href="https://course.rs/about-book.html" target="_blank" rel="noopener">Rust语言圣经</a>两本书的内容比较相似，后者语言比较生动，内容也比较丰富，前者的话语言精炼一些，个人比较推荐去读前者，读不懂的时候再去看Rust语言圣经的版本，会有新的收获。</p>
+<h2 id="The-Cargo-Book"><a href="#The-Cargo-Book" class="headerlink" title="The Cargo Book"></a>The Cargo Book</h2><p><a href="https://doc.rust-lang.org/stable/cargo/" target="_blank" rel="noopener">Introduction - The Cargo Book</a></p>
+<p><strong>The Cargo Book是关于Cargo的一本书，初学者可能只会使用到Cargo的一少部分命令和参数，但实际上，Rust受到广泛关注的一个原因，就来自于强大的构建和包管理工具Cargo，值得注意的是这本书的中文翻译版本最后的更新时间是2019年，相关的内容和英文最新版差别比较大，最好读英文版本。</strong></p>
+<h2 id="Rust标准库文档"><a href="#Rust标准库文档" class="headerlink" title="Rust标准库文档"></a>Rust标准库文档</h2><p><a href="https://doc.rust-lang.org/std/all.html" target="_blank" rel="noopener">List of all items in this crate</a></p>
+<p><strong>Rust的标准库文档涵盖了基础阶段大部分的内容，结构体、宏、智能指针等等都在标准库文档中有详细的说明，Rust程序相比其他许多语言确实比较在学习和编写上难度更大 ，但是Rust设计者们也在极力减少开发者的心智负担，对于一些数据类型和结构，标准库中定义了一些好用的方法和属性，方便大家学习和使用。另外，标准库中也定义了一些基本的API接口，方便开发。总之Rust标准库是一座宝库。</strong></p>
+<h2 id="Rust"><a href="#Rust" class="headerlink" title="Rust"></a>Rust</h2><p><a href="https://crates.io/" target="_blank" rel="noopener">crates.io: Rust Package Registry</a></p>
+<p><strong>crate.io是提供了诸多Rust开发者开发的库，可以直接在cargo.toml里面配置库名和版本就能使用，很方便，基础阶段Rust标准库文档是小宝库，在后续进阶开发阶段，crate.io就是名副其实的大宝库。言下之意是，基础阶段暂时不用看这个。</strong></p>
+<h2 id="Youtube"><a href="#Youtube" class="headerlink" title="Youtube"></a>Youtube</h2><p><a href="https://www.youtube.com/watch?v=ogCvZC-o0ms&list=PLNZe95GmIRd_lrbSdcjCT2V7uG4pVhn0S" target="_blank" rel="noopener">Rustlings 5.0 | Intro | Learn Rust Interactively</a></p>
+<p>**目前国内的Rust学习资源还在初级阶段，B站上暂时没有很完善的教程，推荐一个油管博主的视频，讲到比较陌生不好理解的地方，博主会把Rust基础教程和标准库文档贴出来，对着讲解，还是很有收获的，还能教你怎么快速找到自己需要查的知识点。但是这个博主是之前录的视频，没有训练营版本Rustlings最后一些练习的讲解。</p>
 
       
     </div>
