@@ -1,5 +1,5 @@
 ---
-title: 2024第二阶段总结
+title: 2024秋冬开源操作系统第二阶段总结-yqthz
 date: 2024-11-08 13:24:05
 categories:
   - report
