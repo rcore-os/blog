@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="rCore 总结这个阶段大约花了3周左右的时间，更多是对OS概念抽象和risc-vCPU架构的一些了解。跟rust的关系在我看来不算特别大。核心的找地址、上下文切换都是c-like&#x2F;asm实现的，当然这部分代码占比很小很小。这里面内存frame等等几个地方，充分利用了RAII机制，大大减少了内存释放的心智负担，感觉是rust语言优于传统C的典型佐证。 这个阶段花时间较久是在ch8银行家&#x2F;死锁检测算">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024A-stage2-rCore-Martin1847">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/11/09/2024A-stage2-rCore-Martin1847/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="rCore 总结这个阶段大约花了3周左右的时间，更多是对OS概念抽象和risc-vCPU架构的一些了解。跟rust的关系在我看来不算特别大。核心的找地址、上下文切换都是c-like&#x2F;asm实现的，当然这部分代码占比很小很小。这里面内存frame等等几个地方，充分利用了RAII机制，大大减少了内存释放的心智负担，感觉是rust语言优于传统C的典型佐证。 这个阶段花时间较久是在ch8银行家&#x2F;死锁检测算">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/.io//2024/11/09/2024A-stage2-rCore-Martin1847/ctx_task__switch.png">
+<meta property="article:published_time" content="2024-11-09T13:52:11.000Z">
+<meta property="article:modified_time" content="2024-11-09T08:18:34.160Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:martin1847">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;LearningOS&#x2F;2024a-rcore-martin1847&#x2F;">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/.io//2024/11/09/2024A-stage2-rCore-Martin1847/ctx_task__switch.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/11/09/2024A-stage2-rCore-Martin1847/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024A-stage2-rCore-Martin1847 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#rCore-总结"><span class="nav-number">1.</span> <span class="nav-text">rCore 总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch1和ch2热身"><span class="nav-number">2.</span> <span class="nav-text">ch1和ch2热身</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#QEMU模拟器启动流程"><span class="nav-number">2.1.</span> <span class="nav-text">QEMU模拟器启动流程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch3-多道程序与分时多任务"><span class="nav-number">3.</span> <span class="nav-text">ch3 多道程序与分时多任务</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch4-地址空间-虚拟内存-sv39页表"><span class="nav-number">4.</span> <span class="nav-text">ch4 地址空间&#x2F;虚拟内存&#x2F;sv39页表</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch5-进程及进程管理"><span class="nav-number">5.</span> <span class="nav-text">ch5 进程及进程管理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch6-ch7-文件系统-进程间通信"><span class="nav-number">6.</span> <span class="nav-text">ch6&#x2F;ch7  文件系统&#x2F;进程间通信</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ch8-多线程并发"><span class="nav-number">7.</span> <span class="nav-text">ch8 多线程并发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#整个rCore阶段总结"><span class="nav-number">8.</span> <span class="nav-text">整个rCore阶段总结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">455</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">446</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/09/2024A-stage2-rCore-Martin1847/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024A-stage2-rCore-Martin1847
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2024-11-09 13:52:11 / Modified: 08:18:34" itemprop="dateCreated datePublished" datetime="2024-11-09T13:52:11+00:00">2024-11-09</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="rCore-总结"><a href="#rCore-总结" class="headerlink" title="rCore 总结"></a>rCore 总结</h2><p>这个阶段大约花了3周左右的时间，更多是对<code>OS概念抽象</code>和<code>risc-v</code>CPU架构的一些了解。跟rust的关系在我看来不算特别大。<br>核心的找地址、上下文切换都是c-like/asm实现的，当然这部分代码占比很小很小。这里面内存frame等等几个地方，充分利用了<code>RAII</code>机制，<br>大大减少了内存释放的心智负担，感觉是rust语言优于传统C的典型佐证。</p>
+<p>这个阶段花时间较久是在<code>ch8银行家/死锁检测</code>算法上，因为概念的不熟悉，套用模型产生的死胡同。一直没有找到各个线程对于初始化资源的需求表，所以也就套不进银行家。中间放弃准备用循环图检测，发现不支持数量（权重）。最后看了一下向勇老师的在线课《<a href="https://www.xuetangx.com/learn/THU08091000267/THU08091000267/12424484/video/23273353" target="_blank" rel="noopener">操作系统-20.4 死锁检测</a>》，找到了灵感，按照这个思路写算法，大概又花了几个小时调试通过。</p>
+<p>下面按照实验内容分章节进行总结。</p>
+<a id="more"></a>
+
+<h2 id="ch1和ch2热身"><a href="#ch1和ch2热身" class="headerlink" title="ch1和ch2热身"></a>ch1和ch2热身</h2><p>熟悉了BIOS裸机启动，以及<code>RustSBI</code>这种先进的设计，比如提供了<code>console_putchar</code>这种高级功能，便于调试。</p>
+<p>剩下是risc-v的特权指令设计，通过<code>ecall</code>进行trap中断。</p>
+<p>最后是<code>linker</code>相关，如何把数据打包成文件，以及对应的内存地址分配。</p>
+<p>这样一个裸机的“内核程序”也就运行起来了。<br>总体就是约定好，BIOS启动后，约定一个内存地址，那里放着你的第一行代码，交接给应用程序去执行了。<br>然后通过<code>entry.asm</code>进行栈的分配和地址标记，就可以引导到我们的<code>rust_main</code>开始执行了。</p>
+<h3 id="QEMU模拟器启动流程"><a href="#QEMU模拟器启动流程" class="headerlink" title="QEMU模拟器启动流程"></a>QEMU模拟器启动流程</h3><p><code>virt</code>平台上，物理内存的起始物理地址为 <code>0x80000000</code> ，物理内存的默认大小为 <code>128MiB</code><br>最低的 8MiB 物理内存，对应的物理地址区间为 <code>[0x80000000,0x80800000)</code><br>两个文件将被加载到 Qemu 的物理内存</p>
+<ul>
+<li>0x80000000 rustsbi-qemu.bin</li>
+<li>0x80200000 我们的内核镜像 os.bin</li>
+</ul>
+<p>Qemu 模拟的启动流程则可以分为三个阶段：</p>
+<ul>
+<li>第一个阶段由固化在 Qemu 内的一小段汇编程序负责；<br>Qemu CPU 的程序计数器<code>（PC, Program Counter）</code>会被初始化为 <code>0x1000</code> ，因此 Qemu 实际执行的第一条指令位于物理地址 0x1000 ，接下来它将执行寥寥数条指令并跳转到物理地址 0x80000000 对应的指令处并进入第二阶段（被固化在 Qemu 中，作为 Qemu 的使用者，我们在不触及 Qemu 源代码的情况下无法进行更改）</li>
+<li>第二个阶段由 bootloader 负责；这里 <code>RustSBI</code> 则是将下一阶段的入口地址预先约定为固定的 <code>0x80200000</code></li>
+<li>第三个阶段则由内核镜像负责。需要保证内核的第一条指令位于物理地址 0x80200000 处</li>
+</ul>
+<p><code>Qemu不支持动态链接</code>，所以内核都是采用静态链接的方式进行编译。</p>
+<h2 id="ch3-多道程序与分时多任务"><a href="#ch3-多道程序与分时多任务" class="headerlink" title="ch3 多道程序与分时多任务"></a>ch3 多道程序与分时多任务</h2><p>这一章主要是熟悉了<code>TrapContext</code>的处理。加深了上下文切换的成本理解。</p>
+<ol>
+<li>特权级切换的核心是对<code>Trap的管理</code>。<code>Trap三步走</code>：</li>
+</ol>
+<ul>
+<li>应用程序通过 ecall 进入到内核状态时，操作系统保存被打断的应用程序的 Trap 上下文；</li>
+<li>操作系统根据Trap相关的<code>CSR寄存器</code>(原子指令)内容，完成系统调用服务的分发与处理；</li>
+<li>操作系统完成系统调用服务后，需要恢复被打断的应用程序的Trap 上下文，并通 sret 让应用程序继续执行。</li>
+</ul>
+<p>核心流程<code>trap.S</code>,三步：</p>
+<p><code>__alltraps</code> –&gt; call <code>trap_handler</code>(RUST) -&gt; <code>__restore</code></p>
+<ul>
+<li>trap_handler(cx: &amp;mut TrapContext) -&gt; &amp;mut TrapContext</li>
+<li>我们只用处理rust实现的trap_handler，接受一个<code>用户上下文</code>,返回一个修改过的<code>用户TrapContext</code>，继续下一行<code>sepc += 4</code>还是中断</li>
+<li><code>__restore</code>基本是<code>__alltraps</code>的反操作，基本是一个入栈，一个出栈，从内核切回<code>用户TrapContext</code></li>
+<li><code>__restore</code>还可以用来执行用户程序、返回到用户程序</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">(lldb) breakpoint set -n __alltraps</span><br><span class="line">Breakpoint 1: where &#x3D; os&#96;__alltraps, address &#x3D; 0x00000000802009e4</span><br><span class="line">(lldb) c</span><br><span class="line">* thread #1, stop reason &#x3D; instruction step into</span><br><span class="line">    frame #0: 0x0000000080200a38 os&#96;__alltraps + 84</span><br><span class="line">os&#96;__alltraps:</span><br><span class="line"># 小细节： call trap_handler 伪指令被翻译了</span><br><span class="line">-&gt;  0x80200a38 &lt;+84&gt;: auipc  ra, 0</span><br><span class="line">    0x80200a3c &lt;+88&gt;: jalr   1074(ra)</span><br><span class="line"></span><br><span class="line">os&#96;__restore:</span><br><span class="line">    0x80200a40 &lt;+0&gt;:  mv     sp, a0</span><br><span class="line">    0x80200a42 &lt;+2&gt;:  ld     t0, 256(sp)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>auipc</code> 是 “Add Upper Immediate to PC” 的缩写。<br>它将一个 20 位的立即数加到当前程序计数器（PC）的高 20 位，并将结果存储在目标寄存器中。<br>这个指令通常用于生成一个高 20 位的地址偏移。</li>
+<li><code>jalr</code> 是 “Jump and Link Register” 的缩写<br>它将目标寄存器的值加上一个 12 位的立即数，并将结果作为新的 PC 值，同时将当前 PC 值加 4 存储到 ra 寄存器（返回地址寄存器）</li>
+<li><code>auipc 和 jalr 的组合</code>可以处理 32 位的地址偏移。auipc 处理高 20 位，jalr 处理低 12 位。<br>这样可以在 32 位地址空间内进行任意地址的跳转。<br>使用 auipc 和 jalr 的组合可以灵活地处理不同范围的地址偏移，而不需要额外的指令。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"># trap_handler 内容</span><br><span class="line">(lldb) breakpoint  set -n trap_handler</span><br><span class="line">Breakpoint 2: where &#x3D; os&#96;trap_handler + 12 [inlined] riscv::register::scause::_read::ha581f993b7a8d8e3 at macros.rs:10:21, address &#x3D; 0x0000000080200e76</span><br><span class="line">(lldb) c</span><br><span class="line">Process 1 resuming</span><br><span class="line">Process 1 stopped</span><br><span class="line">* thread #1, stop reason &#x3D; breakpoint 2.1</span><br><span class="line">    frame #0: 0x0000000080200e76 os&#96;trap_handler [inlined] riscv::register::scause::_read::ha581f993b7a8d8e3 at macros.rs:10:21</span><br><span class="line">   7                    #[cfg(riscv)]</span><br><span class="line">   8                    () &#x3D;&gt; &#123;</span><br><span class="line">   9                        let r: usize;</span><br><span class="line">-&gt; 10                       core::arch::asm!(concat!(&quot;csrrs &#123;0&#125;, &quot;, stringify!($csr_number), &quot;, x0&quot;), out(reg) r);</span><br><span class="line">   11                       r</span><br><span class="line">   12         </span><br><span class="line">    frame #0: 0x0000000080200e7a os&#96;trap_handler(userCtx&#x3D;&lt;unavailable&gt;) at mod.rs:73:17</span><br><span class="line">   70   #[no_mangle]</span><br><span class="line">   71   pub fn trap_handler(userCtx: &amp;mut TrapContext) -&gt; &amp;mut TrapContext &#123; </span><br><span class="line">   72       let scause &#x3D; scause::read();</span><br><span class="line">-&gt; 73       let stval &#x3D; stval::read();</span><br></pre></td></tr></table></figure>
+
+
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//执行用户程序</span></span><br><span class="line"><span class="comment">// 在内核栈上压入一个 Trap 上下文，</span></span><br><span class="line"><span class="comment">// 其 sepc 是应用程序入口地址 0x80400000 </span></span><br><span class="line"><span class="comment">// 其 sp 寄存器指向用户栈</span></span><br><span class="line"><span class="comment">// 其 sstatus 的 SPP 字段被设置为 User</span></span><br><span class="line"><span class="comment">// `mv sp, a0` 切换到栈顶执行，作为第一个参数</span></span><br><span class="line"><span class="comment">// batch.rs/run_next_app</span></span><br><span class="line"><span class="keyword">unsafe</span> &#123;</span><br><span class="line">    __restore(KERNEL_STACK.push_context(</span><br><span class="line">        TrapContext::app_init_context(APP_BASE_ADDRESS, USER_STACK.get_sp())</span><br><span class="line">    ) <span class="keyword">as</span> *<span class="keyword">const</span> _ <span class="keyword">as</span> <span class="built_in">usize</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>重要的中转寄存器： 而 <code>sscratch CSR</code> 正是为此而生。<br>在特权级切换的时候，我们需要将 Trap 上下文保存在内核栈上，因此需要一个寄存器暂存内核栈地址，并以它作为基地址指针来依次保存 Trap 上下文的内容。但是所有的通用寄存器都不能够用作基地址指针，因为它们都需要被保存，如果覆盖掉它们，就会影响后续应用控制流的执行。<br>从上面的汇编代码中可以看出，在保存 Trap 上下文的时候，它起到了两个作用：首先是保存了内核栈的地址，其次它可作为一个中转站让 sp （目前指向的用户栈的地址）的值可以暂时保存在 sscratch 。这样仅需一条 csrrw  sp, sscratch, sp 指令（交换对 sp 和 sscratch 两个寄存器内容）就完成了从用户栈到内核栈的切换，这是一种极其精巧的实现。</p>
+<p>sscratch：<br>“scratch” 通常指的是临时存储空间。这个术语来源于早期的计算机设计。现在一般用<code>Temporary</code>。<br>字面意思是“划痕”或“刮痕”，当你需要快速记下一些信息，但又不需要长期保存时，你就会用到草稿纸，做些临时标记，这就是<code>scratch</code>。</p>
+<ol start="2">
+<li>切换/执行用户程序</li>
+</ol>
+<p>此时 CPU 运行在 S 特权级，而它希望能够切换到 U 特权级</p>
+<ul>
+<li>构造应用程序开始执行所需的 Trap 上下文；</li>
+<li>通过 __restore 函数，从刚构造的 Trap 上下文中，恢复应用程序执行的部分寄存器；</li>
+<li>设置 sepc CSR的内容为应用程序入口点 <code>0x80400000</code>；</li>
+<li>切换 scratch 和 sp 寄存器，设置 sp 指向应用程序用户栈；</li>
+<li>执行 sret 从 S 特权级切换到 U 特权级。</li>
+</ul>
+<ol start="3">
+<li>操作系统怎么进入 S 态的?<br>和内核第一次进入用户态类似，在M态的RustSBI中初始化完毕后，将<code>mstatus.mpp设置为S态</code>，mepc设置为内核入口地址最后通过一条<code>mret</code>特权指令让CPU在S模式下执行内核代码。</li>
+</ol>
+<h2 id="ch4-地址空间-虚拟内存-sv39页表"><a href="#ch4-地址空间-虚拟内存-sv39页表" class="headerlink" title="ch4 地址空间/虚拟内存/sv39页表"></a>ch4 地址空间/虚拟内存/sv39页表</h2><p>不论是从安全还是易用角度，虚拟地址应运而生。</p>
+<p>操作系统要达到<code>地址空间抽象</code>(Address Space)的设计目标，需要有计算机硬件的支持，这就是计算机组成原理课上讲到的 <code>MMU 和 TLB</code> 等硬件机制。<br>应用能够直接看到并访问的内存就只有操作系统提供的地址空间，且它的任何一次访存使用的地址都是<code>虚拟地址</code>，无论<code>取指令来执行</code>还是<code>读写栈</code>、<code>堆</code>或是<code>全局数据段</code>都是如此。<br>开启分页模式后，比较有意思的是<code>trampoline</code>跳板区的处理.</p>
+<p>上下文处理的变化：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"># 1. trap.S ,都放到了trampoline区域</span><br><span class="line">    .section .text.trampoline</span><br><span class="line">    .globl __alltraps</span><br><span class="line">    .globl __restore</span><br><span class="line">    .align 2</span><br><span class="line"></span><br><span class="line">## 2. linker.ld ,调整内存布局</span><br><span class="line">    . &#x3D; BASE_ADDRESS;</span><br><span class="line">    skernel &#x3D; .;</span><br><span class="line"></span><br><span class="line">    stext &#x3D; .;</span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text.entry)</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        strampoline &#x3D; .; # 对齐到代码段的一个页面中4K</span><br><span class="line">        # 这段汇编代码放在一个物理页帧中，且 __alltraps 恰好位于这个物理页帧的开头</span><br><span class="line">        *(.text.trampoline);</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        *(.text .text.*)</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>trampoline：蹦床（trampoline）上下弹跳，词根“tramp”意为踏或踩，结合“line”可以联想到弹跳的轨迹。<br>它类似于蹦床的作用，将控制流“弹跳”到另一个位置。</p>
+</blockquote>
+<p>__restore 也要先处理地址空间</p>
+<ul>
+<li>a0 不变，第一个是 Trap 上下文在应用地址空间中的位置，这个对于所有的应用来说都是相同的；</li>
+<li>a1 第二个则是即将回到的应用的地址空间的 token ，在 a1 寄存器中传递。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">__restore:</span><br><span class="line">    # a0: *TrapContext in user space(Constant); a1: user space token</span><br><span class="line">    # switch to user space，注：Trap 上下文是保存在应用地址空间中，UserTrapCtx</span><br><span class="line">    csrw satp, a1</span><br><span class="line">    sfence.vma</span><br><span class="line">    csrw sscratch, a0 # 将传入的 Trap 上下文位置保存在 sscratch 寄存器中</span><br><span class="line">    mv sp, a0 # 将 sp 修改为 Trap 上下文的位置,最高的虚拟页面都是一个跳板，即trampoline的sp，也在用户态，后面基于它恢复各通用寄存器和 CSR</span><br><span class="line">    # now sp points to TrapContext in user space, start restoring based on it</span><br><span class="line">    # restore sstatus&#x2F;sepc</span><br><span class="line">    ld t0, 32*8(sp)</span><br><span class="line">    ld t1, 33*8(sp)</span><br><span class="line">    # back to user stack，跳板页的sp用完了，恢复x2寄存器，真正的用户态sp</span><br><span class="line">    ld sp, 2*8(sp)</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<p>在开启分页模式之后，内核和应用代码都只能看到各自的虚拟地址空间，而在它们的视角中，这段汇编代码都被放在它们各自地址空间的最高虚拟页面上，由于这段汇编代码在执行的时候涉及到地址空间切换，故而被称为跳板页面。各有一份。</p>
+<p>在产生trap前后的一小段时间内会有一个比较 极端 的情况，即刚产生trap时，CPU已经进入了内核态（即Supervisor Mode），但此时执行代码和访问数据还是在应用程序所处的用户态虚拟地址空间中，而不是我们通常理解的内核虚拟地址空间。在这段特殊的时间内，CPU指令为什么能够被连续执行呢？这里需要注意：<code>无论是内核还是应用的地址空间，跳板的虚拟页均位于同样位置</code>，且它们也将会<code>映射到同一个实际存放这段汇编代码的物理页帧</code>。也就是说，在执行 __alltraps 或 __restore 函数进行地址空间切换的时候，应用的用户态虚拟地址空间和操作系统内核的内核态虚拟地址空间对切换地址空间的指令所在页的映射方式均是相同的，这就说明了这段切换地址空间的指令控制流仍是可以连续执行的。</p>
+<p>简单来说，这个时刻：<br><code>用户态虚拟地址</code> = <code>os虚拟地址</code> = <code>映射的同一块物理内存地址</code></p>
+<h2 id="ch5-进程及进程管理"><a href="#ch5-进程及进程管理" class="headerlink" title="ch5 进程及进程管理"></a>ch5 进程及进程管理</h2><p>这里增加了一个<code>TaskContext</code>的概念。<br>为了支持抢占式（防止个别应用霸占CPU），开启了定时器中断。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//  通过将 mie 寄存器的 STIE 位（第 5 位）设为 1 开启了内核态的时钟中断。</span></span><br><span class="line"><span class="comment">// core::arch::asm!("csrrs x0, &#123;1&#125;, &#123;0&#125;",in(reg)bits,const 0x104), </span></span><br><span class="line"><span class="comment">//  _set((1&lt;&lt;5));CSR 寄存器 0x104： RISC-V 架构中的 stimecmp 寄存器。这个寄存器用于设置下一个定时器中断的时间点。当系统时钟达到或超过 stimecmp 寄存器中的值时，会触发一个定时器中断。</span></span><br><span class="line"><span class="comment">// sie::set_stimer()</span></span><br><span class="line">trap::enable_timer_interrupt();</span><br><span class="line"><span class="comment">// 定时器在操作系统中非常重要，用于实现时间片轮转调度、定时任务、超时处理等功能。</span></span><br><span class="line">timer::set_next_trigger();</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">set_next_trigger</span></span>() &#123;</span><br><span class="line"><span class="comment">// CLOCK_FREQ 是系统的时钟频率，表示每秒钟的时钟周期数。</span></span><br><span class="line"><span class="comment">// TICKS_PER_SEC 是每秒钟希望触发的定时器中断次数。</span></span><br><span class="line"><span class="comment">// TIMEBASE = CLOCK_FREQ / TICKS_PER_SEC 计算出每个定时器中断之间的时间间隔（以时钟周期数为单位）。</span></span><br><span class="line"><span class="comment">// get_time() + CLOCK_FREQ / TICKS_PER_SEC 计算出下一个定时器中断的时间点。</span></span><br><span class="line"><span class="comment">// 调用 SBI 的 SBI_SET_TIMER 服务</span></span><br><span class="line"><span class="comment">// set_next_trigger 能够精确地设置下一个定时器中断的时间点，从而实现高效的时间管理。</span></span><br><span class="line"><span class="comment">// TIMEBASE 便是时间间隔，其数值一般约为 cpu 频率的 1% ，防止时钟中断占用过多的 cpu 资源。</span></span><br><span class="line"><span class="comment">// 这里TICKS_PER_SEC也是按照这个策略，100</span></span><br><span class="line">    set_timer(get_time() + CLOCK_FREQ / TICKS_PER_SEC);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>任务上下文，相比Trap上下文，有几个变化：</p>
+<p>任务、调度切(特殊 __switch 函数): 任务上下文 (Task Context)</p>
+<ul>
+<li>不涉及特权级切换</li>
+<li>一部分是由编译器帮忙完成</li>
+<li>对应用透明</li>
+<li>两个不同应用在内核中的 Trap 控制流之间的切换</li>
+<li><code>__switch</code> 函数和一个普通的函数之间的核心差别仅仅是它会<code>换栈</code></li>
+<li>保存 CPU 当前的某些寄存器</li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// task context structure containing some registers</span></span><br><span class="line"><span class="comment">/// TaskContext 很像一个普通函数栈帧中的内容</span></span><br><span class="line"><span class="comment">/// size of TaskContext/ 14byte 112 = 14*8</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskContext</span></span> &#123;</span><br><span class="line">    <span class="comment">/// Ret position after task switching __switch返回之后应该跳转到哪里继续执行</span></span><br><span class="line">    ra: <span class="built_in">usize</span>,</span><br><span class="line">    <span class="comment">/// Stack pointer</span></span><br><span class="line">    sp: <span class="built_in">usize</span>,</span><br><span class="line">    <span class="comment">/// s0-11 register, callee saved 被调用者保存寄存器</span></span><br><span class="line">    <span class="comment">/// 不用保存其它寄存器是因为：其它寄存器中，属于调用者保存的寄存器是由编译器在高级语言编写的调用函数中自动生成的代码来完成保存的；还有一些寄存器属于临时寄存器，不需要保存和恢复。</span></span><br><span class="line">    s: [<span class="built_in">usize</span>; <span class="number">12</span>],</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="built_in">include_str!</span>(<span class="string">"switch.S"</span>));</span><br><span class="line"><span class="keyword">extern</span> <span class="string">"C"</span> &#123;</span><br><span class="line">    <span class="comment">// __switch 有两个参数，第一个参数代表它自己，第二个参数则代表即将切换到的那条 Trap 控制流。</span></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">__switch</span></span>(</span><br><span class="line">        current_task_cx_ptr: *<span class="keyword">mut</span> TaskContext,</span><br><span class="line">        next_task_cx_ptr: *<span class="keyword">const</span> TaskContext);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<img src="/blog/.io//2024/11/09/2024A-stage2-rCore-Martin1847/ctx_task__switch.png" class title="task_switch">
+
+
+<ul>
+<li>阶段 [1]：在 Trap 控制流 A 调用 __switch 之前，A 的内核栈上只有 Trap 上下文和 Trap 处理函数的调用栈信息，而 B 是之前被切换出去的；</li>
+<li>阶段 [2]：A 在 A 任务上下文空间在里面保存 CPU 当前的寄存器快照；</li>
+<li>阶段 [3]：这一步极为关键，读取 next_task_cx_ptr 指向的 B 任务上下文，根据 B 任务上下文保存的内容来恢复 ra 寄存器、s0~s11 寄存器以及 sp 寄存器。只有这一步做完后， __switch 才能做到一个函数跨两条控制流执行，即 通过换栈也就实现了控制流的切换 。</li>
+<li>阶段 [4]：上一步寄存器恢复完成后，可以看到通过恢复 sp 寄存器换到了任务 B 的内核栈上，进而实现了控制流的切换。这就是为什么 __switch 能做到一个函数跨两条控制流执行。此后，当 CPU 执行 ret 汇编伪指令完成 __switch 函数返回后，任务 B 可以从调用 __switch 的位置继续向下执行。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"># os&#x2F;src&#x2F;task&#x2F;switch.S</span><br><span class="line"></span><br><span class="line">.altmacro</span><br><span class="line">.macro SAVE_SN n</span><br><span class="line">    sd s\n, (\n+2)*8(a0)</span><br><span class="line">.endm</span><br><span class="line">.macro LOAD_SN n</span><br><span class="line">    ld s\n, (\n+2)*8(a1)</span><br><span class="line">.endm</span><br><span class="line">    .section .text</span><br><span class="line">    .globl __switch</span><br><span class="line">__switch:</span><br><span class="line">    # 阶段 [1]</span><br><span class="line">    # __switch(</span><br><span class="line">    # 分别通过寄存器 a0&#x2F;a1 传入</span><br><span class="line">    #     current_task_cx_ptr: *mut TaskContext,</span><br><span class="line">    #     next_task_cx_ptr: *const TaskContext</span><br><span class="line">    # )</span><br><span class="line">    # 阶段 [2] 保存当前任务的上下文 -&gt; TaskContext</span><br><span class="line">    # save kernel stack of current task</span><br><span class="line">    sd sp, 8(a0)</span><br><span class="line">    # save ra &amp; s0~s11 of current execution</span><br><span class="line">    sd ra, 0(a0)</span><br><span class="line">    .set n, 0</span><br><span class="line">    .rept 12</span><br><span class="line">        SAVE_SN %n</span><br><span class="line">        .set n, n + 1</span><br><span class="line">    .endr</span><br><span class="line">    # 阶段 [3] 根据 next_task_cx_ptr 任务上下文保存的内容来恢复上述 CPU 状态</span><br><span class="line">    # restore ra &amp; s0~s11 of next execution</span><br><span class="line">    ld ra, 0(a1)</span><br><span class="line">    .set n, 0</span><br><span class="line">    .rept 12</span><br><span class="line">        LOAD_SN %n</span><br><span class="line">        .set n, n + 1</span><br><span class="line">    .endr</span><br><span class="line">    # restore kernel stack of next task</span><br><span class="line">    ld sp, 8(a1)</span><br><span class="line">    # 阶段 [4]</span><br><span class="line">    ret</span><br></pre></td></tr></table></figure>
+
+<p>__switch 的实现除了<code>换栈</code>之外几乎就是一个普通函数。</p>
+<h2 id="ch6-ch7-文件系统-进程间通信"><a href="#ch6-ch7-文件系统-进程间通信" class="headerlink" title="ch6/ch7  文件系统/进程间通信"></a>ch6/ch7  文件系统/进程间通信</h2><p>这里是了解了文件系统的索引结构，<code>DiskNode</code>和<code>INode</code>,实现了低配版的<code>link/unlink/fstat</code>.</p>
+<ol>
+<li><p><code>link</code>： 通过在ROOT_INODE下创建新的<code>DirEntry</code>,完成文件的<code>linkat</code>。这里会增加当前<code>root DiskInode</code>的大小。<br>增加一个目录项<code>DirEntry</code>总共32Byte大小（长度为 27 的文件/目录名 c风格带个\0 + 4Byte的inode）。根据当前大小，计算需要多少个512B的block，<br>然后计算需要用到几级索引。然后如果需要新的block就从<code>data_bitmap</code>中分配新的block。找到位置后根据offset写入。</p>
+</li>
+<li><p><code>unlink</code>， 找到对应<code>DirEntry</code>的位置，设置为empty(全0)。</p>
+</li>
+<li><p><code>fstat</code> ,查询文件的<code>inode</code>,同时返回<code>link_times</code>,这里遍历一遍，找相同<code>inode</code>的文件名。</p>
+</li>
+</ol>
+<h2 id="ch8-多线程并发"><a href="#ch8-多线程并发" class="headerlink" title="ch8 多线程并发"></a>ch8 多线程并发</h2><p>通过类似<code>银行家</code>的算法，进行了<code>死锁检测</code>。核心逻辑是进行预分配后，看还能否找到一个合理的序列，能够让所有线程有序退出。<br>从第一个可以满足并退出的线程开始，模拟回收所占据的资源，继续迭代。如果都能退出，那么系统是安全的，否则可能发生了死锁。</p>
+<p>完成本次实验大概花了四天，一开始想通过图算法查找环路来进行，没有跑通；后面开始用银行家，发现不知道初始化需求队列，这一步如何变化卡住了一段时间。后来看了一下向勇老师《<a href="https://www.xuetangx.com/learn/THU08091000267/THU08091000267/12424484/video/23273353" target="_blank" rel="noopener">操作系统-20.4 死锁检测</a>》，找到了灵感，按照这个思路写算法，大概又花了几个小时调试通过。</p>
+<p>这里比较有意思的是CAS的实现， risc-v并不支持x86的<code>cmpxchg</code>,<br>而是使用<code>SC 指令</code>:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># 参数 a0 存放内存中的值的所在地址</span><br><span class="line"># 参数 a1 存放 expected</span><br><span class="line"># 参数 a2 存放 new</span><br><span class="line"># 返回值 a0 略有不同：这里若比较结果相同则返回 0 ，否则返回 1</span><br><span class="line"># 而不是返回 CAS 之前内存中的值</span><br><span class="line">cas:</span><br><span class="line">    lr.w t0, (a0) # LR 将值加载到 t0</span><br><span class="line">    bne t0, a1, fail # 如果值和 a1 中的 expected 不同，跳转到 fail</span><br><span class="line">    sc.w t0, a2, (a0) # SC 尝试将值修改为 a2 中的 new</span><br><span class="line">    bnez t0, cas # 如果 SC 的目标寄存器 t0 不为 0 ，说明 LR&#x2F;SC 中间值被修改，重试</span><br><span class="line">    li a0, 0 # 成功，返回值为 0</span><br><span class="line">    ret # 返回</span><br><span class="line">fail:</span><br><span class="line">    li a0, 1 # 失败，返回值为 1</span><br><span class="line">    ret # 返回</span><br></pre></td></tr></table></figure>
+
+<p>SC 指令是如何判断此前一段时间该内存中的值是否被修改呢？在 RISC-V 架构下，存在一个 保留集 (Reservation Set) 的概念，这也是“加载保留”这种叫法的来源。</p>
+<p>另外就阻塞唤醒机制。</p>
+<p>由于上下文切换的开销是很大的，除了要<code>保存和恢复寄存器</code>之外，更重要的一点是会破坏程序的<code>时间和空间局部性</code>使得我们无法高效利用 <code>CPU 上的各类缓存</code>。</p>
+<ul>
+<li>在 Trap 的时候需要切换地址空间，有可能需要清空 TLB </li>
+<li>在应用 Trap 到内核态的时候，缓存中原本保存着用户栈的内容，在执行内核态代码的时候可能由于缓存容量不足而需要逐步替换成内核栈的内容，而在返回用户态之后又需要逐步替换回来。整个过程中的缓存命中率将会很低。</li>
+<li>即使线程只是短暂停留也有可能对整体性能产生影响</li>
+</ul>
+<p>阻塞与唤醒机制相配合就可以实现精确且高效的等待。阻塞机制保证在线程等待的事件到来之前，线程不会参与调度，因此不会浪费任何时间片或产生上下文切换。</p>
+<blockquote>
+<p>阻塞，暂时不参与调度，OS等条件可达时再加入活跃列表</p>
+</blockquote>
+<p>阻塞机制：<br><code>block_current_and_run_next</code>跟<code>suspend_current_and_run_next</code><br>的区别，仅仅是设置线程状态为 <code>Blocked</code> 以及我们此处 不会将被阻塞的线程重新加回到就绪队列中 。</p>
+<p>唤醒机制:<br>将被阻塞的线程的控制块按照它们等待的具体事件或条件分类存储,简单的将线程状态修改为就绪状态 Ready 并将线程加回到就绪队列。</p>
+<h2 id="整个rCore阶段总结"><a href="#整个rCore阶段总结" class="headerlink" title="整个rCore阶段总结"></a>整个rCore阶段总结</h2><p>不仅加深了rust语言的学习，更重要的是对OS对各个层面的抽象，加深了理解：</p>
+<ul>
+<li>CPU抽象，进程/线程/锁/时钟中断/上下文切换/特权</li>
+<li>内存抽象，虚拟地址/页表/MMU，内存布局/内存权限/空洞空间（一定程度上减小溢出的危害）</li>
+<li>存储抽象，文件系统，File/Trait, 对应用很友好</li>
+</ul>
+<p>最后祝清华大学开源操作系统训练营越办越好！！！</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-martin1847/" rel="tag"># author:martin1847</a>
+              <a href="/blog/tags/repo-https-github-com-LearningOS-2024a-rcore-martin1847/" rel="tag"># repo:https://github.com/LearningOS/2024a-rcore-martin1847/</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/11/09/2024A-stage1-Rustlings-Martin1847/" rel="prev" title="2024A-stage1-Rustlings-Martin1847">
+      <i class="fa fa-chevron-left"></i> 2024A-stage1-Rustlings-Martin1847
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/11/09/blog_daxiami233/" rel="next" title="<blog-daxiami233>">
+      <blog-daxiami233> <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2024</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
