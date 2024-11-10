@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">498</span>
+          <span class="site-state-item-count">499</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -257,7 +257,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -317,6 +317,79 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/10/reganzm-s-SOS/lab2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/10/reganzm-s-SOS/lab2/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab2</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>地址空间映射这一章知识密度较高，反复看了几遍才基本弄懂，调试代码陆陆续续调试了3天。(还是太菜，菜就多练！)<br>简单总结下本章：在开启分页SV39分页之前，OS和都是直接访问物理地址，这给系统带来很多潜在的安全隐患，例如地址空间未隔离等。开启分页模式后，OS和用户代码中就都是虚拟地址了，需要通过页表和MMU进行转换，并且页表上的属性区分出了U和S，进行了权限和空间的隔离，分别在特权级和地址空间上保证了OS内核的安全，同时也保证了用户程序之间相互隔离，彼此空间不会重叠。(虚拟空间可以重叠，但通过页表映射后通常是隔离的，有种特殊情况是通过映射到相同的物理也实现内存共享)</p>
+<p>另外为了OS在开启分页后能平滑的访问，对于OS采用的是恒等映射(虚拟页号=物理页帧)。而对于用户程序通常采用Framed映射，通过栈式页帧分配器分配页帧并和虚拟页号建立映射关系，动态生成页表及页表项，实现物理页帧的按需分配。</p>
+<p>另外一个比较好的抽象是地址空间MemorySet，它作为任务的一部分，管理着页表及和逻辑区。在实现采用了RAIL机制，加上rust的所有权及drop trait自动实现页表项的释放。</p>
+<p><img src="/blog/.io//ch4_%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86.png" alt="笔记"></p>
+<h4 id="第一题"><a href="#第一题" class="headerlink" title="第一题"></a>第一题</h4><p>最低的位则是标志位，它们的含义如下：<br>仅当 V(Valid) 位为 1 时，页表项才是合法的；<br>R/W/X 分别控制索引到这个页表项的对应虚拟页面是否允许读/写/取指；<br>U 控制索引到这个页表项的对应虚拟页面是否在 CPU 处于 U 特权级的情况下是否被允许访问；<br>G 全局页表项。这意味着即使是在上下文切换（例如，进程切换）之后，该页表项也不会被冲洗（flushed）或失效。简而言之，G位用于指示页表项在地址空间的多个上下文中保持有效。<br>A(Accessed) 记录自从页表项上的这一位被清零之后，页表项的对应虚拟页面是否被访问过；<br>D(Dirty) 则记录自从页表项上的这一位被清零之后，页表项的对应虚拟页表是否被修改过。</p>
+<h4 id="第二题"><a href="#第二题" class="headerlink" title="第二题"></a>第二题</h4><h4 id="荣誉准则"><a href="#荣誉准则" class="headerlink" title="荣誉准则"></a>荣誉准则</h4><ol>
+<li><p>在完成本次实验的过程（含此前学习的过程）中，我曾分别与 以下各位 就（与本次实验相关的）以下方面做过交流，还在代码中对应的位置以注释形式记录了具体的交流对象及内容：<br>无</p>
+</li>
+<li><p>此外，我也参考了 以下资料 ，还在代码中对应的位置以注释形式记录了具体的参考来源及内容：</p>
+<p>我的参考资料：rCore-Tutorial-Book-v3</p>
+</li>
+<li><p>我独立完成了本次实验除以上方面之外的所有工作，包括代码与文档。 我清楚地知道，从以上方面获得的信息在一定程度上降低了实验难度，可能会影响起评分。</p>
+</li>
+<li><p>我从未使用过他人的代码，不管是原封不动地复制，还是经过了某些等价转换。 我未曾也不会向他人（含此后各届同学）复制或公开我的实验代码，我有义务妥善保管好它们。 我提交至本实验的评测系统的代码，均无意于破坏或妨碍任何计算机系统的正常运转。 我清楚地知道，以上情况均为本课程纪律所禁止，若违反，对应的实验成绩将按“-100”分计。</p>
+</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/10/reganzm-s-SOS/lab3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -341,7 +414,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -409,7 +482,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -480,7 +553,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -526,6 +599,73 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/10/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/10/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">dream第二阶段总结</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <hr>
+<p>title: dream第二阶段总结<br>date: 2024-05-31 20:00:41<br>categories:<br>    - 2024春夏季开源操作系统训练营<br>tags:<br>    - author:Eternal60f3<br>    - repo:<a href="https://github.com/Eternal60f3/2024-rcore-repo" target="_blank" rel="noopener">https://github.com/Eternal60f3/2024-rcore-repo</a></p>
+<hr>
+<p>很感谢这次训练营的主办方。我这学期准备考研，然后就也想这弄一个项目。为复试增加点东西。</p>
+<p>rcore让我熟悉了gdb以及git的使用。借助vscode的插件也很方便的利用git来比对前后差异来debug。</p>
+<p>对于这几个实验。</p>
+<p>再看完ch3的文档，当时以为自己理解了，等实际去看代码的时候，发现自己理解个屁。又回到ch2分支，捋清楚ch2的代码之后，才搞懂ch3的实现。</p>
+<p>实验4非常nice本来一开始一直没搞懂，为什么要设置 DiskInode 和 Inode 两层抽象，而不是一层，但实际开始写的时候突然意识到，这是对于fs资源保证只有一个人使用的管理。对于涉及到了锁的编程，以前没太写过，debug弄了好久。</p>
+<p>实验5在群里和佬们交流了才搞懂该怎么弄，debug了也弄了好久。好在最后做出来了。</p>
+<p>可惜，阶段三之后可能没啥时间弄了，得抓数学了。未来说不定还会来参加啦，哈哈哈。多谢清华给了这么好的学习机会</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/10/axsl666-2023%E7%A7%8B%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -550,7 +690,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -729,73 +869,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/10/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/10/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">dream第二阶段总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <hr>
-<p>title: dream第二阶段总结<br>date: 2024-05-31 20:00:41<br>categories:<br>    - 2024春夏季开源操作系统训练营<br>tags:<br>    - author:Eternal60f3<br>    - repo:<a href="https://github.com/Eternal60f3/2024-rcore-repo" target="_blank" rel="noopener">https://github.com/Eternal60f3/2024-rcore-repo</a></p>
-<hr>
-<p>很感谢这次训练营的主办方。我这学期准备考研，然后就也想这弄一个项目。为复试增加点东西。</p>
-<p>rcore让我熟悉了gdb以及git的使用。借助vscode的插件也很方便的利用git来比对前后差异来debug。</p>
-<p>对于这几个实验。</p>
-<p>再看完ch3的文档，当时以为自己理解了，等实际去看代码的时候，发现自己理解个屁。又回到ch2分支，捋清楚ch2的代码之后，才搞懂ch3的实现。</p>
-<p>实验4非常nice本来一开始一直没搞懂，为什么要设置 DiskInode 和 Inode 两层抽象，而不是一层，但实际开始写的时候突然意识到，这是对于fs资源保证只有一个人使用的管理。对于涉及到了锁的编程，以前没太写过，debug弄了好久。</p>
-<p>实验5在群里和佬们交流了才搞懂该怎么弄，debug了也弄了好久。好在最后做出来了。</p>
-<p>可惜，阶段三之后可能没啥时间弄了，得抓数学了。未来说不定还会来参加啦，哈哈哈。多谢清华给了这么好的学习机会</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/10/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yqhtz/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -820,7 +893,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -887,7 +960,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:19" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:19+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -952,7 +1025,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2024-11-10 16:26:18" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:18+00:00">2024-11-10</time>
+              <time title="Created: 2024-11-10 16:28:14" itemprop="dateCreated datePublished" datetime="2024-11-10T16:28:14+00:00">2024-11-10</time>
             </span>
 
           
@@ -967,65 +1040,6 @@
 
       
           <h1 id="Rustlings-练习总结"><a href="#Rustlings-练习总结" class="headerlink" title="Rustlings 练习总结"></a>Rustlings 练习总结</h1><p>作为一名前端全栈开发者，刚开始学习Rust时，给我的感觉是没想象中的难度那么高，学起来还挺轻松…<br>然而，还是太年轻了，当我开始真的用起来之后，我发现，编译器成为了我前进的“恶梦”，它无时无刻不在教我做人，总是会在不经意间鞭挞我：“你，还很菜呢！”<br>所以，慢慢的，我开始放弃了保守的学习方式：“先将文档中的内容都大致学会，并记下来”，它让我一直停留在学习的舒适区，对学习Rust来说是很低效的。<br>Rustlings 其实就是一种很好的学习语言的方式，通过大量的几乎全覆盖式的Rust练习，在练习中不断遇到问题，并解决问题，就像打怪升级，心理上会不断的得到激励感，并不断的做下去。<br>通过Rustlings的110道题目的练习，其实也让我意识到了，自己以为的会使用Rust了，只是井底之蛙吧了。<br>练习的内容虽然都在文档中，只看文档学习的化，其实有时候会忽略这些知识的真实用途是什么，也就无法在实际项目中灵活的去使用了。<br>通过这段时间的练习，不一定让我在Rust的熟练成都有很大的提升，但是让我看到了一个Rust用法的大纲，这已经是一个很好的开始了。<br>希望在接下来的开发里，不断精进对Rust使用，当然，也不能只专注在语法本身，对操作系统本身知识的学习，会更重要，非常期待！   </p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/10/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E3%80%81%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lm/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/10/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E3%80%81%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lm/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第一、二阶段总结报告-lm</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-10 16:26:18" itemprop="dateCreated datePublished" datetime="2024-11-10T16:26:18+00:00">2024-11-10</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h2><p>参加训练营让我了解到有 rust 这门语言，以前写c/c++习惯了指针的自由操作，刚开始非常不适应，但随着之后的学习越来越爱。<br>Rust 兼顾安全与性能，Rust的所有权机制让内存管理变得十分高效且安全, 减少了很多的内存问题, Rust的所有权、借用和生命周期模型可以在编译期防止常见的内存错误（如悬空指针、双重释放等），无需依赖垃圾回收器。Rust 编程思维不同于传统的面向对象，我认为更像是面向数据。</p>
-<h2 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h2><p>训练营给了我交流与实践的平台，通过参加此次训练营我学到了很多关于操作系统的知识，也让我了解到了在操作系统领域最新的研究与技术。<br>从裸机运行到单道批处理系统，学习了如何通过操作系统将程序与硬件隔离，提高安全性和资源利用率。rCore通过硬件的运行特权级划分和系统调用来实现多程序批处理，将程序编译链接成bin文件，加载到内存中的约定地址执行。进一步地探索了进程调度的机制，理解了时间片和CPU利用率的关系，以及如何通过TCB（任务控制块）来维护程序的关键信息，实现程序的切换和调度。<br>在内存管理方面，学习了从物理地址到虚拟地址的转变，以及MMU（内存管理单元）的重要性。rCore采用SV39内存管理策略，通过页机制和多级页表提高了内存的灵活性和安全性。对外存的管理，我了解了文件系统如何抽象和管理系统资源，以及rCore如何通过文件描述符（fd）框架来统一管理文件和设备。<br>线程与进程的学习让我认识到了操作系统调度的复杂性。RCore通过线程的引入提高了响应速度和调度效率，同时使用信号量和互斥机制来解决线程间的冲突问题。<br>总的来说，RCore的学习不仅加深了我对操作系统的理解，也锻炼了我的系统编程能力。通过实践，我对操作系统的许多概念有了更实际的认识。</p>
 
       
     </div>
