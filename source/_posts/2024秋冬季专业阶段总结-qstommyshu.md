@@ -1,5 +1,5 @@
 ---
-title: 2024秋冬季专业阶段总结-舒麒
+title: 2024秋冬季专业阶段总结-qstommyshu
 date: 2024-11-10 10:15:22
 tags:
     - author:<qstommyshu>
