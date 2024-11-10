@@ -1,5 +1,4 @@
 ---
-
 title: <Rust补完计划>
 date: 2024-11-10 12:00:28
 categories:
@@ -8,7 +7,6 @@ tags:
     - author:Lfan-ke
     - repo:https://github.com/LearningOS/rust-rustlings-2024-autumn-Lfan-ke
 mathjax: true
-
 ---
 
 # Rust补完计划
@@ -213,9 +211,7 @@ method::func();
 crate::method::func();
 ```
 
-
 <!-- more -->
-
 
 ## 特殊部分
 
