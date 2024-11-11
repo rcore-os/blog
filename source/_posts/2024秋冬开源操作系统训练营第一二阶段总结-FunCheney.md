@@ -2,10 +2,10 @@
 title: 2024秋冬开源操作系统训练营第一二阶段总结-FunCheney
 date: 2024-11-11 07:40:28
 categories:
-    - <2024秋冬季季开源操作系统训练营>
+    - 2024秋冬季季开源操作系统训练营
 tags:
-    - author:<FunCheney>
-    - repo:<https://github.com/LearningOS/2024a-rcore-FunCheney>
+    - author:FunCheney
+    - repo:https://github.com/LearningOS/2024a-rcore-FunCheney
     - ...
 ---
 
