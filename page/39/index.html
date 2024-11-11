@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">522</span>
+          <span class="site-state-item-count">523</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,100 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E7%A7%8B%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-xllhxd/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/04/2023%E7%A7%8B%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-xllhxd/" class="post-title-link" itemprop="url">2023年秋季开源操作系统训练营第二阶段总结-xllhxd</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-04 22:19:00" itemprop="dateCreated datePublished" datetime="2023-11-04T22:19:00+00:00">2023-11-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>不得不承认，自己的代码量在面对这五个实验的时候显得捉襟见肘。由于在此之前我没有进行任何项目的书写，或者说我只写过单独的 <code>code.c</code> 这样的东西，这次实验对我是一个不小的挑战。再加上初次接触 Rust 一些语言特性：闭包、各种集合也让我有点吃力。但万幸最近时间比较充裕，可以花充分的时间来做这件事，整个实验花费了两周的时间，将近五个小时，很少有过的这么快的时间了。</p>
+<h1 id="实验总结"><a href="#实验总结" class="headerlink" title="实验总结"></a>实验总结</h1><p>由于我对实验的整个框架的了解也不是那么清楚，我只能以写实验时候进行的猜想来对这五个实验进行总结。</p>
+<h2 id="lab1"><a href="#lab1" class="headerlink" title="lab1"></a>lab1</h2><p>第一个实验让我实现获取进程信息。在基本的操作系统的理解下，我们应该知道进程的信息应该存储在进程控制块（process control block, PCB）中。但 task.rs 并没有向我们暴露什么可以直接访问的接口，而在 mod.rs 中，我们可以发现其实例化了一个 <code>TaskManager</code>，所以我们在这个文件中增加一个函数 <code>get_tcb()</code> 来获取当前进程的进程控制块，然后将信息传递给 <code>TaskInfo</code> 结构体即可。</p>
+<h2 id="lab2"><a href="#lab2" class="headerlink" title="lab2"></a>lab2</h2><p>第二个实验中向外提供的接口并没有发生变化，仍然是 task/mod.rs 下实例化的 <code>TaskManager</code>。而在进行这个实验之前，我们必须知道我们为什么要重写 <code>sys_get_time</code> 和 <code>sys_task_info</code>。这是因为，我们传给系统调用的指针指向的地址为用户进程的虚拟地址空间中的虚拟地址，这是操作系统无法直接访问的，需要增加一层指针转换的过程。知道了这一点之后，重写的任务就并不困难了。</p>
+<p>而 <code>sys_mmap</code> 和 <code>sys_munmap</code> 的实现，可能开始没有思路，但可以首先把书中所有可能出现的错误排除掉，之后我们进行映射时既可以选择虚拟地址也可以选择虚拟页号，我选择了虚拟地址。而我们进行地址空间的映射，必然需要用到 mm 这个 crate 下的内容。不难想到 mm/memeory_set.rs 是这次实验的重点。在其中我们看到了 <code>MemorySet</code> 这个结构体，而我们如何获得这个结构体呢，我们在 <code>TaskManager</code> 中找到了 <code>TaskControlBlock</code> 并且 <code>TaskControlBlockInner</code> 中有 <code>memory_set</code> 这个成员。然后我们寻找 <code>MemorySet</code> 中有哪些我们可以用到的方法。显然 <code>sys_mmap</code> 可以使用 <code>insert_framed_area()</code> 方法完成，之后我们仿照其实现 <code>remove_framed_area()</code> 方法用以实现 <code>sys_munmap</code>。这里我采用了遍历所有的虚拟地址页并释放页表的方法。而在遍历的过程中有两种选择：</p>
+<ul>
+<li>直接使用页表号</li>
+<li>使用 <code>VPNRange</code> 结构，进而使用迭代器</li>
+</ul>
+<p>其中后者比较复杂，因为 <code>VPNRange</code> 没有直接暴露出来，需要改为 pub 属性并在 mod.rs 中导出，但由于后续实验中不再提供 ViruralPageNumber 的 <code>step()</code> 方法，所以有更好的兼容性。</p>
+<h2 id="lab3"><a href="#lab3" class="headerlink" title="lab3"></a>lab3</h2><p>实验三相较于前两个实验的变化比较大，首先就是我们不再提供 task/mod.rs 中的 <code>TaskManager</code> 结构体，而是将其放到了 task/manager.rs 中。而从这个实验开始如果我们想获取当前的进程使用 <code>current_task()</code> 这个方法（这里说的并不严谨，在实验五中引入线程之后，task 应该表示线程，但在这里还是进程）。同时一个比较偷懒的地方就是这个实验并不测试 <code>sys_task_info</code> 系统调用，我们可以选择不再实现。</p>
+<p><code>sys_mmap</code> 和 <code>sys_munmap</code> 的实现和实验二是一样的，不多说。</p>
+<p><code>sys_spwan</code> 的实现开始让我有点困扰，因为最开始没有注意到 <code>get_app_data_by_name()</code> 这个方法。知道之后我们可以通过这个方法获取 ELF 文件的数据，再通过 <code>TaskControlBlock</code> 的 <code>new()</code> 方法新建进程控制块，之后我们需要设置当前进程的子进程和新创建进程的父进程，二者还是有一定不同的。之后将新建的进程加入队列即可。</p>
+<p>而关于 stride 调度算法，整个算法没有什么难度，但我最开始没有想清楚这里的调度是指的就绪态的进程的调度，而纠结到底在 task/task.rs、task/processos.rs、task/manager.rs 中哪里实现。在看了 <a href="https://github.com/xushanpu123/xsp-daily-work/blob/master/%E6%9A%91%E6%9C%9Frcore%E5%AE%9E%E9%AA%8C%E7%AC%94%E8%AE%B0/chapter5%EF%BC%9A%E8%BF%9B%E7%A8%8B%E7%AE%A1%E7%90%86.md" target="_blank" rel="noopener">chapter 5 : 进程管理</a> 后发现应在 manager.rs 中实现。这里只需要每次选择 stride 值最小的加入就绪队列即可，这里需要在 <code>TaskControlBlock</code> 中加入相应的内容。</p>
+<p><code>sys_set_priority</code> 比较简单，不多赘述。</p>
+<h2 id="lab4"><a href="#lab4" class="headerlink" title="lab4"></a>lab4</h2><p>这个实验不再检查 <code>sys_task_info</code> 和 调度算法，可以不用实现。</p>
+<p><code>sys_mamp</code> 和 <code>sys_munmap</code> 是一样的，不再赘述。</p>
+<p><code>sys_spwan</code> 变得不太一样了，因为我们有文件系统的出现，所以此时如果想要获取 ELF 的所有数据则要先获得其 inode，之后再进行，而我们调用 <code>open_file()</code> 函数来完成这件事情。</p>
+<p>这个实验卡了我很长时间，主要是向外提供的 <code>DiskInode</code>、<code>Inode</code>、<code>OSInode</code>虽然比较清楚，但还是很难确定什么时候用哪个，而且有些时候需要和 block_id 以及 block_offset 打交道还是比较麻烦的。然后有一点就是实例化了一个 <code>ROOT_INODE</code> 来惯例所有的内容，这里我开始很不理解为什么其他的文件需要用根目录的 inode 来进行管理，后来才发现需要在这里完成 <code>DirEntry</code> 的更新。我们首先根据 inode 获得文件的 block_id 和 block_offset，然后获取缓存并加锁，然后更新链接数目，之后再更新 <code>DirEntry</code>。</p>
+<p>而 <code>sys_unlinkat</code> 我的实现并不完整，但通过了测试。因为考虑到可能删除最后一个链接之后，我们需要清空 <code>DirEntry</code>，我选择了遍历现在的目录项，并将所有我们不 unlink 的目录项放到一个向量中，之后释放所有的目录项，将向量中的内容写入到目录项。而我所说的不完整，则是我没有实现如果 unlink 之后链接数不为零，需要将其写回目录项，我没有想太清楚如何实现这个事情。</p>
+<h2 id="lab5"><a href="#lab5" class="headerlink" title="lab5"></a>lab5</h2><p>首先我的实现稍显臃肿，因为 mutex 的思索检测可以不使用银行家算法来完成。而在这里我的整体思路则是通过修改 sync/mutex.rs 和 sync/semaphore.rs 中的结构体的内容，获得可以银行家算法中的三个向量。而在 <code>mutex_lock</code> 和 <code>down</code> 中更新三个向量，之后的思路如下面的代码：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> if_finish = <span class="built_in">vec!</span>[<span class="literal">false</span>; task_count];</span><br><span class="line"></span><br><span class="line"><span class="keyword">loop</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task_id: <span class="built_in">isize</span> = -<span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..task_count &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> task_id_can_run = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> j <span class="keyword">in</span> <span class="number">0</span>..mutex_count &#123;</span><br><span class="line">            <span class="keyword">if</span> if_finish[i] || need[i][j] &gt; available[j] &#123;</span><br><span class="line">                task_id_can_run = <span class="literal">false</span>;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> task_id_can_run &#123;</span><br><span class="line">            task_id = i <span class="keyword">as</span> <span class="built_in">isize</span>;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> task_id == -<span class="number">1</span> <span class="keyword">as</span> <span class="built_in">isize</span> &#123;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 释放可以运行的线程的资源</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..mutex_count &#123;</span><br><span class="line">        available[i] += allocated[task_id <span class="keyword">as</span> <span class="built_in">usize</span>][i];</span><br><span class="line">        if_finish[task_id <span class="keyword">as</span> <span class="built_in">usize</span>] = <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..task_count &#123;</span><br><span class="line">    <span class="keyword">if</span> !if_finish[i] &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">0xdead</span>;</span><br><span class="line">    &#125; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果找到不能运行的线程则发生死锁。</p>
+<h1 id="后记"><a href="#后记" class="headerlink" title="后记"></a>后记</h1><p>这次的实验过程还是比较艰难的，而且最开始得知只有两周的时间，加之自己 Rust 基础并不好，所以最开始写的很是急躁，但后来平复一下，开始慢慢自己猜整体框架的思路，以及找一些自己可以用到 API，有点没想到自己可以完成这五个实验。在这个过程中参考了：</p>
+<ul>
+<li><a href="https://github.com/xushanpu123/xsp-daily-work/tree/master/%E6%9A%91%E6%9C%9Frcore%E5%AE%9E%E9%AA%8C%E7%AC%94%E8%AE%B0" target="_blank" rel="noopener">暑期 rcore 实验笔记</a></li>
+<li><a href="https://hangx-ma.github.io/" target="_blank" rel="noopener">HangX-Ma</a></li>
+</ul>
+<p>非常感谢大家讲解自己的思路，也感谢上课的老师以及群友。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-TheSayOL/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +358,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1007,7 +1101,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1096,7 +1190,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
 
           
@@ -1176,7 +1270,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1391,7 +1485,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1472,7 +1566,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
 
           
@@ -1589,7 +1683,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
 
           
@@ -1783,7 +1877,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
 
           
@@ -1855,7 +1949,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:47:00" itemprop="dateModified" datetime="2024-11-11T05:47:00+00:00">2024-11-11</time>
               </span>
 
           
@@ -1882,75 +1976,6 @@
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>通过这个阶段的学习，我巩固和掌握了很多操作系统的知识，并且在实践中得到了很大的收益。</p>
 <p>实验的逐步进行让我能够在已经写好的代码基础上增加对系统的理解并进行修改，从而使我的思维得到不断蜕变。此外，采用增加功能的实验方式让我感觉像在编写自己的操作系统，因此更加认真地学习，从中获取更多知识，并得到积极的反馈。</p>
 <p>此外，第二阶段的实践使我的 Rust 编程技能得到了进一步提升。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/03/rcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-LiuZhetan/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/03/rcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-LiuZhetan/" class="post-title-link" itemprop="url">rcore学习总结-LiuZhetan</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-03 23:04:53" itemprop="dateCreated datePublished" datetime="2023-11-03T23:04:53+00:00">2023-11-03</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:46:17" itemprop="dateModified" datetime="2024-11-11T05:46:17+00:00">2024-11-11</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="前二阶段学习感受"><a href="#前二阶段学习感受" class="headerlink" title="前二阶段学习感受"></a>前二阶段学习感受</h2><h3 id="Rust"><a href="#Rust" class="headerlink" title="Rust"></a>Rust</h3><p>Rust吸引我的地方在：于相较于C语言，Rust提供了高级别的抽象和语法糖并且不会带来额外的性能开销；相较于C++虽然上手难度较高，但是C++更难熟练掌握和精通。此外Rust的官方教程非常不错，使用Cargo方便地发布和管理包使得Rust相比C++更加“现代化”。Rust的学习曲线比较陡峭，以至于需要把整本《Rust 程序设计语言》看完后才能正确地写出规模比较大的程序。所有权机制像是默认实现的C++的移动语义，这一点和我之前接触过的大部分语言都不一样。引用和生命周期有时相当折磨，比如最开始写程序的时候容易犯的一个错误是在函数内部创建一个变量然后返回它的引用，不过这种方式本来也十分危险，因为，假如使用C++，如果不设计好析构函数就非常容易引发内存泄漏，而在Rust中这中问题在编译器就解决了。虽然Rust一开始写比较痛苦，但编译器更像是以为老师去纠正错误。</p>
-<h3 id="Rcore"><a href="#Rcore" class="headerlink" title="Rcore"></a>Rcore</h3><p>作为一个使用Rust写的OS内核，通过阅读Rcore代码能很好的锻炼我的rust功底，rcore-tutorial-book给出了非常详细的讲解，不得不令人称赞。</p>
-<p>这是我第二次做lab，但是第一次正式参加训练营。从现在来看Rcore的编程题其实整体的难度不大，每个lab需要修改的代码整体不超过400行，不过想要快速地完成lab还是需要对代码比较熟悉，结合自己的经历，我认为0基础能一个月之内完成5个lab算是比较快了。因为前置的一些技能也需要花一些时间，我一开始学习时rcore在正式开始看代码之前还花了一周左右的时间学习Makefile、GUN Linker、Risc v规范，如果有相关的基础会快很多。</p>
-<p>对于前3个lab，本次训练营花费了10天完成。其中个人认为难度比较大一点的时munmap系统调用的实现。这里我在第一次做lab的时候想用区间树实现快捷的区间查询操作，我参考了《算法导论》手写了红黑树并期望在此基础上实现最终的区间树，但是除了一些bug就被鸽了。不过这次我使用了crates.io上的一个包iset，很方便地实现了区间查找，同时从iset的源码中一窥优秀的rust代码是怎么写的。</p>
-<p>截至11.3，成功上传了前3个lab的代码并获得了300分，剩下的两个lab还需继续完成。</p>
 
       
     </div>
