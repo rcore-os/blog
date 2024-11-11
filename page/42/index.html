@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">518</span>
+          <span class="site-state-item-count">519</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">491</span>
+        <span class="site-state-item-count">493</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,106 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/02/2023rCore-Autumn-OceanPresent/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/02/2023rCore-Autumn-OceanPresent/" class="post-title-link" itemprop="url">2023rCore-Autumn-OceanPresent</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-02 13:26:57" itemprop="dateCreated datePublished" datetime="2023-11-02T13:26:57+00:00">2023-11-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Lab1"><a href="#Lab1" class="headerlink" title="Lab1"></a>Lab1</h1><h2 id="编程题"><a href="#编程题" class="headerlink" title="编程题"></a>编程题</h2><h3 id="获取任务信息"><a href="#获取任务信息" class="headerlink" title="获取任务信息"></a>获取任务信息</h3><p>思路：题目要求查询的信息都是全局持久化的，因此需要在TaskControlBlock中添加这些信息。</p>
+<p>task_status已经存在，不需要添加</p>
+<p>task_syscall_times需要在sys_call函数中拦截，根据系统调用的id进行桶计数即可</p>
+<p>task_runtime比较麻烦，有两种思路：</p>
+<ol>
+<li>保存任务第一次调度的时间，在sys_task_info调用时将当前时间和第一次的时间相减（我的做法）</li>
+<li>分别记录任务在用户态和系统态下的时间，在sys_task_info调用时将两者相加。(此思路源于<a href="https://hangx-ma.github.io/2023/07/01/rcore-note-ch3.html" target="_blank" rel="noopener">参考</a>)<ol>
+<li>内核态时间.在 run_first_task 以及 mark_current_exited， mark_current_suspend 中更新信息， 另外需要在 task 退出时打印耗时。</li>
+<li>用户态时间.用户态和内核态的分界处就是 trap， 因而在 trap_handler 的起始位置和末尾位置可分别作为 user time 的开始以及 user time 的结束。</li>
+</ol>
+</li>
+</ol>
+<h1 id="Lab2"><a href="#Lab2" class="headerlink" title="Lab2"></a>Lab2</h1><h2 id="编程题-1"><a href="#编程题-1" class="headerlink" title="编程题"></a>编程题</h2><h3 id="重写-sys-get-time-和-sys-task-info"><a href="#重写-sys-get-time-和-sys-task-info" class="headerlink" title="重写 sys_get_time 和 sys_task_info"></a>重写 sys_get_time 和 sys_task_info</h3><p>由于内核和应用地址空间的隔离， 系统调用 不再能够直接访问位于应用空间中的数据，而需要手动查页表才能知道那些 数据被放置在哪些物理页帧上并进行访问。</p>
+<p>可以参考文档中sys_write的重新实现。基本原理就是使用函数<code>translated_byte_buffer</code>可以将应用地址空间中一个缓冲区转化为在内核空间中能够直接访问的形式，然后再进行操作即可。</p>
+<p>指针的copy操作可以使用<code>core::ptr::copy_nonoverlapping</code></p>
+<p>在taskinfo踩了坑，同样的代码可以过ch3的测试却没法过ch4的测试，因为使用了<code>get_time_ms</code>函数，有一些精度问题，后来改成<code>get_time_us() / 1000</code> 即可</p>
+<h3 id="mmap-和-munmap-匿名映射"><a href="#mmap-和-munmap-匿名映射" class="headerlink" title="mmap 和 munmap 匿名映射"></a>mmap 和 munmap 匿名映射</h3><p>mmap函数的作用和签名可参考<br><a href="https://www.l2h.site/p/8cc7cf15" target="_blank" rel="noopener">参考一</a><br><a href="https://www.cnblogs.com/fortunely/p/16212027.html" target="_blank" rel="noopener">参考二</a></p>
+<p>比较麻烦的是要弄清申请页和释放页边界，统一使用左闭右开的范围。检查范围和权限是否合法 使用 基本的数值运算或位运算即可；申请空间和释放空间要求 理解memset和pagetable的api作用，合理地使用即可</p>
+<p>在样例ch4_umap卡了很久，因为当时mmap和munmap申请内存的范围边界没有理清，注意测试样例有一个地方申请了 PAGE_SIZE + 1的空间，这个申请应该向上取整，申请2页内存</p>
+<h1 id="Lab3"><a href="#Lab3" class="headerlink" title="Lab3"></a>Lab3</h1><h2 id="编程题-2"><a href="#编程题-2" class="headerlink" title="编程题"></a>编程题</h2><h3 id="进程创建"><a href="#进程创建" class="headerlink" title="进程创建"></a>进程创建</h3><p>实现spawn系统调用，spawn函数的作用简单来说就是创建一个子进程，并在子进程中加载执行传入的可执行文件。通过它的作用我们可以意识到它其实是fork和exec两个函数的结合，因此spawn的具体实现就可以在fork和exec函数里左借鉴右借鉴，这就是——拿来主义。</p>
+<ol>
+<li>spawn会根据传入的文件名，解析elf文件，获取elf文件的地址空间、用户栈等。和exec类似</li>
+<li>spawn会创建新的子进程，需要申请新的pid和内核栈。和fork类似</li>
+<li>根据解析exec得到的信息以及父进程的信息初始化 子进程的TCB和Trap Context。和exec、fork类似</li>
+<li>将新的进程加入队列</li>
+</ol>
+<h3 id="stride-调度算法"><a href="#stride-调度算法" class="headerlink" title="stride 调度算法"></a>stride 调度算法</h3><p>这题相对比较简单，根据题目要求为TCB加入pass、priority、stride字段即可，BIG_PASS随便设置一个比较大的整数就行。<br>需要修改的函数就是获取下一个执行任务的函数——fetch函数，之前采用的调度策略就是先进先出。stride算法的实现根据题目要求写一个for循环寻找stride值最小的task即可。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/02/dbydd%E7%9A%84rcore%E5%AD%A6%E4%B9%A0%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +364,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -358,7 +458,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -431,7 +531,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -503,7 +603,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -584,7 +684,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -649,7 +749,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -728,7 +828,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -806,7 +906,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -877,7 +977,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
+                <time title="Modified: 2024-11-11 05:45:51" itemprop="dateModified" datetime="2024-11-11T05:45:51+00:00">2024-11-11</time>
               </span>
 
           
@@ -901,88 +1001,6 @@
 <p>在实现这些的过程中，我按照教程文档逐一理解代码，然后再将一些调试信息打印出来，直观感受一个操作系统底层运行起来的样子，然后逐步构建起一个庞大的系统架构，每一个模块都精密运作，这是设计师的浪漫。</p>
 <p>这次 rCore 学习让我充分学习了操作系统的底层逻辑，也领会到了 Rust 语言的强大，希望后续可以更进一步学习。</p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/01/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-lispking/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/01/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-lispking/" class="post-title-link" itemprop="url">2023秋冬季开源操作系统训练营总结-lispking</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-01 22:10:55" itemprop="dateCreated datePublished" datetime="2023-11-01T22:10:55+00:00">2023-11-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-11 05:45:34" itemprop="dateModified" datetime="2024-11-11T05:45:34+00:00">2024-11-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="逆境中的学习与成长：我的开源操作系统训练营之旅"><a href="#逆境中的学习与成长：我的开源操作系统训练营之旅" class="headerlink" title="逆境中的学习与成长：我的开源操作系统训练营之旅"></a>逆境中的学习与成长：我的开源操作系统训练营之旅</h1><h2 id="自我介绍"><a href="#自我介绍" class="headerlink" title="自我介绍"></a>自我介绍</h2><p>今年的经济形势确实不容乐观。没错，我就是那位大龄失业的程序员。在寻找工作的同时，我尝试将自己的经验和心得整理成文章，发布在名为《猿禹宙》的微信公众号上，希望能为广大读者提供一些帮助。如果这些文章对您有所启发，请您不吝啬地关注、转发、点个赞、赏 1 元以示支持。广告部分到此结束，接下来我要分享一次偶然的相遇。</p>
-<p><img src="/blog/.io//wx-mp.png" alt="微信公众号"></p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2023/11/01/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-lispking/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 
