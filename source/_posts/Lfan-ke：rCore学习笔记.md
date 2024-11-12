@@ -5,6 +5,7 @@ categories:
     - 补完计划
 tags:
     - author:Lfan-ke
+    - author-alias:禾可/禾可1228
     - repo:https://github.com/LearningOS/2024a-rcore-Lfan-ke
 mathjax: true
 ---
