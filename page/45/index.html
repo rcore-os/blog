@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">541</span>
+          <span class="site-state-item-count">543</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">34</span>
+        <span class="site-state-item-count">35</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">514</span>
+        <span class="site-state-item-count">516</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,163 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Luv_Ray/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Luv_Ray/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-Luv_Ray.md</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-02 00:00:00" itemprop="dateCreated datePublished" datetime="2023-11-02T00:00:00+00:00">2023-11-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="2023rCore-训练营第二阶段总结"><a href="#2023rCore-训练营第二阶段总结" class="headerlink" title="2023rCore 训练营第二阶段总结"></a>2023rCore 训练营第二阶段总结</h1><p>其实很早以前就知道 rcore 这个项目了，之前学 rust 时做过 Stanford 的 <a href="https://reberhardt.com/cs110l/spring-2020/" target="_blank" rel="noopener">CS 110L</a>。<br>不过由于之前做过 MIT 的 xv6，在操作系统 lab 方面定位有些重合，就没有去做 rcore。</p>
+<p>在今年暑假想要找些 rust 项目看时，在 github 上找到 arceos，后面才知道 rcore 只是社区众多项目中的其中一个，这次报名也是希望能进一步参与后面的项目。</p>
+<h2 id="实验"><a href="#实验" class="headerlink" title="实验"></a>实验</h2><p>rcore 的实验其实挺简单，重要的是理解系统概念以及现有的 api，这一点其实和 xv6 有点相似。<br>然而这也对应了另一个问题，只做实验其实不一定有很好的学习效果，有可能只根据类型试着调用 api 就能通过测试，学习的深度某种程度上只能靠自觉来保证。</p>
+<p>另外，感觉各个 lab 的测试样例并不算强，其实编写 kernel 是很容易在 corner case 上出各种漏洞的，希望自己的实现没太大问题。</p>
+<p>由于 rust 本身的约束，产生漏洞的风险比 c 要小，但是在使用 unsafe 时，由于 rust 本身做了更多抽象，直接接触底层时就会有更大的潜在隐患。</p>
+<p>比如在 <code>sys_task_info</code> 中，需要将 <code>&amp;TaskInfo</code> 转换为 u8 的 buffer，我使用了 <code>as</code> 来直接进行转换</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> k_ti = &amp;TaskInfo &#123;</span><br><span class="line">        status: get_task_status(),</span><br><span class="line">        syscall_times: get_task_syscall_times(),</span><br><span class="line">        time: get_time_ms(),</span><br><span class="line">    &#125; <span class="keyword">as</span> *<span class="keyword">const</span> TaskInfo</span><br><span class="line">        <span class="keyword">as</span> *<span class="keyword">const</span> [<span class="built_in">u8</span>; mem::size_of::&lt;TaskInfo&gt;() / mem::size_of::&lt;<span class="built_in">u8</span>&gt;()];</span><br></pre></td></tr></table></figure>
+<p>转换为裸指针是 safe 的，但是访问裸指针时很容易触发未定义行为，unsafe 里有很多隐秘的 <strong>unsound</strong> 情况。</p>
+<p>实际上，对于 <code>TaskInfo</code> 数组：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Task information</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskInfo</span></span> &#123;</span><br><span class="line">    <span class="comment">/// Task status in it's life cycle</span></span><br><span class="line">    status: TaskStatus,</span><br><span class="line">    <span class="comment">/// The numbers of syscall called by task</span></span><br><span class="line">    syscall_times: [<span class="built_in">u32</span>; MAX_SYSCALL_NUM],</span><br><span class="line">    <span class="comment">/// Total running time of task</span></span><br><span class="line">    time: <span class="built_in">usize</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其内存布局是<strong>不确定</strong>的，编译器甚至不保证 <code>status</code>，<code>syscall_times</code>，<code>time</code> 是按顺序排布的，添加 <code>#[repr(C)]</code> 才能保证会是我们想象的类似 C 语言的内存布局。</p>
+<p>同时，这个结构体中的元素比较简单所以没问题，但是直接裸指针转换是很不好的风格，在面对内部可变性、内存对齐、未初始化元素时极易访问未初始化内存，对未初始化内存的任何写入和读取都是<strong>UB</strong>。</p>
+<p>在 <a href="https://docs.rs/bytemuck/latest/bytemuck/fn.cast.html" target="_blank" rel="noopener">bytemuck</a> 提供了对于类型转换的更好方式。</p>
+<p>类似这种，其实很有多潜在的需要解决的问题都被忽略了，实验中保留了比较核心的概念和问题，但是仔细挖掘文档和现有的代码的话，会有更多的值得学习和思考的问题。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>rcore 是个很好的 rust 和 OS 项目，国内的开源教学项目实在很少，大部分学生都会去学习 MIT、CMU 等学校的开源课程，不过国外的英文课程对国内学生有一定门槛，会有一些额外的负担。<br>我之前写过的 Stanford 的 rust 课程在 20 年后的版本都不公开代码了，难免说开源的行为会持续多久，所以国内还是很需要这种优质的开源课程来弥补空白的，在此感谢各位老师和助教的付出，也希望未来在各个方面能有更多的优质开源课程。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/01/2023-%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Misonoi/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/01/2023-%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Misonoi/" class="post-title-link" itemprop="url">2023 开源操作系统训练营第二阶段总结报告 - Misonoi</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-01 23:37:13" itemprop="dateCreated datePublished" datetime="2023-11-01T23:37:13+00:00">2023-11-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="楔子"><a href="#楔子" class="headerlink" title="楔子"></a>楔子</h2><p>第一次看到这个训练营是在QQ频道上面的<code>rust</code>频道， 正巧当时有人在说<code>OS</code>训练营的问题， 正巧也确实对实现操作系统很感兴趣就参加了。 在此之前其实已经有<code>rust</code>的基础和使用<code>rust</code>开发项目的基础。</p>
+<h2 id="关于rust"><a href="#关于rust" class="headerlink" title="关于rust"></a>关于<code>rust</code></h2><p><code>rust</code>是我非常喜欢的语言， 可以说是目前最喜欢的语言也不为过。诸如<code>C</code>, <code>C++</code>,  <code>java</code>, <code>python</code>, <code>go</code>, <code>kotlin</code>, <code>js</code>这些语言我都学过， 也用它们或多或少的写过东西， 但是其中<code>rust</code>是最深得我心的。 </p>
+<p>比如说它的枚举中可以存放关联值， 这样就可以通过枚举的类型来进行分发; 还有它强大的泛型能力， 在学习<code>rust</code>之前其实我对泛型编程的理解一直不太深， 直到我学习了<code>rust</code>， 参考了<code>rust</code>标准库的源码， 对泛型的理解才更上了一层。 </p>
+<p>一阶段的许多东西都在圣经里面有所提及， 但是多出的那几个<code>test</code>确实是我不曾知道的，  后面我又去了解了一些<code>rust</code>插件开发， 对于有反射的语言， 可以使用反射动态读入来进行插件化。 而没有反射的诸如<code>rust</code>这样的编译型语言， 可以利用<code>FFI</code>进行插件化， 也就是把<code>rust</code>打包成动态链接库， 比如说用<code>#[no_mangle]</code>来阻止混淆函数名称， 然后通过调用库的方式调用链接库中的函数， 这样就可以实现插件化。 毕竟<strong>不能添加用户自定义的插件什么应用是完整的呢？</strong>， 所以一阶段确实是对我也很有帮助的。</p>
+<h2 id="关于二阶段"><a href="#关于二阶段" class="headerlink" title="关于二阶段"></a>关于二阶段</h2><p>一阶段我用一个晚上速通之后就开始看文档， 也大概花了两周时间。</p>
+<p>对于这个阶段我最大的感想就是， 理论需要与实践相结合。 在学习也学过操作系统这门通识课程， 当时也觉得课程里面说的什么比如特权级， 中断， 分页分段之类的学习起来并不难， 但是要是让我用代码来实现， 那必然是抠破脑袋都想不出来的。  直到现在我虽然是把所有的实验都完成了， 文档也看完了， 但是如果要我独立写一个操作系统， 也不一定可以。</p>
+<p>我看的主要是<code>v3</code>的文档， 于我而言最有难度的是第四章和第六章， 分页管理和文件系统， 真的和其他章节不是一个难度。 不然即使如此， 要做完实验并不需要完全理解文档， 实验相对来说还是比较容易的。</p>
+<h2 id="关于各个实验"><a href="#关于各个实验" class="headerlink" title="关于各个实验"></a>关于各个实验</h2><h3 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h3><p><code>ch3</code>是实现获取<code>taskinfo</code>的系统调用， 主要想法就是在运行过程中维护调用计数。 第一次遇到了爆栈空间的问题， 所以就给<code>entry.asm</code>的栈空间调大了， 事实证明也确实可以</p>
+<h4 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h4><p><code>ch4</code>实现<code>sys_mmap</code>的方面， 我是通过参数分配对应的页表， 生成一块<code>MapArea</code>然后插入到<code>MemorySet</code>里面， <code>sys_umap</code>也只需要从<code>MemorySet</code>里面删除</p>
+<h3 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h3><p><code>ch5</code>实现<code>sys_spawn</code>, 我觉得它与<code>fork + exec</code>的区别就是不用复制父进程的空间， 那么生成一块空白的空间按照<code>exec</code>处理即可</p>
+<h3 id="ch6"><a href="#ch6" class="headerlink" title="ch6"></a>ch6</h3><p><code>ch6</code>实现<code>sys_linkat</code>， 在索引中加一个<code>entry</code>即可， 而<code>sys_unlink</code>我认为不容易删除一个<code>entry</code>, 我选择的是向里面写了一些非法数据， 让文件名读取不到这个节点</p>
+<h3 id="ch8"><a href="#ch8" class="headerlink" title="ch8"></a>ch8</h3><p><code>ch8</code>实现死锁检测， 银行家算法需要提前获知需要的资源总数， 对于互斥锁我想资源数量就是<code>1</code>, 对于信号量就是对应的值</p>
+<h2 id="总体"><a href="#总体" class="headerlink" title="总体"></a>总体</h2><p><code>rCore</code>逐步递进， 从一个功能较少的小系统成为一个功能较多的大系统， 但是我感觉文档里面还有很多东西没有说的很清楚， 比如说<code>rust</code>函数和汇编中函数的互相调用， 参数和返回值传递之类的不是很明白。 除此之外文档还是非常全面的， 我感觉我主要的问题就是不太理解汇编和<code>rust</code>的交互。</p>
+<p>另外就是在调试方面有一些问题， 不容易以代码级的方式调试， <code>gdb</code>调试也不太直观。 </p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/01/2023%E7%A7%8B%E5%86%ACrCore%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-ChoHee15/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +421,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
 
           
@@ -335,7 +492,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
 
           
@@ -408,7 +565,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -490,7 +647,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
 
           
@@ -575,7 +732,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
 
           
@@ -651,7 +808,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
 
           
@@ -734,7 +891,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -813,7 +970,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
+                <time title="Modified: 2024-11-18 11:35:29" itemprop="dateModified" datetime="2024-11-18T11:35:29+00:00">2024-11-18</time>
               </span>
 
           
@@ -837,163 +994,6 @@
 <p>第八章线程的引入更加细化了之前对进程的管理，而一些并发原语则是利用了硬件的原子指令的功能，才让一些共享变量能被安全访问。但是rCore没有引入多核，因此也比较好懂。</p>
 <p>总体来说，通过这次rCore的学习，对操作系统内核的基本原理有了更直观的感受，一切都是硬件的支持和指令的跳转，同时也体会到Rust是如何应用在系统软件领域的，唯一稍有遗憾的是rCore没有引入多核，毕竟日常生活工作都是使用多核CPU。但瑕不掩瑜，rCore仍是非常好的操作系统入门资料，V3文档也非常详实，在此衷心感谢各位老师和同学的付出。</p>
 <p>目前虽然完成了规定的几个实验，但深知在框架内添加代码和自己独立实现一个迷你操作系统仍有不小的差距，还需要多多学习。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/10/31/sunny-rust-rcore/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/10/31/sunny-rust-rcore/" class="post-title-link" itemprop="url">sunny_rust_rcore</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-10-31 19:16:52" itemprop="dateCreated datePublished" datetime="2023-10-31T19:16:52+00:00">2023-10-31</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2023a-rcore/" itemprop="url" rel="index"><span itemprop="name">2023a-rcore</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>#rcore学习总结报告</p>
-<p><strong>总述</strong> </p>
-<p>两周学完rust，两周了解rcore操作系统对于我这个大一的学生来说过程十分艰辛，虽说没有通宵打代码，但确确实实是花了几乎所有非学习睡觉时间完成的。<br>这里非常非常感谢举办这个训练营的所有老师和负责人，资料准备的很全，几乎不需要再找其他资料；热心负责，经常在群里答疑，课上讲得很精炼。  </p>
-<p><strong>lab1</strong><br>在这个实验中我实现了一个TaskInfo函数，该函数可以查询某个Task的运行时间、写入次数、挂起次数、退出次数和查询info次数。<br>fn sys_task_info(ti: *mut TaskInfo) -&gt; isize<br>我通过在TaskInner结构体中加入积累响应信息的值，并在调用这些系统函数的时候维护这些值。<br>ps:一开始真的没想到还可以修改源代码部分，以为只是完成函数，哭  </p>
-<p><strong>lab2</strong><br>在这个实验中我重新写了sys_get_time 和 sys_task_info函数，因为这两个函数传入的虚拟地址可能被分在了不同的页<br>同时我实现了mmap 和 munmap两个函数，分别让用户可以申请虚拟地址空间和取消申请虚拟空间<br>我在重写sys_get_time 和 sys_task_info函数的时候受讲课老师引导，学习详细白皮书的sys_write的写法，知道了如何获取到用户的实际存储内存地址<br>在实现mmap和munmap函数中，我先判断用户输入是否合法，然后把用户给的地址取整，按每个页申请和取消空间。<br>ps:用户空间由TaskInner中memory_set变量控制，不能自己新建memoryset变量！！！  </p>
-<p><strong>lab3</strong><br>在这个实验中这次我实现了spawn函数的调用，它能新建一个子进程，并执行该子进程<br>我参考了给出的fork函数和exec函数的实现过程，在把两者结合，实现利用fork新建子进程，再利用类exec函数启动子进程<br>ps:fork()+exec()≠spawn()</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/10/30/zHappyFish-rCore-study-record/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/10/30/zHappyFish-rCore-study-record/" class="post-title-link" itemprop="url">zHappyFish-rCore-study-record</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-10-30 22:42:42" itemprop="dateCreated datePublished" datetime="2023-10-30T22:42:42+00:00">2023-10-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-11-18 03:08:04" itemprop="dateModified" datetime="2024-11-18T03:08:04+00:00">2024-11-18</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="训练营学习记录"><a href="#训练营学习记录" class="headerlink" title="训练营学习记录"></a>训练营学习记录</h2><p>这篇文章用来记录我在2023秋冬季开源操作系统训练营的学习过程，之所以会参加本次训练营，是因为我想进一步学习操作系统以及Rust编程语言。</p>
-<h2 id="第一阶段（1-2周）"><a href="#第一阶段（1-2周）" class="headerlink" title="第一阶段（1-2周）"></a>第一阶段（1-2周）</h2><p>本阶段的主要目的是掌握Rust编程语言，为后续学习打下基础。</p>
-<h3 id="第一周"><a href="#第一周" class="headerlink" title="第一周"></a>第一周</h3><p>在参加训练营之前，我有学习过Rust，但之后并没有做过有关Rust的项目，只用Rust刷过题，以至于之前学过的知识很快就忘了，所以我并没有马上开始做训练营的题。</p>
-<p>本周我将环境配置好后就开始重新过一遍Rust，主要重学了Rust的所有权、借用、泛型、特征、迭代器、生命周期、智能指针、多线程、迭代器。</p>
-<h3 id="第二周"><a href="#第二周" class="headerlink" title="第二周"></a>第二周</h3><p>本周我开始完成训练营的题，题目不难，但很有针对性，基本上就是各个章节的知识点，这个过程中也学到了一些重要的知识，比如build.rs、#[no_mangle],为后续学习rCore打下基础</p>
-<h2 id="第二阶段（3-4周）"><a href="#第二阶段（3-4周）" class="headerlink" title="第二阶段（3-4周）"></a>第二阶段（3-4周）</h2><p>本阶段的学习目标是完成rCore-Tutorial中的五个实验。相比于上个阶段，本阶段的学习任务要重得多，学习难度也更大，需要花更多的时间。</p>
-<h3 id="第三周"><a href="#第三周" class="headerlink" title="第三周"></a>第三周</h3><p>我首先花了一天时间配置环境，我使用的是Docker，项目中有写好的Dockerfile能直接构建镜像，可惜由于网络问题，我总是构建失败（apt-get 下着下着就卡住了，导致无法构建成功），最后只能新建了一个Ubuntu:20.04的镜像，然后在容器中按照Dockerfile的流程将容器的环境配置好，然后提交容器保存为镜像。</p>
-<p>配置完环境后我就开始看 rCore-Tutorial 并完成实验</p>
-<p>rCore-Tutorial 的第一章从一个应用层的Hello World开始，一点点去掉需要操作系统支持的部分，最后构建一个能在裸机上打印Hello World的程序。</p>
-<p>第二章构建了一个批处理系统，能够依次运行导入的程序。由于没有实现文件系统，从第二章到第五章的用户程序都是同操作系统放在一起的，通过脚本生成的汇编代码来标识应用程序的起始地址和结束地址。<br>这一章讲到了Risc-V的特权级切换，比较重要的就是Trap的上下文切换过程。</p>
-<p>第三章通过时钟中断实现了分时多任务系统，比较重要的就是switch过程，切换任务时我们需要保存任务的上下文，以便下次运行时恢复。这与Trap过程是不同的，Trap是用户态与内核态之间的上下文切换，而switch是不同任务在内核态的上下文切换。</p>
-<p>第四章实现了Risc-V的三级分页机制，这里采用双页表的实现方式，即一个任务的用户态和内核态使用不同的页表，这使得我们在Trap时还需要完成页表的切换。为了使得页表切换时程序能按正常的顺序执行，内核页表和用户页表都必须映射一段相同的地址空间，这段空间保存的代码就是Trap过程的跳板。</p>
-<p>第五章实现了进程管理，调整了一些数据结构，将进程的执行交给各个CPU（不过这里只有一个CPU），将当前运行的进程id交给Processor结构（它是处理器的抽象），然后将进程的调度交给TaskManager。为了支持在用户态输入命令，还实现了一个简单的shell程序以及sys_read系统调用。新建进程则由sys_fork和sys_exec完成。</p>
-<h3 id="第四周"><a href="#第四周" class="headerlink" title="第四周"></a>第四周</h3><p>待续。。。。</p>
 
       
     </div>
