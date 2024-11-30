@@ -1,3 +1,10 @@
+---
+title: 2024秋冬季训练营第三阶段总结-Zoneshiyi
+date: 2024-11-30 19:45:08
+tags:
+    - author: Zoneshiyi
+---
+
 # ArceOS
 
 ## 2024.11.09
