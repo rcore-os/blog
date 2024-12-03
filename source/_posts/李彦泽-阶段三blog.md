@@ -104,13 +104,13 @@ Second function
 	2. 得到aspace
 	3. 调用其handle_page_fault方法填充
 
-{% asset_img blog/source/_posts/李彦泽-阶段三blog/Pasted%20image%2020241129150239.png  %}
+{% asset_img Pasted%20image%2020241129150239.png answer  %}
 
 
 ## 第二节
 
 内存管理方式:
-{% asset_img blog/source/_posts/李彦泽-阶段三blog/1732877291289_d.png  %}
+{% asset_img 1732877291289_d.png img %}
 其他的和rcore很像,最后会在backend中处理映射
 - alloc(支持lazy)
 - linear  (连续映射)
@@ -126,5 +126,67 @@ mmap的实现和page fault的处理很像,
 3. map alloc出一个页
 4. 用buffer填充这个页 
 
-{% asset_img blog/source/_posts/李彦泽-阶段三blog/Pasted%20image%2020241129182524.png  %}
+{% asset_img Pasted%20image%2020241129182524.png answer %}
 
+# hypervisor
+
+## 第一节
+
+hypervisor和虚拟机的区别是:支撑其物理运行的体系结构和其虚拟运行的环境是否一样(**同构**). 所以hypervisor比虚拟机更加高效.
+
+我的理解,hypervisor也是一种类似于OS软件,如果是U的指令可以直接执行,如果需要特权级就在hypervisor中捕获处理.
+hypervisor的扩展指令也是为了加速这个过程
+
+资源管理:
+1. vcpu(直接绑定到一个CPU)
+2. vmem(提供自己的页表转换)
+3. vdevice(virtual io/ 直接映射 / 模拟)
+4. vutilities(中断/总线..)
+
+### 练习题
+
+panic将系统shut,所以需要去掉panic改成(ax_println!),然后将sepc+4跳转到下一个指令,再设置一下a0,a1的值就可以了
+
+![](attachment/Pasted%20image%2020241127182957.png)
+
+## 第二节
+![](attachment/1732793326547_d.png)
+
+主要学习了两段映射
+1. Guest缺页,guset os向hypervisor查找
+2. hypervisor也缺页,向实际物理机申请
+
+第二的部分有两个模式
+1. 透传
+2. 模拟
+
+透传:直接把宿主物理机(即qemu)的pflash透传给虚拟机。(快 捆绑设备)
+模拟:模拟一个pflash,当读取的时候传递(慢 不依赖硬件)
+![](attachment/1732793674957_d.png)
+
+
+**切换**
+![](attachment/1732793492927_d.png)
+具体的汇编:
+![](attachment/1732793589062_d.png)
+
+![](attachment/1732793630945_d.png)
+
+
+### 练习题
+将pflash.img写入img的/sbin/下后,在 `h_2_0/src/main.rc` 中将其read出来,然后将第一页的内容填充到buf中,aspace.write进去就可
+![](attachment/Pasted%20image%2020241128181025.png)
+
+
+## 第三节课
+实验课正在做
+
+### 虚拟时钟
+
+总的思路是:通过关键的寄存器hvip中的VSTIP(时钟中断)来向hypervisor响应虚拟机的设置时钟中断,然后当时钟中断来的时候退出vm,并重新设置时钟中断hvip,回到vm处理.
+
+### 宏内核的支持
+
+主要是flash这种设备的处理,这个在前一个的实验中已经解决了.
+
+虚拟设备管理:通过mmio,注册device的地址,当发生page fault的时候判断一下,如果是在mem中则正常处理,如果是在device则去对应的设备处理.
