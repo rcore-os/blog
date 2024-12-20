@@ -25,4 +25,56 @@ tags:
 # 对 `arceos` 支持多进程提出了几点想法
 大体思路就是通过内核代码和用户代码的关系来组成不同的方案。
 朱懿老师对我的想法给出了几点意见。
-相关文档：[Arceos 多进程支持思路](https://blog.csdn.net/m0_37749564/article/details/144516395)
+相关文档：[Arceos 多进程支持思路](https://blog.csdn.net/m0_37749564/article/details/144516395) 
+
+# 进展
+
+目前通过修改 `musl` 库的 `crt1.c` 文件：
+
+```c
+#include "crt_arch.h"
+
+int main();
+weak void _init();
+weak void _fini();
+int __libc_start_main(int (*)(), int, char **,
+	void (*)(), void(*)(), void(*)());
+
+unsigned long volatile abi_table = 0;
+
+hidden void _start_c(long *p)
+{
+	abi_table = *p;
+	p++;
+	int argc = p[0];
+	char **argv = (void *)(p+1);
+	// __libc_start_main(main, argc, argv, _init, _fini, 0);
+	main(argc, argv, 0);
+}
+```
+
+将修改后的 `crt1.o` 文件替代 `riscv64-linux-musl-gcc` 中的 `crt1.o` 后，重新编译 `main.c` 可以正常运行。
+
+`main.c`
+
+```c
+#include "puts.h"
+
+int main(int argc, char**argv)
+{
+//	hello();
+	return 0;
+}
+
+```
+
+运行结果：
+
+```shell
+... ...
+Load payload ok!
+Execute app ...
+QEMU: Terminated
+```
+
+需要更改 `bin` 文件的运行地址。
