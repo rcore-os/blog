@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">544</span>
+          <span class="site-state-item-count">545</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,80 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/22/%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-c2h4moe/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/05/22/%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-c2h4moe/" class="post-title-link" itemprop="url">二阶段总结报告--c2h4moe</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-05-22 19:47:45" itemprop="dateCreated datePublished" datetime="2024-05-22T19:47:45+00:00">2024-05-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>狂赶一周，二阶段也算是终于做完了，这里就说说实验中令我印象比较深的部分吧。</p>
+<h2 id="地址空间"><a href="#地址空间" class="headerlink" title="地址空间"></a>地址空间</h2><p>操作系统为每个应用程序制造了一种假象，仿佛它们能够独占并随意的使用巨大的内存空间，但实际上，这是硬件分页机制和操作系统维护页表共同营造的幻觉，在加载ELF文件时，操作系统会把程序加载到物理地址中一段空闲的区间，但会让ELF文件中指定的加载地址对应的页表指向真正的物理地址。</p>
+<p>我觉得这个实验需要注意很多细节，比如，页表切换是一条指令完成的，如何保证切换完之后依然能够按照我们所期望的执行流继续执行呢？我们开辟了一个“跳板页”，让所有地址空间的最高一页都指向一段相同的物理地址，这样就可以保证页表切换是“平滑的”。</p>
+<p>还有，之前想了很久为什么用户态的上下文是存在用户的地址空间而非内核的，后来看实验指导书才明白页表切换和内核栈切换是两步操作，但只有一个sscratch寄存器，无法在不破坏通用寄存器的条件下切换到内核空间并在内核栈保存上下文。</p>
+<p>这章还有很多技术上的优化技巧，比如，如果为每个应用都建立一个能够映射全部空间的页表，会占有过大的物理空间，所以，我们不再对每一个地址都映射，而是根据ELF文件的程序头一段段来映射，并且引入类似“字典树”的数据结构来建立多级页表，有效的节省了空间。</p>
+<h2 id="并发"><a href="#并发" class="headerlink" title="并发"></a>并发</h2><p>实现互斥锁可以有三种方式，一种是在纯软件形式在用户态通过类Peterson算法</p>
+<p>实现锁，还有是在硬件的支持下通过原子指令来实现，还可以通过操作系统支持（假设内核进程不被打断）。</p>
+<p>这章给我印象比较深的部分是引入互斥锁时举了一个计数器的例子，根据例子运行的异常提供了3个分析思路：是不是编译优化造成的？是不是OS调度造成的？是不是CPU造成的？并且逐一分析，最终找到根本原因，我认为这给我了一个关于系统编程方法论的启发。并且在分析错误原因时通过状态机和合法状态来分析，也是一个很深刻的想法。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>除了上面说的一些底层的特性（页表，地址空间切换等等），操作系统大部分也只不过是个普通的应用程序。在看框架代码时，我也学习到了一些编程的技巧和方法，比如，通过drop trait来实现RAII，通过这个rust机制有效的减少了内存分配相关的错误。</p>
+<p>总体来说，不管是对OS的理解，还是对rust的掌握，我都进步了很多。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/21/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A%E2%80%94%E2%80%94Air-Suck/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +338,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
 
           
@@ -359,7 +433,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
 
           
@@ -490,7 +564,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -584,7 +658,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -666,7 +740,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -743,7 +817,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
 
           
@@ -818,7 +892,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1450,7 +1524,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1535,7 +1609,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
+                <time title="Modified: 2024-12-22 09:11:11" itemprop="dateModified" datetime="2024-12-22T09:11:11+00:00">2024-12-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1606,80 +1680,6 @@
 <p>一些死锁算法。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>还是非常感谢开源操作系统社区这个平台，文档V3和2024s写的非常好和细致，在整个阅读下来非常舒服，同时也学到了很多的新东西。RAII的设计模式有了更加深刻的体会，也学会了qemu、gdb、make等工具的使用，加深了对rust语言的学习。</p>
 <p>最后，非常感谢！</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/17/2024%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-by-xhyf77/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/05/17/2024%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-by-xhyf77/" class="post-title-link" itemprop="url">2024春第二阶段总结报告 by:xhyf77</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-05-17 15:17:48" itemprop="dateCreated datePublished" datetime="2024-05-17T15:17:48+00:00">2024-05-17</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2024-12-22 09:10:59" itemprop="dateModified" datetime="2024-12-22T09:10:59+00:00">2024-12-22</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h3><p>在第二阶段的学习过程中，是我对进程的概念有了更加深刻的认识，之前对进程和线程的认知还是比较模糊，且之前没有看过多线程的源码，一直不太能理解进程和线程的本质区别，而这次经过rCore的学习，让我从源码级别真正触碰到了进程和线程，让我对这个概念的理解更加深刻。同时在学习过程中也加强了我的调试能力，特别是对gdb的使用，还记得做lab4的时候因为一个bug调试了几天，虽然最后也没能调试出来换了别的方案实现，但是还是让我受益匪浅。同时我对RAII的这种设计模式也有了更加深刻的体会，我以前也用c写过x86的内核，但这次用rust来写内核给我的体验是完全不一样的，这种RAII的设计模式让我感觉我在用写开发项目的方式来写操作系统，比用c写要方便许多。</p>
 
       
     </div>
