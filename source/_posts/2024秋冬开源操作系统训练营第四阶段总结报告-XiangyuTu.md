@@ -21,7 +21,7 @@ tags:
 
 第三周通过阅读 `epoll`、`io-uring` 等相关资料，我了解到了异步 IO 的原理。通过阅读 `async-io` 和 `polling` 的代码，我了解了 `epoll` 在 Rust 异步运行时中的运用，而通过阅读 `monoio` 和 `tokio-uring` 的代码，我了解了 `io-uring` 在 Rust 异步运行时中的运用，这些代码的阅读让我对异步 IO 有了更深入的理解。`io-uring` 的机制起初让我感到困惑，但是在领悟到 `io-uring` 事实上是一个异步的系统调用框架而不是 `epoll` 这样的文件描述符复用机制后，我便茅塞顿开。
 
-在阅读了大量相关的资料后，我也着手开始实现一个简单的异步运行时，通过对 [`mini-rust-runtime`](https://github.com/ihciah/mini-rust-runtime) 的学习和修改，我将其中使用 `polling` 实现的基于 `epoll` 的异步运行时改为了基于 `io-uring` 的异步运行时，并初步支持了文件的异步读写。因为使用 `io-uring` 必须从系统调用层面进行编程，抽象层次很低，在查阅了大量资料后我才勉强完成了这个十分粗糙的实现。
+在阅读了大量相关的资料后，我也着手开始实现一个简单的异步运行时，通过对 [`mini-rust-runtime`](https://github.com/ihciah/mini-rust-runtime) 的学习和修改，我将其中使用 `polling` 实现的基于 `epoll` 的异步运行时改为了基于 `io-uring` 的异步运行时，并初步支持了文件的异步读写和 TCP 连接。因为使用 `io-uring` 必须从系统调用层面进行编程，抽象层次很低，在查阅了大量资料后我才勉强完成了这个十分粗糙的实现。
 
 ## 总结
 
