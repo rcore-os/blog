@@ -7,7 +7,7 @@ tags:
   - author:stop1204
   - 第二階段: ...
   - 第一階段: https://github.com/LearningOS/2025s-rustling-stop1204
-  - blog:https://github.com/stop1204/blog?tab=readme-ov-file
+  - blog: https://github.com/stop1204/blog?tab=readme-ov-file
 
 ---
 
