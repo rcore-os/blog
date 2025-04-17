@@ -32,7 +32,12 @@ spawn 功能非常简单，记得最后要添加到 manager 中。
 
 ### 4.15 总结
 
-rcore 的文档很详细，通过读文档已经能对 rcore 很清晰的了解了，之后做实验也不存在太大的困难。选做题只做 mmap lazy 策略。
+rcore 的文档很详细，通过读文档已经能对 rcore 很清晰的了解了，之后做实验也不存在太大的困难。选做题只做了 mmap lazy 策略。
 
 ## Lab3
+
+### 4.17
+
+做完第二个小测验，发现没有安装 riscv-linux-musl-gcc， ArchLinu 中这个包在 AUR 中可以找到，[riscv64-gnu-toolchain-musl-bin^AUR^](https://aur.archlinux.org/packages/riscv64-gnu-toolchain-musl-bin), 也可以在 github 上找到相应的二进制文件 [riscv-gnu-toolchain/releases](https://github.com/riscv-collab/riscv-gnu-toolchain/releases)
+
 
