@@ -38,6 +38,6 @@ rcore 的文档很详细，通过读文档已经能对 rcore 很清晰的了解�
 
 ### 4.17
 
-做完第二个小测验，发现没有安装 riscv-linux-musl-gcc， ArchLinu 中这个包在 AUR 中可以找到，[riscv64-gnu-toolchain-musl-bin^AUR^](https://aur.archlinux.org/packages/riscv64-gnu-toolchain-musl-bin), 也可以在 github 上找到相应的二进制文件 [riscv-gnu-toolchain/releases](https://github.com/riscv-collab/riscv-gnu-toolchain/releases)
+做完第二个小测验，发现没有安装 riscv-linux-musl-gcc， ArchLinux 中这个包在 AUR 中可以找到，[riscv64-gnu-toolchain-musl-bin^AUR^](https://aur.archlinux.org/packages/riscv64-gnu-toolchain-musl-bin), 也可以在 github 上找到相应的二进制文件 [riscv-gnu-toolchain/releases](https://github.com/riscv-collab/riscv-gnu-toolchain/releases)
 
 
