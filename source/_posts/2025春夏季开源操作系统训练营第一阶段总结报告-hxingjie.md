@@ -1,5 +1,5 @@
 ---
-title: 2024秋冬季开源操作系统训练营第一阶段总结报告-hxingjie
+title: 2025春夏季开源操作系统训练营第一阶段总结报告-hxingjie
 date: 2025-3-25 19:17:06
 categories:
     - summary report
