@@ -12,7 +12,9 @@ ArceOS 的设计可以说优雅而不失健壮性，利用rust优秀的包管理
 
 tutorial出于教学的目的，在modules引入了dependence crates；而在主线arceos中，将解耦做到了极致，形成了清晰的Unikernel层次：dependence crates -> kernel modules -> api -> ulib -> app,下为上提供功能，上到下形成层次鲜明的抽象，这种抽象又为异构内核的实现提供支持，以宏内核为例，其既可以使用api提供的功能，又可以复用kernel modules支持更多的功能，这种自由的复用和组织可以为定制化操作系统提供极大的便利和支持，方便基于需求实现特定OS
 
-{% asset_img ./ArceOS-Learning-Record-Anekoqie/image1 framework %}
+<!-- more -->
+
+{% asset_img image.png image %}
 
 ## Tutorial Record
 
@@ -511,7 +513,7 @@ sbi-rt = { version = "0.0.2", features = ["legacy"] }
    >
    >   ```rust
    >   use core::cell::UnsafeCell;
-   >                                                                   
+   >                                                                     
    >   let cell = UnsafeCell::new(42);
    >   let ptr = cell.get(); // 获取 *mut T 裸指针
    >   unsafe { *ptr = 10; } // 允许修改
