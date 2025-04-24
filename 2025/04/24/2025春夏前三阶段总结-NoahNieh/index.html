@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="阶段一在原版的rustlings基础上加入了一些针对训练营需要的unsafe相关的知识和构建过程中build.rs的应用。属于比较基础的内容，跟着评测机一道道做过去就可以了。 阶段二这个阶段主要是通过基于rust编写操作系统内核rcore完成几个实验，借助实验理解一个具有进程&#x2F;线程管理、内存管理、文件系统、进程间通信和提供了一定同步机制的内核是如何构成并运作起来的。 比较印象深刻的有这么几个知识点">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2025春夏前三阶段总结-NoahNieh">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/04/24/2025%E6%98%A5%E5%A4%8F%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="阶段一在原版的rustlings基础上加入了一些针对训练营需要的unsafe相关的知识和构建过程中build.rs的应用。属于比较基础的内容，跟着评测机一道道做过去就可以了。 阶段二这个阶段主要是通过基于rust编写操作系统内核rcore完成几个实验，借助实验理解一个具有进程&#x2F;线程管理、内存管理、文件系统、进程间通信和提供了一定同步机制的内核是如何构成并运作起来的。 比较印象深刻的有这么几个知识点">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-04-24T11:23:32.000Z">
+<meta property="article:modified_time" content="2025-04-24T10:54:24.493Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:NoahNieh">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;LearningOS&#x2F;2025s-arceos-NoahNieh">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/04/24/2025%E6%98%A5%E5%A4%8F%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2025春夏前三阶段总结-NoahNieh | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#阶段一"><span class="nav-number">1.</span> <span class="nav-text">阶段一</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#阶段二"><span class="nav-number">2.</span> <span class="nav-text">阶段二</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#跳板"><span class="nav-number">2.1.</span> <span class="nav-text">跳板</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#阶段三"><span class="nav-number">3.</span> <span class="nav-text">阶段三</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#print-with-color"><span class="nav-number">3.1.</span> <span class="nav-text">print_with_color</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#support-hashmap"><span class="nav-number">3.2.</span> <span class="nav-text">support_hashmap</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#alt-alloc"><span class="nav-number">3.3.</span> <span class="nav-text">alt_alloc</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ramfs-rename"><span class="nav-number">3.4.</span> <span class="nav-text">ramfs_rename</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sys-map"><span class="nav-number">3.5.</span> <span class="nav-text">sys_map</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#simple-hv"><span class="nav-number">3.6.</span> <span class="nav-text">simple_hv</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">3.7.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">568</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">40</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">536</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/24/2025%E6%98%A5%E5%A4%8F%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2025春夏前三阶段总结-NoahNieh
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2025-04-24 11:23:32 / Modified: 10:54:24" itemprop="dateCreated datePublished" datetime="2025-04-24T11:23:32+00:00">2025-04-24</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="阶段一"><a href="#阶段一" class="headerlink" title="阶段一"></a>阶段一</h2><p>在原版的<code>rustlings</code>基础上加入了一些针对训练营需要的<code>unsafe</code>相关的知识和构建过程中<code>build.rs</code>的应用。属于比较基础的内容，跟着评测机一道道做过去就可以了。</p>
+<h2 id="阶段二"><a href="#阶段二" class="headerlink" title="阶段二"></a>阶段二</h2><p>这个阶段主要是通过基于<code>rust</code>编写操作系统内核<code>rcore</code>完成几个实验，借助实验理解一个具有进程/线程管理、内存管理、文件系统、进程间通信和提供了一定同步机制的内核是如何构成并运作起来的。</p>
+<p>比较印象深刻的有这么几个知识点：</p>
+<ul>
+<li>链接脚本与全局符号的使用</li>
+<li><code>Rust</code>的汇编嵌入</li>
+<li>第四章中，在使用分离内核空间的时候。通过设计跳板页来解决切换页表后指令执行的问题。<a href="#跳板">跳板页</a></li>
+<li>第六章了解了文件系统，了解了块设备的概念，对文件系统的各个抽象层有了一定的了解。</li>
+<li>第七、八章了解了操作系统是如何为应用提供同步原语的</li>
+</ul>
+<h3 id="跳板"><a href="#跳板" class="headerlink" title="跳板"></a>跳板</h3><p>由于<code>rcore</code>使用了分离内核空间的设计，所以在<code>Trap</code>的时候需要切换页表。但在切换页表之后，<code>pc</code>寄存器还是忠实的在其原来的位置自加到下一条指令，如果<code>内核内存空间</code>和<code>程序内存空间</code>对这段代码的映射不是在同一个位置的话，则会表现出来程序跳转到了别的地方执行的效果。因此需要设计一个跳板页，在虚存中将其映射到所有内存空间的最高页，确保在切换之后，也能正确运行下一条指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"># trap.S</span><br><span class="line">...</span><br><span class="line">    .section .text.trampoline</span><br><span class="line">    .globl __alltraps</span><br><span class="line">    .globl __restore</span><br><span class="line">    .align 2</span><br><span class="line">__alltraps:</span><br><span class="line">    csrrw sp, sscratch, sp</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"># linker.ld</span><br><span class="line">...</span><br><span class="line">    stext &#x3D; .;</span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text.entry)</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        strampoline &#x3D; .;</span><br><span class="line">        *(.text.trampoline);</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        *(.text .text.*)</span><br><span class="line">    &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>在上面的汇编可以看到，我们给<code>trap.S</code>分配到了<code>.text.trampoline</code>段，并在链接脚本中定义了一个<code>strampline</code>符号来标记他的位置，这样我们可以在<code>Rust</code>中找到这个跳板页，映射到我们期望的位置。</p>
+<p>但将跳板也映射到别的地方带来了新的问题，原来<code>__alltraps</code>中最后跳转到<code>trap_handler</code>使用的是<code>call trap_handler</code>。我们可以通过<code>obj-dump</code>看看编译得到的指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># obj-dump -Dx ...</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">80201056: 73 90 02 18   csrw    satp, t0</span><br><span class="line">8020105a: 73 00 00 12   sfence.vma</span><br><span class="line">8020105e: 97 80 00 00   auipc   ra, 0x8</span><br><span class="line">80201062: e7 80 e0 0b   jalr    0xbe(ra) &lt;trap_handler&gt; # pc+0x80be</span><br><span class="line">...</span><br><span class="line">000000008020911c g     F .text  00000000000003b2 trap_handler</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，这里用的是pc相对寻址，也就是基于当前指令的偏移找到<code>trap_handler</code>所在的位置。但是现在<code>__alltraps</code>已经在虚拟内存中被我们映射到最高页去了，也就是说我们实际运行代码的时候是在下面这一段内存中。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># gdb</span><br><span class="line">&gt;&gt;&gt; x &#x2F;20i $pc-10</span><br><span class="line">   0xfffffffffffff054:  ld      sp,280(sp)</span><br><span class="line">   0xfffffffffffff056:  csrw    satp,t0</span><br><span class="line">   0xfffffffffffff05a:  sfence.vma</span><br><span class="line">&#x3D;&gt; 0xfffffffffffff05e:  jr      t1 </span><br><span class="line"></span><br><span class="line">&gt;&gt;&gt; p &#x2F;x $t1</span><br><span class="line">$9 &#x3D; 0x8020911c</span><br></pre></td></tr></table></figure>
+
+<p>很明显如果这里跳转到$pc+offset$的话，并不是跳到位于正常代码段的<code>trap_handler</code>。所以我们要将这里换成寄存器跳转，将<code>trap_handler</code>的地址放到寄存器<code>t1</code>中，这样才能顺利地调用到<code>trap_handler</code>。</p>
+<p>也就是<a href="https://learningos.cn/rCore-Tutorial-Guide-2025S/chapter4/6multitasking-based-on-as.html?#term-trampoline" target="_blank" rel="noopener">指导书</a>中所说的</p>
+<blockquote>
+<p>跳转指令实际被执行时的虚拟地址和在编译器/汇编器/链接器进行后端代码生成和链接形成最终机器码时设置此指令的地址是不同的。</p>
+</blockquote>
+<h2 id="阶段三"><a href="#阶段三" class="headerlink" title="阶段三"></a>阶段三</h2><p>这个阶段正式接触到组件化操作系统<code>arceos</code>。</p>
+<h3 id="print-with-color"><a href="#print-with-color" class="headerlink" title="print_with_color"></a>print_with_color</h3><p>在调用路径上任意一个地方加入颜色代码就可以了，本身并不复杂，主要是了解arceos的结构。</p>
+<h3 id="support-hashmap"><a href="#support-hashmap" class="headerlink" title="support_hashmap"></a>support_hashmap</h3><p>考虑实现一个hashmap比较麻烦，直接引入<code>hashbrown</code>，将里面HashMap包到<code>collections</code>里面也可以通过。</p>
+<blockquote>
+<p>但是hashbrown默认依赖的hashfold库在no_std下所提供的RandomState是基于内存布局的，而非每次都随机<br>可能会带来一些安全性问题</p>
+</blockquote>
+<h3 id="alt-alloc"><a href="#alt-alloc" class="headerlink" title="alt_alloc"></a>alt_alloc</h3><p>实验要求实现一个<code>bump alloctor</code>，是一个比较简单的分配器，在给定的接口下实现就可以了</p>
+<h3 id="ramfs-rename"><a href="#ramfs-rename" class="headerlink" title="ramfs_rename"></a>ramfs_rename</h3><p>要求在给定的文件系统中实现rename的功能。看了测例中的注释仅要求在同级下重命名，不涉及移动。</p>
+<p>搞清楚了<code>VfsOps</code>和<code>VfsNodeOps</code>两个trait之后，在路径上把目录项的名字改掉就好了。</p>
+<h3 id="sys-map"><a href="#sys-map" class="headerlink" title="sys_map"></a>sys_map</h3><p>要求实现系统调用<code>mmap</code>。</p>
+<p>利用<code>task_ext</code>的<code>aspace</code>提供的接口就可以完成。通过<code>find_free_area</code>找到空闲的区域并通过<code>map_alloc</code>分配，然后将给定fd的数据读进来就可以通过了。需要注意一些接口有检查传入参数是否有对齐。</p>
+<h3 id="simple-hv"><a href="#simple-hv" class="headerlink" title="simple_hv"></a>simple_hv</h3><p>按照提示将<code>a0``a1</code>寄存器设置好，并将pc寄存器偏移以跳过当前指令即可。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>阶段三的任务总体来说比阶段二的时候来得要更简单，感觉主要还是了解<code>arceos</code>的架构以及<code>Unikernel</code>、<code>Monolithic Kernel</code>、<code>Hypervisor</code>的不同。并体会在不同的内核需求中，<code>arceos</code>是如何将不同的组件组合起来以达成需求的。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-NoahNieh/" rel="tag"># author:NoahNieh</a>
+              <a href="/blog/tags/repo-https-github-com-LearningOS-2025s-arceos-NoahNieh/" rel="tag"># repo:https://github.com/LearningOS/2025s-arceos-NoahNieh</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/04/24/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/" rel="prev" title="第二阶段rcore学习心得-胡旭">
+      <i class="fa fa-chevron-left"></i> 第二阶段rcore学习心得-胡旭
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/04/25/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-mingzi47/" rel="next" title="2025春夏季开源操作系统训练营前三阶段总结-mingzi47">
+      2025春夏季开源操作系统训练营前三阶段总结-mingzi47 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>
