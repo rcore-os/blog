@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="Day-2PagingWe delve into paging. Example1234567891011121314&#x2F;&#x2F;&#x2F; Physical address for pflash#1const PFLASH_START: usize &#x3D; 0x2200_0000;#[cfg_attr(feature &#x3D; &quot;axstd&quot;, no_mangle)]fn main() &amp;#123;    &#x2F;&#x2F; Make">
+<meta property="og:type" content="article">
+<meta property="og:title" content="arceos-handnote-2">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/04/27/day-2/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="Day-2PagingWe delve into paging. Example1234567891011121314&#x2F;&#x2F;&#x2F; Physical address for pflash#1const PFLASH_START: usize &#x3D; 0x2200_0000;#[cfg_attr(feature &#x3D; &quot;axstd&quot;, no_mangle)]fn main() &amp;#123;    &#x2F;&#x2F; Make">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-04-27T09:40:28.000Z">
+<meta property="article:modified_time" content="2025-04-27T04:08:33.647Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="2025春夏季开源操作系统训练营">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>arceos-handnote-2 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Day-2"><span class="nav-number">1.</span> <span class="nav-text">Day-2</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Paging"><span class="nav-number">2.</span> <span class="nav-text">Paging</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Example"><span class="nav-number">2.1.</span> <span class="nav-text">Example</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Task"><span class="nav-number">3.</span> <span class="nav-text">Task</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Example-1"><span class="nav-number">3.1.</span> <span class="nav-text">Example</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Message-Communication"><span class="nav-number">3.2.</span> <span class="nav-text">Message Communication</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Example-2"><span class="nav-number">3.3.</span> <span class="nav-text">Example</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">587</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">41</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">537</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          arceos-handnote-2
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2025-04-27 09:40:28 / Modified: 04:08:33" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="Day-2"><a href="#Day-2" class="headerlink" title="Day-2"></a>Day-2</h2><h2 id="Paging"><a href="#Paging" class="headerlink" title="Paging"></a>Paging</h2><p>We delve into paging.</p>
+<h3 id="Example"><a href="#Example" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Physical address for pflash#1</span></span><br><span class="line"><span class="keyword">const</span> PFLASH_START: <span class="built_in">usize</span> = <span class="number">0x2200_0000</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">    <span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">    <span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Try to access dev region [&#123;:#X&#125;], got &#123;:#X&#125;"</span>, va, *ptr);</span><br><span class="line">        <span class="keyword">let</span> magic = mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr);</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;&#125;"</span>, <span class="built_in">str</span>::from_utf8(&amp;magic).unwrap());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>PFlash</strong> is the simulation of flash memory of qemu. When qemu boot, it will automatically load file to fixed <strong>MMIO</strong>, and can be directly accessed.</p>
+<p><strong>Paging</strong>: <code>feature = [&quot;paging&quot;]</code> is the way to evoke virtual memory management tu support <code>MMIO</code>. Located in <code>axruntime</code>.</p>
+<p>The workflow would be:</p>
+<ul>
+<li>qemu fdt: from <code>0x0c00_0000</code> to <code>0x3000_0000</code>. Construct the space of device.</li>
+<li>SBI: from <code>0x8000_0000</code> to <code>0x8020_0000</code>. RISC-V <strong>Supervisor Binary Interface</strong>, it construct a interface for programming language to manipulate device level things.</li>
+<li>Kernel Image: from <code>0x8020_0000</code>. <code>_skernel</code> contains S-level things like static data, code etc… <code>_ekernel</code> is user thing.</li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[link_section = <span class="meta-string">".data.boot_page_table"</span>]</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> BOOT_PT_SV39: [<span class="built_in">u64</span>; <span class="number">512</span>] = [<span class="number">0</span>; <span class="number">512</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_boot_page_table</span></span>() &#123;</span><br><span class="line">    <span class="comment">// 0x8000_0000..0xc000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">2</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">    <span class="comment">// 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">	<span class="comment">// shift 10 bits to store flags</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">0x102</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_mmu</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> page_table_root = BOOT_PT_SV39.as_ptr() <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    satp::set(satp::Mode::Sv39, <span class="number">0</span>, page_table_root &gt;&gt; <span class="number">12</span>);</span><br><span class="line">    riscv::asm::sfence_vma_all();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Each entry of page table will map 1G(<code>0x4000_0000</code>) memory. From <code>0x8000_0000</code> to <code>0xc0000_0000</code> at <code>pgd_idx = 2</code> to <code>0xffff_ffc0_8000_0000</code> to <code>0xffff_ffc0_c000_0000</code> at <code>pgd_idx = 102</code>. This will map to a bigger range.</p>
+<h2 id="Task"><a href="#Task" class="headerlink" title="Task"></a>Task</h2><h3 id="Example-1"><a href="#Example-1" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> worker = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">	<span class="built_in">println!</span>(<span class="string">"Spawned-thread ..."</span>);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">	<span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">	<span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">	<span class="keyword">let</span> magic = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">		mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr)</span><br><span class="line">	&#125;;</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Ok</span>(s) = <span class="built_in">str</span>::from_utf8(&amp;magic) &#123;</span><br><span class="line">		<span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;s&#125;"</span>);</span><br><span class="line">		<span class="number">0</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		-<span class="number">1</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>Each task will be in concurrency and dispatched by strategy. If it’s blocked, it will be moved to <code>wait_queue</code> to wait. If it’s ready, it will be moved to <code>run_queue</code> which is scheduler to be dispatched.</p>
+<h3 id="Message-Communication"><a href="#Message-Communication" class="headerlink" title="Message Communication"></a>Message Communication</h3><h3 id="Example-2"><a href="#Example-2" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> q1 = Arc::new(SpinNoIrq::new(VecDeque::new()));</span><br><span class="line"><span class="keyword">let</span> q2 = q1.clone();</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker1 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ..."</span>);</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..=LOOP_NUM &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"worker1 [&#123;i&#125;]"</span>);</span><br><span class="line">        q1.lock().push_back(i);</span><br><span class="line">        <span class="comment">// <span class="doctag">NOTE:</span> If worker1 doesn't yield, others have</span></span><br><span class="line">        <span class="comment">// no chance to run until it exits!</span></span><br><span class="line">        thread::yield_now();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ok!"</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker2 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ..."</span>);</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(num) = q2.lock().pop_front() &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2 [&#123;num&#125;]"</span>);</span><br><span class="line">            <span class="keyword">if</span> num == LOOP_NUM &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2: nothing to do!"</span>);</span><br><span class="line">            <span class="comment">// <span class="doctag">TODO:</span> it should sleep and wait for notify!</span></span><br><span class="line">            thread::yield_now();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ok!"</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>Cooperative Scheduling</strong>: Each tasks kindly yield themselves or exit otherwise it will block everyone because the power of CPU occupation is ownned by each tasks.</p>
+<p><strong>Preemptive Scheduling</strong>: Each tasks will be automatically suspended by external condition: No lock, no device access; inner condition: run out of current time slice. We can use a <code>disable_count</code> to record this, even for multiple condition restriction, we can sum them up.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">axhal::irq::register_handler(TIMER_IRQ_NUM, || &#123;</span><br><span class="line">    update_timer();</span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"multitask"</span>)]</span></span><br><span class="line">    axtask::on_timer_tick();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Enable IRQs before starting app</span></span><br><span class="line">axhal::arch::enable_irqs()</span><br></pre></td></tr></table></figure>
+
+<p><code>on_timer_tick</code> will be trigger in time slice. When time ticker ticks, <code>run_queue</code> will check and suspend task if possible.</p>
+<p>We can make it more dynamic. Which means each task has priority and during the implementation of cpu, each task has a <code>vruntime</code> to be dynamically adjusted by <code>init_vruntime + (delta/weight(nice))</code> where <code>delta</code> and <code>nice</code> are dynamic adjustment number. <code>delta</code> will be incremented by <code>timer</code>, <code>weight(nice)</code> is actually the priority of the task. We ensure that task with lowest <code>vruntime</code> will be placed at top.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" rel="tag"># 2025春夏季开源操作系统训练营</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/04/27/day-3/" rel="prev" title="arceos-handnote-3">
+      <i class="fa fa-chevron-left"></i> arceos-handnote-3
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/04/27/day-1/" rel="next" title="arceos-handnote-1">
+      arceos-handnote-1 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

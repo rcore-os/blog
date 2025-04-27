@@ -184,14 +184,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">572</span>
+          <span class="site-state-item-count">587</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">40</span>
+        <span class="site-state-item-count">41</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
@@ -233,7 +233,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/09/blog-zhang722/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/21/rcore%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -247,7 +247,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2023/11/09/blog-zhang722/" class="post-title-link" itemprop="url">2023开源操作系统训练营一二阶段总结-zhang722</a>
+            <a href="/blog/2023/11/21/rcore%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">rcore训练营总结</a>
         </h2>
 
         <div class="post-meta">
@@ -257,14 +257,14 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-11-09 14:19:44" itemprop="dateCreated datePublished" datetime="2023-11-09T14:19:44+00:00">2023-11-09</time>
+              <time title="Created: 2023-11-21 19:16:40" itemprop="dateCreated datePublished" datetime="2023-11-21T19:16:40+00:00">2023-11-21</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
               </span>
 
           
@@ -278,96 +278,13 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="2023开源操作系统训练营一二阶段总结"><a href="#2023开源操作系统训练营一二阶段总结" class="headerlink" title="2023开源操作系统训练营一二阶段总结"></a>2023开源操作系统训练营一二阶段总结</h1><h2 id="Lab1"><a href="#Lab1" class="headerlink" title="Lab1"></a>Lab1</h2><p>Lab1要实现获取任务的信息，包括任务使用的系统调用及调用次数、系统调用时刻距离任务第一次被调度时刻的时长，实验内容比较简单，但是本章的知识点却是后几章的基础，需要深刻理解。因此关于Lab1的总结主要分为两部分：</p>
-<ol>
-<li>操作系统特权级切换及任务切换</li>
-<li>实验完成思路<h3 id="特权级切换及任务切换"><a href="#特权级切换及任务切换" class="headerlink" title="特权级切换及任务切换"></a>特权级切换及任务切换</h3><h4 id="特权切换"><a href="#特权切换" class="headerlink" title="特权切换"></a>特权切换</h4>对于rCore，特权切换发生在系统调用和中断前后，如下图所示：
-
-</li>
-</ol>
-<p>要实现特权级的切换，需要软硬件协同工作，主要包括两部分：</p>
-<ol>
-<li>Trap上下文的保存与恢复</li>
-<li>CSR寄存器的设置<br>对于Trap上下文的保存与恢复，主要有以下几步：</li>
-<li>系统初始化的时候，修改 stvec 寄存器来指向正确的 Trap 入口</li>
-<li>发生trap时，进入入口函数__alltraps，它做了以下几件事：<ol>
-<li>将栈指针指向内核栈</li>
-<li>在内核栈保存通用寄存器和CSR寄存器</li>
-<li>调用trap_handler</li>
-</ol>
-</li>
-<li>调用完成后，调用__restore，它做以下几件事：<ol>
-<li>内核栈顶的 Trap 上下文恢复通用寄存器和 CSR</li>
-<li>将栈指针指向用户栈</li>
-<li>sret返回用户态</li>
-</ol>
-</li>
-</ol>
-<p>而任务切换不涉及特权级切换，是在进入到Trap之后，进一步进行的，主要有以下几步：</p>
-<ol>
-<li>A 在 A 任务上下文空间在里面保存 CPU 当前的寄存器快照</li>
-<li>B 任务上下文，根据 B 任务上下文保存的内容来恢复 ra 寄存器、s0~s11 寄存器以及 sp 寄存器</li>
-</ol>
-<h3 id="实验思路"><a href="#实验思路" class="headerlink" title="实验思路"></a>实验思路</h3><p>我们需要实现系统调用：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_task_info</span></span>(ti: *<span class="keyword">mut</span> TaskInfo) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
-<p>其中：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">TaskInfo</span></span> &#123;</span><br><span class="line">    status: TaskStatus,</span><br><span class="line">    syscall_times: [<span class="built_in">u32</span>; MAX_SYSCALL_NUM],</span><br><span class="line">    time: <span class="built_in">usize</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>我们需要获得syscall_times和time。</p>
-<ol>
-<li>syscall_times: 需要在任务控制块中加入用以记录系统调用及其次数的字段，并且暴露出一个可以更新这个字段的方法，然后在syscall函数里面，通过调用更新方法，维护调用次数。</li>
-<li>time：需要在任务控制块中加入用以记录时间的字段，每次调用某任务前，首先查看是不是第一次调用该任务，若是，则记录当前时间。</li>
-</ol>
-<h2 id="Lab2"><a href="#Lab2" class="headerlink" title="Lab2"></a>Lab2</h2><p>目前的操纵系统存在两个问题：</p>
-<ol>
-<li>用户程序可以通过物理内存修改其他用户程序的代码数据甚至内核的代码数据，这是非常不安全的。</li>
-<li>此外，由于用户程序的加载强依赖于物理地址，因此我们在编写用户程序的时候就需要考虑程序在物理内存中的布局以防止和其他用户程序和内核程序之前的重叠，这给用户程序编写者带来了极大的不便。<br>为了解决这两个问题，引入虚拟内存。对于虚拟内存如何翻译到物理内存，这部分比较简单，略过。对于OS代码中如何建立地址空间，着重讲一下，因此关于Lab2的总结主要分为两部分：</li>
-<li>地址空间</li>
-<li>实验完成思路<h3 id="地址空间"><a href="#地址空间" class="headerlink" title="地址空间"></a>地址空间</h3>如图为应用地址空间
-
-</li>
-</ol>
-<p>每一段我们抽象成一个MapArea，整个地址空间我们抽象成一个MapArea的数组。因此，建立地址空间就是建立一个个MapArea，然后push到数组里面。在这一章里，有一个很重要的细节点，就是RAII的思想，可以说是贯穿了操作系统内存管理的始终。</p>
-<h3 id="实验完成思路"><a href="#实验完成思路" class="headerlink" title="实验完成思路"></a>实验完成思路</h3><p>我们需要实现系统调用：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_mmap</span></span>(start: <span class="built_in">usize</span>, len: <span class="built_in">usize</span>, port: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
-<ol>
-<li>首先需要检查错误</li>
-<li>因为memory_set是暴露出来的，我们可以直接访问memory_set里面的相关方法进行一段连续内存的映射</li>
-</ol>
-<p>对于取消申请的系统调用，思想同上。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_munmap</span></span>(start: <span class="built_in">usize</span>, len: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
-
-<h2 id="Lab3"><a href="#Lab3" class="headerlink" title="Lab3"></a>Lab3</h2><p>这一章的重点是如何新建一个进程</p>
-<ol>
-<li>进程生成机制：这主要是指 fork/exec 两个系统调用。</li>
-<li>进程资源回收机制：当一个进程主动退出或出错退出的时候，在 exit_current_and_run_next 中会立即回收一部分资源并在进程控制块中保存退出码；而需要等到它的父进程通过 waitpid 系统调用（与 fork/exec 两个系统调用放在相同位置）捕获到它的退出码之后，它的进程控制块才会被回收，从而该进程的所有资源都被回收。<br>关于Lab3的总结主要分为两部分：</li>
-<li>进程生成</li>
-<li>实验完成思路</li>
-</ol>
-<h3 id="进程生成"><a href="#进程生成" class="headerlink" title="进程生成"></a>进程生成</h3><p>在内核中手动生成的进程只有初始进程 initproc ，余下所有的进程都是它直接或间接 fork 出来的。当一个子进程被 fork 出来之后，它可以调用 exec 系统调用来加载并执行另一个可执行文件。因此， fork/exec 两个系统调用提供了进程的生成机制。</p>
-<h4 id="fork"><a href="#fork" class="headerlink" title="fork"></a>fork</h4><p>fork主要做了以下几件事：</p>
-<ol>
-<li>复制父进程地址空间</li>
-<li>得到trap上下文物理地址页号</li>
-<li>分配pid及内核栈</li>
-<li>创建进程控制块</li>
-<li>添加子进程至父进程进行管理</li>
-<li>修改trap上下文中的kernel_sp使其指向新建的内核栈</li>
-</ol>
-<h4 id="exec"><a href="#exec" class="headerlink" title="exec"></a>exec</h4><p>exec主要做了以下几件事：</p>
-<ol>
-<li>从elf新建一个地址空间</li>
-<li>得到trap上下文物理地址页号</li>
-<li>更新地址空间</li>
-<li>更新trap上下文物理地址页号</li>
-<li>更新entry_point, user_sp</li>
-</ol>
-<h3 id="实验思路-1"><a href="#实验思路-1" class="headerlink" title="实验思路"></a>实验思路</h3><p>实现系统调用</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_spawn</span></span>(path: *<span class="keyword">const</span> <span class="built_in">u8</span>) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
-<p>结合exec和fork方法，糅合即可。</p>
-<p>实现系统调用</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// syscall ID：140</span></span><br><span class="line"><span class="comment">// 设置当前进程优先级为 prio</span></span><br><span class="line"><span class="comment">// 参数：prio 进程优先级，要求 prio &gt;= 2</span></span><br><span class="line"><span class="comment">// 返回值：如果输入合法则返回 prio，否则返回 -1</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_set_priority</span></span>(prio: <span class="built_in">isize</span>) -&gt; <span class="built_in">isize</span>;</span><br></pre></td></tr></table></figure>
-<p>只需在任务控制块里添加prio、pass、stride字段，将TaskManager里的VecQueue换成BinaryHeap，然后自定义任务控制块的比较方法，使其按照stride进行比较。然后自定义stride的比较方法，以处理溢出问题即可。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>学习rCore使我认识到，不论是rust还是操纵系统，我都还有很长的学习之路要走；写总结报告使我认识到，将一个论点清晰地展示给别人，是一件难度不亚于习得该论点的事情。如何高效学习，再如何简洁明了地教给别人，值得我长时间的思考。</p>
+          <h4 id="个人介绍"><a href="#个人介绍" class="headerlink" title="个人介绍"></a>个人介绍</h4><p>​        我本人是小学教育专业的初招定向师范生。小时候受到电影黑客帝国的感染，所以对于计算机从小就很向往。但在<strong><em>中</em></strong>考完之后，由于自己天真以及父母的建议就来了师范。大学期间也由于是定向的，不能转专业。大一开始就自学计算机了，后面也参加了一些程序设计竞赛以及区域赛，在我们这个普通师范学校里面倒是打赢我们这边计算机相关专业的所有学生。但由于纯粹自己自学，学习方法上存在很大的问题，过于急功急利等原因实际上自己水平还是很差，最好的奖项也就只有蓝桥杯B组国二。在报名这个之前的项目方面的经历只写过csapp的lab，以及xv6敲了前三个lab。但也因为学习方法的问题，真正吸收到的东西很少，lab很多也是借鉴参考答案完成的。在这之前操作系统的基础只有从xv6前三个实验get到的一些东西。然后我本身对于业务方面的东西也不是很感兴趣，所以也没怎么学习这相关的。</p>
+<h4 id="对于这次训练营的体会"><a href="#对于这次训练营的体会" class="headerlink" title="对于这次训练营的体会"></a>对于这次训练营的体会</h4><p>非常庆幸在当初在看群消息的时候，有群友提到了我们这个训练营。这几周的学习，我在操作系统方面还有个人的学习方法上改进了很多。在这之前我写lab的时候以及自己程序设计竞赛训练的时候，一开始的准备工作基本上都是先找到参考答案。然后在实际完成的时候会出现纠结于看不看答案的情况浪费时间，然后就是出现bug了，直接和参考答案逐行比对，而不是自己顺着代码思路找bug。这样子自己的编码和debug能力并没有提升上来，也没有体会到编程的乐趣。但这次rcore训练营没有参考答案。在第1个lab的时候，当时自己有点畏惧情绪，害怕出错。在完成了第三章的练习后，这种情绪才消减了。但在四章的学习过程中，我虽然之前写过xv6中对应的lab，但当时很多地方仍然是一知半解。在看文档的过程中，我陷入了细节的深渊。在很长的一段时间里面，我都是处于在看到这个函数的时候又想到某个问题，然后又去深究那个问题，然后在看那个问题的时候，又看到这个函数里面的细节不清楚，又去看这个函数的细节。如此反复。导致我的效率非常低下，且每一个问题都没有获得解答，看着每一个函数，脑海里面都是有点模糊，虽然脑海里面也有整体的大纲，但是对于细节来说很模糊。后面放下第四章，先去弄了第五章才意识到抽象出每个函数的接口，当看某个函数的逻辑时，对于它调用的函数里面的细节就可以暂时忽略，先有个大纲。</p>
+<p>在实际写lab的过程中，第一个lab还比较顺利。第二个lab：在写munmap的实现的时候，因为我在实现mmap的时候是直接调用的insert_framed_area 添加了一个逻辑段，然后在memory_set中也正好看到删除以某个start_va开始的逻辑段的函数。当时就在想能不能借鉴这个函数，munmap的实现就直接删除与传入的start_va和end_va相匹配的段。但是转头一想，如果这个start_va和end_va要是在某个段中间或者是跨越多个段，那岂不是不行了。就在想办法解决这个问题。但是当时的我由于过去都是借鉴参考答案，所以当时的第一反应就是能不能找到参考答案看它有没有想这么多。有点害怕自己去尝试，然后这个感觉代码量也有点大。但后面发现测试样例很简单，就没考虑那么多。但是这里我还没有克服自己内心的障碍，因为我当时还是去借鉴了其他人的仓库（当时意外得知还可以这样干），来确定自己的想法。但是在实现第三个lab的时候：我算是克服了自己的这一内心障碍。当时自己写完之后，一make test就报time out了，当时的第一反应也是参考答案借鉴。但这次我坚持自己debug，最后花了一天半的时间找到了这个bug，仅仅只是一个地方少了一行代码。就是sys_spawn系统调用里面没有运行add_task函数, 导致一直运行的时候timeout. 就一行代码差不多两天半时间. 还是通过逐行和最开始能运行起来的ch5分支的代码进行比对才找到. 之前一直都找错方向了, 没有想到是测试样例调用了sys_spawn出的错误. 然后调bug的时候还遇到了一个问题, 当我直接用checkout回到ch5的初始提交记录的时候, 它在os文件夹里面make run的时候会报链接出错. 这个也花了好长时间去找原因, 但最后还是没有找到. 最后是通过直接重新clone仓库, 然后把初始ch5里面的文件复制过来才成功.  当找完bug，所以test全部通过的那一刻，内心确实是挺激动。但如果是放在以前的话，我花了一天半结果就这么一行代码，别说激动了，在自己内心没把自己pua死已经算好的了，也正是因为这种急功近利的心态，自己过去也是疯狂参考答案，但参考完答案之后，又由于不完全是自己写的，其实内心也还是会内耗，觉得这玩意没弄一样。但这次至少还是感觉挺有成就感，算是克服了内心的一重障碍，并且这种不借鉴答案的学习方式让我对于知识点本身的理解，以及自己内心的舒服程度上升了很多很多，至少不会内耗了。</p>
+<p>这次rcore算是我真正意义上的入门lab。在完成这三个lab的过程中，我的完成速度再不断的加快，现在正在弄的第四个lab已经感觉比较得心应手了。之后也可以更加从容的面对其他lab。</p>
+<p>然后rcore训练营，本身也是一份非常非常nice的操作系统学习手册，让我对于操作系统的各个部分的认识也上了一层楼。</p>
+<p>rust 这门语言给我最大的感触就是它安全性，基本上所有可能出现的错误都帮你报错了，只要运行通过了很大程度上就不会有很大的问题，有也是逻辑上的问题了，不像c语言的指针，头大大的。然后它Option对于错误处理也非常nice。以及它的trait写起来很舒适，我在这之前并没有写过什么面向对象的项目，所以对于这个的认识可能也不是很深。</p>
+<p>这次由于本专业要去小学实习，在加上自己的拖拉, 生病，以及一系列问题，就导致知道现在才完成了。希望还有机会能够第三阶段及格。加油.</p>
 
       
     </div>
@@ -387,7 +304,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/07/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-14432222/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%88%98%E9%80%B8%E7%8F%91/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -401,7 +318,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2023/11/07/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-14432222/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-14432222</a>
+            <a href="/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%88%98%E9%80%B8%E7%8F%91/" class="post-title-link" itemprop="url">2023秋冬季开源操作系统训练营第三阶段总结报告_刘逸珑</a>
         </h2>
 
         <div class="post-meta">
@@ -411,82 +328,14 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-11-07 07:27:18" itemprop="dateCreated datePublished" datetime="2023-11-07T07:27:18+00:00">2023-11-07</time>
+              <time title="Created: 2023-11-20 19:26:16" itemprop="dateCreated datePublished" datetime="2023-11-20T19:26:16+00:00">2023-11-20</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2023开源操作系统训练营第二阶段总结报告-14432222"><a href="#2023开源操作系统训练营第二阶段总结报告-14432222" class="headerlink" title="2023开源操作系统训练营第二阶段总结报告-14432222"></a>2023开源操作系统训练营第二阶段总结报告-14432222</h1><h2 id="实验总结"><a href="#实验总结" class="headerlink" title="实验总结"></a>实验总结</h2><h3 id="lab1"><a href="#lab1" class="headerlink" title="lab1"></a>lab1</h3><p>本次实验要求我们实现一个sys_task_info来获取进程的信息。最开始的时候我的设计是在TASK_MANAGER中存放两个桶分别存放每项任务的调用次数和起始时间，查询运行时间时有当前时间减去起始时间即可得到系统调用时间。但由于调用次数会变化，而TASK_MANAGER是个静态变量。遂放弃调用次数的桶转而在TCB结构体中存放记录。</p>
-<h3 id="lab2"><a href="#lab2" class="headerlink" title="lab2"></a>lab2</h3><p>本次实验要求重写sys_get_time 和 sys_task_info，同时实现虚拟内存和物理内存的绑定与解绑。<br>由于虚拟储存机制的引用我选择了重写一个get_kernel_ptr的泛型函数获取物理内核中的指针。但是由于虚拟缓存机制的影响导致我的lab1中的起始时间桶出现了一些奇奇怪怪的问题，我又含泪放弃lab1的起始时间桶，选择把起始时间封装到TCB中。</p>
-<h3 id="lab3"><a href="#lab3" class="headerlink" title="lab3"></a>lab3</h3><p>万恶之源！！！和前面两个lab兼容性极差，刚切过去的时候让我怀疑人生，我lab2的代码根本找不到原本放置的位置。我需要重新找位置来存放一些函数。又让我重构了大部分lab2的代码。优先级设置较为简单，但还是出了点问题。最开始我是选择在任务队列里按顺序插入，fetch任务时在遍历队列找到stride最短的任务，但是我本地测试电脑风扇轰鸣了二十分钟也没出结果。经过参考其他大佬们的总结我决定在任务进入的时候按照stride长度进行插入，提前将队列有序。重构了代码之后才通过。</p>
-<h2 id="个人感想"><a href="#个人感想" class="headerlink" title="个人感想"></a>个人感想</h2><p>本次的rcore总结下来并不难，但在写的时候还是挺崩溃的。一是虽然有一阶段的rust语言的学习，但对于多个文件协同运作对我来说还是比较艰难的。二是由于对于测试方式的不太理解，导致我无法通过gdb进行调试，只能通过不断的打印信息来获取bug原因。三是几个lab的兼容较差，需要我们自行向前，没有类似于一些公开课的项目那种前面模块的测试通过之后后续基本可以不用改动前面模块的模式，心智负担极大，希望后续能有所改进。<br>最后很感谢训练营能为我们提供了这么一个学习平台，让我们有机会接触到操作系统比较底层的内容。让我们对操作系统有了更深刻的体会。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/%E5%AE%9E%E9%AA%8C%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/06/%E5%AE%9E%E9%AA%8C%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">实验总结报告</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-06 22:21:50" itemprop="dateCreated datePublished" datetime="2023-11-06T22:21:50+00:00">2023-11-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -494,7 +343,7 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/%E6%80%BB%E7%BB%93%E5%AE%8C%E6%88%90-lab1-lab3/" itemprop="url" rel="index"><span itemprop="name">总结完成 lab1 ~ lab3.</span></a>
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
                 </span>
             </span>
 
@@ -509,15 +358,67 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>我本人特别看好Rust语言及RISCV指令集架构的，所以也经常会查找一些相关的信息。在看到这次训练营之前，我在网上关注到了rCore的教程。之前也自己跟着教程学习过一段，那次是只完成了前两章，实现了在终端打印彩色字符串。和本次做实验不同的是那次是从 <code>cargo new r_core_study</code> 开始的。所以那时候看到彩色的字符串输出，还是很有成就感的。</p>
-<p>这是我之前学习的仓库连接：<a href="https://github.com/aLingYun/r-core-study" target="_blank" rel="noopener">https://github.com/aLingYun/r-core-study</a></p>
-<h3 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h3><p>第一阶段的难度还好，可能是因为我之前有学习过Rust，所以前大半部分的题很快就做完了。后面涉及到Rust的一些复杂特性，做起来要慢很多。需要不断的查教程，理解教程。也是很高效的学习过程。</p>
-<h3 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h3><p>由于工作关系，第二阶段的第一周基本上什么也没有做。第二周也基本上只有每天晚上十点之后可以学习。</p>
-<p>由于时间不较短，我的策略是先看实验题目。以实验题目为目标去看教程，所以速度还可以，但是对知识的理解程度应该会差一些。</p>
-<p>完成lab1之后又陷入没有时间学习的窘境，知道第二周周末，我跟让我的家人带孩子。自己全身心的去做剩下的lab2和lab3两个实验。</p>
-<p>那两天每天都是到凌晨1点以后。终于还是勉强完成code了，不过实验报告再也没时间写了。</p>
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>通过这次训练营的一二阶段，对Rust的理解加深了，尤其是对Rust在底层开发的应用。</p>
-<p>之前自学时，第三阶段开始感觉到困难，一直没有过这关。这次训练营帮助我跨了这关，所以真的感谢各位老师的辛苦付出。</p>
+          <h1 id="总结报告"><a href="#总结报告" class="headerlink" title="总结报告"></a>总结报告</h1><h2 id="逐练习报告"><a href="#逐练习报告" class="headerlink" title="逐练习报告"></a>逐练习报告</h2><h3 id="练习1：获取镜像大小，使loader能够根据对应信息能够自动识别文件大小"><a href="#练习1：获取镜像大小，使loader能够根据对应信息能够自动识别文件大小" class="headerlink" title="练习1：获取镜像大小，使loader能够根据对应信息能够自动识别文件大小"></a>练习1：获取镜像大小，使loader能够根据对应信息能够自动识别文件大小</h3><blockquote>
+<p>main 函数中，固定设置 app_size = 32，这个显然是不合理甚至危险的。<br>请为 image 设计一个头结构，包含应用的长度信息，loader 在加载应用时获取它的实际大小。</p>
+</blockquote>
+<p>一开始想要尝试类似于rcore中在链接脚本的特定位置保存数据并且通过build.rs脚本获取对应镜像大小然后再写入到链接文件中去的方法。</p>
+<p>后面想到这个方法会因为相互依赖问题而不容易解决，最原初的设想在于类似rCore的处理方案，在原初的链接脚本中保存一个位置用于存储应用程序大小，后面在loader中对于这个段的数据进行获取，但是这部操作实际上是需要在链接的时候完成的，即我还不知道最终生成的二进制文件的大小就要将其写入进去。（后面想了下可能还可以在外面手动修改这个段，但是有点麻烦了就没有使用）。</p>
+<p>在与邝劲强同学进行沟通的时候，发现其实可以用相对来说更加简单的方法来实现这个效果，即通过一个脚本实现了对于镜像文件大小的获取以及自动将代表对应文件大小的bin文件加载到对应的位置。这个地方特别感谢邝劲强同学分享的有关 <code>dd</code> 会相互覆盖，可以使用 <code>seek</code> 跳过一段的信息。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">APP_BIN_SIZE=$(<span class="built_in">stat</span> -c%s <span class="string">"./hello_app.bin"</span>)</span><br><span class="line"><span class="built_in">echo</span> <span class="variable">$APP_BIN_SIZE</span></span><br><span class="line"><span class="built_in">printf</span> <span class="string">"%04x"</span> <span class="variable">$APP_BIN_SIZE</span> | xxd -r -p &gt; ./size.bin</span><br><span class="line"></span><br><span class="line"><span class="comment"># Using Zero to fill the block to 32M(32Times, one times for 1M)</span></span><br><span class="line">dd <span class="keyword">if</span>=/dev/zero of=./apps.bin bs=1M count=32</span><br><span class="line"><span class="comment"># Add origin app into the end of the file (not cover)</span></span><br><span class="line">dd <span class="keyword">if</span>=./size.bin of=./apps.bin conv=notrunc       bs=1B seek=2</span><br><span class="line">dd <span class="keyword">if</span>=./hello_app.bin of=./apps.bin conv=notrunc  bs=1B seek=4</span><br><span class="line">mv <span class="variable">$BASE_DIR</span>/hello_app/apps.bin <span class="string">"<span class="variable">$BASE_DIR</span>/apps.bin"</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="练习2：-拓展image头结构，使之可包含两个应用。"><a href="#练习2：-拓展image头结构，使之可包含两个应用。" class="headerlink" title="练习2： 拓展image头结构，使之可包含两个应用。"></a>练习2： 拓展<code>image</code>头结构，使之可包含两个应用。</h3><p>通过对于 <code>hello_app</code> 的简单拷贝，可以实现第二个应用，这一步主要是在一开始的基础上拓展了头结构，但是由于这里没有提供对于更多应用程序的支持以及通过函数返回了文件大小埋了个坑（后面会提到）。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Input: The Name of Directory</span></span><br><span class="line"><span class="comment"># Output: The size of the binary image</span></span><br><span class="line"><span class="keyword">function</span> <span class="function"><span class="title">generateBinrary</span></span>() &#123;</span><br><span class="line">  <span class="comment"># Create Binrary</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="variable">$1</span></span><br><span class="line">  <span class="built_in">cd</span> <span class="string">"<span class="variable">$BASE_DIR</span>/<span class="variable">$1</span>"</span></span><br><span class="line">  <span class="built_in">echo</span> `<span class="built_in">pwd</span>`</span><br><span class="line">  cargo build --target riscv64gc-unknown-none-elf --release</span><br><span class="line">  <span class="comment"># remove symbol information</span></span><br><span class="line">  rust-objcopy --binary-architecture=riscv64 --strip-all -O binary ../../target/riscv64gc-unknown-none-elf/release/<span class="variable">$1</span> ./<span class="variable">$1</span>.bin</span><br><span class="line"></span><br><span class="line">  <span class="comment"># return size</span></span><br><span class="line">  <span class="built_in">return</span> $(<span class="built_in">stat</span> -c%s <span class="string">"./<span class="variable">$1</span>.bin"</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="built_in">cd</span> <span class="variable">$BASE_DIR</span></span><br><span class="line">hex1=$(<span class="built_in">printf</span> <span class="string">"%02x"</span> <span class="variable">$hello_app_size</span>)</span><br><span class="line">hex2=$(<span class="built_in">printf</span> <span class="string">"%02x"</span> <span class="variable">$hello_ebreak_size</span>)</span><br><span class="line">hex=<span class="string">"<span class="variable">$hex1</span><span class="variable">$hex2</span>"</span></span><br><span class="line"><span class="built_in">echo</span> -n <span class="variable">$hex</span> | xxd -r -p &gt; size.bin</span><br></pre></td></tr></table></figure>
+
+<h3 id="练习3：批处理形式运行两个单行代码应用-nop-和-wfi"><a href="#练习3：批处理形式运行两个单行代码应用-nop-和-wfi" class="headerlink" title="练习3：批处理形式运行两个单行代码应用 nop 和 wfi"></a>练习3：批处理形式运行两个单行代码应用 <code>nop</code> 和 <code>wfi</code></h3><p>这里有个小问题就是需要修改原始代码中给出的 <code>-&gt; !</code> 和 <code>options(noreturn)</code> 标志，以避免出现没有办法返回的情况。</p>
+<p>这个地方实际上实现的批处理并不是真正意义上的批处理，我在复用之前代码的时候出错了，这个问题在 <a href="https://github.com/jackyliu16/arceos/commit/5d04c0dc33070d22fbbf08346e902bb04c562af4" target="_blank" rel="noopener">lab2.5-commit</a> 中得到了修复。</p>
+<p>以下是当时提交的实现，基本上就是对之前的代码的直接复用。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> apps_start = PLASH_START <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>;</span><br><span class="line"><span class="keyword">let</span> byte = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">  core::slice::from_raw_parts(apps_start, size_of::&lt;<span class="built_in">u16</span>&gt;())</span><br><span class="line">&#125;;</span><br><span class="line"><span class="keyword">let</span> app_size_1 = <span class="built_in">u8</span>::from_be_bytes([byte[<span class="number">0</span>]]);</span><br><span class="line"><span class="keyword">let</span> app_size_2 = <span class="built_in">u8</span>::from_be_bytes([byte[<span class="number">1</span>]]);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">"size 1: &#123;app_size_1&#125;, size 2: &#123;app_size_2&#125;"</span>);</span><br><span class="line"></span><br><span class="line"><span class="built_in">println!</span>(<span class="string">"Load payload ..."</span>);</span><br><span class="line"></span><br><span class="line"><span class="built_in">println!</span>(<span class="string">"sizeByte: &#123;byte:?&#125;"</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> read_only_app1 = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">  core::slice::from_raw_parts(apps_start.offset(size_of::&lt;<span class="built_in">u16</span>&gt;() <span class="keyword">as</span> <span class="built_in">isize</span>),</span><br><span class="line">  app_size_1 <span class="keyword">as</span> <span class="built_in">usize</span></span><br><span class="line">)&#125;;</span><br><span class="line"><span class="keyword">let</span> read_only_app2 = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">  core::slice::from_raw_parts(apps_start.offset((size_of::&lt;<span class="built_in">u16</span>&gt;() + app_size_1 <span class="keyword">as</span> <span class="built_in">usize</span>) <span class="keyword">as</span> <span class="built_in">isize</span>),</span><br><span class="line">  app_size_2 <span class="keyword">as</span> <span class="built_in">usize</span></span><br><span class="line">)&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// println!("content: &#123;:?&#125;: ", code);</span></span><br><span class="line"><span class="built_in">println!</span>(<span class="string">"Load payload ok!"</span>);</span><br><span class="line"></span><br><span class="line"><span class="built_in">println!</span>(<span class="string">"Copy app ..."</span>);</span><br><span class="line"><span class="keyword">let</span> load_start = LOAD_START <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// load app 1</span></span><br><span class="line"><span class="keyword">let</span> load_app_1 = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">  core::slice::from_raw_parts_mut(load_start <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>, app_size_1 <span class="keyword">as</span> <span class="built_in">usize</span>)</span><br><span class="line">&#125;;</span><br><span class="line"><span class="keyword">let</span> load_app_2 = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">  core::slice::from_raw_parts_mut(</span><br><span class="line">    load_start.offset(app_size_1 <span class="keyword">as</span> <span class="built_in">isize</span>) <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>, </span><br><span class="line">    app_size_2 <span class="keyword">as</span> <span class="built_in">usize</span>)</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Copy App Data From ReadOnly Areas</span></span><br><span class="line">load_app_1.copy_from_slice(read_only_app1);</span><br><span class="line">load_app_2.copy_from_slice(read_only_app2);</span><br></pre></td></tr></table></figure>
+
+<h3 id="练习4：实现-SYS-TERMINATE"><a href="#练习4：实现-SYS-TERMINATE" class="headerlink" title="练习4：实现 SYS_TERMINATE"></a>练习4：实现 <code>SYS_TERMINATE</code></h3><p>这个练习没什么好说的，直接添加 <code>arceos_api</code> 然后再加到符号表里面实现一下功能就可以了</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">abi_terminate</span></span>() -&gt; ! &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"[ABI:TERMINATE]: Shutting Down !!!"</span>);</span><br><span class="line">    arceos_api::sys::ax_terminate();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="练习5：改造应用-hello-app"><a href="#练习5：改造应用-hello-app" class="headerlink" title="练习5：改造应用 hello_app"></a>练习5：改造应用 <code>hello_app</code></h3><p>在完成实验五的时候主要出现了几个超出意料而且有点摸不着头脑的情况，包括但不限于<code>a7</code>寄存器被修改，莫名其妙的镜像文件截断，主要的修复细节可以参考 <a href="https://github.com/jackyliu16/arceos/commit/5d04c0dc33070d22fbbf08346e902bb04c562af4" target="_blank" rel="noopener">批处理修复</a>，<a href="https://github.com/jackyliu16/arceos/commit/724adc85d0d928c3c5660fd4531fcf8ab3fbff7d" target="_blank" rel="noopener">多道程序支持</a>，<a href="https://github.com/jackyliu16/arceos/commit/d22cd5eb32497326a197e7d4a8279a1cfb74358e" target="_blank" rel="noopener">返回值错误修复</a>，<a href="https://github.com/jackyliu16/arceos/commit/4809df00a75668b51f058438f8f5d2f1b2ce506e" target="_blank" rel="noopener">拷贝错误修复</a>，<a href="https://github.com/jackyliu16/arceos/commit/c2ecc350cd360186c623a7338497fb72e4f3ff39" target="_blank" rel="noopener">寄存器错误修复</a> 等具体 <code>commit</code>。</p>
+<p>本任务的主体部分实际上与之前的<code>exec2.4</code>没有什么特别的差异，主要的难点在于<code>puts</code>的实现实际上调用了迭代器的功能，同时这还牵涉到由于字符串实现中&amp;str的链接问题。</p>
+<p>1.由于在操作中使用了字符串，但是字符串被放置在<code>rodata</code>段，在默认链接情况下<code>rodata</code>段实际上位于<code>.text</code>段前面，这会违背我们以装载地址作为应用的起始运行地址的想法（jalr LOAD_ADDRESS）【在起始部分有一大串0】</p>
+<p>因此，需要手动实现一个类似的链接脚本（本处直接采用了rCore之前使用的链接脚本进行替代），添加<code>build.rs</code>编译脚本，给cargo添加了rust-args参数以选择我们自己做的链接脚本对于<code>hello_app</code>包进行链接。此处特别鸣谢赫森同学在群里分享的有关信息。</p>
+<p>2.在修改了链接脚本之后仍然会出现神奇的报错信息，经过修改 <code>MakeFile</code> 运行 <code>debug</code> 之后发生产生这个情况的原因在于程序的二进制文件被异常截断了，同时出现很神奇的文件大小不增反减的情况（如下图）。</p>
+<p><img src="/blog/.io//%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20231120200119.png" alt><br><img src="/blog/.io//%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20231120200133.png" alt><br><img src="/blog/.io//%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20231120200136.png" alt></p>
+<p>这跟我之前exec2.2实现的那个函数有直接的关联，或者说主要的问题就处在我使用的这个函数这里。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># exec 2.2 实现的函数</span></span><br><span class="line"><span class="keyword">function</span> <span class="function"><span class="title">generateBinrary</span></span>() &#123;</span><br><span class="line">  <span class="comment"># Create Binrary</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="variable">$1</span></span><br><span class="line">  <span class="built_in">cd</span> <span class="string">"<span class="variable">$BASE_DIR</span>/<span class="variable">$1</span>"</span></span><br><span class="line">  cargo build --target riscv64gc-unknown-none-elf --release</span><br><span class="line">  rust-objcopy --binary-architecture=riscv64 --strip-all -O binary ../../target/riscv64gc-unknown-none-elf/release/<span class="variable">$1</span> ./<span class="variable">$1</span>.bin</span><br><span class="line"></span><br><span class="line">  <span class="comment"># return size</span></span><br><span class="line">  <span class="built_in">return</span> $(<span class="built_in">stat</span> -c%s <span class="string">"./<span class="variable">$1</span>.bin"</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>王瑞康同学指出我的脚本代码中实际存在缺陷，问题主要出在我这个地方是通过bash函数的返回值来实现对于镜像文件大小的获取，但是实际上这个地方由于bash函数返回值限制在0~255位， 当添加了&amp;str之后的镜像文件大小实际上达到了将近4110，则会面临取模截断的情况，在这样情况下4110 % 256 = 13 最终导致了实际上只有13个字节的数据被成功加载到内存中来，最终导致了代码出现异常的截断情况。</p>
+<p>针对于这个情况，主要修复的方案在于通过echo + result=${}，外加事先转换成为十六进制。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Input: The Name of Directory</span></span><br><span class="line"><span class="comment"># Output: Hex Size of Binary </span></span><br><span class="line"><span class="keyword">function</span> <span class="function"><span class="title">generateBinary</span></span>() &#123;</span><br><span class="line">  <span class="comment"># echo "====================" $1 "===================="</span></span><br><span class="line">  <span class="comment"># Create Binrary</span></span><br><span class="line">  <span class="built_in">cd</span> <span class="string">"<span class="variable">$BASE_DIR</span>/<span class="variable">$1</span>"</span></span><br><span class="line">  cargo build --target riscv64gc-unknown-none-elf --release</span><br><span class="line">  <span class="comment"># remove symbol information</span></span><br><span class="line">  rust-objcopy --binary-architecture=riscv64 --strip-all -O binary ../../target/riscv64gc-unknown-none-elf/release/<span class="variable">$1</span> ./<span class="variable">$1</span>.bin</span><br><span class="line"></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">"<span class="variable">$(stat -c%s "./$1.bin" | xargs printf "%04x")</span>"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>在调试完成上述问题之后发现，在当前情况下仍然出现了 <code>panic</code>，经过调试之后发现，主要问题出现在 <code>a7</code> 寄存器被擦写。</li>
+</ol>
+<p>针对于这个问题，在之前的练习四多次调用同一个函数的时候也回出现类似的错误，当时进行修复的主要是在函数调用末尾添加了<code>unsafe { core::arch::asm!(&quot;ld    a7, {}), sym ABI_TABLE}</code>，在每一个可能使用到 <code>a7</code> 寄存器的地方手动添加一次寄存器，但是在使用迭代器的情况下，这种简单的处理方法并不奏效。根据群里面王瑞康同学分享的<code>clobber_abi(&quot;C&quot;)</code>，在应用程序调用<code>asm</code>的时候添加了这个操作就可以保持寄存器不变。</p>
+<h3 id="练习5：代码重构"><a href="#练习5：代码重构" class="headerlink" title="练习5：代码重构"></a>练习5：代码重构</h3><p>练习五的时候由于接受了赫森和邝劲强同学有关于当前脚本不能很好的适应多道程序加载的建议（裱糊匠操作太多），对于原先的脚本进行了重构，重构后仅需要以字符串形式在脚本中添加对应的应用名称，就可以自动将应用生成二进制文件放到一起。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 注：这个地方实际上搞错了PFLASH的具体位置，但是懒得改了</span><br><span class="line"># PFLASH 32M ]</span><br><span class="line"># PFLASH 32M ] [ NUM_OF_IMAGE ]</span><br><span class="line"># PFLASH 32M ] [    u16:2B    ] [ BYTE_LIST:4B*NUM_OF_IMAGE ] </span><br><span class="line"># PFLASH 32M ] [     2B + 4B * NUM_OF_IMAGE                 ] [  ] [  ] [  ]</span><br></pre></td></tr></table></figure>
+
+<p>这段主要实现的交过类似于前文中所实现的，具体包括生成应用程序脚本并且通过objcopy去除其中非必要的信息，通过echo的方式传递对应的数据。<br>用下文中的for循环包裹上面的这个函数，实现了将对应的app_name, app_size等数据保存在bash一维数组中的效果（方便后文调用）</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> name <span class="keyword">in</span> <span class="string">"<span class="variable">$&#123;app_names[@]&#125;</span>"</span>; <span class="keyword">do</span></span><br><span class="line">  <span class="built_in">echo</span> name: <span class="variable">$name</span></span><br><span class="line">  app_size=$(generateBinary <span class="variable">$name</span>)</span><br><span class="line">  app_sizes[<span class="string">"<span class="variable">$name</span>"</span>]=<span class="variable">$app_size</span></span><br><span class="line">  link+=<span class="variable">$&#123;app_size&#125;</span></span><br><span class="line">  NUM_OF_IMAGE=$(expr <span class="variable">$NUM_OF_IMAGE</span> + 1)</span><br><span class="line"><span class="keyword">done</span></span><br></pre></td></tr></table></figure>
+
+<p>根据上面获取到的对应size信息，自动生成有关于num和size的数据，并且分别生成十六进制二进制文件合并到原先的PFALSH空间中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> <span class="variable">$BASE_DIR</span></span><br><span class="line"><span class="built_in">printf</span> <span class="string">"%02x"</span> <span class="variable">$NUM_OF_IMAGE</span> | xxd -r -p &gt;num.bin <span class="comment"># <span class="doctag">NOTE:</span> not allow app &gt; 255</span></span><br><span class="line"><span class="built_in">echo</span> -n <span class="string">"<span class="variable">$&#123;app_sizes[@]&#125;</span>"</span> | xxd -r -p &gt; size.bin</span><br><span class="line"><span class="built_in">echo</span> <span class="string">"size.bin size: <span class="variable">$(stat -c%s "./size.bin")</span>"</span></span><br><span class="line"></span><br><span class="line">dd <span class="keyword">if</span>=/dev/zero   of=./apps.bin              bs=1M count=32</span><br><span class="line">dd <span class="keyword">if</span>=./num.bin   of=./apps.bin conv=notrunc </span><br><span class="line">dd <span class="keyword">if</span>=./size.bin  of=./apps.bin conv=notrunc bs=1B seek=2</span><br></pre></td></tr></table></figure>
+<p>然后，根据上文中保存的对应数据，自动生成其他的，涵盖包信息的二进制文件，并且逐个合并到前面的空间中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">start_offset=$((2 + 4 * <span class="variable">$NUM_OF_IMAGE</span>)) <span class="comment"># NUM_OF_IMAGE:2B + IMAGE_SIZE:4B * NUM_OF_IMAGE</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">"start_offset"</span> <span class="variable">$start_offset</span></span><br><span class="line"><span class="keyword">for</span> ((i=0; i&lt;<span class="variable">$&#123;#app_names[@]&#125;</span>; i++)); <span class="keyword">do</span></span><br><span class="line">  app_name=<span class="variable">$&#123;app_names[i]&#125;</span></span><br><span class="line">  app_size=<span class="variable">$&#123;app_sizes[i]&#125;</span></span><br><span class="line">  dd <span class="keyword">if</span>=<span class="string">"<span class="variable">$BASE_DIR</span>/<span class="variable">$app_name</span>/<span class="variable">$app_name</span>.bin"</span> of=./apps.bin conv=notrunc bs=1B seek=<span class="variable">$start_offset</span></span><br><span class="line">  start_offset=$((start_offset + app_size))</span><br><span class="line"><span class="keyword">done</span></span><br></pre></td></tr></table></figure>
+
+<p>在loader中，主要做出了如下改变：</p>
+<p>首先，根据当前的二进制布局，获取app_num作为总应用程序数量研判标准，获取对应各个应用程序sizes的区域</p>
+<p>let byte_num = unsafe { core::slice::from_raw_parts(apps_start, size_of::<u8>()) };<br>let app_num = u8::from_be_bytes([byte_num[0]]);</u8></p>
+<p>保存操作如下：</p>
+<p><del>其中需要特别注意到的是由于rust中的自动union操作（忘记叫啥名了，就是自动对齐），会对于u8,u16连续的情况下在u8之后补零</del></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Gain Each App Size</span></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> apps: [APP; MAX_APP_NUM] = [APP::empty(); MAX_APP_NUM];</span><br><span class="line"><span class="keyword">let</span> byte_apps_sizes = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">    <span class="comment">// <span class="doctag">NOTE:</span> BC Rust Internal structure autocomplete will fill vacancy, thus u16 rather than u8</span></span><br><span class="line">    core::slice::from_raw_parts(</span><br><span class="line">        apps_start.offset(size_of::&lt;<span class="built_in">u16</span>&gt;() <span class="keyword">as</span> <span class="built_in">isize</span>),</span><br><span class="line">        app_num <span class="keyword">as</span> <span class="built_in">usize</span> * size_of::&lt;<span class="built_in">u16</span>&gt;(),</span><br><span class="line">    )</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> head_offset = size_of::&lt;<span class="built_in">u16</span>&gt;() + app_num <span class="keyword">as</span> <span class="built_in">usize</span> * size_of::&lt;<span class="built_in">u32</span>&gt;();</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..app_num &#123;</span><br><span class="line">    <span class="keyword">let</span> i = i <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    apps[i] = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        APP::new(</span><br><span class="line">            apps_start.offset(head_offset <span class="keyword">as</span> <span class="built_in">isize</span>),</span><br><span class="line">            <span class="built_in">u16</span>::from_be_bytes([byte_apps_sizes[i * <span class="number">2</span>], byte_apps_sizes[i * <span class="number">2</span> + <span class="number">1</span>]]) <span class="keyword">as</span> <span class="built_in">usize</span>,</span><br><span class="line">        )</span><br><span class="line">    &#125;;</span><br><span class="line">    head_offset += apps[i].size;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>并且将其存储到结构体数组中：<br>结构体实现如下：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[derive(Clone, Copy)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">APP</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> start_addr: *<span class="keyword">const</span> <span class="built_in">u8</span>,</span><br><span class="line">    <span class="keyword">pub</span> size: <span class="built_in">usize</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> APP &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(start_addr: *<span class="keyword">const</span> <span class="built_in">u8</span>, size: <span class="built_in">usize</span>) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        <span class="keyword">Self</span> &#123; start_addr, size &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">empty</span></span>() -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        <span class="keyword">Self</span> &#123;</span><br><span class="line">            start_addr: <span class="number">0xdead</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>,</span><br><span class="line">            size: <span class="number">0</span>,</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> core::fmt::<span class="built_in">Debug</span> <span class="keyword">for</span> APP &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">fmt</span></span>(&amp;<span class="keyword">self</span>, f: &amp;<span class="keyword">mut</span> core::fmt::Formatter&lt;<span class="symbol">'_</span>&gt;) -&gt; core::fmt::<span class="built_in">Result</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.size == <span class="number">0</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">Ok</span>(());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        f.debug_struct(<span class="string">"APP"</span>)</span><br><span class="line">            .field(<span class="string">"start_addr"</span>, &amp;<span class="keyword">self</span>.start_addr)</span><br><span class="line">            .field(<span class="string">"size"</span>, &amp;<span class="keyword">self</span>.size)</span><br><span class="line">            .finish()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后通过一个for循环实现重复装载应用程序到指定地址</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LOAD APPLICATION</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..app_num &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"===================="</span>);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"= START OF APP &#123;i&#125; ="</span>);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"===================="</span>);</span><br><span class="line">    <span class="keyword">let</span> i = i <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    <span class="keyword">let</span> read_only_app =</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; core::slice::from_raw_parts(apps[i].start_addr, apps[i].size) &#125;;</span><br><span class="line">    <span class="keyword">let</span> load_app =</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; core::slice::from_raw_parts_mut(load_start <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>, apps[i].size) &#125;;</span><br><span class="line">    <span class="built_in">println!</span>(</span><br><span class="line">        <span class="string">"Copy App &#123;i&#125; data from &#123;:x&#125; into &#123;:x&#125;"</span>,</span><br><span class="line">        apps[i].start_addr <span class="keyword">as</span> <span class="built_in">usize</span>, LOAD_START</span><br><span class="line">    );</span><br><span class="line"></span><br><span class="line">    load_app.copy_from_slice(read_only_app);</span><br><span class="line"></span><br><span class="line">    trace!(<span class="string">"Original App: "</span>);</span><br><span class="line">    trace!(<span class="string">"&#123;i&#125;: &#123;read_only_app:?&#125;"</span>);</span><br><span class="line"></span><br><span class="line">    trace!(<span class="string">"Load App:"</span>);</span><br><span class="line">    trace!(<span class="string">"&#123;i&#125;: &#123;load_app:?&#125;"</span>);</span><br><span class="line"></span><br><span class="line">    register_abi(SYS_HELLO, abi_hello <span class="keyword">as</span> <span class="built_in">usize</span>);</span><br><span class="line">    register_abi(SYS_PUTCHAR, abi_putchar <span class="keyword">as</span> <span class="built_in">usize</span>);</span><br><span class="line">    register_abi(SYS_TERMINATE, abi_terminate <span class="keyword">as</span> <span class="built_in">usize</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Executing App &#123;i&#125;"</span>);</span><br><span class="line">    <span class="keyword">let</span> arg0 = <span class="string">b'c'</span>;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        core::arch::asm!(<span class="string">"</span></span><br><span class="line"><span class="string">        la      a7, &#123;abi_table&#125;</span></span><br><span class="line"><span class="string">        li      t2, &#123;run_start&#125;</span></span><br><span class="line"><span class="string">        jalr    t2"</span>,</span><br><span class="line">            clobber_abi(<span class="string">"C"</span>),</span><br><span class="line">            run_start = <span class="keyword">const</span> LOAD_START,</span><br><span class="line">            abi_table = sym ABI_TABLE,</span><br><span class="line">        )</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"APP &#123;i&#125; FINISH !!!"</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="练习6：应用虚拟空间"><a href="#练习6：应用虚拟空间" class="headerlink" title="练习6：应用虚拟空间"></a>练习6：应用虚拟空间</h3><p>基本上没什么好说的，对于<code>base2.5</code>的代码进行简单复用就可以实现。</p>
 
       
     </div>
@@ -537,7 +438,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/rcore2023-learning-blog/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Gege-Wang/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -551,7 +452,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2023/11/06/rcore2023-learning-blog/" class="post-title-link" itemprop="url">rcore2023_learning_blog</a>
+            <a href="/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Gege-Wang/" class="post-title-link" itemprop="url">2023秋冬季开源操作系统训练营第三阶段总结报告_Gege-Wang</a>
         </h2>
 
         <div class="post-meta">
@@ -561,15 +462,24 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-11-06 21:18:28" itemprop="dateCreated datePublished" datetime="2023-11-06T21:18:28+00:00">2023-11-06</time>
+              <time title="Created: 2023-11-20 18:28:07" itemprop="dateCreated datePublished" datetime="2023-11-20T18:28:07+00:00">2023-11-20</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
               </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
+                </span>
+            </span>
 
           
 
@@ -582,61 +492,82 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="2023rcore第二阶段学习总结和个人与计算机系统的漫游"><a href="#2023rcore第二阶段学习总结和个人与计算机系统的漫游" class="headerlink" title="2023rcore第二阶段学习总结和个人与计算机系统的漫游"></a>2023rcore第二阶段学习总结和个人与计算机系统的漫游</h1><h2 id="初识"><a href="#初识" class="headerlink" title="初识"></a>初识</h2><p>与 <a href="https://github.com/LearningOS" target="_blank" rel="noopener">rcore开源操作系统训练营</a> 的相识，算是一个很偶然的机会吧。我与计算机结识很晚，在我上大学后，才从一个对计算机连打字都不会的人到慢慢熟练使用以及熟悉各种技术的人。与操作系统(Linux)结识，是大一下学期的 计算机系统基础课(教程是那本鼎鼎大名的 <strong>深入了解计算机系统</strong>)，那节课开启了我Linux的漫游旅途。</p>
-<h2 id="兴趣"><a href="#兴趣" class="headerlink" title="兴趣"></a>兴趣</h2><p>在我刚接触计算机的时候，一直认为开发出一个web网站或者APP，就是一件特别特别酷的事情。在整个刚接触计算机的事情，写出一个web网页或者APP便是我一直想要做的事。但后来，大一结束的暑假，学习了一些这方面的技术，扒开了web的真实面目，便慢慢失去了很多兴趣，曾经很酷的事情，突然感觉很无味了。所幸的是，在这个时候，学校的 <strong>OS</strong> 课开了，杨老师是一名非常知识渊博、热爱体系结构的老师，他 <strong>OS</strong> 第一门课留给我们的作业便是</p>
-<blockquote>
-<p>下载linux内核源码，并往内核中添加自定义系统调用</p>
-</blockquote>
-<p>这算是我开启了我正式与操作系统内核接触的旅途。永远无法忘却第一次下载linux内核源码，然后编译的时候，满屏报错的电脑界面，特别是每次编译的时候，都会让我等待很久，几乎每次都是编译了三十多分钟，然后给我报错，如此循环往复……最后终于把代码编译完成。第一次进入<strong>kernel</strong> 目录下，进入代码里面，映入眼帘的是 <strong>Linus Torvalds</strong> 的大名，那是我第二次那么激动(第一次激动的时候是第一次敲出 “Hello, World”)。最后在各种操作之下，各种文件之间来回修改的条件下，我终于让自己自定义的一个系统调用成功运行了起来，那一瞬间，像是打开了潘多拉的魔盒，从此我开始对体系结构、操作系统方向的东西产生了很大兴趣，便也萌生了写一个OS的想法，从此整个想法，便一直根深蒂固着。</p>
-<h2 id="遇见rcore"><a href="#遇见rcore" class="headerlink" title="遇见rcore"></a>遇见rcore</h2><p>诚恳的说，我是因为心中那个根深蒂固的想法才会有机会遇见rcore，刚开始的时候，我其实知道的是 <strong>ucore</strong>, 后来因为个人非常喜欢c++，而某段的时间里，网上的各样信息都在告诉我 <strong>Rust</strong> 是c++的强大竞争者，<strong>Rust</strong> 是如何的安全，如何的高效。便萌发了我对这一门新型语言的兴趣。</p>
-<h3 id="Rust"><a href="#Rust" class="headerlink" title="Rust:"></a>Rust:</h3><p>第一次用Rust的时候，它的cargo便惊艳了我很久，用c++的时候，每次安装第三方包，亦或是换个平台，编译东西，都会让我折磨很久，总是在各种编译器之间的实现困惑，msvc有的特性，在gcc有时候却无法运行，有时候在gcc能够运行的东西，在clang也无法运行。同样让人痛苦的时候，c++20/c++23都出了很久了，但是不同编译器的支持却是层出不穷……。换到Rust，突然很多东西便让人清爽了许多。也便逐渐开始了学习Rust的旅途。</p>
-<h3 id="risc-v"><a href="#risc-v" class="headerlink" title="risc-v:"></a>risc-v:</h3><p>对于risc-v的了解，在开始rcore之前，我也只知道它是开源的，文档内容少(远没有X86和Arm那样内容复杂和繁冗)。后来了解了一下龙芯，<a href="https://oscpu.github.io/ysyx/" target="_blank" rel="noopener">一生一芯</a>等，便也对risc-v有了极大兴趣，恰逢此时，rcore便出现在了我面前。</p>
-<h3 id="rcore"><a href="#rcore" class="headerlink" title="rcore:"></a>rcore:</h3><p><a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/index.html" target="_blank" rel="noopener">rcore Book</a> 的娓娓道来，特别是以各种史前生物 来描述，增加了一番故事书的趣味。而<a href="http://learningos.cn/rCore-Tutorial-Guide-2023A/" target="_blank" rel="noopener">Guide</a>则能够快速地让我明白了代码地框架，每个文件，每个模块是什么样的功能。但无奈个人基础不好，所以大部分时间还是在看 Book。本次实验让我们实现操作系统核心的几个重要功能：</p>
-<ol>
-<li>多到程序与分时多道任务</li>
+          <h2 id="实验一-amp-实验二"><a href="#实验一-amp-实验二" class="headerlink" title="实验一 &amp; 实验二"></a>实验一 &amp; 实验二</h2><h3 id="实验问题"><a href="#实验问题" class="headerlink" title="实验问题"></a>实验问题</h3><p>练习 1：<br>main 函数中，固定设置 app_size = 32，这个显然是不合理甚至危险的。<br>请为 image 设计一个头结构，包含应用的长度信息，loader 在加载应用时获取它的实际大小。<br>执行通过。<br>练习 2：<br>在练习 1 的基础上，扩展 image 头结构，让 image 可以包含两个应用。<br>第二个应用包含唯一的汇编代码是 ebreak 。<br>如实验 1 的方式，打印出每一个应用的二进制代码。     </p>
+<h3 id="解题思路"><a href="#解题思路" class="headerlink" title="解题思路"></a>解题思路</h3><ol>
+<li>确定镜像头的内容<br>因为实验一二要将多个应用的二进制代码加载到 pflash 区域，所以为了更好的兼容和抽象，镜像的头应该包括：</li>
 </ol>
 <ul>
-<li>Lab1 需要完善系统调用。对于 sys_task_info 系统调用，我们在 TCP 添加相应字段处理即<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_task_info</span></span>(ti: *<span class="keyword">mut</span> TaskInfo) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">        <span class="keyword">unsafe</span>&#123;</span><br><span class="line">        *ti = TaskInfo&#123;</span><br><span class="line">            status:get_current_status(),</span><br><span class="line">            syscall_times:get_syscall_times(),</span><br><span class="line">            time : (get_time_us() - get_current_start_time()) / <span class="number">1000</span></span><br><span class="line"></span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>应用程序的个数</li>
+<li>每个应用程序的大小</li>
+<li>每个应用程序的起始地址<br>因此，最终确定的应用程序头如下：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">struct AppHeader &#123;</span><br><span class="line">    apps_num: usize,</span><br><span class="line">    app_size: Vec&lt;usize&gt;,</span><br><span class="line">    app_start: Vec&lt;*const u8&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
 </ul>
 <ol start="2">
-<li><p>虚拟内存管理  </p>
-<p> 这部分的内容中，为 Rcore 引入了虚拟内存，为地址空间加上了一层抽象，# 地址空间<br> 刚学计算机的时候，个人非常总喜欢将所有代码放在一个文件里，觉得分开各种代码很是麻烦。后来因为学习深入，开始对分离代码，抽象多了很多体会。特别是在学计算机网络的TCP/IP模型和操作系统的时候，对<strong>抽象，加层</strong>的思想确实是不断体会，不断明白了那句话“在计算机中，没有什么是不能加一层解决不了的”。现在来好好感受在ch4中的抽象加一层。</p>
+<li>确定镜像的加载办法<br>关于镜像的加载实际上在老师的示例代码中已经给出了，需要特别注意的是：<strong>pflash 要求的镜像大小必须是 32M，所以需要先生成一个 32M 的全零文件，再将二进制文件 dd 进去。</strong></li>
+</ol>
+<h3 id="解题方案"><a href="#解题方案" class="headerlink" title="解题方案"></a>解题方案</h3><ol>
+<li>首先确定镜像头的<br>在外部形成 pflash.img 镜像，包含应用的个数，每个应用的大小，每个应用的二进制文件<br>这使用一个脚本文件生成，镜像的生成办法在代码仓库：<a href="https://github.com/Gege-Wang/hello_app" target="_blank" rel="noopener">https://github.com/Gege-Wang/hello_app</a>。</li>
+</ol>
+<p>在 loader.rs 中建立一个 Appheader 结构体，并且从 pflash.img 中将 AppHeader 还原出来。<br>根据AppHeader 的信息加载每个应用。</p>
+<table>
+<thead>
+<tr>
+<th align="center">pflash</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">apps_num</td>
+</tr>
+<tr>
+<td align="center">app1_size</td>
+</tr>
+<tr>
+<td align="center">app2_size</td>
+</tr>
+<tr>
+<td align="center">…</td>
+</tr>
+<tr>
+<td align="center">appn_size</td>
+</tr>
+<tr>
+<td align="center">app1.bin</td>
+</tr>
+<tr>
+<td align="center">app2.bin</td>
+</tr>
+<tr>
+<td align="center">…</td>
+</tr>
+<tr>
+<td align="center">appn_bin</td>
+</tr>
+</tbody></table>
+<h3 id="需要解决的问题"><a href="#需要解决的问题" class="headerlink" title="需要解决的问题"></a>需要解决的问题</h3><p>在脚本文件中并没有指定二进制文件的顺序，这不合理，需要后期重构。<br>关于 rust 中各种类型的转换需要更加熟悉一些。</p>
+<h2 id="实验三"><a href="#实验三" class="headerlink" title="实验三"></a>实验三</h2><h3 id="实验问题-1"><a href="#实验问题-1" class="headerlink" title="实验问题"></a>实验问题</h3><p>批处理方式执行两个单行代码应用，第一个应用的单行代码是 nop ，第二个的是 wfi 。   </p>
+<h3 id="解题思路-1"><a href="#解题思路-1" class="headerlink" title="解题思路"></a>解题思路</h3><p>这个问题的关键是：<strong>如何执行第一个应用并且在第一个应用执行完成的时候开始执行第二个应用。</strong> 我在编译 nop 的时候发现应用大小是 4 ，然后内容是 [1, 0, 0, 0]，但是我瞄到群里先做出来的人的截图，都不是这个二进制，我感到很困惑。后来我开始想第一个应用结束之后怎么返回到 load.rs 然后继续执行。<code>jalr t2</code> 之后会保存下一条指令的地址，所以在应用一执行完之后返回就能回到 load.rs 这条指令。虽然我用这个方法能够做出来这个问题，但是却为后来的问题埋下了巨大的麻烦，事实证明，从应用返回这个方法需要非常多需要考量的地方，甚至可以说直接从应用返回是非常不可取的。</p>
+<h3 id="解题方案-1"><a href="#解题方案-1" class="headerlink" title="解题方案"></a>解题方案</h3><p>使用一个循环依次执行每个应用程序，在程序执行完之后加上 <code>ret</code> 指令返回。</p>
+<h3 id="需要解决的问题-1"><a href="#需要解决的问题-1" class="headerlink" title="需要解决的问题"></a>需要解决的问题</h3><p>或许要在外部实现一个批处理的程序，而不是由应用程序自己返回。</p>
+<h2 id="实验四"><a href="#实验四" class="headerlink" title="实验四"></a>实验四</h2><h3 id="实验问题-2"><a href="#实验问题-2" class="headerlink" title="实验问题"></a>实验问题</h3><p>本实验已经实现了1 号调用 - SYS_HELLO，2 号调用 - SYS_PUTCHAR，请实现 3 号调用 - SYS_TERMINATE 功能调用，作用是让 ArceOS 退出，相当于 OS 关机。   </p>
+<h3 id="解题思路-2"><a href="#解题思路-2" class="headerlink" title="解题思路"></a>解题思路</h3><p>虽然说这个好像是里面最简单的一个，但是我还是找了好几个来完成。我不太清楚 exit 和 terminate 是什么区别，其实我刚开始是用了 axtask 里面的 exit()来完成的，不知道退出号是什么，就那么随随便便退出了。感觉没什么底气，又开始搜索 terminate，还真的是有一个 axhal/misc 里面有一个terminate()，打印log 看起来比较正常了。</p>
+<h3 id="解题方案-2"><a href="#解题方案-2" class="headerlink" title="解题方案"></a>解题方案</h3><p>仿照 abi_hello 和 abi_putchar 实现就可以了。  </p>
+<h2 id="实验五"><a href="#实验五" class="headerlink" title="实验五"></a>实验五</h2><p><strong>特别感谢 @PeizhongQiu 的技术支持。</strong></p>
+<h3 id="实验问题-3"><a href="#实验问题-3" class="headerlink" title="实验问题"></a>实验问题</h3><p>按照如下要求改造应用 hello_app：   </p>
 <ol>
-<li><p>为什么要添加一层抽象层：</p>
-<ul>
-<li>从应用开发的角度看，需要应用程序决定自己会被加载到哪个物理地址运行，需要直接访问真实的物理内存。这就要求应用开发者对于硬件的特性和使用方法有更多了解，产生额外的学习成本，也会为应用的开发和调试带来不便</li>
-<li>从内核的角度来看，将直接访问物理内存的权力下放到应用会使得它难以对应用程序的访存行为进行有效管理，已有的特权级机制亦无法阻止很多来自应用程序的恶意行为。</li>
-</ul>
-</li>
-<li><p>该抽象层要完成的目标：</p>
-<ul>
-<li><p>透明 ：应用开发者可以不必了解底层真实物理内存的硬件细节，且在非必要时也不必关心内核的实现策略， 最小化他们的心智负担；</p>
-</li>
-<li><p>高效 ：这层抽象至少在大多数情况下不应带来过大的额外开销；</p>
-</li>
-<li><p>安全 ：这层抽象应该有效检测并阻止应用读写其他应用或内核的代码、数据等一系列恶意行为。</p>
-</li>
-</ul>
-</li>
+<li>把三个功能调用的汇编实现封装为函数，以普通函数方式调用。例如，SYS_PUTCHAR 封装为 fn putchar(c: char) 。    </li>
+<li>基于打印字符函数 putchar 实现一个高级函数 fn puts(s: &amp;str) ，可以支持输出字符串。      </li>
+<li>应用 hello_app 的执行顺序是：Hello 功能、打印字符串功能、退出功能。    </li>
 </ol>
-</li>
-<li><p>进程管理</p>
-<ul>
-<li>对于进程、程序、可执行文件等的了解更加深入了<ol>
-<li>进程是在操作系统管理下的程序的一次执行过程，程序是一个静态的概念。</li>
-<li>可执行文件是一张“蓝图”：一张编译器解析源代码之后总结出的一张记载如何利用各种硬件资源进行一轮生产流程的 <strong>蓝图</strong></li>
-<li>加载同一个可执行文件的两个进程也是不同的：它们的启动时间、占据的硬件资源、输入数据均有可能是不同的，这些条件均会导致它们是不一样的执行过程。</li>
-<li>对于创建进程需要fork()和exec()两个系统调用而不只是一个系统调用。两个组合更加灵活，fork是为了 exec 一个新应用提供空间，然后exec可以读取不同的elf文件，执行不同的操作。</li>
+<h3 id="解题思路-3"><a href="#解题思路-3" class="headerlink" title="解题思路"></a>解题思路</h3><p>封装成函数不困难，打印字符串也不困难，最困难的是第三个要求，完成这三项功能。<br>这里有一个重要的逻辑需要搞清楚。 ABI 是 Arceos 实现的，封装的函数是 应用 实现的。调用封装函数也是 应用 实现的。 整个的处理逻辑却是在 Arceos 的 load.rs 中实现的<br>从每一次 ABI 调用返回到 应用 的时候都需要返回到应用上一条指令的状态，这里有两个目的：一个是保存一些固定寄存器的值，比如 a7，另一个是保存封装函数的返回地址 ra。就像宏内核中系统调用需要保存上下文一样，ABI 调用的时候依旧需要保存上下文，这貌似是因为不是一个普通的函数调用，普通函数调用编译器会保存栈帧，不过这里需要自己保存，而按照怎样的规则保存是应用和操作系统约定的规范。       </p>
+<h3 id="解题方案-3"><a href="#解题方案-3" class="headerlink" title="解题方案"></a>解题方案</h3><p>我意识到要保存上下文，却没有想到一个好的办法， @PeizhongQiu 告诉我使用 clobber_abi(“C”)，能够保存上下文，并且在返回的时候恢复，这是一个非常好的消息，能够不费吹灰之力之力的完成后面的工作。不过这条命令做的事情也是需要进一步掌握的。</p>
+<h3 id="需要解决的问题-2"><a href="#需要解决的问题-2" class="headerlink" title="需要解决的问题"></a>需要解决的问题</h3><p>要清楚保存上下文发生的细节，才能完成应用程序二进制兼容的事情，这个问题很重要。</p>
+<h2 id="实验六"><a href="#实验六" class="headerlink" title="实验六"></a>实验六</h2><h3 id="实验问题-4"><a href="#实验问题-4" class="headerlink" title="实验问题"></a>实验问题</h3><ol>
+<li>仿照 hello_app 再实现一个应用，唯一功能是打印字符 ‘D’。    </li>
+<li>现在有两个应用，让它们分别有自己的地址空间。    </li>
+<li>让 loader 顺序加载、执行这两个应用。这里有个问题，第一个应用打印后，不能进行无限循环之类的阻塞，想办法让控制权回到 loader，再由 loader 执行下一个应用。    <h3 id="解题思路-4"><a href="#解题思路-4" class="headerlink" title="解题思路"></a>解题思路</h3>这里做完基础练习就没做什么改动就过了，为 APP 建立独立的页表，实现初始化和切换函数。在练习五的基础上进行加上独立的页表就可以了。</li>
 </ol>
-</li>
-</ul>
-</li>
-<li><p>文件系统(未完待续)</p>
-</li>
-<li><p>并发(未完待续)</p>
-</li>
-</ol>
-<p>但很可惜，因为个人基础和时间还有其他各种各样的原因，个人并没有完成五个实验，前面三个实验也只是勉强完成（虽然运行过了，但还是有很多东西之间还不明白）。接下来的时间，我将好好把先前没有弄明白的知识点再好好梳理一遍。并将继续做完还没有先前没有做完的工作。向训练营各位优秀的同学学习，以后要多写博客，多写博客(这次学到的一个优秀习惯)，及时梳理知识。纸上得来终觉浅，绝知此事要躬行！！！。</p>
+<h2 id="特别说明"><a href="#特别说明" class="headerlink" title="特别说明"></a>特别说明</h2><p>所有的代码实现都在仓库<a href="https://github.com/Gege-Wang/arceos" target="_blank" rel="noopener">https://github.com/Gege-Wang/arceos</a>，欢迎交流并提出指导意见。</p>
+<h2 id="实验总结"><a href="#实验总结" class="headerlink" title="实验总结"></a>实验总结</h2><p>非常开心参加 ArceOS unikernel 第三阶段的训练，在基础学习部分的训练大部分都是老师在指导书里给了详细的说明，石磊老师非常有耐心，助教老师也很给力，训练群里每个同学都很积极，让我感觉充满了动力。</p>
 
       
     </div>
@@ -656,7 +587,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lwshang/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lispking/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -670,7 +601,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lwshang/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-lwshang</a>
+            <a href="/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lispking/" class="post-title-link" itemprop="url">2023秋冬季开源操作系统训练营第三阶段总结报告_lispking</a>
         </h2>
 
         <div class="post-meta">
@@ -680,331 +611,14 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-11-06 18:56:05" itemprop="dateCreated datePublished" datetime="2023-11-06T18:56:05+00:00">2023-11-06</time>
+              <time title="Created: 2023-11-20 16:04:04" itemprop="dateCreated datePublished" datetime="2023-11-20T16:04:04+00:00">2023-11-20</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="rCore-OS-学习总结"><a href="#rCore-OS-学习总结" class="headerlink" title="rCore OS 学习总结"></a>rCore OS 学习总结</h1><p>本次训练营是 Rust 与操作系统的有机结合。我对 Rust 已经足够熟悉，因此侧重操作系统部分的第二阶段更加吸引我。</p>
-<p>从一个裸机程序开始，随着需求的复杂化，我们需要逐步添加各种系统调用的实现，最终完成了一个麻雀虽小五脏俱全的操作系统。</p>
-<h2 id="1-应用程序与基本执行环境"><a href="#1-应用程序与基本执行环境" class="headerlink" title="1. 应用程序与基本执行环境"></a>1. 应用程序与基本执行环境</h2><p>操作系统和应用一样都是软件程序。区别在于，操作系统需要几乎直接与硬件交互，不像普通应用程序可以使用标准库提供的各种功能，毕竟标准库构建在系统调用上，而系统调用又是由操作系统提供的。</p>
-<p>在操作系统与硬件之间还有一层 SBI (Supervisor Binary Interface)。在后续的编程实验中，我们直接使用编译好的 RustSBI BootLoader 二进制文件。</p>
-<p>RustSBI 规定了 OS 在内存中的位置，那么编译 OS 时需要调整链接器使其生成符合要求的内存布局。</p>
-<h2 id="2-批处理程序"><a href="#2-批处理程序" class="headerlink" title="2. 批处理程序"></a>2. 批处理程序</h2><p>操作系统最主要的作用就是运行应用程序，而且往往是多于一个应用。一种最直接的想法是把操作系统和多个应用打包在一起，输入计算机后，依次执行每一个应用。</p>
-<p>我们希望当应用出错时，操作系统可以继续执行剩余的其他任务。由此特权级机制被引入。</p>
-<h2 id="3-多道程序与分时多任务"><a href="#3-多道程序与分时多任务" class="headerlink" title="3. 多道程序与分时多任务"></a>3. 多道程序与分时多任务</h2><p>一个一个运行应用不够灵活，我们希望能够对多任务进行调度。那么必然就需要能够支持任务切换，即保存/加载上下文。</p>
-<p>调度则主要有两种情况：一是任务主动让出处理器，<code>sys_yield</code>；二是通过时钟中断定时触发任务的切换。</p>
-<h2 id="4-地址空间"><a href="#4-地址空间" class="headerlink" title="4. 地址空间"></a>4. 地址空间</h2><p>操作系统和应用全都直接访问物理地址通常是低效的。引入虚拟地址机制，让每个应用都拥有逻辑上连续的大量内存，可以使应用的编写更加灵活。</p>
-<p>RISC-V 64 平台采用了 SV39 多级页表机制，通过 <code>satp</code> CSR 来控制是否启用。</p>
-<h2 id="5-进程及进程管理"><a href="#5-进程及进程管理" class="headerlink" title="5. 进程及进程管理"></a>5. 进程及进程管理</h2><p>此前，所有任务都是操作系统直接管理的。我们很自然的会希望可以由任务来创建子任务，并且可以管理更多物理/虚拟资源。于是引入进程的概念。</p>
-<p>理解进程，最核心的就是相关的系统调用：<code>fork</code>, <code>exec</code> 和 <code>waitpid</code>。</p>
-<h2 id="6-文件系统与I-O重定向"><a href="#6-文件系统与I-O重定向" class="headerlink" title="6. 文件系统与I/O重定向"></a>6. 文件系统与I/O重定向</h2><p>文件可代表很多种不同类型的I/O 资源。狭义的文件系统可以对持久存储设备 (Persistent Storage) I/O 资源进行管理。</p>
-<p>这一节，我们第一次尝试将一组功能从内核中分离出来成为独立的库，交由内核引入使用。</p>
-<h2 id="7-进程间通信"><a href="#7-进程间通信" class="headerlink" title="7. 进程间通信"></a>7. 进程间通信</h2><p>进程间交换数据大大加强了程序的能力。实现进程间通信的主要方式之一是管道。</p>
-<h2 id="8-并发"><a href="#8-并发" class="headerlink" title="8. 并发"></a>8. 并发</h2><p>操作系统通过不断切换任务实现并发，因为进程间资源是相对隔离的，这种并发容易实现但开销较大。</p>
-<p>我们想要在进程内，共享资源的情况下实现低开销的并发，这就引入了线程的概念。</p>
-<p>一个进程的多个线程共享资源，但需要能互斥地访问资源，避免数据不一致。为此，我们可以用锁、信号量、条件变量等同步原语。</p>
-<h2 id="实验感想"><a href="#实验感想" class="headerlink" title="实验感想"></a>实验感想</h2><p>rCore 主要目标还是实现一个 Unix-like 的操作系统，编程实验也基本都是实现 Linux 最关键的一些系统调用。</p>
-<p>而 Unix/Linux 本就是与 C 语言一体的。这些 C 风格的系统调用接口，用 Rust 实现起来总是很奇怪，有种削足适履的感觉。</p>
-<p>我在思考，如果抛弃这些 C 风格的接口，从 Rust 出发重新设计接口，或许可以更好地利用 Rust 的众多优秀特性。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-eastwoodeer/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-eastwoodeer/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-eastwoodeer</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-06 17:58:50" itemprop="dateCreated datePublished" datetime="2023-11-06T17:58:50+00:00">2023-11-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="学习总结"><a href="#学习总结" class="headerlink" title="学习总结"></a>学习总结</h1><p>一直以来我对Rust表现出浓厚的兴趣，并且曾经写过一些小工具。在平时的学习中，我也尝试在操作系统方面进行一些探索，但一直没有找到Rust与操作系统如何结合的方法。</p>
-<p>从编程语言的角度来看，C语言更像是对汇编语言的一层语法糖，它天然适合操作硬件功能的开发，各种硬件概念可以很好地使用C语言进行抽象。然而，如何使用Rust来完成相同的任务一直让我感到困惑。通过这次的培训，我对使用Rust语言编写操作系统有了初步了解，感觉非常不错。以下是我得出的一些简单结论：</p>
-<ol>
-<li><p>内存安全：在编程活动中，内存安全问题往往难以调试且容易出现。当使用C语言时，不经意间引入内存安全问题的可能性很高，但在Rust中，由于有编译器的帮助，可以在编译阶段轻松地发现问题。</p>
-</li>
-<li><p>所有权系统和生命周期：它们帮助开发人员更好地控制变量的生命周期，尤其是全局变量。它迫使开发者思考如何使用和编写更安全的代码。</p>
-</li>
-<li><p>强类型系统：至少在安全代码的部分，可以很好地控制C语言中常见的运行时错误问题。</p>
-</li>
-<li><p>语言模块化设计：Rust的模块化设计使得能够更好地对系统进行抽象，将操作系统分解成各个组件，最后将它们组合在一起，使整体结构更加清晰。</p>
-</li>
-<li><p>文档系统和构建工具：工具如rustup和Cargo为文档查阅和工程构建提供了出色的基础设施服务。</p>
-</li>
-</ol>
-<p>当然，在学习过程中还遇到了一些问题，主要是因为对Rust语言本身的不够熟悉，有些用法与C语言仍存在较大区别，需要更多的练习和实践。Rust语言引入的高级功能实际上在使用上可能会带来一些成本，就像之前所提到的，C语言就像汇编的语法糖，可以直接操作硬件，而使用Rust则需要重新学习一些新的方法和技巧，学习曲线可能会较陡。</p>
-<h1 id="Lab总结"><a href="#Lab总结" class="headerlink" title="Lab总结"></a>Lab总结</h1><p>上周，我完成了前三个问题的编码工作，主要是体验了如何使用Rust编写操作系统，并发现了与C语言编写操作系统不同的地方。总的来说，这些都是操作系统的基础概念，在Rust语言的基础上进行了抽象和实现，我感受到了与C语言不同的体验。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/2023%E7%A7%8B%E5%86%ACrCore%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-huahuadeliaoliao/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/06/2023%E7%A7%8B%E5%86%ACrCore%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-huahuadeliaoliao/" class="post-title-link" itemprop="url"><2023秋冬rCore训练营第二阶段总结-huahuadeliaoliao></a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-06 15:08:21" itemprop="dateCreated datePublished" datetime="2023-11-06T15:08:21+00:00">2023-11-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="关于使用Apple-silicon-mac完成rcore实验的方法"><a href="#关于使用Apple-silicon-mac完成rcore实验的方法" class="headerlink" title="关于使用Apple silicon mac完成rcore实验的方法"></a>关于使用Apple silicon mac完成rcore实验的方法</h1><h2 id="1-选择docker会比vmware更好"><a href="#1-选择docker会比vmware更好" class="headerlink" title="1.选择docker会比vmware更好"></a>1.选择docker会比vmware更好</h2><pre><code>如果使用8g内存的m1 mac来做实验的话推荐使用docker来做，相较于vmware来说docker的内存占用会更低一些（8g内存开个虚拟机和vscode挂几个网页基本上就压力就变黄了，要是再挂着qq、微信可能会直接变红），另外我的vmwaretools安装了也无法正常使用，我想在虚拟机内使用宿主机代理折腾了几天也没能实现，但是在docker上就很容易成功，还有就是arm64linux的软件支持比较少（科学上网方面），docker上的环境配置见 https://docs.qq.com/doc/DWW1GZ3FQekx5dm9T 第24个</code></pre><h2 id="2-在mac上直接配置环境（不建议使用）"><a href="#2-在mac上直接配置环境（不建议使用）" class="headerlink" title="2.在mac上直接配置环境（不建议使用）"></a>2.在mac上直接配置环境（不建议使用）</h2><pre><code>官方的文档里说可以直接在m1 mac上跑rcore，我成功跑通了，首先需要下载和编译riscvtools，
-下载得科学上网并且非常耗费流量（我使用镜像失败了），编译这个过程得花费一到两个小时，我试过使用他们编译好的但是无法运行，具体步骤可以参考 https://cloud.tencent.com/developer/article/1939023  然后就是下载依赖 
-brew install gawk gnu-sed gmp mpfr libmpc isl zlib expat
-以及qemu建议选择qemu7.0.0（老版本qemu需要补丁 https://github.com/BASARANOMO/xv6-labs-2020/issues/1 ）
-接下来具体步骤可以参考实验书以及
-https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites
-make这步由于mac上的make只有老版本所以应该得使用gmake
-make -j$(nproc)   //这步需要先安装nproc，如果这步使用make报错了的话使用gmake
-接下来就可以克隆仓库运行了，跑ch1没有任何问题但是我运行后面几个实验的时候经常会遇到报错，网上也没有解决办法，所以不建议使用这个方法</code></pre><h1 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h1><pre><code>第一个实验要实现sys_task_info系统调用，首先在TaskControlBlock中添加syscall_times和start_time，同时在new中更新添加，接下来要实现系统调用次数信息的更新，我在内核的调度函数 run_next_task 中增加了一个简单的判断逻辑，以确定是否是进程的第一次被调度，并在需要时初始化 start_time。</code></pre><h1 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h1><pre><code>第二个实验需要重写 sys_get_time 和 sys_task_info, sys_get_time 的主要功能是获取当前时间并填充传递给系统调用的 TimeVal 结构。首先获取时间戳，然后将其转化为秒和微秒，填充到 TimeVal 结构中，最后将数据复制到用户空间的 ts 指针所指向的内存区域。sys_task_info 用于获取当前任务的信息，包括任务状态、系统调用次数和任务运行时间。首先通过相关函数获取这些信息，然后填充到 TaskInfo 结构中，最后将数据复制到用户空间的 ti 指针所指向的内存区域。</code></pre><h1 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h1><pre><code>第三个实验要实现 spawn 系统调用，首先，获取当前任务的控制块 task。使用 translated_str 函数将传递的路径 path 转化为字符串。检查是否可以找到与给定路径匹配的 ELF 数据，如果找到了 ELF 数据，就继续进行后续步骤，否则返回 -1。
-用 ELF 数据创建新的内存集合，为新进程分配一个进程 ID（PID）和一个内核堆栈。接下来创建一个新的任务控制块，该控制块包含了新进程的信息，如 PID、内核堆栈、内存集合等。将新任务控制块添加到当前任务的子任务列表中，表示当前任务是新任务的父任务。最后，将新任务添加到任务管理器中，并返回新任务的 PID。关于stride调度算法实现我参考了
-https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-ColdRain-Moro/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/06/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-ColdRain-Moro/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-ColdRain-Moro</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-06 11:33:34" itemprop="dateCreated datePublished" datetime="2023-11-06T11:33:34+00:00">2023-11-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2023rCore训练营二阶段总结"><a href="#2023rCore训练营二阶段总结" class="headerlink" title="2023rCore训练营二阶段总结"></a>2023rCore训练营二阶段总结</h1><h2 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h2><p>其实去年刚学 Rust 的时候就有看到这个训练营，感觉用 Rust 写操作系统很有意思，可惜当时没有任何操作系统和体系结构基础，有畏难情绪，所以没有参加。（现在看来其实当时就应该参加，rcore并没有想象中的那么难）</p>
-<p>今年正巧在刚做完 xv6 的时候再次看到了这个训练营，想着继续巩固 OS 知识的同时还能重温半年多没写的 Rust，就报名参加了本次训练营。</p>
-<p>可惜今年参加的时机并不怎么好，我本人已经找到了Android开发的实习，实习每天工作都挺忙的，只能周末抽时间看看录播，做做 lab。也许 Android 开发投入这么多精力学习 OS 算是有点不务正业，但我还是希望能够在本科阶段尽可能多的学习我感兴趣的 CS 知识。</p>
-<h2 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h2><p>ch3 还是很简单的，实现了一个系统调用计数和 task_info。所以这一个 lab 我的侧重于读实验源码。不得不说 rcore 跟 xv6 还是有很多不一样的地方的：</p>
-<ul>
-<li><p>ch3 还没有涉及到进程的概念，只是简单区分了分时任务。在做 xv6 时其实我一直在疑惑多线程应当怎样实现，因为在 xv6 中只有进程，并且也只实现了进程的调度。rcore 中对分时任务的区分使我豁然开朗，其实一个线程就是一个分时任务，而进程并不是分时任务，而只是一个存放资源的结构体罢了。</p>
-</li>
-<li><p>ch3 的实验代码实现中并没有一个 shell 用户程序，而是直接将程序分段直接加载到物理内存中执行。这个操作我觉得其实就是在裸机程序的基础上做了一些改良，这么看来相比于 xv6，rcore 确实是在教你从零开始实现一个操作系统。</p>
-</li>
-</ul>
-<h2 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h2><p>ch4 主要是学习了虚拟内存机制，其实之前学习 xv6 的时候就学得不太明白，这次算是整明白了。不过这个 mmap 相对于 xv6 那个 mmap 就比较简单了。让我比较惊讶的是 rcore 中能使用各种需要基于堆内存实现的容器（Vec，BTreeMap等）。</p>
-<h2 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h2><p>ch5其实难倒不难，就是需要把前面实验中实现的内容再实现一遍（直接 cherry-pick 代码不行，ch5 实验代码变化较大）感觉有点难受，并且遇到一些比较迷惑的问题时没有方法对源码进行调试（不知道是不是我没有找到，make debug似乎只能调试汇编代码）。</p>
-<p>spawn 其实就是 fork + exec，并且不需要复制父进程的内存空间，直接 new 一个新进程的内存空间，设置一下父进程然后直接加载 elf ，搞定后再 add_task 即可。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/05/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-lieck/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/05/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-lieck/" class="post-title-link" itemprop="url">2023秋冬季开源操作系统训练营总结-lieck</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-05 20:05:46" itemprop="dateCreated datePublished" datetime="2023-11-05T20:05:46+00:00">2023-11-05</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1012,7 +626,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
                 </span>
             </span>
 
@@ -1027,35 +641,131 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="023秋冬季开源操作系统训练营总结-lieck"><a href="#023秋冬季开源操作系统训练营总结-lieck" class="headerlink" title="023秋冬季开源操作系统训练营总结-lieck"></a>023秋冬季开源操作系统训练营总结-lieck</h1><p>在同学的推荐下，我报名参加了训练营。这次经历让我有了第一次通过代码来理解操作系统的感觉。在之前学校的课程中，我对操作系统的认识仅限于文字概念，如进程、页表和文件系统等。</p>
-<p>在具体的实验过程中，因为是第一次编写这类 Lab，一开始感觉非常难，但是完成后巩固和掌握了很多 OS 的知识，并且在实践中得到了很大的收益。</p>
-<h2 id="Lab1"><a href="#Lab1" class="headerlink" title="Lab1"></a>Lab1</h2><p>Lab1 需要完善系统调用。</p>
-<p>对于 <code>sys_task_info</code> 系统调用，我们在 TCP 添加相应字段处理即可。</p>
-<p>可能存在精度问题，这里我使用了 <code>get_time_us</code> 计算时间。</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">let us = get_time_us();</span><br><span class="line">let sec = us / <span class="number">1</span>_000_000;</span><br><span class="line">let usec = us % <span class="number">1</span>_000_000;</span><br><span class="line">let t = (sec &amp; <span class="number">0xffff</span>) * <span class="number">1000</span> + usec / <span class="number">1000</span>;</span><br></pre></td></tr></table></figure>
-
-
-<h2 id="Lab2"><a href="#Lab2" class="headerlink" title="Lab2"></a>Lab2</h2><p>这部分的内容中，为 Rcore 引入了虚拟内存。</p>
-<p>因为 Rcore 中分为内核页表和用户态页表，因此对于<code>sys_task_info</code> 系统调用我们不能直接通过修改参数来完成传值。需要将其转换为物理地址，而内核页表中的虚拟地址和内核地址是对应的。</p>
-<p>然后是实现 MMap，通过 VMA 实现。</p>
-<blockquote>
-<p>VMA 记录有关连续虚拟内存地址段信息。对每个 section ，都有一个 VMA 对象。</p>
-<p>例如对于 memory mapped file，存在一个 VMA 与之对应，其中包含了文件信息等</p>
+          <h1 id="ArceOS-Unikernel-总结报告"><a href="#ArceOS-Unikernel-总结报告" class="headerlink" title="ArceOS Unikernel 总结报告"></a>ArceOS Unikernel 总结报告</h1><p>不知不觉，ArceOS Unikernel 课程的学习已经过去了一半。回顾过去这两周，我深感学习过程中的磨砺与成长。感谢石磊老师的细心指导，从基础概念入手，让我们逐渐掌握 Unikernel 的奥秘。谁曾想到，Unikernel 的设计竟如此强大。每次回顾这个过程，我都会重新阅读<a href="https://mp.weixin.qq.com/s/-birTWw6kZQ9oyCzjTAntg" target="_blank" rel="noopener">陈渝老师的著作《像开发应用一样开发操作系统》</a>，从中汲取启示。我对操作系统可以如同应用一般，通过组件化思维实现感到震惊。过去曾听说过鸿蒙分布式部署等新闻，也阅读过一些关于鸿蒙的相关文章，但亲身参与组件化操作系统的学习，完全是不同于以往的体验。</p>
+<h2 id="课程总结"><a href="#课程总结" class="headerlink" title="课程总结"></a>课程总结</h2><blockquote>
+<p>第一周练习主要包含以下内容：</p>
 </blockquote>
-<p>mmap 收到范围和 <code>port</code> 后，判断是否冲突或参数错误，然后放入 VMA 数据结构中映射物理页。mummap 也是类似的操作。</p>
-<p>在此实验中，测试数据稍弱，并没有要求实现 VMA 分裂的操作。</p>
-<h2 id="Lab3"><a href="#Lab3" class="headerlink" title="Lab3"></a>Lab3</h2><p>Lab3 需要实现优先级调度和 <code>spawn</code> 系统调用。</p>
-<p><code>spawn</code> 系统调用是 fork 和 exec 的结合。可以分为两部分：</p>
-<ol>
-<li>参考 fork 创建新的进程，但新进程执行的首个函数的调用 exec 的操作</li>
-<li>fork 后的子进程执行的第一个操作，用于调用 <code>task.exec</code></li>
-</ol>
-<p>优先级调度较为简单，在 PCB 中维护 <code>stride</code> 和 <code>pass</code> 。</p>
 <ul>
-<li>调用 <code>suspend_current_and_run_next</code> 时增加当前进程的 <code>stride</code></li>
-<li>调用 <code>fetch</code> 会选择下一个要运行的进程，找到当前 <code>stride</code> 最小的进程即可。</li>
+<li>首先，通过彩色打印 “Hello World” 和支持 Hashmap 数据类型的示例，快速熟悉 ArceOS 架构</li>
+<li>接着，实现 early 内存分配算法，深入了解 ArceOS 的内存分配流程</li>
+<li>最后，将协作式调度算法 FIFO 改造为抢占式调度算法，为第一周的学习画上圆满句号</li>
 </ul>
-<p>因为不要求性能，我们可以简单的遍历的选择当前 <code>stride</code> 的值。</p>
+<p>通过本周学习对 ArceOS 的整体架构、内存分配及调度算法有更深入的了解。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2023/11/20/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-lispking/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/20/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/20/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" class="post-title-link" itemprop="url">2023开源操作系统训练营第三阶段项目一基本任务总结报告</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-20 14:05:55" itemprop="dateCreated datePublished" datetime="2023-11-20T14:05:55+00:00">2023-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Arceos-unikernel-summary"><a href="#Arceos-unikernel-summary" class="headerlink" title="Arceos unikernel summary"></a>Arceos unikernel summary</h1><h3 id="Exercise-1"><a href="#Exercise-1" class="headerlink" title="Exercise 1"></a>Exercise 1</h3><p>实验中 payload 中的 app.bin 文件是通过一系列工具组合编译处理打包而来的，在实验一中，只是用 objdump 工具将 elf 文件中的一些调试信息和元信息删除掉，并通过 dd 命令生成一个32M 的空文件并将应用放在空文件的开始位置，在 arceos 中 loader app 运行的时候，将镜像写入给 qemu 的 pflash 供 loader 访问。参考练习提示：“可以为镜像设置一个头结构”，并考虑到后面的练习会有在一个镜像中写入多个 app 的操作，可以想到这个头结构是在 “镜像制作” 过程中被结构的，也就是可以在 dd 命令生成的空 32M 镜像上做文章，而不需要深入到 hello_app 的编译和链接过程。所以可以考虑写一个脚本，计算编译处理过后的 bin 文件的大小，并将其写入到 32M 的空文件头部，作为这个镜像的头结构，并在后续镜像内存中写入 app 的数据。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> struct</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义头部结构</span></span><br><span class="line">header_format = <span class="string">'&gt;Q'</span>  </span><br><span class="line">header_size = struct.calcsize(header_format)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 读取原始应用程序二进制文件</span></span><br><span class="line"><span class="keyword">with</span> open(<span class="string">'test.bin'</span>, <span class="string">'rb'</span>) <span class="keyword">as</span> f:</span><br><span class="line">    app_data = f.read()</span><br><span class="line">app_size = len(app_data)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 计算应用程序大小</span></span><br><span class="line">print(app_size)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建新的二进制文件</span></span><br><span class="line"><span class="keyword">with</span> open(<span class="string">'test_app.bin'</span>, <span class="string">'wb'</span>) <span class="keyword">as</span> f:</span><br><span class="line">    <span class="comment"># 写入头部（包含应用程序大小）</span></span><br><span class="line">    f.write(struct.pack(header_format, app_size))</span><br><span class="line">    </span><br><span class="line">    <span class="comment"># 附加原始应用程序数据</span></span><br><span class="line">    f.write(app_data)</span><br></pre></td></tr></table></figure>
+
+<p>这是一个简单的 py 镜像处理脚本，对于一个单应用而言，头结构只需要存储一个整数，注意这里的头结构的数据存储的大小端顺序要和 loader 中解析 头结构 的代码要一致。这里选择大端序存储的 8 字节无符号整数，这样生成的镜像开头就会先存储一个 64 位的数据作为这个 app 的长度，可以用 xxd -ps 命令查看：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">root@08e03dc057f5:~/phease3/test_app/test4<span class="comment"># xxd -ps test_app.bin</span></span><br><span class="line">000000000000000e411106e422e00008730050100000</span><br></pre></td></tr></table></figure>
+
+<p>可以看到前 8 字节保存的数据为 app 的大小：14，在 loader 里面首先根据大端序读取镜像头，就可以知道 app 的实际大小了。</p>
+<h3 id="Exercise-2"><a href="#Exercise-2" class="headerlink" title="Exercise 2"></a>Exercise 2</h3><p>练习二需要在镜像中存在两个应用，完成练习一后思路便明朗了起来，直接在原先的 py 脚本上处理即可：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">- header_format = <span class="string">'&gt;Q'</span></span><br><span class="line">+ header_format = <span class="string">'&gt;QQ'</span> <span class="comment">#表示头结构存储了两个64位无符号整数（大端序）</span></span><br><span class="line"></span><br><span class="line">+ <span class="keyword">with</span> open(<span class="string">'nop.bin'</span>, <span class="string">'rb'</span>) <span class="keyword">as</span> f:</span><br><span class="line">+     app0_data = f.read()</span><br><span class="line">+ app0_size = len(app0_data)</span><br><span class="line"></span><br><span class="line">- f.write(struct.pack(header_format, app_size))</span><br><span class="line">+ f.write(struct.pack(header_format, app_size, app0_size))</span><br><span class="line"></span><br><span class="line">  f.write(app_data)</span><br><span class="line">+ f.write(app0_data)</span><br></pre></td></tr></table></figure>
+
+<p>在 loader app 中，解析出两个 app 的长度之后，即可计算出每个 app 的起始地址和长度，并打印相关数据即可。</p>
+<h3 id="Exercise-3"><a href="#Exercise-3" class="headerlink" title="Exercise 3"></a>Exercise 3</h3><p>按照练习二的思路，制作一个包含两个 app 的镜像，loader 复制解析每个 app 的长度和将 pflash 上的 app data 拷贝到内存。并分批次的将 app 的数据拷贝到内核可执行地址空间，来逐个运行 app。hello_app 通过编译器处理后，在 arceos unikernel 中，运行 app 等价于函数调用，而编译器在编译 app 的时候已经处理好了调用栈以及 ra 寄存器等，所以只需要 jalr 到 app 的开头，等待程序运行无误后便可将控制权转交给 loader ，运行在实验二的基础上，需要修改内联汇编的代码，将最后一行 <code>j    .</code> 删掉以保证程序正常运行。大致运行过程为从 loader app 将 hello_app 的内存载入到可读可写可执行的内存区域并跳转到该 app，运行完成后回到 loader app 接着这一流程载入并运行下一应用。</p>
+<h3 id="Exercise-4"><a href="#Exercise-4" class="headerlink" title="Exercise 4"></a>Exercise 4</h3><p>根据 arceos 的框架设计</p>
+<p><img src="https://rcore-os.cn/arceos-tutorial-book/assets/ArceOS.svg" alt="arceos arch"></p>
+<p>ax_terminate 功能在 axhal 模块被定义并通过 arceos_api 的 arceos_api::sys::ax_terminate 函数暴露给 app，loader app 要实现 terminate 调用需要引入 arceos_api crate，定义一个 abi_terminate 函数，在函数内部调用 arceos_api::sys::ax_terminate ，并在 abi_table 注册这个调用即可。这个实验实现较为简单，但是在这一步的时候 loader app 内部的 main 文件涵盖的内容太多了，所以就想到了模块化，新建了 parse 和 abi 文件，将处理镜像头结构的代码转移到 parse，abi 相关调用转移到 abi 文件。</p>
+<h3 id="Exercise-5"><a href="#Exercise-5" class="headerlink" title="Exercise 5"></a>Exercise 5</h3><p>在做练习五的时候，首先先尝试多次 abi 调用，将实验五的 main 函数的代码独立出来成为 putchar 函数：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">putchar</span></span>(c: <span class="built_in">char</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> arg0 = c <span class="keyword">as</span> <span class="built_in">u8</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">unsafe</span> &#123; core::arch::asm!(<span class="string">"</span></span><br><span class="line"><span class="string">        li      t0, &#123;abi_num&#125;</span></span><br><span class="line"><span class="string">        slli    t0, t0, 3</span></span><br><span class="line"><span class="string">        add     t1, t0, a7</span></span><br><span class="line"><span class="string">        ld      t1, (t1)</span></span><br><span class="line"><span class="string">        jalr    t1"</span>,</span><br><span class="line">        abi_num = <span class="keyword">const</span> SYS_PUTCHAR,</span><br><span class="line">        <span class="keyword">in</span>(<span class="string">"a0"</span>) arg0,</span><br><span class="line">    ) &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接着在 main 函数中多次调用 putchar 函数，制作成镜像后在 arceos 中运行，会报 LoadPageFault 错误。在进行了艰难的 debug 后，发现 a7 寄存器在第一次调用后，其值就失效了，猜测也许是在 print 调用中等过程导致这个寄存器的值发生了更改，而内联汇编编译过后 app 也并没有自动保存这个调用者寄存器，最终在尝试下，发现可以先将 abi_table 的地址先取出来作为一个全局的静态变量 ABI_TABLE_ADDRESS 中，然后在 putchar 函数中，先 ld 这个值的符号， 将这个值存储在一个临时寄存器中，再进行后续计算：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">putchar</span></span>(c: <span class="built_in">char</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> arg0 = c <span class="keyword">as</span> <span class="built_in">u8</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">unsafe</span> &#123; core::arch::asm!(<span class="string">"</span></span><br><span class="line"><span class="string">        li      t0, &#123;abi_num&#125;</span></span><br><span class="line"><span class="string">        slli    t0, t0, 3</span></span><br><span class="line"><span class="string">        ld      t2, &#123;abi_table&#125;</span></span><br><span class="line"><span class="string">        add     t1, t0, t2</span></span><br><span class="line"><span class="string">        ld      t1, (t1)</span></span><br><span class="line"><span class="string">        jalr    t1"</span>,</span><br><span class="line">        abi_num = <span class="keyword">const</span> SYS_PUTCHAR,</span><br><span class="line">        abi_table = sym ABI_TABLE_ADDRESS,</span><br><span class="line">        <span class="keyword">in</span>(<span class="string">"a0"</span>) arg0,</span><br><span class="line">    ) &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过反汇编命令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cargo objdump --release --target riscv64gc-unknown-none-elf --bin hello_app -- -d</span><br></pre></td></tr></table></figure>
+
+<p>反汇编发现 rust 若按照第一种方式，编译器会将代码编译为两次在一个寄存器中取值，然而这个值会在 abi 调用后失效。在交流群里询问才得知需要在内联汇编上加上一行 clobber_abi(“C”)，这时编译器会帮你自动加上某个 abi 的 function call 的 caller-saved 的寄存器会在内联汇编被使用的提示，从而会保证程序上下文寄存器的值在函数调用前后都有效。具体的 ref： <a href="https://doc.rust-lang.org/reference/inline-assembly.html" target="_blank" rel="noopener">https://doc.rust-lang.org/reference/inline-assembly.html</a>.</p>
+<p>在测试完多次 abi 调用没有问题后，封装了一个 puts 函数：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">puts</span></span>(s: &amp;<span class="built_in">str</span>) &#123;</span><br><span class="line">    s.bytes().for_each(|c| putchar(c <span class="keyword">as</span> <span class="built_in">char</span>))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Exercise-6"><a href="#Exercise-6" class="headerlink" title="Exercise 6"></a>Exercise 6</h3><p>我们看一下练习六的要求</p>
+<ol>
+<li>仿照 hello_app 再实现一个应用，唯一功能是打印字符 ‘D’。</li>
+<li>现在有两个应用，让它们分别有自己的地址空间。</li>
+<li>让 loader 顺序加载、执行这两个应用。这里有个问题，第一个应用打印后，不能进行无限循环之类的阻塞，想办法让控制权回到 loader，再由 loader 执行下一个应用。</li>
+</ol>
+<p>对于第一个要求：我们可以在练习二的基础上制作一个包含两个 app 的镜像，并可以在 loader 中读取 pfalsh 中的 app data。对于第三个要求顺序加载执行，我们的 parse 模块会解析每个 app 的起始地址和长度，按照练习三中提到的执行流程即可，且我们删掉了汇编中的 <code>j    .</code> ，以及在练习六种我们加上了 <code>clobber_abi(&quot;C&quot;)</code> 来保证寄存器在调用前后都有效，以保证程序正常返回到 loader，对于第二条要求，在第三条顺序执行加载的情况下可以得到保证。</p>
 
       
     </div>
@@ -1075,7 +785,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/05/2023%E7%A7%8B%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E5%B0%8F%E7%BB%93-r27153733/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/19/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Cptraser/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -1089,7 +799,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2023/11/05/2023%E7%A7%8B%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E5%B0%8F%E7%BB%93-r27153733/" class="post-title-link" itemprop="url">2023秋开源操作系统训练营第二阶段小结-r27153733</a>
+            <a href="/blog/2023/11/19/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E9%A1%B9%E7%9B%AE%E4%B8%80%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Cptraser/" class="post-title-link" itemprop="url">2023开源操作系统训练营第三阶段项目一基本任务总结报告-Cptraser</a>
         </h2>
 
         <div class="post-meta">
@@ -1099,14 +809,121 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2023-11-05 19:41:26" itemprop="dateCreated datePublished" datetime="2023-11-05T19:41:26+00:00">2023-11-05</time>
+              <time title="Created: 2023-11-19 14:05:55" itemprop="dateCreated datePublished" datetime="2023-11-19T14:05:55+00:00">2023-11-19</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-26 01:46:44" itemprop="dateModified" datetime="2025-04-26T01:46:44+00:00">2025-04-26</time>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="ArceOS-amp-Unikernel"><a href="#ArceOS-amp-Unikernel" class="headerlink" title="ArceOS &amp; Unikernel"></a>ArceOS &amp; Unikernel</h2><p>为了解决目前已有的 OS 存在的一些问题，比如内存安全问题、组件耦合问题、开发门槛高等，ArceOS 应运而生。其设计目标与理念是能够设计出面向智能物联网设备，安全、高性能、应用兼容性高的操作系统。</p>
+<p>其中存在一个 ArceOS 的实现 —— Unikernel，其核心思想就是将应用和OS设计为一体，OS 以库的形式存在。</p>
+<p>对于每个应用，选择一系列以实现的组件构成的 OS 来适配（组件化），也就是对于不同的应用而言可能会存在不同形态的 OS。</p>
+<p>Unikernel 是单应用、单地址空间、单特权级的形态。</p>
+<p>下面简单总结一下第三阶段基本任务的附加题部分的思路。</p>
+<h2 id="实验一"><a href="#实验一" class="headerlink" title="实验一"></a>实验一</h2><p>本实验实现了一个 app 名为 loader 的外部应用加载器，然后实现了两个外部应用，熟悉了编译生成和封装二进制文件的流程。</p>
+<p>本实验的难点在于头结构的设计以及封装命令的设计。</p>
+<p>头结构我设计成如下模式：</p>
+<blockquote>
+<p>app_num : u8</p>
+</blockquote>
+<blockquote>
+<p>app_size : u16 , app_content</p>
+</blockquote>
+<p>读取部分：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> start = PLASH_START <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>;</span><br><span class="line"><span class="keyword">let</span> apps_num = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> num = core::slice::from_raw_parts(start, <span class="number">1</span>);</span><br><span class="line">    num[<span class="number">0</span>]</span><br><span class="line">&#125;;</span><br><span class="line">...</span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> start_now = PLASH_START + <span class="number">1</span>;</span><br><span class="line">...</span><br><span class="line"><span class="keyword">let</span> size: &amp;[<span class="built_in">u8</span>] = <span class="keyword">unsafe</span> &#123; core::slice::from_raw_parts(start_now <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>, <span class="number">2</span>) &#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> apps_size = (((size[<span class="number">0</span>] <span class="keyword">as</span> <span class="built_in">usize</span>) &lt;&lt; <span class="number">8</span>) + size[<span class="number">1</span>] <span class="keyword">as</span> <span class="built_in">usize</span>) <span class="keyword">as</span> <span class="built_in">usize</span>; </span><br><span class="line"><span class="keyword">let</span> apps_start = (start_now + <span class="number">2</span>) <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>;</span><br><span class="line"><span class="keyword">let</span> code = <span class="keyword">unsafe</span> &#123; core::slice::from_raw_parts(apps_start, apps_size) &#125;;</span><br></pre></td></tr></table></figure>
+
+<p>封装命令一开始我只是简单的固定二进制文件大小后修改其中的参数，后面由于实验经常会修改外部应用导致大小极易变化，我就修改为自动计算封装，如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 编译外部应用1</span></span><br><span class="line"><span class="built_in">cd</span> hello_app</span><br><span class="line">cargo build --target riscv64gc-unknown-none-elf --release</span><br><span class="line">rust-objcopy --binary-architecture=riscv64 --strip-all -O binary target/riscv64gc-unknown-none-elf/release/hello_app ./hello_app.bin</span><br><span class="line"><span class="built_in">cd</span> ..</span><br><span class="line"><span class="comment"># 编译外部应用2</span></span><br><span class="line"><span class="built_in">cd</span> hello_app2</span><br><span class="line">cargo build --target riscv64gc-unknown-none-elf --release</span><br><span class="line">rust-objcopy --binary-architecture=riscv64 --strip-all -O binary target/riscv64gc-unknown-none-elf/release/hello_app2 ./hello_app2.bin</span><br><span class="line"><span class="built_in">cd</span> ..</span><br><span class="line"><span class="comment"># 拷贝全0 32M 到 apps.bin</span></span><br><span class="line">dd <span class="keyword">if</span>=/dev/zero of=./apps.bin bs=1M count=32</span><br><span class="line"><span class="comment"># 封装 app_num</span></span><br><span class="line">app_num=2</span><br><span class="line"><span class="built_in">printf</span> <span class="string">"<span class="variable">$(printf '%02x' $app_num)</span>"</span> | xxd -r -p | dd of=apps.bin conv=notrunc bs=1 seek=0</span><br><span class="line"><span class="comment"># 当前的该封装的位置</span></span><br><span class="line">start=1</span><br><span class="line"><span class="comment"># 封装第一个外部应用</span></span><br><span class="line">app_size=$(<span class="built_in">stat</span> -c %s ./hello_app/hello_app.bin)</span><br><span class="line"><span class="built_in">printf</span> <span class="string">"<span class="variable">$(printf '%04x' $app_size)</span>"</span> | xxd -r -p | dd of=./apps.bin conv=notrunc bs=1 seek=<span class="variable">$start</span></span><br><span class="line">start=$((<span class="variable">$start</span>+2))</span><br><span class="line">dd <span class="keyword">if</span>=./hello_app/hello_app.bin of=./apps.bin conv=notrunc bs=1 seek=<span class="variable">$start</span></span><br><span class="line">start=$((<span class="variable">$start</span>+<span class="variable">$app_size</span>))</span><br><span class="line"><span class="comment"># 继续封装第二个外部应用</span></span><br><span class="line">app_size2=$(<span class="built_in">stat</span> -c %s ./hello_app2/hello_app2.bin)</span><br><span class="line"><span class="built_in">printf</span> <span class="string">"<span class="variable">$(printf '%04x' $app_size2)</span>"</span> | xxd -r -p | dd of=./apps.bin conv=notrunc bs=1 seek=<span class="variable">$start</span></span><br><span class="line">start=$((<span class="variable">$start</span>+2))</span><br><span class="line">dd <span class="keyword">if</span>=./hello_app2/hello_app2.bin of=./apps.bin conv=notrunc bs=1 seek=<span class="variable">$start</span></span><br><span class="line">start=$((<span class="variable">$start</span>+<span class="variable">$app_size</span>))</span><br><span class="line"><span class="comment"># 移动封装完成的二进制文件到 ./arceos/payload 下</span></span><br><span class="line">mkdir -p ./arceos/payload</span><br><span class="line">mv ./apps.bin ./arceos/payload/apps.bin</span><br></pre></td></tr></table></figure>
+
+<h2 id="实验二"><a href="#实验二" class="headerlink" title="实验二"></a>实验二</h2><p>本实验较为简单，在原来的基础上修改外部应用的汇编指令以及 loader 改用批处理的方式加载外部应用即可。</p>
+<h2 id="实验三"><a href="#实验三" class="headerlink" title="实验三"></a>实验三</h2><p>本实验设计了一个可供外部应用调用的 ABI 接口，SYS_TERMINATE 直接调用 axstd::process::exit 即可，ArceOS 已经完成好了相应的接口。</p>
+<h2 id="实验四"><a href="#实验四" class="headerlink" title="实验四"></a>实验四</h2><p>本实验实现了对 ABI 接口函数的调用。</p>
+<p>但是本实验极容易出现奇怪的问题。</p>
+<p>因为本身需要使用到传入的 ABI 接口地址，还需要在外部应用内实现相应的调用，所以需要熟悉一些汇编指令。</p>
+<p>就拿我本身写的时候而言，当时在写 puts 函数的时候，调用了字符串切片的 chars 函数，但是由于这个函数用到迭代器的原因，出现了奇怪的寄存器问题，导致调用 ABI 函数返回时 RA 寄存器失效。后来改换为 as_bytes 才成功。</p>
+<p>然后是我帮同学解决的问题，他存在地址未映射的问题。后来我发现，是他是冒用 in(reg) 和 out(reg) 导致的，传入了 ABI 接口的地址导致调用函数的时候接口地址丢失，在第二次调用的时候就会访问未映射的地址。</p>
+<h2 id="实验五"><a href="#实验五" class="headerlink" title="实验五"></a>实验五</h2><p>本实验较为容易，只需要初始化地址空间以后，对于每一个外部应用调用 RUN_START 前切换地址空间即可。</p>
+<p>外部应用不能进行阻塞，我们需要修改 _start 函数的返回值为 ()，如下：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">_start</span></span>(abi_entry: <span class="built_in">usize</span>) -&gt; ()</span><br></pre></td></tr></table></figure>
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>第三阶段项目一的基础部分让我们熟悉了 Unikernel 的框架结构，并熟悉了调用一个函数的具体封装步骤。</p>
+<p>实现了彩色输出，移植了 HashMap，实现了一个基础的内存分配器，完成了 dtb 文件的解析和输出，修改原有的协作式调度算法fifo为抢占式调度算。</p>
+<p>还基本实现和理解了外部多应用、ABI接口函数和多地址空间的 Unikernel模式。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/18/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90OS%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94kouweilee/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/18/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90OS%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94kouweilee/" class="post-title-link" itemprop="url">2023秋冬季开源OS训练营第二阶段总结——kouweilee</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-18 20:40:02" itemprop="dateCreated datePublished" datetime="2023-11-18T20:40:02+00:00">2023-11-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
               </span>
 
           
@@ -1120,18 +937,268 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h2><p>一阶段的<code>rustlings</code>是挺好的rust入门题目，也是没有什么阻碍的完成了100道题。</p>
-<h2 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h2><h1 id="lab1"><a href="#lab1" class="headerlink" title="lab1"></a><code>lab1</code></h1><p>这一个lab没什么难度，实现<code>taskinfo</code>不需要太多<code>os</code>相关的知识。</p>
-<h1 id="lab2"><a href="#lab2" class="headerlink" title="lab2"></a><code>lab2</code></h1><p>这一个lab开始上强度了，需要弄懂很多<code>os</code>知识。</p>
-<p>关于<code>sys_get_time</code>和<code>sys_task_info</code>，题目有提到<code>splitted by two pages</code>问题，但是直接整个转换成物理地址写入也能过测试，</p>
-<p>我理解的处理<code>splitted by two pages</code>的方法是，对每一个字段，获取他的物理地址，然后写入。</p>
-<p>或者像<code>buffers</code>那样，直接逐字节拷贝进<code>Vec&lt;&amp;&#39;static mut [u8]&gt;</code>。</p>
-<p>不知道上面的方法是否正确。</p>
-<p>关于<code>mmap</code>和<code>munmap</code>，本来是想保存在<code>MemorySet.areas</code>下，但是考虑到回收的内存段可能是分配的内存段的子集，要实现<code>MapArea</code>的分裂，还有性能问题，</p>
-<p>就直接在<code>MemorySet</code>下挂一个<code>btree</code>管理了（感觉在<code>mmap</code>这种需求下抽象成<code>MapArea</code>反而是一种负担）。</p>
-<h1 id="lab3"><a href="#lab3" class="headerlink" title="lab3"></a><code>lab3</code></h1><p><code>lab3</code>感觉比<code>lab2</code>简单，<code>spwan</code>直接复用<code>TaskControlBlock::new</code>再进行一些操作，<code>stride</code>也是采用了简单的实现。</p>
-<p>本来想实现，即使<code>stride</code>溢出，也能选择正确的程序（无符号相减，结果转有符号与0比），因为时间问题直接用<code>u64</code>解决咕咕咕了。</p>
-<h1 id="补充"><a href="#补充" class="headerlink" title="补充"></a>补充</h1><p>感觉<code>test</code>还是少了。</p>
+          <h1 id="2023秋冬季开源OS训练营第二阶段总结报告"><a href="#2023秋冬季开源OS训练营第二阶段总结报告" class="headerlink" title="2023秋冬季开源OS训练营第二阶段总结报告"></a>2023秋冬季开源OS训练营第二阶段总结报告</h1><p>首先感谢各位老师和助教，为我们呈现了这样一部优秀的Rust-OS教程。我本人是北航计算机学院大四学生，大二上过使用C语言编写的MOS操作系统课程。第二次系统性地学习操作系统，让我对OS的基本概念、本质原理、Rust编程能力等有了很大的进步和提升。下面对我在各个Lab中的收获进行总结。</p>
+<h2 id="Lab1"><a href="#Lab1" class="headerlink" title="Lab1"></a>Lab1</h2><p>Lab1实际上引入了一个分时操作系统。该Lab较为简单，让我重新回顾了产生分时机制的原因以及具体实现。将任务分成多个时间片来执行，应用程序以为自己独占了整个CPU，是本章要理解的重点。</p>
+<h2 id="Lab2"><a href="#Lab2" class="headerlink" title="Lab2"></a>Lab2</h2><p>这章引入了地址空间的抽象，应用程序以为自己独占了整个物理内存。我在本章学习中首先回顾了内存管理的知识，由于大二操作系统课程是基于MIPS汇编，且不区分内核地址空间和用户地址空间，因此又花了些功夫学习riscv页表机制、跳板页面机制。</p>
+<h2 id="Lab3"><a href="#Lab3" class="headerlink" title="Lab3"></a>Lab3</h2><p>该章对进程的管理中规中矩，特色在于使用Rust语言编写，熟练了我对Rust的编程能力。</p>
+<h2 id="Lab4"><a href="#Lab4" class="headerlink" title="Lab4"></a>Lab4</h2><p>本章主要介绍了一种文件系统的实现。我大二学习的OS属于微内核操作系统，将文件系统作为了一个用户态进程，其他进程请求文件系统服务时是通过进程间通信IPC机制实现的。而rCore的文件系统则融入到内核中，分层性感觉更强，也让我对inode有了清晰的理解，原来就是文件系统底层辨识文件的标识。</p>
+<h2 id="Lab5"><a href="#Lab5" class="headerlink" title="Lab5"></a>Lab5</h2><p>还没时间做，想先进行第三阶段hypervisor的学习。</p>
+<h2 id="对Rust-OS的体会"><a href="#对Rust-OS的体会" class="headerlink" title="对Rust-OS的体会"></a>对Rust-OS的体会</h2><p>用Rust语言编写OS，让我体会最深的不是安全性，而是方便。以前用C写OS，要专门编写释放内存的函数，而用Rust，只需要一条drop命令，甚至不需要drop，待Arc的引用计数清零，整个结构体及所包含的所有内容，全部都会被回收，真是太方便啦。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/17/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-FuuuOverclocking/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/17/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-FuuuOverclocking/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-FuuuOverclocking</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-17 16:23:21" itemprop="dateCreated datePublished" datetime="2023-11-17T16:23:21+00:00">2023-11-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="2023-rCore-二阶段总结"><a href="#2023-rCore-二阶段总结" class="headerlink" title="2023 rCore 二阶段总结"></a>2023 rCore 二阶段总结</h1><p>非常感谢清华大学开放的 rCore 课程，一番体验下来后，我对 RISC-V 上的 OS 开发有了比较清楚的认知。<br>课程为了一步步引导学生理解 OS 的结构和功能，费了很大的功夫在 OS 从简单到复杂的渐进式的构建，以及<br>各种周边设施的建设上，再次表达对课程精心准备和无私开放的感谢！</p>
+<p>用 Rust 写 OS 是一件非常有趣的事情，传统上基建通常使用 C 语言，虽然它非常容易与汇编相对照，抽象<br>能力和整洁程度却不大理想。作为一门比 C 年轻了 30 多岁的语言，Rust 融入了许许多多现代的理论和特性，<br>在我看来，对于写 OS 来说比较突出的一点是，它的类型系统带来了更强的表达能力，而同时 RAII 思想的贯彻<br>有时也带来了一些挑战。</p>
+<h2 id="Chapter-2"><a href="#Chapter-2" class="headerlink" title="Chapter 2"></a>Chapter 2</h2><p>这一章介绍了经典的批处理系统。该系统区分特权级，但没有地址空间的保护，一个任务容易把其他任务的数据<br>写坏。</p>
+<h2 id="Chapter-3"><a href="#Chapter-3" class="headerlink" title="Chapter 3"></a>Chapter 3</h2><p>这一章介绍了分时多任务系统，任务通过定时器触发的中断来切换。</p>
+<h2 id="Chapter-4"><a href="#Chapter-4" class="headerlink" title="Chapter 4"></a>Chapter 4</h2><p>这一章增加了分页保护，内容一下子长了很多。</p>
+<p>不知为何，rCore 提供的 <code>os::timer::get_time_us</code> 在这一章的实现有问题，而上一章却没有。整数<br>乘除的顺序有误使得误差较大。</p>
+<p>在这一章额外做了一下 timer 设施的封装，模仿了 Rust 标准库的 <code>Instant</code> 和 <code>Duration</code>。</p>
+<p>rCore 的地址空间管理，以及相应的 syscall 设计的比较简单，我觉得这里使用区间树，不用 RAII 风格，<br>这样可能 API 和实现会更方便合理。</p>
+<h2 id="Chapter-5"><a href="#Chapter-5" class="headerlink" title="Chapter 5"></a>Chapter 5</h2><p>这一章围绕进程管理以及呈现给用户态的接口。</p>
+<p>按实验的要求，在进程被调度时为它的 stride 增加一个 pass，可能更合理的选择是在进程被切出时增加？<br>因为进程可能主动 yield，没有跑完一个时间片。CFS 调度器的设计看上去和这一算法的原理相似。</p>
+<p>实验中使用了 Rust 标准库中的二叉堆来管理就绪队列，开始思考 CFS 选择红黑树而不是二叉堆的原因。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/16/project1-sunny/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/16/project1-sunny/" class="post-title-link" itemprop="url">2023秋季开源操作系统训练营第三阶段总结报告test by OSLearning365</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-16 10:52:42" itemprop="dateCreated datePublished" datetime="2023-11-16T10:52:42+00:00">2023-11-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2023fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2023fall arceos unikernel</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="2023秋冬季开源操作系统训练营第三阶段总结报告"><a href="#2023秋冬季开源操作系统训练营第三阶段总结报告" class="headerlink" title="2023秋冬季开源操作系统训练营第三阶段总结报告"></a>2023秋冬季开源操作系统训练营第三阶段总结报告</h2><h3 id="成长路线"><a href="#成长路线" class="headerlink" title="成长路线"></a>成长路线</h3><h3 id="感想-收获"><a href="#感想-收获" class="headerlink" title="感想/收获"></a>感想/收获</h3><h3 id="建议"><a href="#建议" class="headerlink" title="建议"></a>建议</h3><h4 id="对训练营"><a href="#对训练营" class="headerlink" title="对训练营"></a>对训练营</h4><h4 id="对新学员"><a href="#对新学员" class="headerlink" title="对新学员"></a>对新学员</h4>
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/14/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-CatMe0w/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/14/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-CatMe0w/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-CatMe0w</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-14 23:13:28" itemprop="dateCreated datePublished" datetime="2023-11-14T23:13:28+00:00">2023-11-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/blog/" itemprop="url" rel="index"><span itemprop="name">blog</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>大概前阵子是和朋友聊天时，有人提到这么一个用Rust写的教学内核，产生兴趣后找来看了才发现训练营的存在。</p>
+<p>我用Rust已经有一段时间了，但多数时候是用来写应用层面的程序，比如web服务。我对操作系统的理解几乎停留在理论，也没有做过系统开发。得知有这么一个难得的机会，那自然不可错过了。</p>
+<p>我的文章中不会着重讲述开发的流程，但会更多地记录一些我自己遇到的比较独特的问题和经历，以及我个人的感想——我自认为我的技术实力是不如许多人的，如果你想找技术上的攻略心得，去看看别人吧。 😋</p>
+<h3 id="在二阶段前"><a href="#在二阶段前" class="headerlink" title="在二阶段前"></a>在二阶段前</h3><p>不巧的是，在一阶段开始之后不久，我就遇到了一些生活上的琐事。我很快发现自己没有多少时间可以投入到rCore中了。所幸，因为已经有Rust的经验，速通rustlings也只是一晚上的功夫。</p>
+<p>只是，可想而知之后的二阶段恐怕没这么容易了。</p>
+<h3 id="ch3：来自Apple的诅咒"><a href="#ch3：来自Apple的诅咒" class="headerlink" title="ch3：来自Apple的诅咒"></a>ch3：来自Apple的诅咒</h3><p>训练营的rCore（Guide）其实已经是rCore Tutorial的再度简化版，但即便如此，第一个任务ch3还是打得我措手不及。</p>
+<p>此前我对操作系统的理解是泛泛的，大致知道操作系统具备哪些东西，最深入的理解也只是本科课程作业中用C编写的调度算法模拟演示。对于一个真正的操作系统，该从哪里开始都不知道，比如说，在no_std的世界中，stdout从哪里来？怎么在屏幕上渲染出日志？（遗憾的是rCore并没有回答这个问题，SBI完成了这部分）</p>
+<p>要一次性消化这么多新东西并不容易，特别是当自己以为已经把Tutorial读得足够清楚了，一打开代码库时依旧觉得无从下手，不得不再次回到Tutorial啃。在这种状况下，我僵持了差不多一个星期才弄清楚ch3究竟应该怎样完成，或者说，代码究竟该写在哪。</p>
+<p>然而，在功能完成后，我的代码出现了一个难以理解的错误：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Panicked at src&#x2F;bin&#x2F;ch3_sleep.rs:16, assertion failed: current_time &gt; 0</span><br></pre></td></tr></table></figure>
+
+<p>有很多人遇到了get_time_ms和get_time_us的精度问题，但我很确定我的问题不属于此类——就算我的电脑再怎么快，get_time也绝对不可能是0。</p>
+<p>在反复重写了几个不同的实现方式之后，我开始留意到一个惊愕的事实：“get_time为0”这个错误是否发生，在时间上不均匀。</p>
+<p>有的时候随便改动一两行代码，第一次编译可以通过测试，但第二次之后就会遇上这个错误。</p>
+<p>在探索到深夜时，我发现在get_time加上一个println，就能把这个错误的发生概率降到零。</p>
+<p>Commit, push, CI… Run failed.</p>
+<p>那，把这个println删了试试吧。删除之后，在我的机器上又不能通过测试了，但出于好奇，我还是把这个commit推到了远程。</p>
+<p>这一次，测试通过了。</p>
+<p>这是一个只会在我的机器上出现的错误。</p>
+<p>我使用的是QEMU 8，当然也更换了最新的pre-release RustSBI，但这……我确实没看到有其他人遇到这种问题，也无法理解。</p>
+<p>那么只剩下一种可能了……Apple Silicon。</p>
+<h3 id="ch4：困难模式"><a href="#ch4：困难模式" class="headerlink" title="ch4：困难模式"></a>ch4：困难模式</h3><p>虽然已经在ch3得到了教训，我还是没有在第一时间更换Linux虚拟机。我想着，时间已经不多了，同样的问题，或者更诡异的问题出现之后再换虚拟机吧，还是想贪那两秒钟的编译时间。</p>
+<p>幸好，那来自Apple的诅咒之后再没发生过。</p>
+<p>然而ch4的难度直线上升，尤其是对我而言——我对页表一无所知。在ch4感觉到的压力，还有那种面对代码库不知所措的感觉，比ch3还要强烈得多。</p>
+<p>这时我已经萌生了打退堂鼓的想法，ch4无论是知识本身的难度还是任务难度都让我有点招架不住。</p>
+<p>不过，最终还是研究明白了ch4两个函数的实现方式，以及需要为它们补上的其他函数，虽然花的时间远比预期中长。</p>
+<h3 id="ch5：迟来的句号"><a href="#ch5：迟来的句号" class="headerlink" title="ch5：迟来的句号"></a>ch5：迟来的句号</h3><p>ch4完成后，二阶段原定的期限只剩下两天了，我那时还不知道通过的要求已经放宽到了ch5，在周末啃了ch5文档一天之后，我还是决定离开了。</p>
+<p>很遗憾，没能和你们一起走下去。</p>
+<p>……吗？</p>
+<p>在原定的期限一周之后，我发现还有人在冲击着二阶段。</p>
+<p>那么，来画上一个真正的句号吧。</p>
+<p>ch5的难度倒是下降了不少，大概也是因为已经对代码库更加熟悉了。在ch5上花的时间最多的地方竟然是在cherry-pick以前的代码上，花了不少时间手动处理合并冲突，直到能通过编译和通过BASE=1。至于实现两个功能倒是比较轻松愉快，毕竟，现在已经知道代码要加在哪了。</p>
+<h3 id="阶梯"><a href="#阶梯" class="headerlink" title="阶梯"></a>阶梯</h3><p>回过头看，在这个仓库上写的代码，好像真的不多。但是，对于一个未曾了解过操作系统本质的人，可以说是打开了新世界的大门。此刻，操作系统已经变得不再神秘，而rCore Tutorial同样也是值得反复精读的教材。</p>
+<p>最后，也感谢老师们提供的资源以及帮助。</p>
 
       
     </div>
@@ -1150,7 +1217,7 @@ https://hangx-ma.github.io/2023/07/07/rcore-note-ch5.html</code></pre>
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/41/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/41/">41</a><span class="page-number current">42</span><a class="page-number" href="/blog/page/43/">43</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/58/">58</a><a class="extend next" rel="next" href="/blog/page/43/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/41/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/41/">41</a><span class="page-number current">42</span><a class="page-number" href="/blog/page/43/">43</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/59/">59</a><a class="extend next" rel="next" href="/blog/page/43/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
