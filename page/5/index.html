@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">587</span>
+          <span class="site-state-item-count">588</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,108 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/24/2025%E6%98%A5%E5%A4%8F%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/24/2025%E6%98%A5%E5%A4%8F%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/" class="post-title-link" itemprop="url">2025春夏前三阶段总结-NoahNieh</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-24 11:23:32" itemprop="dateCreated datePublished" datetime="2025-04-24T11:23:32+00:00">2025-04-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="阶段一"><a href="#阶段一" class="headerlink" title="阶段一"></a>阶段一</h2><p>在原版的<code>rustlings</code>基础上加入了一些针对训练营需要的<code>unsafe</code>相关的知识和构建过程中<code>build.rs</code>的应用。属于比较基础的内容，跟着评测机一道道做过去就可以了。</p>
+<h2 id="阶段二"><a href="#阶段二" class="headerlink" title="阶段二"></a>阶段二</h2><p>这个阶段主要是通过基于<code>rust</code>编写操作系统内核<code>rcore</code>完成几个实验，借助实验理解一个具有进程/线程管理、内存管理、文件系统、进程间通信和提供了一定同步机制的内核是如何构成并运作起来的。</p>
+<p>比较印象深刻的有这么几个知识点：</p>
+<ul>
+<li>链接脚本与全局符号的使用</li>
+<li><code>Rust</code>的汇编嵌入</li>
+<li>第四章中，在使用分离内核空间的时候。通过设计跳板页来解决切换页表后指令执行的问题。<a href="#跳板">跳板页</a></li>
+<li>第六章了解了文件系统，了解了块设备的概念，对文件系统的各个抽象层有了一定的了解。</li>
+<li>第七、八章了解了操作系统是如何为应用提供同步原语的</li>
+</ul>
+<h3 id="跳板"><a href="#跳板" class="headerlink" title="跳板"></a>跳板</h3><p>由于<code>rcore</code>使用了分离内核空间的设计，所以在<code>Trap</code>的时候需要切换页表。但在切换页表之后，<code>pc</code>寄存器还是忠实的在其原来的位置自加到下一条指令，如果<code>内核内存空间</code>和<code>程序内存空间</code>对这段代码的映射不是在同一个位置的话，则会表现出来程序跳转到了别的地方执行的效果。因此需要设计一个跳板页，在虚存中将其映射到所有内存空间的最高页，确保在切换之后，也能正确运行下一条指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"># trap.S</span><br><span class="line">...</span><br><span class="line">    .section .text.trampoline</span><br><span class="line">    .globl __alltraps</span><br><span class="line">    .globl __restore</span><br><span class="line">    .align 2</span><br><span class="line">__alltraps:</span><br><span class="line">    csrrw sp, sscratch, sp</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"># linker.ld</span><br><span class="line">...</span><br><span class="line">    stext &#x3D; .;</span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text.entry)</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        strampoline &#x3D; .;</span><br><span class="line">        *(.text.trampoline);</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        *(.text .text.*)</span><br><span class="line">    &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>在上面的汇编可以看到，我们给<code>trap.S</code>分配到了<code>.text.trampoline</code>段，并在链接脚本中定义了一个<code>strampline</code>符号来标记他的位置，这样我们可以在<code>Rust</code>中找到这个跳板页，映射到我们期望的位置。</p>
+<p>但将跳板也映射到别的地方带来了新的问题，原来<code>__alltraps</code>中最后跳转到<code>trap_handler</code>使用的是<code>call trap_handler</code>。我们可以通过<code>obj-dump</code>看看编译得到的指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># obj-dump -Dx ...</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">80201056: 73 90 02 18   csrw    satp, t0</span><br><span class="line">8020105a: 73 00 00 12   sfence.vma</span><br><span class="line">8020105e: 97 80 00 00   auipc   ra, 0x8</span><br><span class="line">80201062: e7 80 e0 0b   jalr    0xbe(ra) &lt;trap_handler&gt; # pc+0x80be</span><br><span class="line">...</span><br><span class="line">000000008020911c g     F .text  00000000000003b2 trap_handler</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，这里用的是pc相对寻址，也就是基于当前指令的偏移找到<code>trap_handler</code>所在的位置。但是现在<code>__alltraps</code>已经在虚拟内存中被我们映射到最高页去了，也就是说我们实际运行代码的时候是在下面这一段内存中。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># gdb</span><br><span class="line">&gt;&gt;&gt; x &#x2F;20i $pc-10</span><br><span class="line">   0xfffffffffffff054:  ld      sp,280(sp)</span><br><span class="line">   0xfffffffffffff056:  csrw    satp,t0</span><br><span class="line">   0xfffffffffffff05a:  sfence.vma</span><br><span class="line">&#x3D;&gt; 0xfffffffffffff05e:  jr      t1 </span><br><span class="line"></span><br><span class="line">&gt;&gt;&gt; p &#x2F;x $t1</span><br><span class="line">$9 &#x3D; 0x8020911c</span><br></pre></td></tr></table></figure>
+
+<p>很明显如果这里跳转到$pc+offset$的话，并不是跳到位于正常代码段的<code>trap_handler</code>。所以我们要将这里换成寄存器跳转，将<code>trap_handler</code>的地址放到寄存器<code>t1</code>中，这样才能顺利地调用到<code>trap_handler</code>。</p>
+<p>也就是<a href="https://learningos.cn/rCore-Tutorial-Guide-2025S/chapter4/6multitasking-based-on-as.html?#term-trampoline" target="_blank" rel="noopener">指导书</a>中所说的</p>
+<blockquote>
+<p>跳转指令实际被执行时的虚拟地址和在编译器/汇编器/链接器进行后端代码生成和链接形成最终机器码时设置此指令的地址是不同的。</p>
+</blockquote>
+<h2 id="阶段三"><a href="#阶段三" class="headerlink" title="阶段三"></a>阶段三</h2><p>这个阶段正式接触到组件化操作系统<code>arceos</code>。</p>
+<h3 id="print-with-color"><a href="#print-with-color" class="headerlink" title="print_with_color"></a>print_with_color</h3><p>在调用路径上任意一个地方加入颜色代码就可以了，本身并不复杂，主要是了解arceos的结构。</p>
+<h3 id="support-hashmap"><a href="#support-hashmap" class="headerlink" title="support_hashmap"></a>support_hashmap</h3><p>考虑实现一个hashmap比较麻烦，直接引入<code>hashbrown</code>，将里面HashMap包到<code>collections</code>里面也可以通过。</p>
+<blockquote>
+<p>但是hashbrown默认依赖的hashfold库在no_std下所提供的RandomState是基于内存布局的，而非每次都随机<br>可能会带来一些安全性问题</p>
+</blockquote>
+<h3 id="alt-alloc"><a href="#alt-alloc" class="headerlink" title="alt_alloc"></a>alt_alloc</h3><p>实验要求实现一个<code>bump alloctor</code>，是一个比较简单的分配器，在给定的接口下实现就可以了</p>
+<h3 id="ramfs-rename"><a href="#ramfs-rename" class="headerlink" title="ramfs_rename"></a>ramfs_rename</h3><p>要求在给定的文件系统中实现rename的功能。看了测例中的注释仅要求在同级下重命名，不涉及移动。</p>
+<p>搞清楚了<code>VfsOps</code>和<code>VfsNodeOps</code>两个trait之后，在路径上把目录项的名字改掉就好了。</p>
+<h3 id="sys-map"><a href="#sys-map" class="headerlink" title="sys_map"></a>sys_map</h3><p>要求实现系统调用<code>mmap</code>。</p>
+<p>利用<code>task_ext</code>的<code>aspace</code>提供的接口就可以完成。通过<code>find_free_area</code>找到空闲的区域并通过<code>map_alloc</code>分配，然后将给定fd的数据读进来就可以通过了。需要注意一些接口有检查传入参数是否有对齐。</p>
+<h3 id="simple-hv"><a href="#simple-hv" class="headerlink" title="simple_hv"></a>simple_hv</h3><p>按照提示将<code>a0``a1</code>寄存器设置好，并将pc寄存器偏移以跳过当前指令即可。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>阶段三的任务总体来说比阶段二的时候来得要更简单，感觉主要还是了解<code>arceos</code>的架构以及<code>Unikernel</code>、<code>Monolithic Kernel</code>、<code>Hypervisor</code>的不同。并体会在不同的内核需求中，<code>arceos</code>是如何将不同的组件组合起来以达成需求的。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/23/ArceOS-Learning-Record-Anekoqie/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +366,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -337,7 +439,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -412,7 +514,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -477,7 +579,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -569,7 +671,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -638,7 +740,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -722,7 +824,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -979,7 +1081,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -1168,7 +1270,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
+                <time title="Modified: 2025-04-28 07:47:57" itemprop="dateModified" datetime="2025-04-28T07:47:57+00:00">2025-04-28</time>
               </span>
 
           
@@ -1311,102 +1413,6 @@
 </ul>
 <p><del>以上数据结构几乎都不需要在本次实验中手动实现, 但是三阶段你要手写一个 HashMap</del></p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/" class="post-title-link" itemprop="url">二阶段rCore总结-折鸦</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-13 02:00:30" itemprop="dateCreated datePublished" datetime="2025-04-13T02:00:30+00:00">2025-04-13</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-04-27 04:08:33" itemprop="dateModified" datetime="2025-04-27T04:08:33+00:00">2025-04-27</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="二阶段-rCore-实验总结-折鸦"><a href="#二阶段-rCore-实验总结-折鸦" class="headerlink" title="二阶段 rCore 实验总结 - 折鸦"></a>二阶段 rCore 实验总结 - 折鸦</h1><h2 id="实验环境配置"><a href="#实验环境配置" class="headerlink" title="实验环境配置"></a>实验环境配置</h2><p>用 Rust 开发操作系统内核源代码, 通过 <code>rustc</code> 交叉编译到 <code>riscv64gc-unknown-none-elf</code> (一般情况下是 <code>x86_64-unknown-linux-gnu</code>), 通过 <code>rust-objcopy</code> 提取出 bin, 然后放到 <code>qemu-system-riscv64</code> 模拟器进行模拟, 大概是这么个工具链.</p>
-<p>QEMU 最好装 <code>7.0.0</code> 版本的, 从源码编译安装的话需要注意一下依赖, 部分发行版的依赖可以在 <a href="https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites" target="_blank" rel="noopener">Running 64- and 32-bit RISC-V Linux on QEMU — RISC-V - Getting Started Guide</a> 找到</p>
-<p>Arch Linux 仓库里是 QEMU 9, 需要修改一下 <code>RustSBI</code> 的版本. 注意如果你想直接 <code>downgrade</code> 到 <code>7.0.0</code> 的话可能会需要连带降级一些非常核心的软件包, 非常不建议尝试. 有需要也可以自行寻找依赖包然后从源代码编译, 但是有一些接口变动可能会导致编译失败, 所以最佳方案还是替换 <code>RustSBI</code> 版本, 这里不再赘述.</p>
-<h2 id="构建一个能跑但仅仅能跑的操作系统"><a href="#构建一个能跑但仅仅能跑的操作系统" class="headerlink" title="构建一个能跑但仅仅能跑的操作系统"></a>构建一个能跑但仅仅能跑的操作系统</h2><p>根据 OSTEP 的说法, 操作系统的主要三个任务部分在于: <strong>虚拟化</strong>, <strong>并发</strong>, <strong>可持久化</strong></p>
-<ul>
-<li>虚拟化主要表现在:<ul>
-<li>对内存的抽象: 每个进程有自己的虚拟地址空间, 造成每个进程独占一个主存的假象(学过 CSAPP 可以回忆一下第九章, 博客还在补)</li>
-<li>对 CPU 的虚拟化: 主要表现在操作系统内核对各个任务的调度, 使得每个任务产生独占 CPU 的假象(这就是一种并发)</li>
-<li>对外设设备的虚拟化等等</li>
-</ul>
-</li>
-<li>并发主要表现在:<ul>
-<li>进程概念的抽象和实现, 进程间通信</li>
-<li>多线程的实现</li>
-</ul>
-</li>
-<li>可持久化主要涉及文件系统</li>
-</ul>
-<p>而形式上, 操作系统是一个二进制文件或二进制文件镜像, 被 bootloader 加载进内存的特定位置, 驻留在内存中的特定代码, 这些代码负责一些加载应用程序(简单来说就是把可执行文件加载到内存), 管理资源(设备/文件)并提供访问的任务, 这些任务以系统调用(syscall)的形式暴露给应用程序, 只是系统调用函数比较敏感特殊, 下面会仔细介绍.</p>
-<p>那么我们的任务就比较明确了: </p>
-<ul>
-<li>先设计一个基本的能把应用程序加载到内存的功能 (当然因为现在内核没有任何调度能力也没有让应用程序启动其他应用程序的必要(这依赖进程的实现), 所以我们暂时不需要设计 <code>execve</code> 系统调用)</li>
-<li>实现标准输出能力 (实际上标准输出就是调用系统调用 <code>write</code>, 目标为 <code>1</code> (标准输入))</li>
-<li>实现退出程序的能力 (<code>exit</code> 系统调用)</li>
-</ul>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 
