@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">598</span>
+          <span class="site-state-item-count">599</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">543</span>
+        <span class="site-state-item-count">544</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,108 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/24/2025%E6%98%A5%E5%A4%8F%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/24/2025%E6%98%A5%E5%A4%8F%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/" class="post-title-link" itemprop="url">2025春夏前三阶段总结-NoahNieh</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-24 11:23:32" itemprop="dateCreated datePublished" datetime="2025-04-24T11:23:32+00:00">2025-04-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="阶段一"><a href="#阶段一" class="headerlink" title="阶段一"></a>阶段一</h2><p>在原版的<code>rustlings</code>基础上加入了一些针对训练营需要的<code>unsafe</code>相关的知识和构建过程中<code>build.rs</code>的应用。属于比较基础的内容，跟着评测机一道道做过去就可以了。</p>
+<h2 id="阶段二"><a href="#阶段二" class="headerlink" title="阶段二"></a>阶段二</h2><p>这个阶段主要是通过基于<code>rust</code>编写操作系统内核<code>rcore</code>完成几个实验，借助实验理解一个具有进程/线程管理、内存管理、文件系统、进程间通信和提供了一定同步机制的内核是如何构成并运作起来的。</p>
+<p>比较印象深刻的有这么几个知识点：</p>
+<ul>
+<li>链接脚本与全局符号的使用</li>
+<li><code>Rust</code>的汇编嵌入</li>
+<li>第四章中，在使用分离内核空间的时候。通过设计跳板页来解决切换页表后指令执行的问题。<a href="#跳板">跳板页</a></li>
+<li>第六章了解了文件系统，了解了块设备的概念，对文件系统的各个抽象层有了一定的了解。</li>
+<li>第七、八章了解了操作系统是如何为应用提供同步原语的</li>
+</ul>
+<h3 id="跳板"><a href="#跳板" class="headerlink" title="跳板"></a>跳板</h3><p>由于<code>rcore</code>使用了分离内核空间的设计，所以在<code>Trap</code>的时候需要切换页表。但在切换页表之后，<code>pc</code>寄存器还是忠实的在其原来的位置自加到下一条指令，如果<code>内核内存空间</code>和<code>程序内存空间</code>对这段代码的映射不是在同一个位置的话，则会表现出来程序跳转到了别的地方执行的效果。因此需要设计一个跳板页，在虚存中将其映射到所有内存空间的最高页，确保在切换之后，也能正确运行下一条指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"># trap.S</span><br><span class="line">...</span><br><span class="line">    .section .text.trampoline</span><br><span class="line">    .globl __alltraps</span><br><span class="line">    .globl __restore</span><br><span class="line">    .align 2</span><br><span class="line">__alltraps:</span><br><span class="line">    csrrw sp, sscratch, sp</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"># linker.ld</span><br><span class="line">...</span><br><span class="line">    stext &#x3D; .;</span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text.entry)</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        strampoline &#x3D; .;</span><br><span class="line">        *(.text.trampoline);</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        *(.text .text.*)</span><br><span class="line">    &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>在上面的汇编可以看到，我们给<code>trap.S</code>分配到了<code>.text.trampoline</code>段，并在链接脚本中定义了一个<code>strampline</code>符号来标记他的位置，这样我们可以在<code>Rust</code>中找到这个跳板页，映射到我们期望的位置。</p>
+<p>但将跳板也映射到别的地方带来了新的问题，原来<code>__alltraps</code>中最后跳转到<code>trap_handler</code>使用的是<code>call trap_handler</code>。我们可以通过<code>obj-dump</code>看看编译得到的指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># obj-dump -Dx ...</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">80201056: 73 90 02 18   csrw    satp, t0</span><br><span class="line">8020105a: 73 00 00 12   sfence.vma</span><br><span class="line">8020105e: 97 80 00 00   auipc   ra, 0x8</span><br><span class="line">80201062: e7 80 e0 0b   jalr    0xbe(ra) &lt;trap_handler&gt; # pc+0x80be</span><br><span class="line">...</span><br><span class="line">000000008020911c g     F .text  00000000000003b2 trap_handler</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，这里用的是pc相对寻址，也就是基于当前指令的偏移找到<code>trap_handler</code>所在的位置。但是现在<code>__alltraps</code>已经在虚拟内存中被我们映射到最高页去了，也就是说我们实际运行代码的时候是在下面这一段内存中。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># gdb</span><br><span class="line">&gt;&gt;&gt; x &#x2F;20i $pc-10</span><br><span class="line">   0xfffffffffffff054:  ld      sp,280(sp)</span><br><span class="line">   0xfffffffffffff056:  csrw    satp,t0</span><br><span class="line">   0xfffffffffffff05a:  sfence.vma</span><br><span class="line">&#x3D;&gt; 0xfffffffffffff05e:  jr      t1 </span><br><span class="line"></span><br><span class="line">&gt;&gt;&gt; p &#x2F;x $t1</span><br><span class="line">$9 &#x3D; 0x8020911c</span><br></pre></td></tr></table></figure>
+
+<p>很明显如果这里跳转到$pc+offset$的话，并不是跳到位于正常代码段的<code>trap_handler</code>。所以我们要将这里换成寄存器跳转，将<code>trap_handler</code>的地址放到寄存器<code>t1</code>中，这样才能顺利地调用到<code>trap_handler</code>。</p>
+<p>也就是<a href="https://learningos.cn/rCore-Tutorial-Guide-2025S/chapter4/6multitasking-based-on-as.html?#term-trampoline" target="_blank" rel="noopener">指导书</a>中所说的</p>
+<blockquote>
+<p>跳转指令实际被执行时的虚拟地址和在编译器/汇编器/链接器进行后端代码生成和链接形成最终机器码时设置此指令的地址是不同的。</p>
+</blockquote>
+<h2 id="阶段三"><a href="#阶段三" class="headerlink" title="阶段三"></a>阶段三</h2><p>这个阶段正式接触到组件化操作系统<code>arceos</code>。</p>
+<h3 id="print-with-color"><a href="#print-with-color" class="headerlink" title="print_with_color"></a>print_with_color</h3><p>在调用路径上任意一个地方加入颜色代码就可以了，本身并不复杂，主要是了解arceos的结构。</p>
+<h3 id="support-hashmap"><a href="#support-hashmap" class="headerlink" title="support_hashmap"></a>support_hashmap</h3><p>考虑实现一个hashmap比较麻烦，直接引入<code>hashbrown</code>，将里面HashMap包到<code>collections</code>里面也可以通过。</p>
+<blockquote>
+<p>但是hashbrown默认依赖的hashfold库在no_std下所提供的RandomState是基于内存布局的，而非每次都随机<br>可能会带来一些安全性问题</p>
+</blockquote>
+<h3 id="alt-alloc"><a href="#alt-alloc" class="headerlink" title="alt_alloc"></a>alt_alloc</h3><p>实验要求实现一个<code>bump alloctor</code>，是一个比较简单的分配器，在给定的接口下实现就可以了</p>
+<h3 id="ramfs-rename"><a href="#ramfs-rename" class="headerlink" title="ramfs_rename"></a>ramfs_rename</h3><p>要求在给定的文件系统中实现rename的功能。看了测例中的注释仅要求在同级下重命名，不涉及移动。</p>
+<p>搞清楚了<code>VfsOps</code>和<code>VfsNodeOps</code>两个trait之后，在路径上把目录项的名字改掉就好了。</p>
+<h3 id="sys-map"><a href="#sys-map" class="headerlink" title="sys_map"></a>sys_map</h3><p>要求实现系统调用<code>mmap</code>。</p>
+<p>利用<code>task_ext</code>的<code>aspace</code>提供的接口就可以完成。通过<code>find_free_area</code>找到空闲的区域并通过<code>map_alloc</code>分配，然后将给定fd的数据读进来就可以通过了。需要注意一些接口有检查传入参数是否有对齐。</p>
+<h3 id="simple-hv"><a href="#simple-hv" class="headerlink" title="simple_hv"></a>simple_hv</h3><p>按照提示将<code>a0``a1</code>寄存器设置好，并将pc寄存器偏移以跳过当前指令即可。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>阶段三的任务总体来说比阶段二的时候来得要更简单，感觉主要还是了解<code>arceos</code>的架构以及<code>Unikernel</code>、<code>Monolithic Kernel</code>、<code>Hypervisor</code>的不同。并体会在不同的内核需求中，<code>arceos</code>是如何将不同的组件组合起来以达成需求的。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/24/451846939-rcore-2025-reports/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +366,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -396,7 +498,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -469,7 +571,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -544,7 +646,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -609,7 +711,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -701,7 +803,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -770,7 +872,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -854,7 +956,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -1111,7 +1213,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
+                <time title="Modified: 2025-05-06 07:12:59" itemprop="dateModified" datetime="2025-05-06T07:12:59+00:00">2025-05-06</time>
               </span>
 
           
@@ -1265,198 +1367,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/19/%E4%B8%80%E9%98%B6%E6%AE%B5rustlings%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/19/%E4%B8%80%E9%98%B6%E6%AE%B5rustlings%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/" class="post-title-link" itemprop="url">一阶段rustlings总结-折鸦</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-19 14:58:35" itemprop="dateCreated datePublished" datetime="2025-04-19T14:58:35+00:00">2025-04-19</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-06 07:10:52" itemprop="dateModified" datetime="2025-05-06T07:10:52+00:00">2025-05-06</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="操作系统设计与实现中常用的-Rust-特性"><a href="#操作系统设计与实现中常用的-Rust-特性" class="headerlink" title="操作系统设计与实现中常用的 Rust 特性"></a>操作系统设计与实现中常用的 Rust 特性</h1><p>oscamp 第一阶段的 rustlings 总结, 但因为去年写过一次 rustlings 了, 题目比较基础(<del>除了最后的算法和数据结构实现有点麻烦</del>)之前也接触过不少 Rust, 所以这次是总结一下二三阶段中特别需要的 Rust 特性</p>
-<h2 id="结构体和枚举"><a href="#结构体和枚举" class="headerlink" title="结构体和枚举"></a>结构体和枚举</h2><p>注意<strong>元组结构体</strong></p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">TupleStruct</span></span>(<span class="built_in">u32</span>, <span class="built_in">u32</span>, <span class="built_in">u32</span>);</span><br><span class="line"><span class="keyword">let</span> tuple_obj = TupleStruct &#123;<span class="number">0</span>, <span class="number">255</span>, <span class="number">0</span>&#125;;</span><br><span class="line"><span class="built_in">assert!</span>(tuple_obj.<span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">UnitStruct</span></span>;</span><br></pre></td></tr></table></figure>
-
-<p>单元结构体主要是在不关心其关联的数据, 而只需要实现其关联函数或方法时存在<br>其实还比较常用的, 例如对某学基本数据类型的特化, 比如 rustlings 后面的 <code>MinHeap</code>, 三阶段中也有这样的情况     </p>
-<p>枚举这里需要比较熟悉 match 等模式匹配的手段: </p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">match</span> message &#123;</span><br><span class="line">    Message::Move(p) =&gt; <span class="keyword">self</span>.move_position(p),</span><br><span class="line">    Message::Echo(s) =&gt; <span class="keyword">self</span>.echo(s),</span><br><span class="line">    Message::ChangeColor(x, y, z) =&gt; <span class="keyword">self</span>.change_color((x, y, z)),</span><br><span class="line">    Message::Quit =&gt; <span class="keyword">self</span>.quit(),</span><br><span class="line">    _ =&gt; ()</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>本实验中大量使用枚举来表示一些错误情况(这也是 Rust 和一些程序设计语言的常见处理方式)</p>
-<p>二三阶段处理 Trap 时的 <code>Trap::Exception(...)</code> <code>Trap::Interrupt</code> 也都是枚举, 通过 match 模式匹配</p>
-<h2 id="模块"><a href="#模块" class="headerlink" title="模块"></a>模块</h2><p>模块这里 rustlings 的考察比较基础, 这里补充一些 Cargo 管理工程的机制</p>
-<ul>
-<li><p><code>module</code> 用于代码结构分层, 控制作用域和可见性等</p>
-<p>  Rustlings 只介绍了内联模块 即 </p>
-  <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">mod</span> delicious_snacks &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">use</span> self::fruits::PEAR <span class="keyword">as</span> fruit;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">use</span> self::veggies::CUCUMBER <span class="keyword">as</span> veggie;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>   但实际工程中还有很多创建模块的方法, 例如:</p>
-<ul>
-<li><p>拆分到一个文件中, 然后用 <code>mod name;</code> 声明告诉编译器这里有个模块. 声明后才会进入模块树.</p>
-</li>
-<li><p>复杂模块应拆分到一个目录中, 并在这个目录下 <code>mod.rs</code> 中暴露接口和声明子模块, 这个目录下的其他文件就是这个目录的子模块, 例如 <code>foo/mod.rs</code> 中写下 <code>pub mod bar;</code>, <code>foo/bar.rs</code> 就成为了 <code>foo::bar</code> 子模块</p>
-</li>
-<li><p><code>mod foo;</code> 会查找 <code>foo/mod.rs</code> 或 <code>foo.rs</code></p>
-<p>例如三阶段 ArceOS 实验二, 需要在 <code>axstd</code> 下面创建 <code>collections</code> 子模块(创建<code>collections/mod.rs</code>), 然后再创建 <code>collections::hash_map</code> 子子模块(?)(创建 <code>hash_map.rs</code> 并在 <code>collections/mod.rs</code> 声明<code>pub mod hash_map</code>, <code>pub use hash_map::HashMap</code>)</p>
-</li>
-</ul>
-</li>
-<li><p><code>crate</code> 是可被编译的<strong>最小</strong>单位, 分为 <code>bin</code> 或 <code>lib</code> 两种, 前者可被编译为可执行程序, 后者可被编译为<code>.rlib</code>, 只能提供一些接口(没有 main 函数)</p>
-<p>  三阶段需要对 crate 有一定的理解, 因为 ArceOS 的组件化是相当依赖于 Rust 的 crate 的.</p>
-</li>
-<li><p><code>package</code> 是提供一系列功能的 <code>crates</code> 的集合, 可包含多个 bin crate 和最多一个 lib crate. </p>
-</li>
-<li><p><code>workspace</code> 管理多个 <code>packages</code> 的编译环境工具链等的目录结构. 一般比较大型的项目会分为多个 <code>packages</code> 开发, 共享同一个 <code>target/</code>目录</p>
-<p>  以 ArceOS 下的 <code>Cargo.toml</code> 为例:</p>
-  <figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[workspace]</span></span><br><span class="line"><span class="attr">resolver</span> = <span class="string">"2"</span></span><br><span class="line"><span class="attr">members</span> = [</span><br><span class="line">    <span class="string">"modules/axalloc"</span>,</span><br><span class="line">     ...</span><br><span class="line"> ]</span><br><span class="line"><span class="section">[workspace.package]</span></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="section">[workspace.dependencies]</span></span><br><span class="line"><span class="attr">axstd</span> = &#123; path = <span class="string">"ulib/axstd"</span> &#125;</span><br><span class="line"><span class="attr">axlibc</span> = &#123; path = <span class="string">"ulib/axlibc"</span> &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<h2 id="Option-lt-T-gt-与-Result-lt-T-E-gt"><a href="#Option-lt-T-gt-与-Result-lt-T-E-gt" class="headerlink" title="Option&lt;T&gt; 与 Result&lt;T, E&gt;"></a><code>Option&lt;T&gt;</code> 与 <code>Result&lt;T, E&gt;</code></h2><p>在我们本次操作系统的实验中会大量使用(其实 Rust 工程都会大量使用)</p>
-<p>ArceOS 会封装为 <code>AxResult</code> 等</p>
-<h2 id="泛型与-Trait"><a href="#泛型与-Trait" class="headerlink" title="泛型与 Trait"></a>泛型与 Trait</h2><p>泛型作为一种静态分发生成代码的方式, 本次实验中没有太需要这一块, 有多态基本都是在 <code>dyn Trait</code> 用 trait 对象动态分发</p>
-<p>trait 在本次实验中就非常重要了, 组合形式的代码复用比继承灵活了不少, 例如:</p>
-<ul>
-<li>rCore 中的”文件” <code>File</code> trait, 通过 write read 抽象地描述了一个”文件”应该具备的行为</li>
-<li><code>ArceOS</code> 中的 <code>VfsOps</code> 和 <code>VfsNodeOps</code>, 描述了文件系统应该提供的功能和一个文件节点应该提供的功能, 并且通过 <code>Arc&lt;dyn VfsOps&gt;</code> 实现对不同文件系统和不同文件节点的支持</li>
-<li>动态内存分配的接口 <code>unsafe trait GlobalAlloc</code> (这个其实是标准库的, 但是我们自己实现的内存分配器需要 <code>impl GlobalAlloc for OurAllocator</code>)</li>
-</ul>
-<h2 id="生命周期"><a href="#生命周期" class="headerlink" title="生命周期"></a>生命周期</h2><p>想要对 lifetime 的理解炉火纯青是比较困难的, 幸运的是本次实验你只需要懂得一些基本的生命周期概念, 然后学习智能指针就行了(), 代码中大量使用 <code>Arc&lt;T&gt;</code> <code>RefCell&lt;T&gt;</code> 等.</p>
-<p>但还要记住一句话: 任何时候保证引用有效(对这句话的理解应该还有一层: 任何引用本身存在的生命周期必须小于等于其引用内容的生命周期, 不然其内容死了之后这个引用就没有任何意义而且变得危险了)</p>
-<h2 id="迭代器"><a href="#迭代器" class="headerlink" title="迭代器"></a>迭代器</h2><p>使用 <code>obj.iter()</code> 或 <code>obj.into_iter()</code>/<code>obj.iter_mut()</code> 后可以链式地进行一些操作:</p>
-<ul>
-<li>迭代适配器: <code>map</code> <code>filter</code> <code>for_each</code>, 接收一个捕获迭代器元素的闭包, 执行某些操作, 但不会消耗迭代器返回值, 而是继续返回迭代器</li>
-<li>消费适配器: <code>.collect()</code> <code>.sum()</code>, 消费其中的迭代器并返回具体类型, 注意你可能需要显示标注我们需要 <code>collect</code> 成什么类型</li>
-</ul>
-<h2 id="智能指针"><a href="#智能指针" class="headerlink" title="智能指针"></a>智能指针</h2><ul>
-<li><p><code>Box&lt;T&gt;</code> 拥有其内部数据的所有权, 数据在堆上, 常用于解决递归类型无法计算大小的问题 (<code>Box</code> 本身是 <code>Sized</code> 的)</p>
-</li>
-<li><p><code>Rc&lt;T&gt;</code>/<code>Arc&lt;T&gt;</code>: 多个智能指针共享同一个数据的所有权</p>
-<ul>
-<li><code>let origin = Arc::new(data)</code> 创建一个智能指针</li>
-<li><code>let others = Arc::clone(&amp;origin)</code> 共享 <code>origin</code> 智能指针中的数据 <code>data</code></li>
-<li><code>Arc:strong_count(&amp;original)</code> 有多少指针在共享这一数据, 引用计数为 0 是释放数据空间</li>
-</ul>
-</li>
-<li><p><code>Weak&lt;T&gt;</code>: 弱引用, 用于解决引用循环. 例如对于操作系统中父进程有一个 <code>children: Vec&lt;Arc&lt;TaskControlBlock&gt;&gt;</code>, 而子进程还需要得知自己父进程 <code>parent: Arc&lt;TaskControlBlock&gt;</code>, 这样就会导致引用计数始终不为 0, 最后数据无法被释放造成泄露, 所以需要 <code>parent: Weak&lt;TaskControlBlock&gt;</code>. <code>Weak&lt;T&gt;</code> 不需要引用计数为 0 就可以被清理, 其特性是:</p>
-<ul>
-<li>任何涉及弱引用的循环会在其相关的值的强引用计数为 0 时被打断</li>
-<li><code>Rc&lt;T&gt;</code> 维护一个 <code>weak_count</code>, 每次<code>Rc::downgrade</code> 创建 Weak 指针时增加弱引用计数</li>
-<li><code>weak_count</code> 无需计数为 0 就能使 <code>Rc&lt;T&gt;</code> 实例被清理, 因此使用 Weak 的数据时其数据是可能被清理掉的, 我们需要<code>Weak:upgrade</code>, 返回 <code>Option&lt;Rc&lt;T&gt;</code>.</li>
-</ul>
-</li>
-<li><p><code>RefCell</code>: 内部可变性设计模式</p>
-<p>  我们可以在 <code>RefCell&lt;T&gt;</code> 本身不被绑定为可变时修改其内部的值, 在<strong>运行时</strong>进行借用检查.</p>
-<p>  <code>RefCell</code> 提供的内部可变性在二阶段 rCore 的一些控制信息结构体中常用, 例如 TCB 将不可变数据作为直接的结构体成员, 可变数据放在 inner 里 (这里 <code>UPSafeCell</code> 就是基于 <code>RefCell</code> 封装的). </p>
-<p>  我们显然不希望 <code>process</code>, <code>kstack</code> 这样逻辑上应为 <code>immutable</code> 的数据被改变, 所以整个 TCB 结构体应该被绑定在不可变变量上, 但是这样就导致 <code>inner</code> 也是不可变的了, 我们无法修改 <code>inner</code> 中的 <code>trap_cx</code> 上下文等, 所以我们需要依赖 <code>RefCell</code> 的运行时借用检查能力, 允许修改 inner 中的值</p>
-<p>  根据 <code>RefCell</code> 的特性</p>
-  <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Task control block structure</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlock</span></span> &#123;</span><br><span class="line">    <span class="comment">/// immutable</span></span><br><span class="line">    <span class="keyword">pub</span> process: Weak&lt;ProcessControlBlock&gt;,</span><br><span class="line">    <span class="comment">/// Kernel stack corresponding to PID</span></span><br><span class="line">    <span class="keyword">pub</span> kstack: KernelStack,</span><br><span class="line">    <span class="comment">/// mutable</span></span><br><span class="line">    inner: UPSafeCell&lt;TaskControlBlockInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> res: <span class="built_in">Option</span>&lt;TaskUserRes&gt;,</span><br><span class="line">    <span class="comment">/// The physical page number of the frame where the trap context is placed</span></span><br><span class="line">    <span class="keyword">pub</span> trap_cx_ppn: PhysPageNum,</span><br><span class="line">    <span class="comment">/// Save task context</span></span><br><span class="line">    <span class="keyword">pub</span> task_cx: TaskContext,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/// Maintain the execution status of the current process</span></span><br><span class="line">    <span class="keyword">pub</span> task_status: TaskStatus,</span><br><span class="line">    <span class="comment">/// It is set when active exit or execution error occurs</span></span><br><span class="line">    <span class="keyword">pub</span> exit_code: <span class="built_in">Option</span>&lt;<span class="built_in">i32</span>&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>  这个 <code>UPSafeCell</code> 的 <code>exclusive_access</code> 方法不能嵌套调用, 会导致 <code>BorrowMutError</code>. </p>
-</li>
-</ul>
-<h2 id="线程"><a href="#线程" class="headerlink" title="线程"></a>线程</h2><p>这个实验不需要掌握太多 Rust 线程的使用方法, <del>因为我们需要自己实现线程机制</del></p>
-<p>但是要对线程模型和同步互斥有一定的认识, 会在 rCore Tutorial Book 的 ch8 中学习到</p>
-<h2 id="宏"><a href="#宏" class="headerlink" title="宏"></a>宏</h2><p>在 ArceOS 中用得非常神仙, 尤其是对过程宏的运用:</p>
-<ul>
-<li>借助 <code>linke_me</code> 利用过程宏 <code>#[register_trap_handler(SYSCALL)]</code> 等注册异常处理函数</li>
-<li>由于 <code>axhal</code> 和 <code>axlog</code> 存在的循环依赖关系, <code>axlog</code> 必须以 <code>extern ABI</code> 而不是<code>[dependencies]</code> 的形式依赖 <code>axhal</code>. 但是这个不通过 Rust 编译器的检查, 所以用过程宏封装成 <code>trait</code> 的形式, 减少出错概率</li>
-<li>用宏对某些特定对象生成 trait 的默认行为这些相比以上用法已经算是比较一般的了</li>
-</ul>
-<p>过程宏是基于 AST 进行代码生成的, 所以灵活度非常高, 这里也不需要掌握太深入, 但是至少要能读懂过程宏, 这样在三阶段中才不会太盲人摸象</p>
-<h2 id="类型转换"><a href="#类型转换" class="headerlink" title="类型转换"></a>类型转换</h2><p>主要在地址空间的支持中需要对 PA VA PPN VPN 进行转换等涉及到 <code>From</code> <code>Into</code> 之类的 trait</p>
-<p><del>剩下的时候都在能<code>.into()</code>就<code>.into()</code>不能的话就强行<code>as</code></del></p>
-<blockquote>
-<p><code>↑</code>: 这是不负责任的喵</p>
-</blockquote>
-<h2 id="最后十道题"><a href="#最后十道题" class="headerlink" title="最后十道题"></a>最后十道题</h2><ul>
-<li><p>链表</p>
-<ul>
-<li>活用 <code>loop</code>+<code>match</code>+ 模式匹配 能写得比 for 循环迭代更清晰</li>
-<li>裸指针解引用需要 <code>unsafe</code> 套一下, <code>unsafe</code> 最好在表达式层次</li>
-</ul>
-</li>
-<li><p>排序: 比较简单, 和其他语言基本没什么差别. 可以用 <code>array.swap(idx1, idx2)</code> 代替 <code>std::mem:swap</code> 交换元素</p>
-</li>
-<li><p>二叉搜索树: 主要是 <code>Option&lt;Box&lt;TreeNode&lt;T&gt;&gt;&gt;</code> 套着比较烦, 但其实都是必要的: <code>Option</code> 用来时刻提醒你防止 NULL 的情况, <code>Box</code> 用于解决树形结构的递归类型</p>
-</li>
-<li><p>图的存储, BFS 和 BFS: <code>vec![vec![];n]</code> 创建一个 <code>Vec&lt;Vec&lt;T&gt;&gt;</code> 用来存边</p>
-<ul>
-<li><code>VecQueue</code> 作为 Rust 中的双端队列</li>
-<li><code>while let Some(cur) = q.pop_front() {}</code> 相比 <code>while(!q.empty()) { auto cur = q.front(); q.pop(); }</code> 高下立判了()</li>
-</ul>
-</li>
-<li><p>利用栈进行括号匹配: 优雅, 太优雅了</p>
-  <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">bracket_match</span></span>(bracket: &amp;<span class="built_in">str</span>) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> s = Stack::new();</span><br><span class="line">    <span class="keyword">for</span> c <span class="keyword">in</span> bracket.chars() &#123;</span><br><span class="line">        <span class="keyword">match</span> c &#123;</span><br><span class="line">            <span class="string">'('</span> | <span class="string">'['</span> | <span class="string">'&#123;'</span> =&gt; s.push(c),</span><br><span class="line">            <span class="string">')'</span> | <span class="string">']'</span> | <span class="string">'&#125;'</span> =&gt; &#123;</span><br><span class="line">                <span class="keyword">if</span> matches!(s.peek(), <span class="literal">Some</span>(&amp;res) <span class="keyword">if</span> res == map_bracket(c)) &#123;</span><br><span class="line">                    s.pop();</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            _ =&gt; <span class="keyword">continue</span>,</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    s.is_empty()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>  这里 <code>Some(&amp;res) if res == ...</code> 是 <code>matches!</code> 宏提供的守卫, 宏很神奇吧</p>
-</li>
-<li><p>用两个队列模拟栈: 每次插入时向 <code>q2</code> 插入元素, 然后把 <code>q1</code> 元素全部出队再入 <code>q2</code> 队, 最后交换 <code>q1</code> <code>q2</code>, 这样 <code>q1</code> 的出队顺序就始终保证是原始数据应当符合的出栈顺序, 用的时候直接弹就行.</p>
-</li>
-<li><p>二叉堆, 应该是最麻烦的一个, 需要注意有一个 <code>items: vec![T::default()]</code>, 这个默认的 0 号节点用于占位, 这样我们就能从 1 开始构建根节点, 因此左子树是 $2 \times i$, 右子树是 $2 \times i + 1$</p>
-<ul>
-<li>还是利用 <code>loop</code> <code>while</code> 寻找需要的节点并反复执行操作(如弹出时交换被弹出节点与根节点后执行的下沉操作需要找的对应位置节点)</li>
-</ul>
-</li>
-<li><p>邻接表存图: 注意数据类型是 <code>HashMap&lt;String, Vec&lt;(String, i32)&gt;&gt;</code></p>
-</li>
-</ul>
-<p><del>以上数据结构几乎都不需要在本次实验中手动实现, 但是三阶段你要手写一个 HashMap</del></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1557,6 +1467,59 @@
   
 
   
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
 
   
 
