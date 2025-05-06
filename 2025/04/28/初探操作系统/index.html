@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第二阶段总结：操作系统学习的感悟与理解经过这一阶段对操作系统核心内容的系统学习和实践，我对操作系统的本质、关键机制以及与 Rust 结合的优势有了更深刻的理解。以下是我的主要体会和总结：  一、操作系统的本质与核心任务操作系统是管理硬件资源、为上层应用提供抽象和隔离的基础软件。它的核心任务包括：  进程与线程管理：通过进程（资源分配单位）和线程（调度单位）实现多任务并发，保障系统的响应性和资源利用">
+<meta property="og:type" content="article">
+<meta property="og:title" content="初探操作系统">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/04/28/%E5%88%9D%E6%8E%A2%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第二阶段总结：操作系统学习的感悟与理解经过这一阶段对操作系统核心内容的系统学习和实践，我对操作系统的本质、关键机制以及与 Rust 结合的优势有了更深刻的理解。以下是我的主要体会和总结：  一、操作系统的本质与核心任务操作系统是管理硬件资源、为上层应用提供抽象和隔离的基础软件。它的核心任务包括：  进程与线程管理：通过进程（资源分配单位）和线程（调度单位）实现多任务并发，保障系统的响应性和资源利用">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-04-28T16:40:48.000Z">
+<meta property="article:modified_time" content="2025-05-06T07:13:15.321Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:estelledc">
+<meta property="article:tag" content="repo:&lt;2025s-rcore-estelledc&gt;">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/04/28/%E5%88%9D%E6%8E%A2%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>初探操作系统 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第二阶段总结：操作系统学习的感悟与理解"><span class="nav-number">1.</span> <span class="nav-text">第二阶段总结：操作系统学习的感悟与理解</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、操作系统的本质与核心任务"><span class="nav-number">1.1.</span> <span class="nav-text">一、操作系统的本质与核心任务</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、关键机制的理解与实践"><span class="nav-number">1.2.</span> <span class="nav-text">二、关键机制的理解与实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、Rust-视角下的操作系统开发"><span class="nav-number">1.3.</span> <span class="nav-text">三、Rust 视角下的操作系统开发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、学习方法与思考"><span class="nav-number">1.4.</span> <span class="nav-text">四、学习方法与思考</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、整体感悟"><span class="nav-number">1.5.</span> <span class="nav-text">五、整体感悟</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">601</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">44</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">546</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/28/%E5%88%9D%E6%8E%A2%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          初探操作系统
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-28 16:40:48" itemprop="dateCreated datePublished" datetime="2025-04-28T16:40:48+00:00">2025-04-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-06 07:13:15" itemprop="dateModified" datetime="2025-05-06T07:13:15+00:00">2025-05-06</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E6%84%9F%E6%82%9F/" itemprop="url" rel="index"><span itemprop="name">感悟</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E6%84%9F%E6%82%9F/%E6%80%BB%E7%BB%93/" itemprop="url" rel="index"><span itemprop="name">总结</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="第二阶段总结：操作系统学习的感悟与理解"><a href="#第二阶段总结：操作系统学习的感悟与理解" class="headerlink" title="第二阶段总结：操作系统学习的感悟与理解"></a>第二阶段总结：操作系统学习的感悟与理解</h1><p>经过这一阶段对操作系统核心内容的系统学习和实践，我对操作系统的本质、关键机制以及与 Rust 结合的优势有了更深刻的理解。以下是我的主要体会和总结：</p>
+<hr>
+<h2 id="一、操作系统的本质与核心任务"><a href="#一、操作系统的本质与核心任务" class="headerlink" title="一、操作系统的本质与核心任务"></a>一、操作系统的本质与核心任务</h2><p>操作系统是管理硬件资源、为上层应用提供抽象和隔离的基础软件。它的核心任务包括：</p>
+<ul>
+<li><strong>进程与线程管理</strong>：通过进程（资源分配单位）和线程（调度单位）实现多任务并发，保障系统的响应性和资源利用率。PCB（进程控制块）和 TCB（线程控制块）是操作系统调度和管理的核心数据结构。</li>
+<li><strong>内存管理</strong>：通过虚拟内存、分页机制和权限控制，实现进程隔离、内存高效分配与回收。页表、TLB、懒分配、写时复制等机制极大提升了系统的安全性和性能。</li>
+<li><strong>进程调度</strong>：采用多种调度算法（如时间片轮转、优先级、MLFQ等）实现公平与高效的 CPU 分配。上下文切换和调度策略直接影响系统吞吐和响应速度。</li>
+<li><strong>系统调用接口</strong>：为用户程序提供受控访问硬件和内核资源的通道，实现用户态与内核态的安全切换。</li>
+<li><strong>硬件抽象与性能优化</strong>：通过缓存、TLB、ASID 等机制优化访问速度，利用中断和异常机制实现高效的事件响应。</li>
+</ul>
+<hr>
+<a id="more"></a>
+
+<h2 id="二、关键机制的理解与实践"><a href="#二、关键机制的理解与实践" class="headerlink" title="二、关键机制的理解与实践"></a>二、关键机制的理解与实践</h2><ol>
+<li><p><strong>进程与线程</strong>  </p>
+<ul>
+<li>理解了进程的生命周期、父子关系、僵尸进程的回收机制，以及线程的实现方式和同步原语（如 Mutex、信号量）。</li>
+<li>实践中通过 PCB/TCB 管理，实现了多进程/多线程的调度和切换。</li>
+</ul>
+</li>
+<li><p><strong>内存管理与分页机制</strong>  </p>
+<ul>
+<li>深入掌握了虚拟地址与物理地址的映射、页表结构（如 SV39）、PTE 各字段的作用。</li>
+<li>理解了懒分配、写时复制、mmap/munmap、权限控制等高级特性，并通过实验实现了相关系统调用。</li>
+<li>认识到页表和 TLB 在性能和安全中的关键作用，理解了 ASID、TLB 刷新等机制。</li>
+</ul>
+</li>
+<li><p><strong>进程调度与算法</strong>  </p>
+<ul>
+<li>实现了时间片轮转、stride 等调度算法，理解了公平性与优先级的平衡。</li>
+<li>体会到上下文切换的本质是“存档与读档”，调度器的设计直接影响系统的响应和吞吐。</li>
+</ul>
+</li>
+<li><p><strong>系统调用与内核接口</strong>  </p>
+<ul>
+<li>理解了系统调用的实现流程、参数传递、用户态与内核态的切换机制。</li>
+<li>实践了 syscall 跟踪、统计等功能，体会到内核接口设计的灵活性与安全性。</li>
+</ul>
+</li>
+<li><p><strong>硬件与性能优化</strong>  </p>
+<ul>
+<li>学习了缓存、TLB、页表等硬件机制对操作系统性能的影响。</li>
+<li>认识到合理利用硬件特性（如懒分配、写时复制、ASID）是提升系统性能的关键。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="三、Rust-视角下的操作系统开发"><a href="#三、Rust-视角下的操作系统开发" class="headerlink" title="三、Rust 视角下的操作系统开发"></a>三、Rust 视角下的操作系统开发</h2><ul>
+<li><strong>内存安全与并发安全</strong>：Rust 的所有权、借用和生命周期机制，在操作系统开发中极大降低了悬垂指针、数据竞争等低级错误的风险，实现了“无 GC 下的高效安全内存管理”。</li>
+<li><strong>零成本抽象</strong>：Rust 的泛型、trait、智能指针等特性，使得高层抽象不会带来运行时开销，既保证了代码的可维护性，又兼顾了性能。</li>
+<li><strong>现代系统编程范式</strong>：通过 Rust，能够用更现代、更安全的方式实现传统操作系统的各项机制，提升了开发效率和系统可靠性。</li>
+</ul>
+<hr>
+<h2 id="四、学习方法与思考"><a href="#四、学习方法与思考" class="headerlink" title="四、学习方法与思考"></a>四、学习方法与思考</h2><ul>
+<li><strong>理论与实践结合</strong>：通过阅读文档、动手实验、查阅源码和 PR，不断将理论知识转化为实际能力。</li>
+<li><strong>善用 AI 与工具</strong>：AI 能极大提升查阅和总结效率，但真正的理解还需亲自思考和动手实现。</li>
+<li><strong>持续总结与反思</strong>：定期总结所学内容，梳理知识脉络，有助于加深理解和查漏补缺。</li>
+</ul>
+<hr>
+<h2 id="五、整体感悟"><a href="#五、整体感悟" class="headerlink" title="五、整体感悟"></a>五、整体感悟</h2><p>操作系统是一门集理论、工程与硬件知识于一体的学科。通过本阶段的学习，我不仅掌握了操作系统的核心机制和实现方法，更体会到系统设计的复杂性与美感。Rust 语言为操作系统开发带来了新的可能，让安全与高效不再是对立面。未来，我希望能继续深入底层系统开发，将所学知识应用于更复杂的场景中。</p>
+<hr>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-estelledc/" rel="tag"># author:estelledc</a>
+              <a href="/blog/tags/repo-2025s-rcore-estelledc/" rel="tag"># repo:<2025s-rcore-estelledc></a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/04/28/OrangeQi/" rel="prev" title="OrangeQi">
+      <i class="fa fa-chevron-left"></i> OrangeQi
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/04/29/2025%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E8%87%AA%E7%94%B1/" rel="next" title="2025年春夏开源操作系统训练营三阶段总结-自由">
+      2025年春夏开源操作系统训练营三阶段总结-自由 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
