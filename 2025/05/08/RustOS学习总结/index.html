@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="从2024年10月开始，我在郭老师和陈老师的指导下开始系统学习 Rust 操作系统，到目前为止已有半年时间，现总结如下。 学习过程学习主要分为 3 个阶段：Rust 语言学习阶段，操作系统训练营阶段和 Starry 实践阶段。 Rust 语言学习阶段2024年10月-11月，我参加了 Rust 学习赛。在此之前我对 Rust 的了解仅限于一些最基本的语法，没有用 Rust 写代码的经历。这次比赛于">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Rust OS 学习总结">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/05/08/RustOS%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="从2024年10月开始，我在郭老师和陈老师的指导下开始系统学习 Rust 操作系统，到目前为止已有半年时间，现总结如下。 学习过程学习主要分为 3 个阶段：Rust 语言学习阶段，操作系统训练营阶段和 Starry 实践阶段。 Rust 语言学习阶段2024年10月-11月，我参加了 Rust 学习赛。在此之前我对 Rust 的了解仅限于一些最基本的语法，没有用 Rust 写代码的经历。这次比赛于">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-05-08T15:14:23.000Z">
+<meta property="article:modified_time" content="2025-05-08T07:26:22.420Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:wang-jiahua - repo:https:&#x2F;&#x2F;github.com&#x2F;wang-jiahua&#x2F;rust-based-os-comp2024">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/05/08/RustOS%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Rust OS 学习总结 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#学习过程"><span class="nav-number">1.</span> <span class="nav-text">学习过程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Rust-语言学习阶段"><span class="nav-number">1.1.</span> <span class="nav-text">Rust 语言学习阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#操作系统训练营阶段"><span class="nav-number">1.2.</span> <span class="nav-text">操作系统训练营阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Starry-实践阶段"><span class="nav-number">1.3.</span> <span class="nav-text">Starry 实践阶段</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#学习成效"><span class="nav-number">2.</span> <span class="nav-text">学习成效</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#问题和解决"><span class="nav-number">3.</span> <span class="nav-text">问题和解决</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#下一步"><span class="nav-number">4.</span> <span class="nav-text">下一步</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">606</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">45</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">552</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/08/RustOS%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Rust OS 学习总结
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2025-05-08 15:14:23 / Modified: 07:26:22" itemprop="dateCreated datePublished" datetime="2025-05-08T15:14:23+00:00">2025-05-08</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>从2024年10月开始，我在郭老师和陈老师的指导下开始系统学习 Rust 操作系统，到目前为止已有半年时间，现总结如下。</p>
+<h2 id="学习过程"><a href="#学习过程" class="headerlink" title="学习过程"></a>学习过程</h2><p>学习主要分为 3 个阶段：Rust 语言学习阶段，操作系统训练营阶段和 Starry 实践阶段。</p>
+<h3 id="Rust-语言学习阶段"><a href="#Rust-语言学习阶段" class="headerlink" title="Rust 语言学习阶段"></a>Rust 语言学习阶段</h3><p>2024年10月-11月，我参加了 Rust 学习赛。在此之前我对 Rust 的了解仅限于一些最基本的语法，没有用 Rust 写代码的经历。这次比赛于我而言是以赛促学，直接投入实践。我先是通过看训练营的课件和网上的一些资料，完成 rustlings 的练习，初步熟悉了 Rust 的语法和一些基本概念。然后参加比赛。初赛相对简单，只需要完成一些相对短的代码片段。复赛难度提高，特别是最后一题的内存分配器，我尝试了 c2rust 库，但由于需要一些改造才能适配，最终失败了。通过这一个多月的学习，我对 Rust 有了初步的了解。</p>
+<h3 id="操作系统训练营阶段"><a href="#操作系统训练营阶段" class="headerlink" title="操作系统训练营阶段"></a>操作系统训练营阶段</h3><p>2024年11月-12月，我参加了操作系统训练营，学习了 rCore 的基本原理和实现和组件化操作系统的设计和实现，并且在项目阶段参加了对应用的支持。训练营的专业阶段和项目基础阶段中，我学习了如何从零开始实现一个 Rust 操作系统，以及在此之上拓展到 unikernel 和宏内核。我完成了这两个阶段的课后练习，加深对 Rust 和操作系统的理解。训练营的第四阶段中，我选择了在 new Starry 上支持 Python。经过一段时间的 debug 以及和同学的交流后，实现了在 new Starry 上运行最基本的 Python 测例。通过两个月的学习，我对 Rust 操作系统有了基本的认识，并且获得了一些实践的经验。</p>
+<h3 id="Starry-实践阶段"><a href="#Starry-实践阶段" class="headerlink" title="Starry 实践阶段"></a>Starry 实践阶段</h3><p>2025年1月-4月，我参与了 starry-next 的开发。一开始是熟悉 starry-next 的代码结构，通过运行并尝试补充实现2024年操作系统比赛的测例来加深理解，在这个过程中我也参考了其他同学的一些实现。开学之后的工作转移到在四种硬件架构上通过2025年操作系统比赛的测例，比2024年的测例多了许多。我与大实验和本科毕设的同学一起开发。3月中旬之前主要专注于 basic 测例的实现，一开始2024年版本的 starry-next 可以通过所有的测例，但 2025 年版本代码改动，所以花了一些时间去适配。之后专注于 libc-test、busybox、lua、iozone 测例。除了硬件层面的问题，大多数测例实质上是要完成一些 syscall，以及可能对操作系统的一些组件的改动。一开始我主要负责若干个文件系统相关的 syscall 的实现，但随着开发的进展，涉及的 syscall 也不限于文件系统。在这个过程中我学习了许多其他同学的实现，也向主线提了一些 PR。4月底，我一直在尝试实现 iozone，目前定位到原先无法通过测试的原因是共享内存和 select（实际 iozone 调用 select 是为了 sleep）未实现，而目前粗糙的实现依然存在 iozone 会不断调用 select 陷入死循环的问题，有待进一步排查。</p>
+<h2 id="学习成效"><a href="#学习成效" class="headerlink" title="学习成效"></a>学习成效</h2><p>Rust 学习方面，通过了训练营 rustlings 的所有练习，通过了 Rust 比赛的初赛所有题目和复赛除了最后一题之外的所有题目，获得优秀奖。</p>
+<p>操作系统方面，完成了训练营的所有练习，为 starry-next 和 ArceOS 提了若干个 PR，最终能通过2025年操作系统比赛初赛的大部分测例。</p>
+<h2 id="问题和解决"><a href="#问题和解决" class="headerlink" title="问题和解决"></a>问题和解决</h2><p>第一是语言问题，一开始学习 Rust 的时候虽然过了一遍内容，但并没有完全理解，在后续开发的时候依然会遇到一些看不懂的报错，只能上网搜索。但是语言的学习确实也只能这样，在运用的过程中记忆。</p>
+<p>第二是环境和开发方式问题，我尝试了许多不同的环境，包括 WSL、GitHub codespace、阿里云服务器、实验室服务器等，以及在其上的 Docker 环境。starry-next 的配环境确实有点麻烦，另一方面也是我自己对于容器环境的了解不够深入。最终我选择在实验室服务器上自己配环境，以及在 GitHub codespace 用其他同学写好的配置。</p>
+<p>第三是开发过程中遇到的各式各样的操作系统的问题，也是我需要实现的地方，比如 glibc 的 tmpfile 函数依赖 fcntl 函数的 F_GETFL 参数，比如 fstatat 函数中 to_string 函数会在字符串后 padding，导致 utf-8 解析错误，比如 glibc 的 fstat 函数调用的是 fstatat 函数，而代码中在unlink 之后依然用文件名访问等等。这些问题都在我阅读代码和 man 手册后得到解决。具体问题和解决过程见 <a href="https://docs.qq.com/doc/DZHVReE11a1FCZFl4" target="_blank" rel="noopener">starry-next 宏内核扩展实践记录</a>。</p>
+<h2 id="下一步"><a href="#下一步" class="headerlink" title="下一步"></a>下一步</h2><p>2025年4月开始，我补充学习了操作系统训练营中之前没有学的虚拟化章节，并且通过阅读 axvisor 的代码和文档来进一步学习虚拟化。接下来我将参与到组件化虚拟机方面的实习研究工作中，从 riscv 入手，逐步延伸到 aarch。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-wang-jiahua-repo-https-github-com-wang-jiahua-rust-based-os-comp2024/" rel="tag"># author:wang-jiahua - repo:https://github.com/wang-jiahua/rust-based-os-comp2024</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/08/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/" rel="prev" title="第二阶段rcore学习心得-胡旭">
+      <i class="fa fa-chevron-left"></i> 第二阶段rcore学习心得-胡旭
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
