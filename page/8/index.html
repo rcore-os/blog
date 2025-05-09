@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">606</span>
+          <span class="site-state-item-count">608</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">552</span>
+        <span class="site-state-item-count">554</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,206 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/" class="post-title-link" itemprop="url">二阶段rCore总结-折鸦</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-13 02:00:30" itemprop="dateCreated datePublished" datetime="2025-04-13T02:00:30+00:00">2025-04-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="二阶段-rCore-实验总结-折鸦"><a href="#二阶段-rCore-实验总结-折鸦" class="headerlink" title="二阶段 rCore 实验总结 - 折鸦"></a>二阶段 rCore 实验总结 - 折鸦</h1><h2 id="实验环境配置"><a href="#实验环境配置" class="headerlink" title="实验环境配置"></a>实验环境配置</h2><p>用 Rust 开发操作系统内核源代码, 通过 <code>rustc</code> 交叉编译到 <code>riscv64gc-unknown-none-elf</code> (一般情况下是 <code>x86_64-unknown-linux-gnu</code>), 通过 <code>rust-objcopy</code> 提取出 bin, 然后放到 <code>qemu-system-riscv64</code> 模拟器进行模拟, 大概是这么个工具链.</p>
+<p>QEMU 最好装 <code>7.0.0</code> 版本的, 从源码编译安装的话需要注意一下依赖, 部分发行版的依赖可以在 <a href="https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites" target="_blank" rel="noopener">Running 64- and 32-bit RISC-V Linux on QEMU — RISC-V - Getting Started Guide</a> 找到</p>
+<p>Arch Linux 仓库里是 QEMU 9, 需要修改一下 <code>RustSBI</code> 的版本. 注意如果你想直接 <code>downgrade</code> 到 <code>7.0.0</code> 的话可能会需要连带降级一些非常核心的软件包, 非常不建议尝试. 有需要也可以自行寻找依赖包然后从源代码编译, 但是有一些接口变动可能会导致编译失败, 所以最佳方案还是替换 <code>RustSBI</code> 版本, 这里不再赘述.</p>
+<h2 id="构建一个能跑但仅仅能跑的操作系统"><a href="#构建一个能跑但仅仅能跑的操作系统" class="headerlink" title="构建一个能跑但仅仅能跑的操作系统"></a>构建一个能跑但仅仅能跑的操作系统</h2><p>根据 OSTEP 的说法, 操作系统的主要三个任务部分在于: <strong>虚拟化</strong>, <strong>并发</strong>, <strong>可持久化</strong></p>
+<ul>
+<li>虚拟化主要表现在:<ul>
+<li>对内存的抽象: 每个进程有自己的虚拟地址空间, 造成每个进程独占一个主存的假象(学过 CSAPP 可以回忆一下第九章, 博客还在补)</li>
+<li>对 CPU 的虚拟化: 主要表现在操作系统内核对各个任务的调度, 使得每个任务产生独占 CPU 的假象(这就是一种并发)</li>
+<li>对外设设备的虚拟化等等</li>
+</ul>
+</li>
+<li>并发主要表现在:<ul>
+<li>进程概念的抽象和实现, 进程间通信</li>
+<li>多线程的实现</li>
+</ul>
+</li>
+<li>可持久化主要涉及文件系统</li>
+</ul>
+<p>而形式上, 操作系统是一个二进制文件或二进制文件镜像, 被 bootloader 加载进内存的特定位置, 驻留在内存中的特定代码, 这些代码负责一些加载应用程序(简单来说就是把可执行文件加载到内存), 管理资源(设备/文件)并提供访问的任务, 这些任务以系统调用(syscall)的形式暴露给应用程序, 只是系统调用函数比较敏感特殊, 下面会仔细介绍.</p>
+<p>那么我们的任务就比较明确了: </p>
+<ul>
+<li>先设计一个基本的能把应用程序加载到内存的功能 (当然因为现在内核没有任何调度能力也没有让应用程序启动其他应用程序的必要(这依赖进程的实现), 所以我们暂时不需要设计 <code>execve</code> 系统调用)</li>
+<li>实现标准输出能力 (实际上标准输出就是调用系统调用 <code>write</code>, 目标为 <code>1</code> (标准输入))</li>
+<li>实现退出程序的能力 (<code>exit</code> 系统调用)</li>
+</ul>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/06/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-hxingjie/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/06/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-hxingjie/" class="post-title-link" itemprop="url">2025春夏季开源操作系统训练营第二阶段总结报告-hxingjie</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-06 19:18:43" itemprop="dateCreated datePublished" datetime="2025-04-06T19:18:43+00:00">2025-04-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/summary-report/" itemprop="url" rel="index"><span itemprop="name">summary report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="一、前言"><a href="#一、前言" class="headerlink" title="一、前言"></a>一、前言</h2><p>通过阅读实验指导书，我跟着操作系统的发展历程，学习了批处理系统、多道程序与分时多任务、虚拟地址空间、进程管理、文件系统、进程通信和并发等核心概念，并对rCore的实现有了更深入的认识。以下是我对这两周学习过程的总结。</p>
+<h2 id="二、学习内容"><a href="#二、学习内容" class="headerlink" title="二、学习内容"></a>二、学习内容</h2><ol>
+<li><p>搭建执行环境：</p>
+<p>学习了平台与目标三元组，理解了应用程序执行环境。</p>
+</li>
+<li><p>批处理系统：</p>
+<p>学习了批处理系统的基本原理，包括作业调度、作业执行过程。</p>
+</li>
+<li><p>多道程序与分时多任务：</p>
+<p>掌握了多道程序设计的基本概念，以及如何实现分时多任务调度。</p>
+</li>
+<li><p>虚拟地址空间：</p>
+<p>理解了虚拟内存的概念，包括页表、地址映射。</p>
+</li>
+<li><p>进程管理：</p>
+<p>学习了进程的管理、调度，更加深入的理解了fork+exec。</p>
+</li>
+<li><p>文件系统：</p>
+<p>掌握了文件系统的基本结构，包括目录、文件。</p>
+</li>
+<li><p>进程通信：</p>
+<p>学习了父子进程之间的通信机制——管道。</p>
+</li>
+<li><p>并发：</p>
+<p>学习了线程管理机制的设计与实现，理解了同步互斥的实现，包括锁、信号量、条件变量。</p>
+</li>
+</ol>
+<h2 id="三、学习心得"><a href="#三、学习心得" class="headerlink" title="三、学习心得"></a>三、学习心得</h2><p>第二次学习rCore，加之前段时间学习xv6的经历，对rCore有了更深入的认识，包括trap的过程、地址空间的切换等，和群里同学的讨论也加深了我对代码的理解。</p>
+<p>通过学习rCore，我对操作系统的原理有了更深入的理解，虽然考研的时候较为系统的学习了操作系统的知识，但是基本上还是停留在理论知识方面。这次rCore学习之旅，我获取PCB对进程进行操作、实现课本上学习过的系统调用、深入汇编代码理解什么是 ‘陷入’ ，让我对操作系统的设计理念、计算机的体系结构有了具象化的认识。</p>
+<p>在学习过程中，我也遇到了许多挑战，解决了旧问题又出现了新问题，对操作系统有了更深入的认识反而产生了更多的问题，但是我相信计算机没有魔法，多查资料多看源码一定能把疑惑解开。</p>
+<p>两周的rCore学习之旅让我受益匪浅。通过学习rCore，我对操作系统的设计和实现有了更深刻的认识，同时也提升了我的编程技能。我相信，这些知识和经验将对我未来的学习和职业发展产生积极影响。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/03/25/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-hxingjie/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +464,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -353,7 +553,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -445,7 +645,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
 
           
@@ -570,7 +770,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -730,7 +930,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -811,7 +1011,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
 
           
@@ -911,7 +1111,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
 
           
@@ -1025,7 +1225,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
+                <time title="Modified: 2025-05-09 08:31:59" itemprop="dateModified" datetime="2025-05-09T08:31:59+00:00">2025-05-09</time>
               </span>
 
           
@@ -1091,194 +1291,6 @@
 </ul>
 <p>其他实验由于忙于项目，暂时未做，后面有时间再补上其他的实验。</p>
 <p>之前总结的一个starry的实现流程也记录这里，方便以后实验查阅：<br><a href="starry-boot.jpeg">Starry启动流程</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-sts/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-sts/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结报告-sts</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-01 00:00:00" itemprop="dateCreated datePublished" datetime="2024-12-01T00:00:00+00:00">2024-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/oscamp-2024fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2024fall arceos unikernel</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>进入第三阶段当然很高兴，但时间上实在太紧，我一开始的心态是按看懂源代码中的每一步来走的，但目前只是看完了所有相关的 makefile，以及看了部分 PPT 中强调部分的源代码。实验的话也是完成了第一周的内容以及 Hypervisor 的实验一。</p>
-</blockquote>
-<h2 id="arceos流程小结"><a href="#arceos流程小结" class="headerlink" title="arceos流程小结"></a>arceos流程小结</h2><p>总体执行流程：axhal的boot.rs中先引导，用于初始化内核栈，设置初始的页表，这里映射了两个 1G 的大页，分别是低地址恒等映射以及高地址的一个映射。随后要调用 axruntime 的 rust_main 来进一步完善运行时，这里会涉及到 axfeat 里面用到的 feature 条件编译并初始化一些东西，比如启用了 paging 这个 feature 就会重新映射页表这样。调用 rust_main 的时候加了一个偏移，偏移的大小其实就是高地址映射的偏移这样。随后 axruntime 做好运行时之后，调用 main 函数。随后调用结束函数，结束整个流程。</p>
-<h2 id="课后练习1：支持带颜色的打印输出。"><a href="#课后练习1：支持带颜色的打印输出。" class="headerlink" title="课后练习1：支持带颜色的打印输出。"></a>课后练习1：支持带颜色的打印输出。</h2><p>具体实现：修改axhal中putchar的实现，在打印每一个字符时都加入相应的转义字符。</p>
-<p>关于转义字符的具体解析的话：颜色定义的部分可以参考 <a href="https://www.man7.org/linux/man-pages/man4/console_codes.4.html" target="_blank" rel="noopener">console_codes(4) — Linux manual page</a> 的 <code>ECMA-48 Select Graphic Rendition</code> 部分。在 makefile 中的 <code>run_cmd</code> 函数用于辅助输出同时会以颜色输出命令，参数 1 控制颜色为白色，参数 2 控制为灰色，随后执行命令。</p>
-<p>颜色控制部分关键如下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">param      result</span><br><span class="line">0          reset all attributes to their defaults</span><br><span class="line">1          set bold</span><br><span class="line">2          set half-bright (simulated with color on a color display)</span><br><span class="line">3          set italic (since Linux 2.6.22; simulated with color on a color display)</span><br><span class="line">4          set underscore (simulated with color on a color display) (the colors</span><br><span class="line">			used to simulate dim or underline are set using ESC ] ...)</span><br><span class="line">5          set blink</span><br><span class="line">7          set reverse video</span><br><span class="line">10         reset selected mapping, display control flag, and toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;primary font&quot;).</span><br><span class="line">11         select null mapping, set display control flag, reset toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;first alternate font&quot;).</span><br><span class="line">12         select null mapping, set display control flag, set toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;second alternate font&quot;).  The toggle meta flag causes the</span><br><span class="line">			high bit of a byte to be toggled before the mapping table translation is</span><br><span class="line">			done.</span><br><span class="line">21         set underline; before Linux 4.17, this value set normal intensity (as is</span><br><span class="line">			done in many other terminals)</span><br><span class="line">22         set normal intensity</span><br><span class="line">23         italic off (since Linux 2.6.22)</span><br><span class="line">24         underline off</span><br><span class="line">25         blink off</span><br><span class="line">27         reverse video off</span><br><span class="line">30         set black foreground</span><br><span class="line">31         set red foreground</span><br><span class="line">32         set green foreground</span><br><span class="line">33         set brown foreground</span><br><span class="line">34         set blue foreground</span><br><span class="line">35         set magenta foreground</span><br><span class="line">36         set cyan foreground</span><br><span class="line">37         set white foreground</span><br><span class="line">38         256&#x2F;24-bit foreground color follows, shoehorned into 16 basic colors</span><br><span class="line">			(before Linux 3.16: set underscore on, set default foreground color)</span><br><span class="line">39         set default foreground color (before Linux 3.16: set underscore off, set</span><br><span class="line">			default foreground color)</span><br><span class="line">40         set black background</span><br><span class="line">41         set red background</span><br><span class="line">42         set green background</span><br><span class="line">43         set brown background</span><br><span class="line">44         set blue background</span><br><span class="line">45         set magenta background</span><br><span class="line">46         set cyan background</span><br><span class="line">47         set white background</span><br><span class="line">48         256&#x2F;24-bit background color follows, shoehorned into 8 basic colors</span><br><span class="line">49         set default background color</span><br><span class="line">90..97     set foreground to bright versions of 30..37</span><br><span class="line">100..107   set background, same as 40..47 (bright not supported)</span><br><span class="line"></span><br><span class="line">Commands 38 and 48 require further arguments:</span><br><span class="line">;5;x       256 color: values 0..15 are IBGR (black,  red,  green,</span><br><span class="line">			...  white),  16..231  a  6x6x6 color cube, 232..255 a</span><br><span class="line">			grayscale ramp</span><br><span class="line">;2;r;g;b   24-bit color, r&#x2F;g&#x2F;b components are in the range 0..255</span><br></pre></td></tr></table></figure>
-
-<p> <code>ECMA-48  SGR</code> 序列以 <code>ESC[ parameters m</code> 的格式控制显示的属性。parameters 用分号隔开，<code>\033[92;1m</code> 为例，033 为八进制，表示 ESC，92 和 1分别是 param，参考上文的 <code>ECMA-48 Select Graphic Rendition</code> 92 表示绿色明亮前景色。1 表示加粗，0 表示重置属性。</p>
-<h2 id="课后练习2：支持-HashMap"><a href="#课后练习2：支持-HashMap" class="headerlink" title="课后练习2：支持 HashMap"></a>课后练习2：支持 HashMap</h2><p>ax_api 作为下层 module 的抽象，随后 axstd 作为我们自己定义的标准库供用户程序调用。</p>
-<p>我的想法其实也是直接看 std 的 HashMap 怎么实现，然后改一改，做到最小的满足测试案例中的那些操作。然后慢慢改一改，后面看到官方也用了 hashbrown 作为实现，然后我就改了改，把随机数用到 hashbrown 这边大概。然后就好了。</p>
-<h2 id="课后练习3：实现-alt-alloc"><a href="#课后练习3：实现-alt-alloc" class="headerlink" title="课后练习3：实现 alt_alloc"></a>课后练习3：实现 alt_alloc</h2><p>这个分配器应当是用作早期boot之后系统初始化阶段的内存分配器，所以实现上相对简单，每次分配都向后增长。dealloc的时候尝试减掉已经alloc的空间大小，如果为0，那就重新开始从头分配这样。</p>
-<h2 id="挑战题目：实现特定分配算法"><a href="#挑战题目：实现特定分配算法" class="headerlink" title="挑战题目：实现特定分配算法"></a>挑战题目：实现特定分配算法</h2><p>这个算法的话，还是要感谢万能的群友，我一开始想的也是在TLSF基础上改一改这样。后面发现有取巧的地方，主要也是循环一直进行，奇数项的内容永不释放，所以就取巧了，会记录每次奇数次申请的空间，下次申请如果比上次的小，那就返回该地址。如果比上次大，那就重新申请，释放上次的内容这样。</p>
-<p>达到的轮次是65536应该是，也是一个非常 unsigned int 的值。</p>
-<p>思路详细描述：由于每次申请的空间大小会加1，相比上一次。例如，delta 为1，申请的空间依次是32 + 1， 32 * 2 + 1， 。delta 为 2，申请的空间依次是32 +2， 32*2 +2，。所以，第一次循环会反复替换掉分配器中的记录。</p>
-<p>但是，从第二次开始，每次当 index 为 13 的时候，会替换上一次的内容。因为上一次的 13 比这次的 13 申请的空间小 1。但是呢，14 不是最后一次循环吗，因为 14 是偶数所以不管。奇数就很神奇，每次都是到 index 为 13 的时候重新申请一次空间。其余时候，其实大家返回的地址都是一样的。嘿嘿。而且，每次替换的时候都会把上次的给释放了，哎，就很神奇。</p>
-<p>首先主体部分使用特定内存分配器 tlsf。包括申请，释放等操作。</p>
-<p>其次，定制 alloc 函数。用 indicator 记录此时调用 alloc_pass 函数的 delta值。用 index 记录 alloc_pass 函数中的循环次数。</p>
-<p>alloc 的时候需要谨慎计算，2的多少次方啊，当index = 14 的时候，重置为 0，然后indiactor需要加 1 啊，之类的。</p>
-<p>这里要注意一点，源码里，分配器有个special变量，为bool类型。这里用它的主要原因在于有个很神奇的点：当indiactor为32， index = 1的时候，items需要申请 0x60 的空间，而恰好，下次申请向量空间也是 0x60 的大小。就，重复了。嗯。所以，作为单独判断条件，然后重置，第一次出现先不管，然后继续。然后，bug解决。</p>
-<h2 id="Hypervisor课后练习1"><a href="#Hypervisor课后练习1" class="headerlink" title="Hypervisor课后练习1"></a>Hypervisor课后练习1</h2><p>hypervisior流程分析：这里初始化阶段我们的hyper会布置好一个现场类似我们在宏内核中设置好sstatus寄存器那样，随后通过sret到GUEST中执行，GUEST中遇到无法处理的情况又会陷入Hypervisior中，通过对不同类型的陷入执行不同的代码，处理好用户的错误设置寄存器等操作，随后返回GUEST继续执行。</p>
-<p>这里的第一个实验比较简单：只需要在处理错误函数中设置寄存器的值，然后设置sepc += 4，让GUEST去执行出错指令的下一条指令即可。</p>
-<h2 id="Hypervisior课后练习2"><a href="#Hypervisior课后练习2" class="headerlink" title="Hypervisior课后练习2"></a>Hypervisior课后练习2</h2><p>这里会涉及到虚拟化里的地址二阶段映射。主要流程：GUEST中的虚拟地址先通过 VSATP 翻译，通过 GVA 到 GPA，然后通过 HGATP 把GPA翻译到 HPA 这样。</p>
-<p>课后练习尚未完成，嗯。</p>
-<h2 id="Hypervisior课后练习3"><a href="#Hypervisior课后练习3" class="headerlink" title="Hypervisior课后练习3"></a>Hypervisior课后练习3</h2><p>这里涉及 GUEST 的中断。主要涉及时钟中断，一种实现方式是当 GUEST 配置 RTC 的时候会陷入 Hyper，由 Hyper 来设置时钟，当时钟触发的时候，Hyper 会触发 GUEST 的时钟中断位这样。Hyper在设置完之后应该是会关中断的，待下次GUEST设置中断的时候再打开，这样保持一致。</p>
-<p>课后练习尚未完成，嗯。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这里总结的话，三阶段实在不完美，时间上太赶了，然后各种东西都想弄明白细节，这样就很来不及。原本还准备看RISCV的指令集虚拟化扩展这样，也只看了一小部分，内容上其实不算多，但要补的内容比较多，就比较费劲。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/29/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-chy669086/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/29/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-chy669086/" class="post-title-link" itemprop="url">2024秋冬开源操作系统训练营第三阶段总结-chy669086</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-29 20:08:07" itemprop="dateCreated datePublished" datetime="2024-11-29T20:08:07+00:00">2024-11-29</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-08 07:26:22" itemprop="dateModified" datetime="2025-05-08T07:26:22+00:00">2025-05-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">第三阶段总结报告</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>也是很高兴能进入三阶段学习。三阶段让我对操作系统的理解更进一步，通过课后的作业，我也学到了不少知识。</p>
-<h2 id="个人收获"><a href="#个人收获" class="headerlink" title="个人收获"></a>个人收获</h2><ul>
-<li>学会了操作系统对设备的挂载</li>
-<li>了解了 unikernel 到宏内核的转化</li>
-<li>对操作系统内存分配的了解更进一步</li>
-<li>通过查漏补缺对上一阶段掌握不熟的知识进行了复习</li>
-</ul>
-<p>通过阅读 arceos 的源代码和课后练习，我的程序编写能力也得到了锻炼，让我对操作系统有了全新的认识。</p>
-<h2 id="未来展望"><a href="#未来展望" class="headerlink" title="未来展望"></a>未来展望</h2><p>通过这个阶段的学习，我有以下打算：</p>
-<ul>
-<li>四阶段希望进行宏内核的学习</li>
-<li>在寒假时间自己实现一个轻量级的 unikernel 内核，并通过组件化的形式将他变成宏内核</li>
-</ul>
-<p>最后，感谢老师的悉心教导，也感谢平台提供的学习机会，让我有了深入学习操作系统的机会。</p>
 
       
     </div>
@@ -1394,6 +1406,59 @@
   
 
   
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
 
   
 
