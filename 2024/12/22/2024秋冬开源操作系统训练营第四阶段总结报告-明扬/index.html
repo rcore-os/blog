@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="与同学们互相讨论在本次学习过程中，我对Rust异步编程中的一些核心挑战进行了深入思考： 1. 函数着色和异步Drop的挑战 目前Rust异步编程中最棘手的问题是函数着色和async drop机制。特别是在资源管理方面，由于future是基于poll的机制，在处理background task和事务时面临两个主要场景的挑战：  结构体持有background task（如连接或stream）时的资源">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024秋冬开源操作系统训练营第四阶段总结报告">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/12/22/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%98%8E%E6%89%AC/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="与同学们互相讨论在本次学习过程中，我对Rust异步编程中的一些核心挑战进行了深入思考： 1. 函数着色和异步Drop的挑战 目前Rust异步编程中最棘手的问题是函数着色和async drop机制。特别是在资源管理方面，由于future是基于poll的机制，在处理background task和事务时面临两个主要场景的挑战：  结构体持有background task（如连接或stream）时的资源">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-12-22T14:58:00.000Z">
+<meta property="article:modified_time" content="2025-05-09T08:50:40.643Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:mingyang91">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;mingyang91&#x2F;os">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/12/22/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%98%8E%E6%89%AC/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024秋冬开源操作系统训练营第四阶段总结报告 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#与同学们互相讨论"><span class="nav-number">1.</span> <span class="nav-text">与同学们互相讨论</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#第一周："><span class="nav-number">1.1.</span> <span class="nav-text">第一周：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第二周："><span class="nav-number">1.2.</span> <span class="nav-text">第二周：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第三周："><span class="nav-number">1.3.</span> <span class="nav-text">第三周：</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#概要设计"><span class="nav-number">2.</span> <span class="nav-text">概要设计</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">610</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">45</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">556</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/22/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%98%8E%E6%89%AC/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024秋冬开源操作系统训练营第四阶段总结报告
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-22 14:58:00" itemprop="dateCreated datePublished" datetime="2024-12-22T14:58:00+00:00">2024-12-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-09 08:50:40" itemprop="dateModified" datetime="2025-05-09T08:50:40+00:00">2025-05-09</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="与同学们互相讨论"><a href="#与同学们互相讨论" class="headerlink" title="与同学们互相讨论"></a>与同学们互相讨论</h2><p>在本次学习过程中，我对Rust异步编程中的一些核心挑战进行了深入思考：</p>
+<p><strong>1. 函数着色和异步Drop的挑战</strong></p>
+<p>目前Rust异步编程中最棘手的问题是函数着色和async drop机制。特别是在资源管理方面，由于future是基于poll的机制，在处理background task和事务时面临两个主要场景的挑战：</p>
+<ul>
+<li>结构体持有background task（如连接或stream）时的资源释放</li>
+<li>需要uncancelable语义的事务处理场景</li>
+</ul>
+<p><strong>2. 资源安全释放的困境</strong></p>
+<p>在系统信号处理方面存在显著挑战。特别是在进程接收信号时的安全资源释放问题仍然没有完善的解决方案。虽然对于使用事务的SQL系统影响相对较小，但在文件系统或WAL文件等场景中，这个问题尤为突出。</p>
+<p><strong>3. 互斥锁的使用策略</strong></p>
+<p>在异步编程中，关于互斥锁的选择需要特别注意。Tokio提供了一个重要的见解：在异步代码中使用标准库的普通Mutex通常是可行且推荐的。异步互斥锁的主要优势在于能够在.await点保持锁定状态，但这也使其比阻塞式互斥锁更昂贵。因此，对于单纯的数据访问，使用标准库的阻塞式互斥锁是更合适的选择。</p>
+<p><strong>4. 操作系统层面的应用</strong></p>
+<p>在操作系统内核中，协程的应用主要可以考虑用于替代传统的自旋锁场景，而io_uring的引入则可能带来更广泛的应用空间。</p>
+<p><strong>5. 异步编程模型的适用场景</strong></p>
+<p>从资源管理的角度来看，异步编程模型在不同场景下有其独特的优势和局限。特别是在处理IO密集型任务时，异步模型能够提供更好的性能和资源利用率。</p>
+<h3 id="第一周："><a href="#第一周：" class="headerlink" title="第一周："></a><strong>第一周：</strong></h3><ul>
+<li>复习并重新学习WASM上的async runtime相关知识</li>
+<li>计划完善OS仓库，准备移植文件系统和SMP多核启动</li>
+</ul>
+<h3 id="第二周："><a href="#第二周：" class="headerlink" title="第二周："></a><strong>第二周：</strong></h3><ul>
+<li>阅读Rust语言相关RFC文档：<ul>
+<li>async_trait与async fn in trait</li>
+<li>Object Safety</li>
+<li>pin_project_lite</li>
+</ul>
+</li>
+<li>为内核态编写async runtime</li>
+<li>开始实现文件系统与block device</li>
+<li>计划将async runtime合并到OS仓库中</li>
+</ul>
+<h3 id="第三周："><a href="#第三周：" class="headerlink" title="第三周："></a><strong>第三周：</strong></h3><ul>
+<li>因家人住院需要陪护，本周暂无工作产出</li>
+</ul>
+<h2 id="概要设计"><a href="#概要设计" class="headerlink" title="概要设计"></a>概要设计</h2><p>众所周知，操作系统内核对性能和时延的需求都是非常高的。当应用程序通过传统系统调用使用操作系统能力时，CPU需要经过两次特权模式转换、用户栈的保存与恢复等操作，这会消耗数十甚至数百CPU时钟周期。因此，在操作系统内核中引入异步协程机制时，不应增加这些基础开销。</p>
+<p>在应用程序通过操作系统与外部设备交互时，由于大多数外部设备的性能都慢于CPU执行速度，且受限于信号传输延迟，响应延迟是不可避免的。操作系统在等待外部响应时采用自旋等待是非常低效的。因此，我的设想是在IO部分引入协程机制，通过用户进程的IO操作与内核线程通信的方式，为内核代码赋予异步能力。</p>
+<p>在二阶段学习rCoreOS时，我发现其中与virtIO block-device的交互部分非常适合进行异步协程改造。</p>
+<p>然而，我不赞成将所有内核代码和锁都替换为异步协程版本。如前所述，操作系统内核代码对性能非常敏感。虽然无栈协程的切换开销较小，但在内核开发中这种开销仍然不容忽视。此外，由于CPU大部分时间都会交由用户线程执行以最大化资源利用率，载体线程（CPU核心）会尽可能运行用户代码，这在某种程度上违反了协程使用原则，可能导致其他任务出现饥饿现象。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>四阶段开始前, 我曾立下这个目标: 希望能开发出我自己的操作系统内核, 并在 Lichee Pi 4A 真机设备上成功启动.</p>
+<p>无奈上周夫人孕期遭遇大出血, 紧急住院保胎一周. 我作为陪护家属, 暂停了一周的学习与工作照顾夫人. 故未能完成四阶段开始前立下的目标😔.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-mingyang91/" rel="tag"># author:mingyang91</a>
+              <a href="/blog/tags/repo-https-github-com-mingyang91-os/" rel="tag"># repo:https://github.com/mingyang91/os</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/22/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E5%BC%A0%E6%9E%97%E4%BC%9F/" rel="prev" title="2024秋冬季开源操作系统训练营总结-张林伟">
+      <i class="fa fa-chevron-left"></i> 2024秋冬季开源操作系统训练营总结-张林伟
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/03/25/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-hxingjie/" rel="next" title="2025春夏季开源操作系统训练营第一阶段总结报告-hxingjie">
+      2025春夏季开源操作系统训练营第一阶段总结报告-hxingjie <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
