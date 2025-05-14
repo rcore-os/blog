@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">612</span>
+          <span class="site-state-item-count">613</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,195 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/19/%E4%B8%89%E9%98%B6%E6%AE%B5%E7%BB%84%E4%BB%B6%E5%8C%96%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/19/%E4%B8%89%E9%98%B6%E6%AE%B5%E7%BB%84%E4%BB%B6%E5%8C%96%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/" class="post-title-link" itemprop="url">三阶段组件化操作系统总结-折鸦</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-19 15:10:50" itemprop="dateCreated datePublished" datetime="2025-04-19T15:10:50+00:00">2025-04-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="组件化操作系统设计与实现"><a href="#组件化操作系统设计与实现" class="headerlink" title="组件化操作系统设计与实现"></a>组件化操作系统设计与实现</h1><p>oscamp 第三节阶段总结. 由于部分操作系统原理性质的内容在二阶段中已经学过了, 因此总结主要针对两部分:</p>
+<ol>
+<li>新概念: ArceOS 在传统内核上的创新</li>
+<li>老概念: 与 rCore 的实现不同的部分, 以及分析原因</li>
+</ol>
+<h2 id="为什么要组件化"><a href="#为什么要组件化" class="headerlink" title="为什么要组件化?"></a>为什么要组件化?</h2><p>ArceOS 的优势区间在于快速针对特定领域构建出一个最合适的内核, 主要解决的痛点就是”从头开发一个操作系统太繁琐”, 而”现成的方案并不完全适用于应用场景”. 一些操作系统的可扩展性通过内核编译选项或者配置文件来实现, 但是这种方法无法在更深层次修改组装一个操作系统内核, 因此 ArceOS 采用了组件化的方案灵活组装某些功能.</p>
+<h2 id="ArceOS-的主要结构-Unikernel"><a href="#ArceOS-的主要结构-Unikernel" class="headerlink" title="ArceOS 的主要结构 (Unikernel)"></a>ArceOS 的主要结构 (Unikernel)</h2><ol>
+<li>ArceOS 提供 <code>axhal</code> (Hardware Abstraction Layer) 封装了硬件相关的接口和 <code>driver</code>, 整理统一为 <code>axhal</code> 组件对外的接口</li>
+<li>基于 <code>axhal</code>, 我们有 <code>axruntime</code> 作为运行时. </li>
+<li>应用与内核处于同一特权级, 编译为一个 Image 运行, 在实际应用中, 非传统 PC 上的操作系统往往不需要支持多种多样的任务(包括这个实验到最后也没有并行的实现, 只有任务并发调度)<ul>
+<li>应用于内核的交互在当前 Unikernel 阶段下是通过 <code>axstd</code> (对标 Rust 标准库), 而 <code>axstd</code> 会使用 <code>arceos_api</code> 提供的操作系统 API</li>
+<li>在未来宏内核拓展时则是通过实际的系统调用, 经过 Trap 在中断向量表中异常处理程序调用 <code>arceos_posix_api</code> 提供的操作系统 API, POSIX 标准的 API 是为了能够让 <code>glibc</code> / <code>musl-libc</code> 的 Linux 应用程序能够被兼容</li>
+</ul>
+</li>
+</ol>
+<h2 id="ArceOS-的引导过程-Unikernel"><a href="#ArceOS-的引导过程-Unikernel" class="headerlink" title="ArceOS 的引导过程(Unikernel)"></a>ArceOS 的引导过程(Unikernel)</h2><ol>
+<li>链接脚本指定的起始地址 <code>_start</code>, 这个过程里:<pre><code>1. 先建立栈, 以便可以调用函数
+ 2. 准备页表, 启用 MMU
+ 3. 切换地址空间后偏移一下栈指针
+ 4. 调用 `axhal` 中的 `rust_entry`</code></pre></li>
+<li><code>axhal</code> 组建的 <code>rust_entry</code>, 这个过程:<ul>
+<li>清理 <code>bss</code> 段</li>
+<li>设置中断向量表 <code>stvec</code> 寄存器</li>
+<li>调用 <code>axruntime</code> 的 <code>rust_main</code></li>
+</ul>
+</li>
+<li><code>axruntime</code> 的 <code>rust_main</code>, 这个过程:<ul>
+<li>相当于内核正式启动, 打印 logo 和必要信息等</li>
+<li>重映射, 以及一些必要的初始化(如设备和中断初始化)</li>
+<li>调用应用程序中的 <code>main()</code> 函数</li>
+</ul>
+</li>
+</ol>
+<h2 id="ArceOS-中一些特定功能的实现"><a href="#ArceOS-中一些特定功能的实现" class="headerlink" title="ArceOS 中一些特定功能的实现"></a>ArceOS 中一些特定功能的实现</h2><h3 id="组件组装编译-通过-Rust-的-feature-进行条件编译"><a href="#组件组装编译-通过-Rust-的-feature-进行条件编译" class="headerlink" title="组件组装编译(通过 Rust 的 feature 进行条件编译)"></a>组件组装编译(通过 Rust 的 feature 进行条件编译)</h3><h3 id="分页机制"><a href="#分页机制" class="headerlink" title="分页机制"></a>分页机制</h3><p>还是熟悉的 SV39. 但是注意 Hypervisor 下拓展了两位, 不过我们暂时并没有管这两位.</p>
+<p>内核启动早期恒等映射 SBI 和 Kernel, 然后再把这一段映射到高地址(<code>0xffff_ffc0_0000_0000</code> 以后), 目的是为未来宏内核拓展留下足够空间, 让 Unikernel 在高地址运行. 同时 <code>pc</code>, <code>sp</code> 也同样要增加偏移. </p>
+<h3 id="物理页帧分配与动态内存分配"><a href="#物理页帧分配与动态内存分配" class="headerlink" title="物理页帧分配与动态内存分配"></a>物理页帧分配与动态内存分配</h3><p>ArceOS 中的虚拟页面是通过 <code>MemoryArea::new(start, size, flags, Backend::new_alloc(populate))</code> 来将 <code>[start, start + size)</code> 映射到 <code>Backend</code> 新创建的物理页面上的, 而 Backend 则是:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// axmm/src/backend/alloc.rs</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">alloc_frame</span></span>(zeroed: <span class="built_in">bool</span>) -&gt; <span class="built_in">Option</span>&lt;PhysAddr&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> vaddr = VirtAddr::from(global_allocator().alloc_pages(<span class="number">1</span>, PAGE_SIZE_4K).ok()?);</span><br><span class="line">    <span class="keyword">if</span> zeroed &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; core::ptr::write_bytes(vaddr.as_mut_ptr(), <span class="number">0</span>, PAGE_SIZE_4K) &#125;;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">let</span> paddr = virt_to_phys(vaddr);</span><br><span class="line">    <span class="literal">Some</span>(paddr)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">dealloc_frame</span></span>(frame: PhysAddr) &#123;</span><br><span class="line">    <span class="keyword">let</span> vaddr = phys_to_virt(frame);</span><br><span class="line">    global_allocator().dealloc_pages(vaddr.as_usize(), <span class="number">1</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过动态内存分配器分配一段地址(返回的是虚拟地址), 再将虚拟地址转换为物理地址返回, 这样就新 allocate 了一个物理页面.</p>
+<p>ArceOS 的动态内存分配器提供两个功能: 按字节分配和按页分配. 后者是通常的动态内存调用, 前者是为了操作系统本身服务的, 相当于 rCore 的 <code>FrameAllocator</code>, 对物理地址进行管理, 分配页面. 字节分配器不够了也会向页分配器发送请求要求追加内存.</p>
+<p>ArceOS 的动态内存分配器框架向下封装算法, 向上暴露接口. 常见的(<em>字节</em>)动态内存分配算法有: TLSF, Buddy, Slab 等. 设计动态内存分配算法是挑战题目之一. <del>但我还一点没做</del> (页分配是通过 <code>Bitmap</code> 管理的)</p>
+<h3 id="任务与任务调度"><a href="#任务与任务调度" class="headerlink" title="任务与任务调度"></a>任务与任务调度</h3><p>数据结构方面和 rCore 差不多, 不过似乎没有内部可变性模式了, 不知道是出于什么考虑.</p>
+<p>ArceOS 的调度框架由 “当前可被调度的任务队列”<code>run_queue</code> 和 “当前阻塞中不可被调度的任务队列” <code>wait_queue</code> 和一个 “现在在运行的任务” <code>task</code> 组成 (系统还有 <code>idle</code> 待机任务 和 <code>gc</code> 回收清理任务); 向下需要 <code>TaskContext</code> 切换和<strong>特定调度算法</strong>的支持, 向上暴露 <code>yield</code> <code>sleep</code> <code>spawn</code> 等 API. 大部分 API 都非常直观, 操作相应含义的队列和任务控制块即可. 因此我们主要介绍向下需求的算法: 上下文切换和调度算法.</p>
+<ol>
+<li><p>上下文切换与 rCore 几乎一致, 保存 <code>ra</code>, <code>sp</code> 和 RISCV 调用约定规定的通用寄存器, 保存并切换到下一个任务的上下文即可</p>
+</li>
+<li><p>协作式 FIFO 调度算法: 字面意思, 按照队列的先进先出模式按照特定顺序调度</p>
+</li>
+<li><p>抢占式 Round Robin 调度算法: </p>
+<p> 被抢占 = 内部条件 &amp;&amp; 外部条件</p>
+<p> 外部条件是当前任务的抢占开关, 在”禁用抢占”-&gt;”启用抢占”的临界边缘触发. 这里我们在时钟中断时执行的 <code>on_time_tick</code> 里更新当前任务的外部抢占开关.</p>
+<p> 内部条件是内部设置的抢占 guard, 以及自旋锁等, 防止在任务不希望的时候被打断.</p>
+<p> 新任务仍会在队尾加入, 调度顺序不变, 只是多了一个抢占机制.</p>
+</li>
+<li><p>抢占式 CFS 调度算法(Completely Fair Scheduled, “绝对公平”的调度算法)</p>
+<p> $\text{vruntime} = \text{init_vruntime} + \frac{\delta}{weight(\text{prior})}$</p>
+<ul>
+<li>$\text{vruntime}$ 最小的任务优先执行</li>
+<li>新任务的 $ \text{init_vruntime}$ 初始化为 $min(\text{vruntime}_{tid})$, 以便让新任务尽快被调度</li>
+<li>每次触发时钟中断对<strong>当前任务</strong>的 $\delta$ 按照上述式子递增, $\text{prior}$ 是优先级, 优先级越高递增越缓慢也就越容易处在前列并被调度; 然后把 $\text{vruntime}$ 最小的任务放在队首</li>
+</ul>
+</li>
+</ol>
+<h3 id="存储设备-以及其他设备-的管理框架-与-rCore-不同"><a href="#存储设备-以及其他设备-的管理框架-与-rCore-不同" class="headerlink" title="存储设备(以及其他设备)的管理框架 (与 rCore 不同)"></a>存储设备(以及其他设备)的管理框架 (与 rCore 不同)</h3><p>存储底层设备是 QEMU <code>PFlash</code> 模拟的闪存磁盘, 通过 MMIO 方式将文件映射到特定内存地址(在 SBI 起始的 <code>0x80000000</code> 之前, 在 qemu 的设备树之后)</p>
+<p>也可以从块设备读取其数据 (<code>drv_block</code> 和 <code>drv_virtio</code> 模块)</p>
+<p>代码结构上, <code>AllDevices</code> 管理 <code>block</code> <code>net</code> <code>display</code> 等所有的设备, 设备用 <code>struct AxDeviceContainer&lt;D&gt;(Vec&lt;D&gt;)</code> 统一管理, 可以管理不同类型的 device.</p>
+<p>驱动是在 <code>axruntime::rust_main</code> 调用的 <code>init_drivers</code> 中初始化的, 先基于总线 <code>probe</code> 设备, 然后通过宏生成代码放入 <code>AllDevices</code></p>
+<h3 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h3><p>文件设备基于块设备, 块设备的行为描述为 <code>trait BlockDriverOps</code>.</p>
+<p>块设备以上的层次结构如下:</p>
+<img src="/blog/.io//2025/04/19/%E4%B8%89%E9%98%B6%E6%AE%B5%E7%BB%84%E4%BB%B6%E5%8C%96%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/ArceOS_FileSystem_Final.PNG" class title="ArceOS_File_System">
+
+<p>ArceOS 的文件设备相对 rCore 来说更加贴近现实, 如目录和挂载的概念: 目录项是一个 <code>DirNode</code>, 可以把一个 <code>fs</code> 文件系统挂载到这个目录上, 挂载 (mount) 的意义实际上就是把磁盘上扁平的数据关系建立为树形结构</p>
+<h2 id="宏内核支持"><a href="#宏内核支持" class="headerlink" title="宏内核支持"></a>宏内核支持</h2><p>目前为止我们的 Unikernel 架构 ArceOS 与宏内核 (Monolithic) 架构<del>八竿子打不着</del>还有很大差别:</p>
+<ul>
+<li>没有特权级切换</li>
+<li>没有应用自己的地址空间</li>
+<li>没有实现系统调用</li>
+<li>没有实现加载应用</li>
+</ul>
+<p>那么逻辑就很清楚了, 我们要按照上面的点增量构建一个宏内核(这也是组件化的有点, 高复用性):</p>
+<ol>
+<li>先创建用户地址空间: 一切操作都需要对数据进行, 而数据需要在地址空间上</li>
+<li>加载应用数据并建立用户栈到地址空间</li>
+<li>伪造现场(临时上下文)并放入新任务的内核栈上(此时仍然在内核态)</li>
+<li>调用 <code>sret</code> 从 S 特权级返回 U 特权级, 进入用户态, 从刚刚加载的应用入口开始执行</li>
+<li>用户应用调用了系统调用, 通过异常中断向量表 Trap 进 S 特权级, 内核处理这个调用</li>
+</ol>
+<h4 id="用户地址空间的内存分布"><a href="#用户地址空间的内存分布" class="headerlink" title="用户地址空间的内存分布"></a>用户地址空间的内存分布</h4><ul>
+<li>地址空间的高地址区域是内核空间(内核栈等可以共享)</li>
+<li>在内核根页表中只有高区域, 低地址区域是空</li>
+<li>以这个内核根页表为模板为应用进程复制了低地址区域的应用空间后, 所有页表中高地址那部分的内核空间的虚拟地址映射到相同的物理地址, 实现了共享.</li>
+</ul>
+<h4 id="加载用户数据"><a href="#加载用户数据" class="headerlink" title="加载用户数据"></a>加载用户数据</h4><p>读到内存缓存区, 再到内核地址空间, 再在用户地址空间中与内核地址空间存应用的那部分映射到相同的部分</p>
+<h4 id="任务控制块扩展"><a href="#任务控制块扩展" class="headerlink" title="任务控制块扩展"></a>任务控制块扩展</h4><p>宏内核需要一些 Unikernel 不具备的任务信息, 如用户地址空间, 上下文等. 这里用 <code>def_task_ext!</code> 宏注册扩展任务控制块的结构体类型.</p>
+<p>这样, 记下 <code>sepc</code> 寄存器值, 标记 <code>sstatus</code> CSR 为”切换前来自用户态”(因为 RISCV 不存在专门从内核态到用户态的切换的指令, 只能假装当前在内核态是因为刚刚从用户态过来的, 然后返回回去)</p>
+<h4 id="系统调用"><a href="#系统调用" class="headerlink" title="系统调用"></a>系统调用</h4><p>ArceOS Monolithic 中系统调用的实现路径是 Trap 进内核态后, 由 <code>axhal::arch::trap</code> 通过 <code>link_me</code> 从应用程序的 syscall 处理函数中调用到 <code>arcesos_posix_api</code> 来实现功能的</p>
+<p><code>link_me</code>: 对系统调用的响应函数通过 <code>#[register_trap_handler(SYSCALL)]</code> 注册.</p>
+<h2 id="Linux-App-支持"><a href="#Linux-App-支持" class="headerlink" title="Linux App 支持"></a>Linux App 支持</h2><p>我们已经有了一个最小化的宏内核, 但是还不能直接跑 Linux ELF 可执行文件:</p>
+<ul>
+<li><p>地址空间太 plain 了, 没有逻辑分段 (<code>.text</code> <code>.data</code> 等都要模仿 Linux)</p>
+<p>  逻辑段实现上是一个 <code>BTreeMap&lt;address, area&gt;</code>, 通过 <code>mmap</code> 映射一段地址到一段页面上(以及设置访问权限等). 映射后端包含 <code>Linear</code> 和 <code>Alloc</code> 两种方式, 前者是带偏移的连续地址映射到一个段, 后者是可能不连续的多个物理页帧的集合映射到一个段.</p>
+</li>
+<li><p>Linux App 大多数需要与 <code>glibc</code> 或 <code>musl-libc</code> 进行参数协同</p>
+<p>  加载 ELF 文件, 然后只需要读取 <code>r-x</code> 和 <code>rw-</code> 的部分 (<code>.text</code> 和 <code>.data</code>), 即 Type 为 <code>Load</code> 的两个段.</p>
+<p>  内存中和文件中代码段的长度和地址一般是恒等映射的, 毕竟就在第一个</p>
+<p>  但是由于 <code>BSS</code> 段的存在, 需要重新计算并映射 <code>.bss</code> 和 <code>.data</code> 段作为数据段</p>
+<p>  初始化用户栈, 把命令行参数加入进去(参数和环境变量), 这个二阶段管道那一章 ch7 有说过</p>
+<p>  <code>musl-libc</code> 启动较为简洁, 需要实现的系统调用较少.</p>
+</li>
+<li><p>其他缺少于 Linux 的部分: <code>procfs</code>, <code>sysfs</code>.</p>
+</li>
+</ul>
+<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>Hypervisor 是 Guest 与 Host 相同指令集情况下高效(<em>虚拟化消耗可忽略</em>)地对硬件资源进行管理的虚拟机</p>
+<h3 id="虚拟化模式的寄存器相关变化"><a href="#虚拟化模式的寄存器相关变化" class="headerlink" title="虚拟化模式的寄存器相关变化"></a>虚拟化模式的寄存器相关变化</h3><ul>
+<li><code>misa[7] = 1</code> 表示启用 Hypervisor 虚拟化</li>
+<li><code>s*</code> 寄存器作用不变(<code>sstatus</code> <code>stvec</code> <code>sepc</code>), Host 新增 <code>hs*</code> 寄存器用于对 Guest 的路径控制(异常/中断委托等)</li>
+<li><code>vs*</code> 寄存器操作 Guest 中的 S 特权级寄存器, 如 <code>vsepc</code> 要设置为 <code>0x80200000</code>, <code>vsstatus</code> 要设置为初始 S (VS) 特权级</li>
+<li><code>hstatus[7]</code> 记录上一次进入 HS 特权级前的模式 <code>sret</code> 根据这个决定是返回<strong>虚拟化用户态</strong>还是 <strong>Host</strong> 中</li>
+</ul>
+<h3 id="控制流"><a href="#控制流" class="headerlink" title="控制流"></a>控制流</h3><p>虚拟化实际就是在 Guest 和 Host 直接来回转换, 之所以要切回 Host 是因为有些操作必须让 Host 来执行(比如 <code>sbi_call</code> 或 中断注入)</p>
+<p>每个 <code>vCPU</code> (在这里为了简单, 仅对应一个 CPU 核心) 维护一组上下文状态, Guest 或者 Host.</p>
+<p>切换到另一个状态时保存当前上下文并切换到对应的上下文, Guest 到 Host 是 <code>VM_Exit</code>, 反之是 <code>sret</code></p>
+<p>分页处理: 嵌套分页: GVA -&gt; (<code>vsatp</code>) -&gt; GPA -&gt; (<code>hgatp</code>) -&gt; HPA</p>
+<p>虚拟设备: 透传模式或模拟模式</p>
+<p>中断处理(中断注入):  只有 <code>hvip</code> 的对应位被设置为 1, Guest 的 <code>vstvec</code> 才会被触发, 否则 Guest 完全不知道有中断发生. <code>vstvec</code> 是 Guest 的中断入口, 但它仅响应 <code>hvip</code> 中已注入的虚拟中断, 而不是物理中断.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/19/%E4%B8%80%E9%98%B6%E6%AE%B5rustlings%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +453,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
 
           
@@ -456,7 +645,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -958,7 +1147,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
 
           
@@ -1054,7 +1243,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1158,7 +1347,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1247,7 +1436,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
 
           
@@ -1350,7 +1539,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
 
           
@@ -1423,7 +1612,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
 
           
@@ -1493,7 +1682,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
+                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1535,131 +1724,6 @@
 <p>虽然没有通过最初的设想去适配到任何一个系统里去（直接移植还是太不松耦合了），但是我也花了很多时间去尝试适配，其中阶段二的项目仓库是最接近完成的一个，结果编译错误了，经过测试发现把 <code>futex::syscall::sys_futex</code> 函数调用去掉就可以通过编译，一时间不知道从何改起。转到 <code>arceos</code> 适配的时候，在被迫阅读了大量源码之后，发现提供的宏内核示例压根没有创建线程的系统调用，自己写了半天并没有写出来，所以又放弃了。</p>
 <p>虽然写的挺差的，而且最近也到学校的期末周了，确实有没有太多时间写这个项目了，但是通过这次 posix 接口的编写，我还是学会了不少东西。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>从训练营开始到现在也过去 12 周了，看着自己从对操作系统毫无概念一步步到现在还是很感慨的。感谢老师的辛勤付出，感谢训练营能给我一个这样的平台。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/06/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-catme0w/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/06/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-catme0w/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结-catme0w</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-06 23:25:00" itemprop="dateCreated datePublished" datetime="2024-12-06T23:25:00+00:00">2024-12-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-11 15:32:25" itemprop="dateModified" datetime="2025-05-11T15:32:25+00:00">2025-05-11</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>你们好，我是catme0w，来分享一下我在内存分配器挑战中的经历。</p>
-<p>也看看我在二阶段的文章吧：<a href="https://rcore-os.cn/blog/2024/11/10/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E3%80%81%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-catme0w/" target="_blank" rel="noopener">https://rcore-os.cn/blog/2024/11/10/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E3%80%81%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-catme0w/</a></p>
-<h1 id="Round-1：更好的TLSF分配器"><a href="#Round-1：更好的TLSF分配器" class="headerlink" title="Round 1：更好的TLSF分配器"></a>Round 1：更好的TLSF分配器</h1><p>一开始拿到题目的时候，是想尝试一下改善“正常的分配器”的，也就是实现通用分配器，因为那时想着，毕竟在内核空间之中搞小动作太过容易，以非正常方式刷分数显得太cheaty了一点也不好玩。</p>
-<p>粗略了解过后，认识到原来TLSF实现所使用的rlsf库已经是分配器算法的较优实现了：<a href="https://github.com/yvt/rlsf#measured-performance" target="_blank" rel="noopener">https://github.com/yvt/rlsf#measured-performance</a> 。尝试调整了一下rlsf的参数（FLLEN和SLLEN），发现并没有什么变化，无法突破170。</p>
-<p>认识到试图优化TLSF似乎是没有前途的；改善TLSF的路线，宣告失败。</p>
-<h1 id="Round-2：面向测例分配器"><a href="#Round-2：面向测例分配器" class="headerlink" title="Round 2：面向测例分配器"></a>Round 2：面向测例分配器</h1><p>那么，我们不得不从头开始写我们自己的东西了。</p>
-<p>要了解分数由什么决定，也就是什么决定了indicator数量的上限，进一步地，了解每一步中内存分配行为和内存碎片的变化。</p>
-<p>不难看出，测例会释放掉偶数项的块，而保留奇数项。</p>
-<p>由此，我们可以针对性地“攻击”这一点——研究测例的分配模式，追踪每一次分配是否是“不会被释放”的那一批，将其连续排列在一个特殊的区域中，使得内存碎片完全不会出现，利用率达到惊人的100%。</p>
-<p>可当我准备动手时，意识到这个东西在现实世界里没有意义，它只能针对这个测例起效。至少在我看来，这已经和非正常方式没有太大差异了。</p>
-<p>那么，要不……一不做二不休，干脆直接把非正常方式做到极致？</p>
-<h1 id="Round-3：假的分配器"><a href="#Round-3：假的分配器" class="headerlink" title="Round 3：假的分配器"></a>Round 3：假的分配器</h1><p>从测例的行为可以了解到，它只会验证块的最后一个字节是否正确，那么思路就很简单了，追踪每次分配行为，如果是外层的Vec，就给它用真的分配器；如果是内层Vec，就只分配两个字节，然后返回伪造的内存地址！</p>
-<p>可是，说的倒轻巧，思路是简单不假，可是究竟有什么方法精确地识别一个堆分配操作来自哪里呢？答案是没门！更不要提伪造内存地址会有多难做。</p>
-<p>我确实尝试了一下，但是……很快放弃了。</p>
-<p>值得一提的是，分配器的部分不直接在内核中，没有println可用，因而调试极其困难。</p>
-<p>必须再换一个思路才行。</p>
-<h1 id="Round-4：他不体面你就帮他体面分配器"><a href="#Round-4：他不体面你就帮他体面分配器" class="headerlink" title="Round 4：他不体面你就帮他体面分配器"></a>Round 4：他不体面你就帮他体面分配器</h1><p>注意到：每次分配的内存大小由base+delta构成，base指数增长，从32开始，每次为之前的两倍，直到达到512 KB；delta为indicator数量。</p>
-<p>释放的规律上文已提过，偶数项释放，奇数项保留。</p>
-<p>那么，新的思路由此诞生：追踪indicator的数量，确定当前测例位于哪一“回合”，进而精确计算出哪些分配会被测例保留，记下它们的内存地址……</p>
-<p>然后，从分配器的代码内，释放掉它们！</p>
-<p>他不体面，你就帮他体面！</p>
-<h3 id><a href="#" class="headerlink" title></a></h3><p>我最开始思路还要更简单些，只是记录下所有分配的内存地址，当遇到大于512 KB的释放时，就释放掉之前记录的所有地址。</p>
-<p>但这样会有一个显而易见的问题：double free——测例本身还会释放一半呢。</p>
-<p>由于测例很简单，我一开始不认为这是个问题，但在我无数次撞在LoadFault上之后，我投降了……</p>
-<h3 id="-1"><a href="#-1" class="headerlink" title></a></h3><p>以下是我最终的详细思路：</p>
-<p>具体不会被释放的块，长度为64+delta、256+delta、1024+delta……。</p>
-<p>将其base值，也就是64、256、1024……维护在分配器内的一个Vec中。</p>
-<p>当分配器命中这些值时，把它们的内存地址和大小保存在另一个Vec中。</p>
-<p>当分配器命中下一“回合”的32+delta，也就是第一次分配时，标志前一“回合”结束，此时，将记录到的那些不会被测例释放的内存块释放掉。</p>
-<p>由此，我们便消除了测例的“内存泄漏”，内存将永远无法被耗尽。</p>
-<h3 id="-2"><a href="#-2" class="headerlink" title></a></h3><p>但没那么简单，这个“正确的思路”第一版实现仍然会停止在130，并且不是no memory，而是触发了LoadFault，内存越界了。</p>
-<p>经观察，我所记录的那些“我要帮它体面”的内存块中，恰好有某项命中了外层Vec的扩张大小……</p>
-<p>由于临近截止，我没有时间仔细去寻找它们到底命中哪个长度了，只能暂时绕过它。</p>
-<p>在indicator足够大之前，每回合均不释放开头的两项。</p>
-<h3 id="-3"><a href="#-3" class="headerlink" title></a></h3><p>一阵操作之后，我终于第一次看到了indicator数量超越170。</p>
-<p>或者说，我终于得到了梦寐以求（？）的无尽indicator。</p>
-<p>在何时停止好呢？来做一个114514吧，多有纪念意义啊。</p>
-<p>只是，它在65536就停了下来，显示no memory。</p>
-<p>何故呢？</p>
-<p>原来，测例中负责释放的那部分（free_pass）所使用的delta长度是u8，只有负责分配的部分（alloc_pass）才是usize。65536是u8的上限，不是我的上限。</p>
-<p>我的114514，梦碎了。</p>
-<h3 id="-4"><a href="#-4" class="headerlink" title></a></h3><p>“这不可能！”</p>
-<p>我大叫起来。</p>
-<p>此时临截止不到一个小时了，我分明记得之前看到过有人把indicator刷到了六位数。</p>
-<p>他们怎么绕过u8的上限的？</p>
-<h1 id="Round-？：一种基于kernel-exploit的分配器"><a href="#Round-？：一种基于kernel-exploit的分配器" class="headerlink" title="Round ？：一种基于kernel exploit的分配器"></a>Round ？：一种基于kernel exploit的分配器</h1><p>想要打破u8，那就得让free_pass不执行。</p>
-<p>得发挥更强大的想象力，寻找更下作（？）的手段。</p>
-<p>那么，这其中的花样可就多了……</p>
-<p>此时的操作系统仍是unikernel，没有虚拟内存，不存在用户空间，所有的代码共用同一个（物理）地址空间。</p>
-<p>你可以找到测例里alloc_pass那个循环下标的内存地址，然后直接把它改成114514……</p>
-<p>或者，直接覆盖掉println……</p>
-<p>甚至，还可以想办法在我们能允许修改的这一小块代码中弄出些use-after-free，来点缓冲区溢出，来点ROP……</p>
-<h3 id="-5"><a href="#-5" class="headerlink" title></a></h3><p>但我想，已经刷到六位数的那些人用的并不是这样的方法。他们会怎么做呢？比赛结束之后再去看看吧。</p>
-<h1 id="100-Honest-Review"><a href="#100-Honest-Review" class="headerlink" title="100% Honest Review"></a>100% Honest Review</h1><p>在最开始，我对参与这项挑战的兴趣不大。我不喜欢这种有零和博弈味道的规则——早提交可能失去优化机会，晚提交可能因结果相同而落后。</p>
-<p>ArceOS已经很难了，题目若再有压力，我会直接躺平。我承认我很脆弱。</p>
-<p>话虽这么说，我还是来了。尽管我很晚才开始了解挑战的细节，而到那时，已经有人发掘出了非正常方式。</p>
-<p>那时我的反应与群里一位的想法几乎一致：这不就彻底没意思了吗？</p>
-<p>但当我亲自上手这个题目时，想法还是逐渐发生了变化。<del>哎真香</del></p>
-<p>纵使前期有些不愉快，最终还是收获了不少快乐与知识。</p>
-<h3 id="-6"><a href="#-6" class="headerlink" title></a></h3><p>但倘若你问我，还想不想再玩一次这样的挑战题目的话……</p>
-<p>我的回答是否定的。</p>
 
       
     </div>
