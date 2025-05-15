@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="组件化内核的意义与概念基于组件构造内核的方法，去构造不同场景的各种模式内核。组件之间单向依赖。 与传统设计思路的差异：  面向场景和应用需求构建内核 以统一视角看待各种模式、不同规模的内核  组件化内核相对传统构建方式的优势：  提高内核开发效率 降低内核维护难度 开展基于组件的功能复用和开发协作  内核模式：1)App和Kernel均处于S Mode.2)相互可见.3)编译形成一个Image.4">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024秋冬季训练营第三阶段总结-张宇驰">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="组件化内核的意义与概念基于组件构造内核的方法，去构造不同场景的各种模式内核。组件之间单向依赖。 与传统设计思路的差异：  面向场景和应用需求构建内核 以统一视角看待各种模式、不同规模的内核  组件化内核相对传统构建方式的优势：  提高内核开发效率 降低内核维护难度 开展基于组件的功能复用和开发协作  内核模式：1)App和Kernel均处于S Mode.2)相互可见.3)编译形成一个Image.4">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-12-01T10:17:57.000Z">
+<meta property="article:modified_time" content="2025-05-15T08:36:18.573Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024秋冬季训练营第三阶段总结-张宇驰 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#组件化内核的意义与概念"><span class="nav-number">1.</span> <span class="nav-text">组件化内核的意义与概念</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Unikernel"><span class="nav-number">2.</span> <span class="nav-text">Unikernel</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#学习心得"><span class="nav-number">2.1.</span> <span class="nav-text">学习心得</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#特点"><span class="nav-number">2.2.</span> <span class="nav-text">特点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#应用的开发"><span class="nav-number">2.3.</span> <span class="nav-text">应用的开发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#课后练习"><span class="nav-number">2.4.</span> <span class="nav-text">课后练习</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#练习一"><span class="nav-number">2.4.1.</span> <span class="nav-text">练习一</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#练习二"><span class="nav-number">2.4.2.</span> <span class="nav-text">练习二</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#练习三"><span class="nav-number">2.4.3.</span> <span class="nav-text">练习三</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#练习四"><span class="nav-number">2.4.4.</span> <span class="nav-text">练习四</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Monolithic"><span class="nav-number">3.</span> <span class="nav-text">Monolithic</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#学习心得-1"><span class="nav-number">3.1.</span> <span class="nav-text">学习心得</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#特点-1"><span class="nav-number">3.2.</span> <span class="nav-text">特点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#课后练习-1"><span class="nav-number">3.3.</span> <span class="nav-text">课后练习</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#练习五"><span class="nav-number">3.3.1.</span> <span class="nav-text">练习五</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#练习六"><span class="nav-number">3.3.2.</span> <span class="nav-text">练习六</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Hypervisor"><span class="nav-number">4.</span> <span class="nav-text">Hypervisor</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#学习心得-2"><span class="nav-number">4.1.</span> <span class="nav-text">学习心得</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#特点-2"><span class="nav-number">4.2.</span> <span class="nav-text">特点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#课后题"><span class="nav-number">4.3.</span> <span class="nav-text">课后题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#练习七"><span class="nav-number">4.3.1.</span> <span class="nav-text">练习七</span></a></li></ol></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">673</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">47</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">582</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024秋冬季训练营第三阶段总结-张宇驰
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-01 10:17:57" itemprop="dateCreated datePublished" datetime="2024-12-01T10:17:57+00:00">2024-12-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 08:36:18" itemprop="dateModified" datetime="2025-05-15T08:36:18+00:00">2025-05-15</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="组件化内核的意义与概念"><a href="#组件化内核的意义与概念" class="headerlink" title="组件化内核的意义与概念"></a>组件化内核的意义与概念</h1><p><strong>基于组件</strong>构造内核的方法，去构造<strong>不同场景</strong>的<strong>各种模式</strong>内核。组件之间单向依赖。</p>
+<p>与传统设计思路的差异：</p>
+<ol>
+<li>面向场景和应用需求构建内核</li>
+<li>以统一视角看待各种模式、不同规模的内核</li>
+</ol>
+<p>组件化内核相对传统构建方式的优势：</p>
+<ol>
+<li>提高内核开发效率</li>
+<li>降低内核维护难度</li>
+<li>开展基于组件的功能复用和开发协作</li>
+</ol>
+<p>内核模式：1)App和Kernel均处于S Mode.2)相互可见.3)编译形成一个Image.4)是App也是Kernel<br>可以通过组件增量的方式，实现扩展到宏内核与Hypervisor模式。</p>
+<h1 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h1><h2 id="学习心得"><a href="#学习心得" class="headerlink" title="学习心得"></a>学习心得</h2><p>Unikernel令我最惊讶的就是模块化的OS构建方式并通过组件增量的方式组成不同内核模式的OS.</p>
+<h2 id="特点"><a href="#特点" class="headerlink" title="特点"></a>特点</h2><ol>
+<li>应用与内核处于同一特权级（均为内核态），共享地址空间。Unikernel既是内核又是应用，二者合为一体</li>
+<li>优点: 应用与内核之间没有隔离和切换，简单高效</li>
+<li>缺点: 同样因为没有隔离和切换，所以安全性较低</li>
+</ol>
+<p>Unikernel框架与构成框架的核心组件是怎么来的？经历的阶段如下：</p>
+<p>(1) 直接开发一个裸机应用来满足输出Hello的简单需求<br>(2) 需求增加，发现可按照通用性和Arch相关实现分层复用<br>(3) 引入组件化，降低耦合性、提升复用性定制性灵活性。</p>
+<h2 id="应用的开发"><a href="#应用的开发" class="headerlink" title="应用的开发"></a>应用的开发</h2><p>面向应用：基于features选择必要组件的最小集合。</p>
+<ol>
+<li>学习了如何加载和执行外部应用程序</li>
+<li>实现了内核与应用程序的通信机制</li>
+<li>掌握了地址空间分离和切换的技术要点</li>
+</ol>
+<h2 id="课后练习"><a href="#课后练习" class="headerlink" title="课后练习"></a>课后练习</h2><h3 id="练习一"><a href="#练习一" class="headerlink" title="练习一"></a>练习一</h3><p>在打印宏的定义处，使用ANSI控制颜色即可，我使用的是：<code>\x1B[34m</code>和<code>\x1B[0m</code></p>
+<h3 id="练习二"><a href="#练习二" class="headerlink" title="练习二"></a>练习二</h3><p>我做了两版，一版就是直接引入hashbrown，这是最简单的方法，不过对于alloc和hashbrown中的有一个方法存在的冲突，我没有做处理，默认是让alloc的方法覆盖了hashbrown的。另一个版本是CV了std的实现，然后一点一点的修理，但是我还是觉得第一个更优雅一点。</p>
+<h3 id="练习三"><a href="#练习三" class="headerlink" title="练习三"></a>练习三</h3><p>我在EarlyAllocator中添加了start, end, b_pos, p_pos, count属性。然后将每一个Trait需要实现的函数实现出来。我发现PageAllocator中的部分函数并没有被使用，有些函数是直接打了unimplement()!的，但是一样能通过测试。</p>
+<h3 id="练习四"><a href="#练习四" class="headerlink" title="练习四"></a>练习四</h3><p>参数的检查可以直接参考官方函数的实现。<br>rename直接调用API fs::rename就可以。mv通过判断第二个参数dst是否是一个目录，如果是的话，吧文件src读入buf,然后在对应的路径写，最后删除原来的文件。</p>
+<h1 id="Monolithic"><a href="#Monolithic" class="headerlink" title="Monolithic"></a>Monolithic</h1><h2 id="学习心得-1"><a href="#学习心得-1" class="headerlink" title="学习心得"></a>学习心得</h2><p>宏内核在如今的市场上还是占有大量的比率，而Linux也为我们证明了，宏内核加上一些合理的缓解措施，并不意味着会比其他模式差。所以，学习宏内核是很多有意义的。</p>
+<h2 id="特点-1"><a href="#特点-1" class="headerlink" title="特点"></a>特点</h2><p>基于组件化方法构建宏内核模式。</p>
+<ol>
+<li>Unikernel到宏内核：<br>以构建最小化的宏内核为目标，说明：<br>宏内核特点、与Unikernel的差异分析、框架和组件构成、具体实现示例。</li>
+<li>地址空间管理和支持Linux应用：<br>1）用户地址空间映射、缺页加载机制；<br>2）支持运行最简单的Linux的原始应用</li>
+</ol>
+<p>Unikernel模式的应用和内核：<br>(1）处于同一特权级 - 内核特权级<br>(2) 共享同一地址空间 - 相互可见<br>(3) 编译形成一个Image，一体运行<br>(4) Unikernel既是应用又是内核，二者合体</p>
+<h2 id="课后练习-1"><a href="#课后练习-1" class="headerlink" title="课后练习"></a>课后练习</h2><h3 id="练习五"><a href="#练习五" class="headerlink" title="练习五"></a>练习五</h3><p>使用register_trap_handler来标记对PAGE_FAULT的处理，然后实现处理函数：<code>handle_page_fualt()</code><br>处理的实现是通过axtask的接口去实现的，得到task的ext，将aspace上锁后，调用handle_page_fualt同名函数，最后直接打印了对应的输出，然后返回一个正确处理。如果同名函数没有正确执行，那么就直接返回false.</p>
+<h3 id="练习六"><a href="#练习六" class="headerlink" title="练习六"></a>练习六</h3><p>从当前的aspace中调用find_free_area，得到length的addr_src，然后进行4K对齐，同时，对length进行对齐得到size。</p>
+<p>prot和flags通过调用MmapProt::from_bits_truncate(prot), MmapFlags::from_bits_truncate(flags)得到，需要的mappingFlags就from(prot)即可。</p>
+<p>调用aspace的map_alloc方法。</p>
+<p>之后处理一下MmapFlags::MAP_ANONYMOUS。如果有这个flags，直接返回就好</p>
+<p>如果没有MmapFlags::MAP_ANONYMOUS。则通过get_file_like得到我们所需的文件，并将其读取进入buf，然后写入aspace。</p>
+<h1 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h1><h2 id="学习心得-2"><a href="#学习心得-2" class="headerlink" title="学习心得"></a>学习心得</h2><p>HyperVisor，即所谓的虚拟机管理程序，从代码实现来看，和宏内核思想差不多，都是一个高特权级的“内核”为低特权级的“应用”创建独属于它的“虚拟空间”，为它准备对应的资源，然后切换特权级去执行该“应用”。当“应用”发生“中断”的时候，就trap回“内核”处理。GuestOS，就像是一个特殊的应用。</p>
+<h2 id="特点-2"><a href="#特点-2" class="headerlink" title="特点"></a>特点</h2><p>HyperVisor，即所谓的虚拟机管理程序，从代码实现来看，和宏内核思想差不多，都是一个高特权级的“内核”为低特权级的“应用”创建独属于它的“虚拟空间”，为它准备对应的资源，然后切换特权级去执行该“应用”。当“应用”发生“中断”的时候，就trap回“内核”处理。GuestOS，就像是一个特殊的应用。</p>
+<p>基于一台物理计算机建立一些OS的就是虚拟机，我们这里用的是I形虚拟机，也就是不存在宿主机，直接在硬件平台运行的。<br>虚拟机的特点包括：同质、高校、资源受控。为了实现虚拟化，支持了以下层次的对象VM、vCPU、vMem、vDevice、vUtilities。</p>
+<h2 id="课后题"><a href="#课后题" class="headerlink" title="课后题"></a>课后题</h2><h3 id="练习七"><a href="#练习七" class="headerlink" title="练习七"></a>练习七</h3><p>这里处理Trap的时候，需要更改掉panic，然后在这道题中，要求A0、A1为0x1234和0x6688，只需要在处理这些Trap的时候，将对应的寄存器进行修改就可以</p>
+<hr>
+<p>笔记：<a href="https://github.com/inchinaxiaofeng/Blog-arceos" target="_blank" rel="noopener">https://github.com/inchinaxiaofeng/Blog-arceos</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-sts/" rel="prev" title="2024秋冬季开源操作系统训练营第三阶段总结报告-sts">
+      <i class="fa fa-chevron-left"></i> 2024秋冬季开源操作系统训练营第三阶段总结报告-sts
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/" rel="next" title="2024秋冬季开源操作系统训练营第三阶段总结-hbuxiaofei">
+      2024秋冬季开源操作系统训练营第三阶段总结-hbuxiaofei <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
