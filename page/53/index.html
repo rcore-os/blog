@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">656</span>
+          <span class="site-state-item-count">657</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,123 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/Ywinh-s-Blog/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/04/Ywinh-s-Blog/" class="post-title-link" itemprop="url">Ywinh's Blog</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-04 11:50:51" itemprop="dateCreated datePublished" datetime="2023-11-04T11:50:51+00:00">2023-11-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="实验总结"><a href="#实验总结" class="headerlink" title="实验总结"></a>实验总结</h1><h2 id="lab1"><a href="#lab1" class="headerlink" title="lab1"></a>lab1</h2><p>目的就是实现三个信息的统计</p>
+<h3 id="status-TaskStatus"><a href="#status-TaskStatus" class="headerlink" title="status: TaskStatus"></a>status: TaskStatus</h3><ul>
+<li>按照提示直接设置为running</li>
+</ul>
+<h3 id="syscall-times-u32-MAX-SYSCALL-NUM"><a href="#syscall-times-u32-MAX-SYSCALL-NUM" class="headerlink" title="[syscall_times: [u32; MAX_SYSCALL_NUM]"></a>[syscall_times: [u32; MAX_SYSCALL_NUM]</h3><ul>
+<li>第一次尝试直接在sys_task_info来加载，发现好像不行，因为不知道传入的ti: *mut TaskInfo，这个参数到底在哪里被初始化的，而且每个任务都需要有一个syscall_times数组</li>
+<li>由此我在<code>TaskControBlock</code>中维护一个<code>pub task_syscall_times: [u32; MAX_SYSCALL_NUM]</code>数组，这样通过全局遍历TASK_MANAGER可以很好的在每次系统调用时更新</li>
+<li>更新位置在<code>trap_handler</code>进入<code>syscall之前</code>，读取x17寄存器为syscall id</li>
+</ul>
+<h3 id="time-usize"><a href="#time-usize" class="headerlink" title="time: usize"></a>time: usize</h3><ul>
+<li><p>需要得到的是从第一次运行到现在的时间，现在的时间可以通过<code>get_time_ms</code>直接获得</p>
+</li>
+<li><p>第一次运行开始的时间，需要在应用第一次变成Running态的时候记载，因此我们为每个</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">TaskControBlock</span><br></pre></td></tr></table></figure>
+
+<p>中维护</p>
+<ul>
+<li><code>pub task_start: usize,</code> 记录任务第一次开始的时间</li>
+<li><code>pub task_flag: bool,</code> 标志是否为第一次，如果是就是false，然后我们更新<code>task_start</code>，并且将该变量置为false，保证只记录一次start time</li>
+</ul>
+</li>
+</ul>
+<h2 id="lab2"><a href="#lab2" class="headerlink" title="lab2"></a>lab2</h2><p>直接&lt;&lt;12直接这样会报错overflow，但是那个函数确实就是干了这个事情，只是我帮他弄了一把，很奇怪，还是最后用函数了</p>
+<p>taskInfo报错，按照群里大佬这样修改，但不知道为什么这样修改</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;原</span><br><span class="line">pub fn get_time_us() -&gt; usize &#123;</span><br><span class="line">    time::read() &#x2F; (CLOCK_FREQ &#x2F; MICRO_PER_SEC)</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F;修改为</span><br><span class="line">pub fn get_time_us() -&gt; usize &#123;</span><br><span class="line">    time::read() * MICRO_PER_SEC &#x2F; CLOCK_FREQ</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="疑问"><a href="#疑问" class="headerlink" title="疑问"></a>疑问</h3><ol>
+<li><code>vpn_end</code>计算有问题，len需要/8吗：不需要，因为VA就是取最低39位，不会左移右移啥的</li>
+<li>上取整，如果已经对齐的情况下还会上取整吗：回答，不会的</li>
+</ol>
+<h3 id="bug与问题"><a href="#bug与问题" class="headerlink" title="bug与问题"></a>bug与问题</h3><ol>
+<li>对于判断是否mapped过，只考虑了<code>find_pte</code>不能为<code>None</code>，没有考虑<code>find_pte</code>存在，但是<code>pte.is_valid()</code>不合法这件事，卡了很久，也不好调试</li>
+<li>MapPermission不好进行零初始化，那么就用match，但是match要解决穷尽匹配，我们先把不合法的删去，然后最后一个_只代表<code>6</code>的情况</li>
+<li>对题意理解有问题，在mmap中，我以为如果start和end之间有已经被映射的页，我们还是需要分配len这么长，也就是不error，映射一段不连续的虚拟内存，写了比较复杂，后面才知道直接error</li>
+<li>这章很难debug，看样子甚至是多线程跑测试，所以花费很多时间</li>
+</ol>
+<h2 id="lab3"><a href="#lab3" class="headerlink" title="lab3"></a>lab3</h2><h3 id="继承上一章修改"><a href="#继承上一章修改" class="headerlink" title="继承上一章修改"></a>继承上一章修改</h3><p>今天上下午一直在移植代码，尝试了<code>git cherry-pick</code>试了很久，重置过去重置过来，问了gpt，看了b站，csdn都无果，就是没有合并，只显示reports文件夹有冲突，主要的os没有，遂还是采用<code>git diff</code>打patch的笨方法，冲突太多了，合并了小一个小时。</p>
+<h3 id="修理waitpid"><a href="#修理waitpid" class="headerlink" title="修理waitpid"></a>修理waitpid</h3><p>移植好之后，<code>make run</code>确实能跑了，但是随便输一个就报错，说<code>waitpid</code>清除僵尸进程的引用计数有错，本来应该是1，结果是2，多了一个，debug找不出来，println也没看出来在哪里。仔细想想，找了跟<code>Arc</code>有关的所有代码，可以肯定一件事，模板代码一定没问题，那问题就出在我自己移植过来的代码，最后一个个注释排除法，找到了原来是我自己用了一个Arc没有drop，我以为drop了inner的RefMut就可以了，没想到这个也要drop。为啥这个不会自动drop呢？</p>
+<p>目前还有usertest卡住的问题，再看看。</p>
+<h3 id="spawn"><a href="#spawn" class="headerlink" title="spawn"></a>spawn</h3><p>通过注释发现卡住的原因是spawn的实现有问题，重点在维护父子关系，注意<code>drop</code>的位置</p>
+<ul>
+<li>spawn就是新建一个进程而已，不要想着用fork+exec，之前直接调用fork()和exec()会出问题，也不好调试，于是自己仿照fork内容与exec自己实现</li>
+</ul>
+<h3 id="stride"><a href="#stride" class="headerlink" title="stride"></a>stride</h3><p>stride感觉倒是很简单，根据提示BIG_STRIDE需要大一点，于是把BIG_STRIDE设置为了0x100000，然后每次调度的时候，都要fetch_task，于是在这里找出最小的stride返回，pass的维护在set_piro里面实现，因为prio只会在这里修改</p>
+<h2 id="lab4"><a href="#lab4" class="headerlink" title="lab4"></a>lab4</h2><p>这章我真的心累了，调试了两天，目前还是有一个神奇的bug，我觉得不是我代码的问题</p>
+<p>在<code>ch6_file2</code>里面：我做了如下修改，//后的就是新加入的</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">let</span> test_str = <span class="string">"Hello, world!"</span>;</span><br><span class="line">   <span class="keyword">let</span> fname = <span class="string">"fname2\0"</span>;</span><br><span class="line">   <span class="keyword">let</span> (lname0, lname1, lname2) = (<span class="string">"linkname0\0"</span>, <span class="string">"linkname1\0"</span>, <span class="string">"linkname2\0"</span>);</span><br><span class="line">   <span class="keyword">let</span> fd = open(fname, OpenFlags::CREATE | OpenFlags::WRONLY) <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line"><span class="comment">//</span></span><br><span class="line">   <span class="keyword">let</span> fd1 = open(lname0, OpenFlags::CREATE | OpenFlags::WRONLY) <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line"><span class="comment">//</span></span><br><span class="line">   <span class="built_in">println!</span>(<span class="string">"ok1"</span>);</span><br><span class="line">   <span class="comment">//此处传入的lname0是0x0，为什么</span></span><br><span class="line">   link(fname, lname0);</span><br><span class="line"><span class="comment">//</span></span><br><span class="line">   <span class="built_in">println!</span>(<span class="string">"ok2"</span>);</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>发现在 link(fname, lname0);   //此处传入的lname0是<strong>0x0</strong>，为什么，看运行结果(在open系统调用和link加入了println!打印传入str的地址)，部分结果如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">open:path  is 0x42cd</span><br><span class="line">open:path  is 0x42d4</span><br><span class="line">ok1</span><br><span class="line">link:old name addr is 0x42cd</span><br><span class="line">link:new name addr is0x0</span><br><span class="line">old_name is6 ,new_name is45 </span><br><span class="line">[kernel] Panicked at &#x2F;root&#x2F;2023a-rcore-Ywinh&#x2F;easy-fs&#x2F;src&#x2F;layout.rs:419 range end index 45 out of range for slice of length 28</span><br></pre></td></tr></table></figure>
+
+<p>可以看到<code>lname</code>对应的<code>new name</code>在open里面的地址是<code>0x42d4</code>,但是在link里面是<code>0x0</code>，就是这个bug让我以为我的<code>link</code>出错了，改了一整天，后面copy别人的代码也不行，真的心累了。。请教了群里的一位大佬，还没回我，希望能解决…</p>
+<p><strong>自己对于rust的理解还是不够，还是要在实践中多用，但很感谢能通过这个机会锻炼自己~~</strong></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/04/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-ToniXWD/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +381,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
 
           
@@ -458,7 +575,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
 
           
@@ -530,7 +647,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
 
           
@@ -607,7 +724,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
 
           
@@ -676,7 +793,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -755,7 +872,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
 
           
@@ -831,7 +948,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
 
           
@@ -898,7 +1015,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -987,7 +1104,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:25:47" itemprop="dateModified" datetime="2025-05-15T08:25:47+00:00">2025-05-15</time>
               </span>
 
           
@@ -1012,94 +1129,6 @@
             </div>
           <!--/noindex-->
         
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/03/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-ybbybbybbybb/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/11/03/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-ybbybbybbybb/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-ybbybbybbybb</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-11-03 15:56:40" itemprop="dateCreated datePublished" datetime="2023-11-03T15:56:40+00:00">2023-11-03</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:25:09" itemprop="dateModified" datetime="2025-05-15T08:25:09+00:00">2025-05-15</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2023秋冬季rCore训练营报告"><a href="#2023秋冬季rCore训练营报告" class="headerlink" title="2023秋冬季rCore训练营报告"></a>2023秋冬季rCore训练营报告</h1><h1 id="ch0-amp-ch1-amp-ch2"><a href="#ch0-amp-ch1-amp-ch2" class="headerlink" title="ch0 &amp; ch1 &amp; ch2"></a>ch0 &amp; ch1 &amp; ch2</h1><ul>
-<li>跟这 ch0 进行了一些环境配置，然后边看 ch1 边找着文档一起移除标准库依赖，构建用户态执行环境，构建裸机执行环境，并用 qemu 和 gdb 模拟和监测程序运行的状态，让我对什么是操作系统，操作系统内核运行的环境的有了一个较为深刻的理解。而阅读 ch2，令我理解了早期的操作系统是如何来处理程序的。</li>
-</ul>
-<h1 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h1><ul>
-<li>ch3 中我学习了多道程序的放置与加载，任务切换，如何管理多道程序。然后在练习中为了实现 sys_task_info 我在原本 TaskControlBlock 的基础上添加了 task_syscall_times 数组和 first_start_time 字段来记录获取 taskinfo 所需信息。在 syscall 中调用自己封装的 add_cuurent_task_syscall_times 来实现对 task_syscall_times 记录更新。而对于 first_start_time，我在程序第一次运行时更新来记录，使得在调用 sys_task_info 时能够准确获得程序的运行时长。</li>
-</ul>
-<h1 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h1><ul>
-<li>ch4 中我详细学习了虚拟内存与 SV39 多级页表机制。在练习中我重写了 sys_get_time，我利用 get_mut 封装了一个将当前任务指定地址usize大小的数据修改的函数，然后将Timeval分为两个指向值的指针传入函数进行修改，以修正ti指向的地址为虚拟地址的问题，并避免了两个值在两个不同虚拟地址的情况，而对与 sys_task_info 我借鉴了前面 sys_get_time 的写法，利用已有的 translated_byte_buffer 将结构体分片为 u8 数组进行取址修改。而对于要求实现 mmap 与 munmap，我先检查函数参数是否出错和指定虚拟页是否有映射，然后调用 insert_framed_area / shrink_to 来实现要求的功能（虽然我认为单纯使用 shrink_to 有点小问题）。</li>
-</ul>
-<h1 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h1><ul>
-<li>ch5 我学习了进程管理机制的实现。在练习中我将前面的功能全部移植了过来（虽然后来发现有些好像不用），对于 spawn 我参考了 fork(exec())，只是新建 TCB 时改为直接 TaskControlBlock::new(elf_data)，然后修改其中的 parent。对于 stride 调度算法，我在 TaskControlBlockInner 中添加 stride 与 pass 字段，set_prio 时 pass改为 BIG_STRIDE / prio。</li>
-</ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ul>
-<li>我跟着 rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档进行了第二阶段的实验，感觉收获还是比较大的，就是环境配置等前置我感觉还是有些混乱，没有一个比较好的教程，希望可以添加一个。最后，感谢老师能供提供一个这么好的平台。 </li>
-</ul>
-
       
     </div>
 
