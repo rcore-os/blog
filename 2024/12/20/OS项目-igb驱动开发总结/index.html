@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="一、验证说明在这个仓库中 https:&#x2F;&#x2F;github.com&#x2F;ghostdragonzero&#x2F;arceos_test 我直接修改了ixgbe的pid vid匹配参数来匹配igb网卡，并且通过修改axdriver到引用我自己的仓库。以此来实现替换ixgbe的目的。拉取后可以直接执行make A&#x3D;examples&#x2F;httpserver PLATFORM&#x3D;aarch64-qemu-virt LOG&#x3D;d">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OS项目unikernel igb驱动开发总结">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/12/20/OS%E9%A1%B9%E7%9B%AE-igb%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91%E6%80%BB%E7%BB%93/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="一、验证说明在这个仓库中 https:&#x2F;&#x2F;github.com&#x2F;ghostdragonzero&#x2F;arceos_test 我直接修改了ixgbe的pid vid匹配参数来匹配igb网卡，并且通过修改axdriver到引用我自己的仓库。以此来实现替换ixgbe的目的。拉取后可以直接执行make A&#x3D;examples&#x2F;httpserver PLATFORM&#x3D;aarch64-qemu-virt LOG&#x3D;d">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-12-20T20:25:37.000Z">
+<meta property="article:modified_time" content="2025-05-15T08:32:56.977Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:&lt;ghostdragonzero&gt;">
+<meta property="article:tag" content="repo:&lt;https:&#x2F;&#x2F;github.com&#x2F;ghostdragonzero&#x2F;arceos_test&gt;">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/12/20/OS%E9%A1%B9%E7%9B%AE-igb%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91%E6%80%BB%E7%BB%93/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>OS项目unikernel igb驱动开发总结 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#一、验证说明"><span class="nav-number">1.</span> <span class="nav-text">一、验证说明</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#二、学习的感受"><span class="nav-number">2.</span> <span class="nav-text">二、学习的感受</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#三、学习的总结"><span class="nav-number">3.</span> <span class="nav-text">三、学习的总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#四、关于ixgbe与igb的思考"><span class="nav-number">4.</span> <span class="nav-text">四、关于ixgbe与igb的思考</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">669</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">47</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">576</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/20/OS%E9%A1%B9%E7%9B%AE-igb%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          OS项目unikernel igb驱动开发总结
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-20 20:25:37" itemprop="dateCreated datePublished" datetime="2024-12-20T20:25:37+00:00">2024-12-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 08:32:56" itemprop="dateModified" datetime="2025-05-15T08:32:56+00:00">2025-05-15</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="一、验证说明"><a href="#一、验证说明" class="headerlink" title="一、验证说明"></a>一、验证说明</h1><p>在这个仓库中 <a href="https://github.com/ghostdragonzero/arceos_test" target="_blank" rel="noopener">https://github.com/ghostdragonzero/arceos_test</a> 我直接修改了ixgbe的pid vid匹配参数来匹配igb网卡，并且通过修改axdriver到引用我自己的仓库。以此来实现替换ixgbe的目的。<br>拉取后可以直接执行<code>make A=examples/httpserver PLATFORM=aarch64-qemu-virt LOG=debug SMP=2 NET=y FEATURES=driver-ixgbe NET_DEV=user run</code></p>
+<p>这个仓库 <a href="https://github.com/ghostdragonzero/igb-driver/tree/my_driver" target="_blank" rel="noopener">https://github.com/ghostdragonzero/igb-driver/tree/my_driver</a><br>是我在share_test框架下实现的驱动完成了 link_up rx_init tx_init 初始化流程也是我在这个框架下实现然后搬到ixgbe框架里在arceos内运行没问题的<br>但是这里实现的memry是使用的arceos中hal的实现   ring结构是直接使用的ixgbe的ring</p>
+<h1 id="二、学习的感受"><a href="#二、学习的感受" class="headerlink" title="二、学习的感受"></a>二、学习的感受</h1><p>这是我第一次成功完成这个训练营，之前参加了很多次都在各种阶段就没有坚持下去，这次能成功完成是相当开心的。</p>
+<p>并且这次的驱动开发给我感受最深的就是，<strong>硬件（虽然是模拟的外设）的逻辑是很固定的出现了预期之外的行为，99%是自己写的存在错误</strong><br>记录我认为在我开发的时候我查看时间最久的问题：</p>
+<ol>
+<li>注意有效数据位<br>在操作MDIC寄存器的时候，我使用的先读取在写入的方法，但是我读取的是u32，它的数据位是低16位。我把高位的标志位也保留到了下次要写的数据里面。导致一直出错，后面是使用断点调试的方法才对比出来不同再进行了改正。</li>
+<li>注意不要定义类似的常量<br>还是在操作MCIC寄存器的时候  在判断标志位时候我错误的使用了<strong>MDIC_READ</strong>作为<strong>READY</strong>导致我一直读取成功但是写失败，这我反复的追查了好久，但是这也是我自己的不细心。</li>
+<li>注意set_flag和set_reg的区别<br>这是在最后的检查的时候发现的，因为是在ixgbe的基础上使用的所以一些寄存器不仅仅是地址变了  一些功能也分配到了不同的寄存器，而导致有些适用set_reg有些则应该是set_flag<br>这一点要尤其注意因为很多时候就是一些标志位的不同就会有不一样的地方</li>
+</ol>
+<h1 id="三、学习的总结"><a href="#三、学习的总结" class="headerlink" title="三、学习的总结"></a>三、学习的总结</h1><p>这次学习给我最大的收获就是真的从datasheet来一步步的开发一个驱动的经验，并且在开发的过程中一步一步的调试，通过设置断点来看寄存器的值。这个是我最喜欢的一个功能，因为我在平时驱动的开发时候最难受的就是修改需要编译版本才能做验证，找不到一个快速验证的办法导致问题进展缓慢。如果能有多一点的可以这样来验证的控制就好了。</p>
+<p>再来说一下，这次学习中我的不足，实际上我算是让这个网卡能用起来了 但是我还是不理解他更上层的东西，不清楚他的ring是怎样收发信息的，不明白他这个网络是怎么跑通的，群友说的报文又是什么。体现在开发过程中就是，出现问题我只能再次去查看linux的igb驱动都配置了哪些寄存器，ixgbe有什么流程但是对于这些流程的意义我不明白，只是datasheet上写了，或者看到其他驱动做了于是我也就去做试试看。</p>
+<p>感觉还需要继续学习一下网络相关的基本概念才能真的完成这个网卡驱动</p>
+<h1 id="四、关于ixgbe与igb的思考"><a href="#四、关于ixgbe与igb的思考" class="headerlink" title="四、关于ixgbe与igb的思考"></a>四、关于ixgbe与igb的思考</h1><p>因为我是直接鸠占鹊巢的方式在arceos里成功用起来igb，所以我认为既然能够这样用起来 是不是侧面说明对于ixgb_hal和ixgbe_nic的抽象就是一个能够在igb上（或者同一E100系列的网卡）复用的结构。后续是不是可以直接通过条件编译或者直接在网卡驱动的匹配处来区分出来，这样可以减少重复的代码结构，并且我认为上层本来也不关心下层实际的控制器。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-ghostdragonzero/" rel="tag"># author:<ghostdragonzero></a>
+              <a href="/blog/tags/repo-https-github-com-ghostdragonzero-arceos-test/" rel="tag"># repo:<https://github.com/ghostdragonzero/arceos_test></a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/20/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E9%A1%B9%E7%9B%AE1%E6%96%B9%E5%90%912%E6%80%BB%E7%BB%93-shj/" rel="prev" title="2024秋冬季开源操作系统训练营项目1方向2总结-shj">
+      <i class="fa fa-chevron-left"></i> 2024秋冬季开源操作系统训练营项目1方向2总结-shj
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-cereal/" rel="next" title="2024秋冬季开源操作系统训练营四阶段学习总结报告-cereal">
+      2024秋冬季开源操作系统训练营四阶段学习总结报告-cereal <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
