@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">650</span>
+          <span class="site-state-item-count">652</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,187 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/05/%E5%B0%9A%E4%B9%A6%E7%9A%84rcore%E6%8B%BE%E9%81%97-%E9%98%B6%E6%AE%B53/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/05/%E5%B0%9A%E4%B9%A6%E7%9A%84rcore%E6%8B%BE%E9%81%97-%E9%98%B6%E6%AE%B53/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结报告-zerich</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-05 21:27:01" itemprop="dateCreated datePublished" datetime="2024-12-05T21:27:01+00:00">2024-12-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>第三阶段和第二阶段相比明显更加<strong>基础</strong>，虽然有一些第二阶段涉及过的内容，例如任务切换，地址空间等等，但是第三阶段重点在于ArceOS和组件化操作系统，强调了如何从裸机（或者qemu）上通过各层模块的调用实现一个完整的操作系统。</p>
+<h2 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h2><p>第一周的课程围绕着unikernel展开，讲解了使用各个组件来实现一个unikernel。包括内存分配，地址空间，任务与运行队列，调度，块设备驱动和文件系统。</p>
+<p>以实验1为例，要求修改println的输出颜色。</p>
+<p>不难发现println!基于ulib调用arceos_api,实现输出流调用抽象层axhal中的console::write_bytes进行不同platform的putchar()来操作sbi。所以在ulib处或者axhal处使用ANSI escape codes都可以起到目标的效果，并且在ulib处只作用于println!,而在axhal处作用于启动后的所有输出。</p>
+<p>tour2同理，找到调用的modules/axalloc模块，发现其cargo.toml默认为未实现的lab，进行修改即可。</p>
+<p>就这样，我们通过config，可以在rust便捷构建unikernel组件。接着的课程继续处理调度，总线，文件系统等来构建一个完整的unikernel。</p>
+<h2 id="Monolithic"><a href="#Monolithic" class="headerlink" title="Monolithic"></a>Monolithic</h2><p>接下来的课程带领我们从unikernel跨到宏内核，主要任务在于用户空间和内核空间的切换。</p>
+<p>从Unikernel基础到目标最小化宏内核需要完成的增量工作：</p>
+<ol>
+<li>用户地址空间的创建和区域映射</li>
+<li>在异常中断响应的基础上增加系统调用</li>
+<li>复用Unikernel原来的调度机制，针对宏内核扩展Task属性</li>
+<li>在内核与用户两个特权级之间的切换机制</li>
+</ol>
+<p>我了解了riscv下进入用户态的伪造现场机制，剩下的内容就是处理好用户态的地址空间，实现musl工具链。</p>
+<p>这部分很有意思的内容有一个关于异构内核的讨论，也就是说实现异构内核的Task结构体来记录任务信息，但是在异构核上不同的task需要记录的信息是不一样的。</p>
+<p>如果在task结构体上直接通过编译选项控制的话，不利于扩展性，使用基础属性和额外属性的关联索引则需要查找开销，所以引入类似TLS的指针扩展机制是一个折中的方案。</p>
+<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>第三周的内容就是关于RISCV的虚拟化了，虽然在之前了解过虚拟化的大致原理，但是深入了解RISCV硬件支持的hs和vs寄存器组和sv39的页表扩展，仍然感到这样的设计之精妙。</p>
+<p>课程详细讲解了hyperv上抽象的VCPU结构体和如何实现VM_entry,VM_exit，接下来再介绍包括透传，中断等其他事项的处理。</p>
+<h2 id="End"><a href="#End" class="headerlink" title="End"></a>End</h2><p>受限于课业忙碌，笔者并没有对挑战任务做出贡献，也缺少对arceos的深入了解，但是课程提纲挈领的讲解令我收获良多。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/05/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E9%B8%BF%E9%92%A7%20/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/05/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E9%B8%BF%E9%92%A7%20/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结报告_周鸿钧</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-05 15:33:10" itemprop="dateCreated datePublished" datetime="2024-12-05T15:33:10+00:00">2024-12-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024秋冬季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>就组件化内核ArceOS来说，它是用于构建各种类型的操作系统的组件仓库。自然也能够支持微内核操作系统的构建，但是第三阶段中有unikernel、有monolithic-kernel、有Hyperisor，唯独没有微内核，有点遗憾。</p>
+<p>本篇记录我对基于ArceOS构建微内核操作系统的方法的思考和实践。</p>
+<h1 id="需要的组件"><a href="#需要的组件" class="headerlink" title="需要的组件"></a>需要的组件</h1><h2 id="硬件抽象层"><a href="#硬件抽象层" class="headerlink" title="硬件抽象层"></a>硬件抽象层</h2><p>底层硬件平台从支持aarch64开始。</p>
+<ul>
+<li>arm_pl031</li>
+<li>arm_gicv2 </li>
+</ul>
+<h2 id="内核态"><a href="#内核态" class="headerlink" title="内核态"></a>内核态</h2><p>支持基本的特权操作。</p>
+<ul>
+<li>axstd</li>
+<li>axalloc</li>
+<li>paging</li>
+<li>axtask</li>
+<li>axsync</li>
+</ul>
+<h2 id="用户态"><a href="#用户态" class="headerlink" title="用户态"></a>用户态</h2><p>用户态主要支持块设备、网络和文件系统等。</p>
+<ul>
+<li>syscall</li>
+<li>axmm</li>
+<li>axvcpu</li>
+<li>vfs</li>
+<li>blk_drv</li>
+<li>fat32</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/04/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E5%AE%9E%E9%AA%8C%E6%8A%A5%E5%91%8A-%E5%AF%92%E5%86%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +445,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -424,7 +605,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -678,7 +859,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
 
           
@@ -743,7 +924,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
 
           
@@ -922,7 +1103,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1003,7 +1184,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
 
           
@@ -1103,7 +1284,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
 
           
@@ -1180,7 +1361,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:23:02" itemprop="dateModified" datetime="2025-05-15T08:23:02+00:00">2025-05-15</time>
               </span>
 
           
@@ -1259,231 +1440,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93shj/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93shj/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结-shj</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-01 11:11:11" itemprop="dateCreated datePublished" datetime="2024-12-01T11:11:11+00:00">2024-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" itemprop="url" rel="index"><span itemprop="name">2024秋冬季开源操作系统训练营第三阶段总结</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="Submit-Blog"><a href="#Submit-Blog" class="headerlink" title="Submit Blog"></a>Submit Blog</h2><p><code>rcore-blog</code> 这个 repo 已经挺大的了，网不好的 clone 下来还挺费时间的。</p>
-<p>实际上可以直接在 Github 上写东西提 PR 不需要本地 clone 下来，Github 网站本身就提供了这样的功能。</p>
-<p>打开 <a href="https://github.com/rcore-os/blog" target="_blank" rel="noopener"><code>rcore-blog</code></a> 项目主页，在绿色按钮 <code>Code</code> 左边有个 <code>Add file</code> 的按钮，可以直接用 <code>Create new file</code> 写所需要的 Blog 或者用 <code>Upload files</code> 直接上传写好的 md 文件。</p>
-<p>需要注意的点是要切到 <code>rcore-blog/source/_posts</code> 这个目录下，不然文件的位置不对。</p>
-<p>虽然直接在网站上写，文件里的内容还是要注意一下加上 Blog 需要的分类/标签/作者信息等，这些东西随便打开一个 md 文件复制一下就行。</p>
-<p>缺点是数学公式支持和插入本地图片可能麻烦点。</p>
-<p>注意一下 Commit changes 里上面是 Commit message, 下面只是辅助描述，一般只用改上面就行。</p>
-<h2 id="print-with-color"><a href="#print-with-color" class="headerlink" title="print_with_color"></a>print_with_color</h2><p>引用了我很喜欢的一个库 <code>ansi_rgb</code>, 秒了。</p>
-<h2 id="hashmap"><a href="#hashmap" class="headerlink" title="hashmap"></a>hashmap</h2><p>在 axstd 里开个 <code>mod collections</code>, 再引入 <code>hashbrown</code>, 秒了，</p>
-<h2 id="alt-alloc"><a href="#alt-alloc" class="headerlink" title="alt_alloc"></a>alt_alloc</h2><p>测试里实际上没有用到 Page alloc 的接口，写完 Byte alloc 就通过了。</p>
-<h2 id="rename-and-mv-in-shell"><a href="#rename-and-mv-in-shell" class="headerlink" title="rename and mv in shell"></a>rename and mv in shell</h2><p>有意思的来了，实际上 <code>fs::ax_rename</code> 没有很好的处理 ‘./‘ 和 ‘/‘ 这些前缀后缀。</p>
-<p>我认为在 shell 的逻辑里处理文件访问文件名是一个错误的抽象，因此我写的时候决定不在 shell 代码里处理路径问题。</p>
-<p>观察到 ls 命令可以处理前缀后缀，一路跳转后决定在 <code>modules/axfs/src/fs/fatfs.rs</code> 中 <code>DirWrapper::rename()</code> 中进行处理，刚好旁边就有 <code>remove</code> 方法可以参考。</p>
-<h2 id="lab1"><a href="#lab1" class="headerlink" title="lab1"></a>lab1</h2><p>觉得没意思就没写，看群里大佬们玩挺花的，我自己想能不能玩点 hack, 最后确认到 main 地址是可以获取的，main 的 text 内存是可读可写的。</p>
-<p>也就意味着可以整花活来跳转到自定义的 <code>main</code> 函数当中去，但是想到这样就要做 platform 的适配，感觉工作量并不小，就没整。</p>
-<h2 id="set-populating-to-false"><a href="#set-populating-to-false" class="headerlink" title="set populating to false"></a>set populating to false</h2><p>从 <code>AddrSpace</code> 为入口开始找参考的辅助函数，发现直接就有 <code>handle_page_fault</code> 可以用，一调用就过了，看看 m2 的参考才知道 <code>user</code> flag 的作用。</p>
-<h2 id="mmap"><a href="#mmap" class="headerlink" title="mmap"></a>mmap</h2><p>这个练习用到的 api 挺多，需要找找 <code>find_free_area</code>, <code>api::fs</code>, <code>LinuxError</code>, <code>AxError</code>.</p>
-<p>因为 rust 没有 goto, 所以错误处理需要包一层 <code>fn() -&gt; Result</code>, 这样才能用 <code>?</code> 来减少代码量。</p>
-<p><code>?</code> 只能在 <code>Result</code> 和 <code>Option</code> 上用就已经很强大了，如果 <a href="https://rust-lang.github.io/rfcs/3058-try-trait-v2.html" target="_blank" rel="noopener"><code>try_trait_v2</code></a> 稳定了都不用包一层 fn 了，不敢想象有多爽。</p>
-<h1 id="simple-hypervisor"><a href="#simple-hypervisor" class="headerlink" title="simple hypervisor"></a>simple hypervisor</h1><p>这个练习不错，有一定难度。</p>
-<p>首先处理 <code>csrr a1, mhartid</code> 这条指令。</p>
-<p>尝试了下直接用 <code>asm!(&quot;csrr {rd}, mhartid&quot;, out(reg) rd)</code> 进行代理，不过如我所料的是 hypervisor 也没有 M 权限，所以不能这样弄。</p>
-<p>但是可以注意到 <code>mhartid</code> 的语义是 cpu id, 所以可以直接用 <code>axhal::cpu::this_cpu_id()</code> 的值就行。</p>
-<p>不过事实上根据语义应当返回的值是 vcpu id, 也就是 hypervisor 让 Guest 看到的 cpu_id, 但是我懒得添加相关的逻辑了。</p>
-<p>把值写到上下文的 <code>a1</code> 寄存器之后需要把 <code>spec</code> 也加上指令长度。</p>
-<p>然后处理缺页，注意到 <code>src/task.rs</code> 里有 <code>TaskExt</code> 的定义，并且压根没用上，可以知道大概需要用上。</p>
-<p>但是我偷懒没去用，而是直接改了 <code>vmexit_handler</code> 和 <code>run_guest</code> 的接口，加一个 <code>uspace</code> 参数，这样就能在 <code>vmexit_handler</code> 里修改页表了。</p>
-<p>对于一个内核来说，所有内存地址都是可以访问的，所以直接用 <code>uspace.map_alloc()</code> 就行了，权限可以全加上。</p>
-<p>一个很有意思的点是 hypervisor 寻址用的是 <code>satp</code>, Guest 机器寻址用的是 <code>hgatp</code>. 所以写入用 <code>uspace.write</code> 来进行。</p>
-<h2 id="Emulator-mode-device"><a href="#Emulator-mode-device" class="headerlink" title="Emulator mode device"></a>Emulator mode device</h2><p>直接把注释去掉就能通，所以改起来挺简单的。把 <code>populate</code> flag 置为 false 会导致 <code>Supervisor Page Fault</code> 错误。</p>
-<p>刚好文件里就直接给出了一个 <code>load_vm_image</code> 辅助函数，直接拿来用把参数改改就完成了。<code>size</code> 可以通过 <code>fs::metadata</code> 来获取。</p>
-<p>之前提到过 aspace 目前不支持 File 类型的 Backend, 不然就可以把 <code>populate</code> 置为 false 了，会快上不少。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结-hbuxiaofei</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-01 11:02:18" itemprop="dateCreated datePublished" datetime="2024-12-01T11:02:18+00:00">2024-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:18:58" itemprop="dateModified" datetime="2025-05-15T08:18:58+00:00">2025-05-15</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="print-with-color-支持带颜色的打印输出。"><a href="#print-with-color-支持带颜色的打印输出。" class="headerlink" title="[print_with_color]: 支持带颜色的打印输出。"></a><code>[print_with_color]</code>: 支持带颜色的打印输出。</h2><ul>
-<li>要求：</li>
-</ul>
-<blockquote>
-<ol>
-<li>修改一个组件的实现</li>
-<li>执行<code>make run A=exercises/print_with_color</code></li>
-</ol>
-</blockquote>
-<ul>
-<li><p>预期：字符串输出带颜色。（具体颜色不做要求）</p>
-</li>
-<li><p>提示：在不同层次的组件上修改，影响的输出范围不同。例如，修改<code>axstd</code>可能只影响<code>println!</code>的输出；修改<code>axhal</code>则可能一并影响ArceOS启动信息的颜色。</p>
-</li>
-</ul>
-<ul>
-<li>本次修改主要集中在 <code>println!</code> 宏中，修改后的代码如下：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"> <span class="built_in">macro_rules!</span> println &#123;</span><br><span class="line">     () =&gt; &#123; $crate::<span class="built_in">print!</span>(<span class="string">"\n"</span>) &#125;;</span><br><span class="line">     ($($arg:tt)*) =&gt; &#123;</span><br><span class="line">-        $crate::io::__print_impl(<span class="built_in">format_args!</span>(<span class="string">"&#123;&#125;\n"</span>, <span class="built_in">format_args!</span>($($arg)*)));</span><br><span class="line">+        <span class="comment">// $crate::io::__print_impl(format_args!("&#123;&#125;\n", format_args!($($arg)*)));</span></span><br><span class="line">+        $crate::io::__print_impl(<span class="built_in">format_args!</span>(<span class="string">"\u&#123;1B&#125;[&#123;&#125;m&#123;&#125;\u&#123;1B&#125;[m\n"</span>, <span class="number">32</span>, <span class="built_in">format_args!</span>($($arg)*)));</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<h2 id="support-hashmap-支持HashMap类型。"><a href="#support-hashmap-支持HashMap类型。" class="headerlink" title="[support_hashmap]: 支持HashMap类型。"></a><code>[support_hashmap]</code>: 支持HashMap类型。</h2><ul>
-<li>预备：执行<code>make run A=exercises/support_hashmap</code></li>
-</ul>
-<ul>
-<li><p>要求：</p>
-<blockquote>
-<ol>
-<li>在axstd等组件中，支持<code>collections::HashMap</code></li>
-<li>再次执行<code>make run A=exercises/support_hashmap</code></li>
-</ol>
-</blockquote>
-</li>
-<li><p>提示：</p>
-<blockquote>
-<ol>
-<li>报错的std其实是axstd，测试用例main.rs中有”extern crate axstd as std;”</li>
-<li>在axhal中给出了一个随机数产生函数random()，可以基于它为HashMap提高随机数支持。</li>
-</ol>
-</blockquote>
-</li>
-</ul>
-<ul>
-<li>实现思路</li>
-</ul>
-<p>HashMap 使用一个 <code>Vec&lt;Option&lt;(K, V)&gt;&gt;</code> 来存储键值对，每个桶（即 <code>Option&lt;(K, V)&gt;</code>）存储一个键值对，空桶为 None<br><code>custom_hash</code> 函数用于生成键的哈希值，这里采用简单的字节移位和异或方式，返回一个 u64 类型的哈希值<br><code>iter</code> 方法返回一个自定义的迭代器 <code>HashMapIterator</code>，该迭代器遍历哈希表中的所有已存储的键值对<br>通过线性探测法处理哈希冲突，即当发生冲突时，依次检查下一个桶直到找到空桶或找到匹配的键。</p>
-<ul>
-<li>测试结果<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">       d8888                            .d88888b.   .d8888b.</span><br><span class="line">      d88888                           d88P" "Y88b d88P  Y88b</span><br><span class="line">     d88P888                           888     888 Y88b.</span><br><span class="line">    d88P 888 888d888  .d8888b  .d88b.  888     888  "Y888b.</span><br><span class="line">   d88P  888 888P"   d88P"    d8P  Y8b 888     888     "Y88b.</span><br><span class="line">  d88P   888 888     888      88888888 888     888       "888</span><br><span class="line"> d8888888888 888     Y88b.    Y8b.     Y88b. .d88P Y88b  d88P</span><br><span class="line">d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"</span><br><span class="line"></span><br><span class="line">arch = riscv64</span><br><span class="line">platform = riscv64-qemu-virt</span><br><span class="line">target = riscv64gc-unknown-none-elf</span><br><span class="line">smp = 1</span><br><span class="line">build_mode = release</span><br><span class="line">log_level = warn</span><br><span class="line"></span><br><span class="line">Running memory tests...</span><br><span class="line">test_hashmap() OK!</span><br><span class="line">Memory tests run OK!</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<p>其他实验由于忙于项目，暂时未做，后面有时间再补上其他的实验。</p>
-<p>之前总结的一个starry的实现流程也记录这里，方便以后实验查阅：<br><a href="starry-boot.jpeg">Starry启动流程</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/11/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/blog/page/13/">13</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/65/">65</a><a class="extend next" rel="next" href="/blog/page/13/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/11/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/blog/page/13/">13</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/66/">66</a><a class="extend next" rel="next" href="/blog/page/13/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
