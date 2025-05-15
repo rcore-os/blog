@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第一周:有栈协程与无栈协程协程这块的概念可能比较混乱，不太能说得清，但是计科毕竟大多数情况下也不是深究定义的，所以纤程、绿色线程、协程大体上是可以混为一谈的，以下我们统称为协程。尽管名称可能不同，但它们都可以被划分为两大类，一类是有栈（stackful）协程，一类是无栈（stackless）协程。此处的有栈和无栈指的不是指协程在运行时是否需要栈，（毕竟不能回到“远古时代”的面条式编程）对于大多数语">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024秋冬季开源操作系统训练营四阶段学习总结报告-颜熙炆">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%A2%9C%E7%86%99%E7%82%86/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第一周:有栈协程与无栈协程协程这块的概念可能比较混乱，不太能说得清，但是计科毕竟大多数情况下也不是深究定义的，所以纤程、绿色线程、协程大体上是可以混为一谈的，以下我们统称为协程。尽管名称可能不同，但它们都可以被划分为两大类，一类是有栈（stackful）协程，一类是无栈（stackless）协程。此处的有栈和无栈指的不是指协程在运行时是否需要栈，（毕竟不能回到“远古时代”的面条式编程）对于大多数语">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-12-21T22:59:33.000Z">
+<meta property="article:modified_time" content="2025-05-15T07:26:01.358Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="[object Object]">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%A2%9C%E7%86%99%E7%82%86/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024秋冬季开源操作系统训练营四阶段学习总结报告-颜熙炆 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第一周"><span class="nav-number">1.</span> <span class="nav-text">第一周:</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#有栈协程与无栈协程"><span class="nav-number">1.1.</span> <span class="nav-text">有栈协程与无栈协程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#有栈协程"><span class="nav-number">1.1.1.</span> <span class="nav-text">有栈协程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#无栈协程"><span class="nav-number">1.1.2.</span> <span class="nav-text">无栈协程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#rust的协程"><span class="nav-number">1.1.3.</span> <span class="nav-text">rust的协程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#其他"><span class="nav-number">1.2.</span> <span class="nav-text">其他</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第二周"><span class="nav-number">2.</span> <span class="nav-text">第二周:</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#io-uring机制"><span class="nav-number">2.1.</span> <span class="nav-text">io_uring机制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#其他-1"><span class="nav-number">2.2.</span> <span class="nav-text">其他</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第三周"><span class="nav-number">3.</span> <span class="nav-text">第三周:</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#实现运行时"><span class="nav-number">3.1.</span> <span class="nav-text">实现运行时</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#其他-2"><span class="nav-number">3.2.</span> <span class="nav-text">其他</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">614</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">45</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">557</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%A2%9C%E7%86%99%E7%82%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024秋冬季开源操作系统训练营四阶段学习总结报告-颜熙炆
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-21 22:59:33" itemprop="dateCreated datePublished" datetime="2024-12-21T22:59:33+00:00">2024-12-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="第一周"><a href="#第一周" class="headerlink" title="第一周:"></a>第一周:</h1><h2 id="有栈协程与无栈协程"><a href="#有栈协程与无栈协程" class="headerlink" title="有栈协程与无栈协程"></a>有栈协程与无栈协程</h2><p>协程这块的概念可能比较混乱，不太能说得清，但是计科毕竟大多数情况下也不是深究定义的，所以纤程、绿色线程、协程大体上是可以混为一谈的，以下我们统称为协程。<br>尽管名称可能不同，但它们都可以被划分为两大类，一类是有栈（stackful）协程，一类是无栈（stackless）协程。<br>此处的有栈和无栈指的不是指协程在运行时是否需要栈，（毕竟不能回到“远古时代”的面条式编程）对于大多数语言来说，一个函数调用另一个函数，总是存在调用栈的；而是指协程是否可以在其任意嵌套函数中被挂起。有栈协程是可以的，而无栈协程则不可以。</p>
+<h3 id="有栈协程"><a href="#有栈协程" class="headerlink" title="有栈协程"></a>有栈协程</h3><p>实现一个协程的关键点在于如何保存、恢复和切换上下文。<br>在有栈协程中，我们将函数作为协程，保存上下文也就是保存从这个函数及其嵌套函数的栈帧存储的值。恢复上下文则是将这些值重新写回对应的栈帧和寄存器当中。切换上下文也就是保存当前的上下文，恢复下一个要执行的函数的上下文。有栈协程就是这么地朴素，也是我这种刚听说协程的萌新最易于理解的一种协程实现。</p>
+<h3 id="无栈协程"><a href="#无栈协程" class="headerlink" title="无栈协程"></a>无栈协程</h3><p>相比于无栈协程直接切换栈帧的思路，无栈协程则没有改变调用栈。而是使用了生成器（一种特殊的迭代器，能够在函数的执行过程中保存状态，并在需要时恢复执行）。这种特性可以用来模拟协程切换的行为，从而实现上下文切换。</p>
+<p>无栈协程就是把代码转换成状态机，我们可以将 Future 视为一种协程。</p>
+<p>rust的 Future 是通过状态机的形式来实现异步操作的。每个 Future 都是一个状态机，表示一个可能尚未完成的计算。<br>它通过轮询（polling）的方式推进计算过程，直到完成。<br>poll 方法会被异步运行时反复调用，当 Future 返回 Poll::Pending 时表示还没准备好，当返回 Poll::Ready 时表示完成。<br>所以，对future的运算实际上也就可以视为是在执行协程。</p>
+<p>它不依赖操作系统或运行时的栈切换，而是通过将状态信息嵌入到 Future 的数据结构中。这样可以在编译时生成高效的代码来管理异步操作。</p>
+<h3 id="rust的协程"><a href="#rust的协程" class="headerlink" title="rust的协程"></a>rust的协程</h3><p>rust在古早版本（1.0之前）曾经有过一个有栈协程的方案——绿色线程。但是由于不符合零成本抽象的思想被移除了。此外，对于rust而言，绿色线程需要尽可能地减小预分配的堆栈大小，进而降低内存上的开销，毕竟需要比操作系统的线程更加轻量级，否则为什么不直接使用操作系统的线程呢？<br>之后，rust使用了无栈协程的方案，虽然增加了开发上的复杂度，但是良好地解决了并发问题。</p>
+<h2 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h2><p>阅读了：</p>
+<p><a href="https://os.phil-opp.com/async-await/" target="_blank" rel="noopener">https://os.phil-opp.com/async-await/</a></p>
+<p>两百行实现绿色线程：<br><a href="https://zhuanlan.zhihu.com/p/100058478" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/100058478</a></p>
+<h1 id="第二周"><a href="#第二周" class="headerlink" title="第二周:"></a>第二周:</h1><p>基本上就读读tokio和smol的源码，但是说实话，没太看明白，但是smol确实会更简单易懂一点。剩下的就是在读io_uring</p>
+<h2 id="io-uring机制"><a href="#io-uring机制" class="headerlink" title="io_uring机制"></a>io_uring机制</h2><p>io_uring的设计主要围绕着环形缓冲区实现，SQ和CQ都是环形的，并且大小都是2的n次方（位运算奇技淫巧 index % size == index &amp; (size - 1)，当且仅当size为2的n次方时成立）。并且由于 UInt 的回环，所以可以直接tail - head，这种设计的一个优势是可以利用环的完整大小，而无需额外管理“环已满”标志。</p>
+<p>应用程序与内核通过io_uring交互的过程大致如下：</p>
+<p>应用程序通过提交队列SQ将SQE（IO请求）提交给内核，内核操作完成之后通过完成队列CQ将CQE（完成的IO请求）写回给应用程序，应用程序自行处理已完成的事件。</p>
+<p>SQ 和 CQ 是内核与应用程序共享的内存区域，这样子，我们避免了频繁的用户态和内核态之间的切换，并且支持批量地提交请求，也减少了系统调用的次数，提高了性能。此外，由于 io_uring 可以直接访问用户态提供的缓冲区，避免不必要的内存拷贝操作。</p>
+<h2 id="其他-1"><a href="#其他-1" class="headerlink" title="其他"></a>其他</h2><p>看了io_uring的一些资料：</p>
+<p><a href="https://kernel.dk/io_uring.pdf" target="_blank" rel="noopener">https://kernel.dk/io_uring.pdf</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/361955546" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/361955546</a></p>
+<p>稍微看了看:</p>
+<p><a href="https://tony612.github.io/tokio-internals/01.html" target="_blank" rel="noopener">https://tony612.github.io/tokio-internals/01.html</a></p>
+<h1 id="第三周"><a href="#第三周" class="headerlink" title="第三周:"></a>第三周:</h1><h2 id="实现运行时"><a href="#实现运行时" class="headerlink" title="实现运行时"></a>实现运行时</h2><p>大体上是参考了 <a href="https://toetoe55.github.io/async-rt-book/Introduction.html" target="_blank" rel="noopener">async-rt-book</a> 和 <a href="https://github.com/ringbahn/maglev" target="_blank" rel="noopener">maglev</a> 这两个写出来的</p>
+<p>仓库在<a href="https://github.com/ZIYAN137/my_runtime.git" target="_blank" rel="noopener">my_runtime</a></p>
+<h2 id="其他-2"><a href="#其他-2" class="headerlink" title="其他"></a>其他</h2><p>读了点与异步协程运行时以及IO_Uring有关的一些资料</p>
+<p>一个实验性质的运行时: <a href="https://github.com/ringbahn/maglev" target="_blank" rel="noopener">https://github.com/ringbahn/maglev</a></p>
+<p>训练营内的一位同学的博客：<a href="https://zhuanlan.zhihu.com/p/12850908116" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/12850908116</a></p>
+<p>rust与io_uring: <a href="https://zhuanlan.zhihu.com/p/346219893" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/346219893</a></p>
+<p>无栈协程: <a href="https://mthli.xyz/coroutines-in-c/" target="_blank" rel="noopener">https://mthli.xyz/coroutines-in-c/</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/object-Object/" rel="tag"># [object Object]</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/19/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-chy669086/" rel="prev" title="2024秋冬开源操作系统训练营第四阶段总结-chy669086">
+      <i class="fa fa-chevron-left"></i> 2024秋冬开源操作系统训练营第四阶段总结-chy669086
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/22/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-XiangyuTu/" rel="next" title="2024秋冬开源操作系统训练营第四阶段总结报告">
+      2024秋冬开源操作系统训练营第四阶段总结报告 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

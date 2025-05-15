@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">613</span>
+          <span class="site-state-item-count">614</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,98 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/19/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-chy669086/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/19/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-chy669086/" class="post-title-link" itemprop="url">2024秋冬开源操作系统训练营第四阶段总结-chy669086</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-19 17:32:46" itemprop="dateCreated datePublished" datetime="2024-12-19T17:32:46+00:00">2024-12-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">第四阶段总结报告</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>参与方向：宏内核，posix 接口相关。</p>
+<p>我在四阶段中编写的是 futex 有关的代码。</p>
+<h2 id="设计思路"><a href="#设计思路" class="headerlink" title="设计思路"></a>设计思路</h2><p>暂时请求了五个 os 需要实现的接口，分别是</p>
+<ul>
+<li><code>sched_yield</code> 退出当前的任务，不放回调度队列。</li>
+<li><code>translate_vaddr</code> 将当前任务的虚拟地址转换成操作系统可以访问的地址</li>
+<li><code>current_task</code> 取得当前任务</li>
+<li><code>current_prosess_id</code> 取得进程 id</li>
+<li><code>wake</code> 传入一个 <code>FutexQ</code> 类型，唤醒任务（提供了 <code>get_task</code> 函数取得任务）</li>
+</ul>
+<p><code>FutexQ</code> 是存放任务的重要类型，内有 <code>key</code> <code>bitset</code> <code>task</code> 三个字段，其中 <code>key</code> 和 <code>bitset</code> 是用来唤醒任务的重要字段。</p>
+<p><code>FutexKey</code> 是一个枚举，现在只实现了一个 <code>Private</code>，<code>Shared</code> 暂时没有开发的思路。</p>
+<p>任务等待队列存储在 <code>FutexQueues</code> 中，通过一个 <code>futex</code> 的唯一 key 通过哈希变换后放入或唤醒。</p>
+<p>现在实现的调用有：<code>FUTEX_WAIT</code> <code>FUTEX_WAKE</code> <code>FUTEX_REQUEUE</code> <code>FUTEX_CMP_REQUEUE</code> <code>FUTEX_WAKE_OP</code> 以及对应的 bitset 版本</p>
+<p>因为三阶段提供的宏内核中没有合适的线程实现，二阶短的项目不知道什么原因不能编译 <code>link-me</code> 的代码，所以我直接把整个模块删除 <code>linkme</code> 后移植到了阶段二的仓库，并编写测试通过。</p>
+<h2 id="收获"><a href="#收获" class="headerlink" title="收获"></a>收获</h2><p>说实话还是不是很擅长编写 no_std 的代码，所以我还是依赖了很多外部库。</p>
+<p>虽然没有通过最初的设想去适配到任何一个系统里去（直接移植还是太不松耦合了），但是我也花了很多时间去尝试适配，其中阶段二的项目仓库是最接近完成的一个，结果编译错误了，经过测试发现把 <code>futex::syscall::sys_futex</code> 函数调用去掉就可以通过编译，一时间不知道从何改起。转到 <code>arceos</code> 适配的时候，在被迫阅读了大量源码之后，发现提供的宏内核示例压根没有创建线程的系统调用，自己写了半天并没有写出来，所以又放弃了。</p>
+<p>虽然写的挺差的，而且最近也到学校的期末周了，确实有没有太多时间写这个项目了，但是通过这次 posix 接口的编写，我还是学会了不少东西。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>从训练营开始到现在也过去 12 周了，看着自己从对操作系统毫无概念一步步到现在还是很感慨的。感谢老师的辛勤付出，感谢训练营能给我一个这样的平台。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/06/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-catme0w/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +356,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
 
           
@@ -389,7 +481,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -549,7 +641,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -630,7 +722,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
 
           
@@ -730,7 +822,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
 
           
@@ -844,7 +936,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
 
           
@@ -960,7 +1052,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1061,7 +1153,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1148,7 +1240,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
+                <time title="Modified: 2025-05-15 07:26:01" itemprop="dateModified" datetime="2025-05-15T07:26:01+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1183,83 +1275,6 @@
 <p>​    首先，通过批处理调度系统的实现，我理解了特权级切换、上下文保存与恢复等机制。这种直接操控硬件资源的编程体验帮助我更好地理解了操作系统在管理硬件与应用间的角色。其次，在实现文件系统的过程中，我也是初次了解了文件路径解析、inode 管理和文件描述符等底层概念，这不仅让我理解了文件系统的设计精髓，也磨炼了抽象和模块化编程的能力。</p>
 <p>​    同时，在死锁检测的实验中，资源分配图的设计让我更深刻地理解了进程间的依赖关系和并发控制策略，学习知识的最好方式绝对是动手实践。</p>
 <p>​    总的来说，这一阶段的收获不止是技术上的进步，更让我体会到了系统开发的全局性思维和精确性要求。这不仅提升了我的编程能力，也让我更有信心面对后续操作系统开发中的复杂问题。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/13/stage-1-ProerLoneW/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/13/stage-1-ProerLoneW/" class="post-title-link" itemprop="url">stage-1-ProerLoneW</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-13 21:17:20" itemprop="dateCreated datePublished" datetime="2024-11-13T21:17:20+00:00">2024-11-13</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-14 09:05:09" itemprop="dateModified" datetime="2025-05-14T09:05:09+00:00">2025-05-14</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="rCore第一阶段总结报告"><a href="#rCore第一阶段总结报告" class="headerlink" title="rCore第一阶段总结报告"></a>rCore第一阶段总结报告</h1><h3 id="参加训练营的契机"><a href="#参加训练营的契机" class="headerlink" title="参加训练营的契机"></a>参加训练营的契机</h3><p>​    本人是大三信息安全专业学生，起因是在学期初老师在班级群中转发了本次训练营的相关推送，正好本学期在修操作系统专业课，再加上在过去的两年实际上没有学过过硬的技术，就希望能通过本次训练营收获到许多实际项目开发相关的东西，希望能做到技多不压身。</p>
-<h3 id="第一阶段回顾"><a href="#第一阶段回顾" class="headerlink" title="第一阶段回顾"></a>第一阶段回顾</h3><p>​    本阶段的主要任务是根据 <code>rust语言官方圣经</code> 来学习rust语法，并在简单的知识训练、算法实现中掌握基本的编程逻辑和rust语言的独特思维。在学习过程中最大的感受就是，这是一门非常“麻烦”（或者说拗口）、非常底层但却非常“安全”的语言。</p>
-<p>​    在进一步地阅读文档和代码实操的过程中，我也深深地体会到了rust语言的魅力，很多在其他语言中不需要关注的问题，都是rust使用者的家常便饭，例如所有权与借用、生命周期、模式匹配、并发和线程、内存管理、特征泛型、智能指针、宏等等全新的概念，在学习的过程中，也能十分自然地和以往所写过的语言进行对比，也能十分自然地联想到自己所学的专业知识，整个学习过程是痛苦而充满趣味和成就感的。</p>
-<p>​    最终也是断断续续地在国庆后完成了110分的编程题目，虽然很多地方都有囫囵吞枣、只求大概的不好处理，但还算是初步打开了rust语言的大门。</p>
 
       
     </div>
