@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">618</span>
+          <span class="site-state-item-count">619</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">559</span>
+        <span class="site-state-item-count">561</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,110 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/02/plus7wist-os-camp2024-part1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/05/02/plus7wist-os-camp2024-part1/" class="post-title-link" itemprop="url">OS-Camp-2024 Part-1 of plus7wist</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-05-02 12:42:03" itemprop="dateCreated datePublished" datetime="2024-05-02T12:42:03+00:00">2024-05-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024春夏季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>这是我（plus7wist）在 Os-Camp 2024 的第一阶段的总结。</p>
+<h2 id="构建系统"><a href="#构建系统" class="headerlink" title="构建系统"></a>构建系统</h2><p>我有一定的 Rust 基础，大概几年前也做过一次 rustlings 的练习。但这次练习里有包含 build script 的部分，我印象里从前那次是没有做过的。</p>
+<p>Rust 的 build script 从它的环境变量获取包的信息，将要写出的设置写到标准输出。这很好地完成了一种插件设计。</p>
+<p>进程之间通信的基本方式有如下一些：</p>
+<ol>
+<li>命令行参数。</li>
+<li>环境变量。</li>
+<li>共享内存。</li>
+<li>文件：<ol>
+<li>标准输入和输出。</li>
+<li>命名管道或者其他设备文件。</li>
+<li>网络。</li>
+</ol>
+</li>
+</ol>
+<p>这其中使用环境变量是最直接简单的。如果传递给插件系统的数据并不复杂，那么这种做法就是最好的。它不需要插件程序要做出很多的解析。</p>
+<p>可以从几个方面来评判这些方式。</p>
+<ol>
+<li><p>数据的复杂性。传递给进程的数据越复杂，就越需要某些协议，因此接收放需要解析这种协议。基于文件的方案需要的解析往往最复杂，命令行参数次之，环境变量最简单。</p>
+</li>
+<li><p>可靠性。基于文件的消息传递都要处理 IO 错误，这往往都是很复杂的。而获取命令行参数和环境变量则少有错误。</p>
+</li>
+<li><p>一次和多次。如果要向插件随着时序多次传递数据，命令行参数和环境变量都不合适了。这种情况选择文件，特别是标准输入文件是最常见的。</p>
+</li>
+<li><p>通信效率。仅在效率真的非常重要的场景，人们才会考虑共享内存。</p>
+</li>
+</ol>
+<p>插件系统，特别是 Rust 的构建系统需要的插件，并不需要多次通信，输入数据也不复杂，和插件通信也并不是效率瓶颈，因此环境变量输入确实非常合适。</p>
+<p>而 Language Server 这样的软件设计上则采取标准输入和输出来通信，从上面的分析来看，这也是很合适的。</p>
+<p>最后通过共享内存通信的软件体系，一般会使用某种数据分发服务（DDS）来隐藏解析过程。</p>
+<h2 id="算法"><a href="#算法" class="headerlink" title="算法"></a>算法</h2><p>OS-Camp 的 rustlings 修改版本上增加了一些算法题目。显然它们的质量不高，只是作为一种实现算法的示例而已。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/05/01/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-ccccrrrr/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +368,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
 
           
@@ -330,7 +434,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
 
           
@@ -406,7 +510,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -484,7 +588,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
 
           
@@ -1497,7 +1601,7 @@ fn dfs(&amp;self, start: usize) -&gt; Vec&lt;usize&gt; {
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
 
           
@@ -1574,7 +1678,7 @@ fn dfs(&amp;self, start: usize) -&gt; Vec&lt;usize&gt; {
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1650,7 +1754,7 @@ fn dfs(&amp;self, start: usize) -&gt; Vec&lt;usize&gt; {
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
 
           
@@ -1741,7 +1845,7 @@ fn dfs(&amp;self, start: usize) -&gt; Vec&lt;usize&gt; {
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2206,7 +2310,7 @@ fn dfs(&amp;self, start: usize) -&gt; Vec&lt;usize&gt; {
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 07:30:04" itemprop="dateModified" datetime="2025-05-15T07:30:04+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2233,88 +2337,6 @@ fn dfs(&amp;self, start: usize) -&gt; Vec&lt;usize&gt; {
 <h2 id="rustlins-通关记录"><a href="#rustlins-通关记录" class="headerlink" title="rustlins 通关记录"></a>rustlins 通关记录</h2><p>说起来也比较惭愧, 学了三周的rust,我对一些东西感觉还是模模糊糊,没有掌握清楚,这可能跟我没有按时听课有关系,忙着找实习笔试和面试(悲).<br>前30道题比较入门, 我是跟着进度来的, 到前70道题也都还好. 结果70-110 真的把我绕晕了, 又是去官网看英文资料, 又是去查别人的博客,还有问群里的大佬.<br>我们3群给我的感觉还是很温馨的,很多愚蠢的问题,大佬们都细心的解答.</p>
 <p>说到rust, 感触最深的就是它的安全性, 可变引用只能有一个,这条规则把我恶心了好久 呜呜呜. 还有所有权的转移问题. 要时时刻刻注意用clone或者borrow_mut来避免所有权转移.<br>其实刚开始学习的时候, 我觉得也没什么吗, 不就是cpp里的unique_point吗, 我也学过, 但实际写起来就是容易忘记. 还有各种生命周期的问题, 以及范型要注意trait的限制, 真是太安全了. 无奈的转向了 unsafe 大法().</p>
 <p>总的来说, 我还是很喜欢rust的, 但还是有很多东西需要学习, 希望能在后续的学习中, 能有所进步. 期待第二阶段的学习!!!</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/04/29/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-LinfangWu/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/04/29/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-LinfangWu/" class="post-title-link" itemprop="url">2024春夏季开源操作系统训练营第一阶段总结报告-LinfangWu</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-04-29 16:02:16" itemprop="dateCreated datePublished" datetime="2024-04-29T16:02:16+00:00">2024-04-29</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 07:29:16" itemprop="dateModified" datetime="2025-05-15T07:29:16+00:00">2025-05-15</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024春夏季开源操作系统训练营</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>首先非常感谢陈渝老师和向勇老师提供开源操作系统训练营这个平台，在去年机缘巧合下知道了这个训练营，但当时只是报名了，作业都没领取。这次是第一次正式参加，算是一次挑战吧，push自己走出舒适区。</p>
-<h2 id="环境配置"><a href="#环境配置" class="headerlink" title="环境配置"></a>环境配置</h2><p>安装rustlings之前要安装gcc编译器，用包管理器也安装不了，试过用aptitude解决依赖问题，最后是更新了系统软件包就装好了。</p>
-<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p><a href="https://rustwiki.org/zh-CN/book/title-page.html" target="_blank" rel="noopener">Rust 程序设计语言</a></p>
-<p><a href="https://rustwiki.org/zh-CN/rust-by-example/" target="_blank" rel="noopener">通过例子学 Rust</a></p>
-<p><a href="https://course.rs/about-book.html" target="_blank" rel="noopener">Rust语言圣经(Rust Course)</a></p>
-<p><a href="https://www.progit.cn/" target="_blank" rel="noopener">Pro Git 中文版 (第二版)</a></p>
-<h2 id="学习总结"><a href="#学习总结" class="headerlink" title="学习总结"></a>学习总结</h2><p>Rust作为一种系统级编程语言，具有内存安全性、并发性和高性能的特点。在学习过程中，通过 Rustlings 这个练习题库，对 Rust 语言有了更深入的了解和掌握。</p>
-<p>Rustlings 提供了一系列简单到复杂的练习题目，涵盖了 Rust 语言的各个方面，从基础的语法到高级的模式匹配、并发等。同时，Rustlings 的反馈机制非常及时和友好。这种及时的反馈可以快速纠正错误。前面100道题主要是熟悉语法，做一些小的改动就可以过了。后面10道题是算法，因为之前学习对算法掌握的不够扎实，花了几天时间去重新学习了一下。</p>
-<p>虽然做完了rustlings的题目，但是感觉这只是入门，如果没有gpt估计要做好久。</p>
 
       
     </div>
