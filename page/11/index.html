@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">660</span>
+          <span class="site-state-item-count">662</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,93 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Aoi979/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Aoi979/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第四阶段总结-Aoi979</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-21 22:54:33" itemprop="dateCreated datePublished" datetime="2024-12-21T22:54:33+00:00">2024-12-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>第四阶段选择了基于协程的操作系统，但并没有选择引入协程到操作系统的方向，不过也有相关思考，这段时间主要学习了rust的协程以及异步运行时的功能以及如何设计</p>
+<h2 id="协程只是可以挂起和恢复的函数"><a href="#协程只是可以挂起和恢复的函数" class="headerlink" title="协程只是可以挂起和恢复的函数"></a>协程只是可以挂起和恢复的函数</h2><p>函数只有2个行为：调用和返回，函数返回后，栈上所拥有的状态会被全部销毁，协程则可以挂起，协程挂起时可以保留协程上下文，恢复则恢复协程的上下文，协程的上下文取决于协程内的局部变量等，反正是比线程上下文小，当协程像函数一样返回，协程也要被销毁</p>
+<h2 id="Cpp-协程和Rust协程的对比"><a href="#Cpp-协程和Rust协程的对比" class="headerlink" title="Cpp 协程和Rust协程的对比"></a>Cpp 协程和Rust协程的对比</h2><p>cpp和rust同为无栈协程，但设计不同</p>
+<ul>
+<li><h2 id="对于协程的调用者"><a href="#对于协程的调用者" class="headerlink" title="对于协程的调用者"></a>对于协程的调用者</h2></li>
+</ul>
+<p>cpp的做法是协程的调用者会得到来自promise_type结构体内get_return_object方法返回的对象，这里一般通过form_promise构造协程句柄coroutine_handle<promise_type>，调用者可以通过协程句柄resume协程和destroy协程，cpp的协程不是lazy的，这点和rust不一样，相当于拿到future后直接开始poll,不过cpp不需要waker，cpp的handle不需要程序员提供函数也不需要提供指针，已经构造好了，而rust需要rawwaker,需要一个函数表定义行为，再传入任务对象的指针，让waker能够操作任务对象，自然而然就能调度这个任务了，cpp只需要管理好何时resume,但rust是loop poll,程序员管理何时把future重新加入被poll的队列</promise_type></p>
+<p>rust则是每一个async函数都会自动生成并返回一个future对象，通过future trait可以看到主要是通过poll来执行协程内代码以及状态切换，这里贴一下tokio教学文档里的例子</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Future <span class="keyword">for</span> MainFuture &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Output</span></span> = ();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">mut</span> <span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;)</span><br><span class="line">        -&gt; Poll&lt;()&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">use</span> MainFuture::*;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">loop</span> &#123;</span><br><span class="line">            <span class="keyword">match</span> *<span class="keyword">self</span> &#123;</span><br><span class="line">                State0 =&gt; &#123;</span><br><span class="line">                    <span class="keyword">let</span> when = Instant::now() +</span><br><span class="line">                        Duration::from_millis(<span class="number">10</span>);</span><br><span class="line">                    <span class="keyword">let</span> future = Delay &#123; when &#125;;</span><br><span class="line">                    *<span class="keyword">self</span> = State1(future);</span><br><span class="line">                &#125;</span><br><span class="line">                State1(<span class="keyword">ref</span> <span class="keyword">mut</span> my_future) =&gt; &#123;</span><br><span class="line">                    <span class="keyword">match</span> Pin::new(my_future).poll(cx) &#123;</span><br><span class="line">                        Poll::Ready(out) =&gt; &#123;</span><br><span class="line">                            <span class="built_in">assert_eq!</span>(out, <span class="string">"done"</span>);</span><br><span class="line">                            *<span class="keyword">self</span> = Terminated;</span><br><span class="line">                            <span class="keyword">return</span> Poll::Ready(());</span><br><span class="line">                        &#125;</span><br><span class="line">                        Poll::Pending =&gt; &#123;</span><br><span class="line">                            <span class="keyword">return</span> Poll::Pending;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                Terminated =&gt; &#123;</span><br><span class="line">                    <span class="built_in">panic!</span>(<span class="string">"future polled after completion"</span>)</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>rust中.await会变成对其future的poll,而waker则需要在对最外层future的poll时构造进context作为形参，通过poll的结果决定是否挂起，但是rust协程没有恢复这个操作，rust的协程是通过waker把任务重新调度回来再poll</p>
+<p>cpp使用Awaiter来控制协程，符合直觉的操作，没有rust那么绕，resume就是直接重新进入协程</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">State</span></span> &#123;</span><br><span class="line">    Start,</span><br><span class="line">    YieldValue,</span><br><span class="line">    FinalSuspend,</span><br><span class="line">    Done</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">CoroutineStateMachine</span></span> &#123;</span><br><span class="line">    State current_state = Start; </span><br><span class="line">    int a = <span class="number">1</span>, b = <span class="number">1</span>;          <span class="comment">//  </span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// promise_type的引用，协程的promise接口</span></span><br><span class="line">    promise_type&amp; promise;</span><br><span class="line"></span><br><span class="line">    void resume() &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            switch (current_state) &#123;</span><br><span class="line">                case Start:</span><br><span class="line">                    <span class="comment">// 执行 initial_suspend</span></span><br><span class="line">                    <span class="keyword">if</span> (promise.initial_suspend()) &#123;</span><br><span class="line">                        current_state = YieldValue;</span><br><span class="line">                        <span class="keyword">return</span>;  <span class="comment">// 挂起</span></span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="comment">// 进入协程主体</span></span><br><span class="line">                    [[fallthrough]];</span><br><span class="line"></span><br><span class="line">                case YieldValue:</span><br><span class="line">                    <span class="keyword">while</span> (a &lt; <span class="number">1000000</span>) &#123;</span><br><span class="line">                        <span class="comment">// co_yield a</span></span><br><span class="line">                        promise.yield_value(a);</span><br><span class="line">                        current_state = YieldValue;</span><br><span class="line">                        std::tie(a, b) = std::make_tuple(b, a + b);</span><br><span class="line">                        <span class="keyword">return</span>;  <span class="comment">// 挂起</span></span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="comment">// co_return</span></span><br><span class="line">                    promise.return_void();</span><br><span class="line">                    current_state = FinalSuspend;</span><br><span class="line">                    [[fallthrough]];</span><br><span class="line"></span><br><span class="line">                case FinalSuspend:</span><br><span class="line">                    <span class="comment">// 执行 final_suspend</span></span><br><span class="line">                    <span class="keyword">if</span> (promise.final_suspend()) &#123;</span><br><span class="line">                        current_state = Done;</span><br><span class="line">                        <span class="keyword">return</span>;  <span class="comment">// 挂起</span></span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="comment">// 结束</span></span><br><span class="line">                    [[fallthrough]];</span><br><span class="line"></span><br><span class="line">                case Done:</span><br><span class="line">                    <span class="keyword">return</span>;  <span class="comment">// 协程结束</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125; catch (...) &#123;</span><br><span class="line">            <span class="comment">// 异常处理</span></span><br><span class="line">            <span class="keyword">if</span> (!promise.initial_await_resume_called()) &#123;</span><br><span class="line">                promise.unhandled_exception();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><h2 id="内存布局"><a href="#内存布局" class="headerlink" title="内存布局"></a>内存布局</h2></li>
+</ul>
+<p>cpp是全都开堆上，而rust的future可自由选择在栈上还是堆上，对于自引用的结构体，当其被协程捕获作为协程的局部变量时，不允许转移所有权，我们使用Pin来进行保障，因为引用所代表的地址已经被标记为无效</p>
+<h2 id="异步运行时设计"><a href="#异步运行时设计" class="headerlink" title="异步运行时设计"></a>异步运行时设计</h2><p>协程是用户态的任务调度机制，而线程是内核的任务机制，做的事和内核一样，不断执行不同任务，不过是协作式调度，我们需要手动挂起来让其他任务运行，设想单线程环境下的任务调度，我们需要把任务存储在一个集合中，一个接一个运行协程，协程挂起时就再放入集合中。初步想法是这样的，但我们又不在内核态，完全可以把任务交给内核，而不是协程一挂起就重新放回集合，当集合为空时我们的线程就可以休息（多线程环境下其他线程使协程重新加入集合并把休眠的线程唤醒[把阻塞任务丢给了专门的线程]）或是主动检查异步任务是否准备完成（阻塞调用不在用户态[需要内核的异步支持]）</p>
+<p>这样我们的线程可以把阻塞都丢给其他线程或是内核执行，而本身只需要处理更多的任务，提高并发量</p>
+<p>和线程一样，我们也需要一个调用在协程里创建一个协程，我们需要spawn，有时候我们需要等待另一个协程的结果（仍然不会阻塞，因为外层的协程也挂起了），我们要为此添加JoinHandle,如果我们持有一个线程池来执行任务，spawn出的协程就需要一个面对线程池调度的waker,当资源准备好时加入线程池所用的任务队列，但当我们对其JoinHandle进行.await的话我们需要把当前协程的waker和其默认的waker进行替换，因为我们需要这个原本自由的协程在我们等待他的协程上恢复而不是在线程池中恢复后，任务的返回值不被关心，等待自然drop,使用线程池我们可以把同步调用异步化，让阻塞在单独的线程上运行，如果使用io_uring的话就更轻松了</p>
+<h2 id="io-uring"><a href="#io-uring" class="headerlink" title="io_uring"></a>io_uring</h2><p>io_uirng是真正的异步io,通过他我们可以实现上述的第二种方案，当异步任务都处理完了我们的线程就检查完成队列，然后重新加入集合中，进行poll,此时资源已经准备好，不会造成任何阻塞</p>
+<h2 id="对协程引入操作系统的想法"><a href="#对协程引入操作系统的想法" class="headerlink" title="对协程引入操作系统的想法"></a>对协程引入操作系统的想法</h2><p>考虑多核情况下，每个核心运行一个协程执行器，对于Mutex或信号量如果资源申请失败那么直接把任务挂起，把waker和任务指针记录下来，当资源被释放时，自动寻找等待队列的第一个元素，通过waker提供的函数表操作任务指针，使其重新加入对应核心的任务执行队列中。协程在内核态给我感觉是和序列生成器一般，能在一些部分减少时间片的浪费，提高任务处理的效率</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +351,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
 
           
@@ -415,7 +502,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
 
           
@@ -503,7 +590,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -632,7 +719,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
 
           
@@ -700,7 +787,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -797,7 +884,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
 
           
@@ -871,7 +958,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -963,7 +1050,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
 
           
@@ -1038,7 +1125,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
+                <time title="Modified: 2025-05-15 08:27:49" itemprop="dateModified" datetime="2025-05-15T08:27:49+00:00">2025-05-15</time>
               </span>
 
           
@@ -1128,84 +1215,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/06/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%98%8E%E6%89%AC/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/06/2023%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%98%8E%E6%89%AC/" class="post-title-link" itemprop="url">2024秋冬训练营第3阶段总结-明扬</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-06 17:00:00" itemprop="dateCreated datePublished" datetime="2024-12-06T17:00:00+00:00">2024-12-06</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-15 08:27:22" itemprop="dateModified" datetime="2025-05-15T08:27:22+00:00">2025-05-15</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024秋冬季开源操作系统训练营</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="第三阶段总结"><a href="#第三阶段总结" class="headerlink" title="第三阶段总结"></a>第三阶段总结</h1><p>第三阶段难度与前两阶段相比难度上升不少.<br>课程框架代码质量也是非常高的, 适配了常见CPU指令集, 是可以应用到实际生产系统中的代码框架.<br>尽管完成实验所需要的代码量不高, 但对题目和计算机结构的理解要求提高了非常多. 本阶段课程结束后我学到了 unikernel 模式和 Hypervisor 工作原理, 受益匪浅.<br>还参加了三阶段的 Allocator 排名竞赛, 锻炼了自己的意识和眼界.<br>四阶段已经选择了异步操作系统课题, 希望自己继续努力, 完成所有课程.</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/10/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/blog/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/66/">66</a><a class="extend next" rel="next" href="/blog/page/12/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/10/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/blog/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/67/">67</a><a class="extend next" rel="next" href="/blog/page/12/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
