@@ -1,13 +1,13 @@
 ---
 title: <Rust补完计划>
-date: 2024-11-10 12:00:28
+date: 2025-05-01 12:00:28
 categories:
     - 补完计划
 tags:
     - author:Lfan-ke
     - author-alias:禾可/禾可1228/"Leo Cheng"
     - repo:https://github.com/LearningOS/rust-rustlings-2024-autumn-Lfan-ke
-    - description:所有补完计划相关的博客仅仅是临时任务所发，不代表最终正式发布的版本，正式版本在本人"生态计划"开始时发布
+    - description:初次学习Rust整理后的笔记
 mathjax: true
 ---
 
