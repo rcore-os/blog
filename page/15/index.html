@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">682</span>
+          <span class="site-state-item-count">684</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">47</span>
+        <span class="site-state-item-count">48</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">584</span>
+        <span class="site-state-item-count">590</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,236 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-lzh/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-lzh/" class="post-title-link" itemprop="url">2024秋冬操作系统训练营第三阶段总结报告</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-01 18:40:28" itemprop="dateCreated datePublished" datetime="2024-12-01T18:40:28+00:00">2024-12-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024秋冬季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="课后练习：bump内存分配算法"><a href="#课后练习：bump内存分配算法" class="headerlink" title="课后练习：bump内存分配算法"></a>课后练习：bump内存分配算法</h2><p>主要代码在alt_axalloc里，与axalloc里不同，它在初始化时内部只有一个分配器，并把所有物理内存都分配给它。这个分配器同时实现字节分配器和页分配器的trait，但分配内存时只使用字节分配器里的alloc，页分配器里的alloc_pages没用。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// modules\alt_axalloc\src\lib.rs</span></span><br><span class="line"><span class="meta">#[cfg_attr(all(target_os = <span class="meta-string">"none"</span>, not(test)), global_allocator)]</span></span><br><span class="line"><span class="keyword">static</span> GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator::new();</span><br></pre></td></tr></table></figure>
+
+<p>要想正常实现动态内存分配，首先要用#[global_allocator]属实告诉编译器使用哪个分配器实例作为全局分配器。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// modules\alt_axalloc\src\lib.rs</span></span><br><span class="line"><span class="keyword">unsafe</span> <span class="keyword">impl</span> GlobalAlloc <span class="keyword">for</span> GlobalAllocator &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">alloc</span></span>(&amp;<span class="keyword">self</span>, layout: Layout) -&gt; *<span class="keyword">mut</span> <span class="built_in">u8</span> &#123;...&#125;</span><br><span class="line">     <span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">dealloc</span></span>(&amp;<span class="keyword">self</span>, ptr: *<span class="keyword">mut</span> <span class="built_in">u8</span>, layout: Layout) &#123;...&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后需要为自定义的分配器实现GlobalAlloc trait里的alloc和dealloc方法。查找调用关系：GlonalAlloc::alloc -&gt; GlobalAllocator::alloc -&gt; EarlyAllocator:alloc -&gt; ByteAllocator::alloc，dealloc同理。因此主要修改的代码为modules/bump_allocator里的EarlyAllocator里的ByteAllocator trait的alloca和dealloc方法。</p>
+<p>bump的实现参考<a href="https://blog.csdn.net/xuejianxinokok/article/details/133811834" target="_blank" rel="noopener">Writing an OS in Rust : Allocator Designs 分配器设计与实现-CSDN博客</a></p>
+<h2 id="lab1：针对应用场景，优化内存分配器组件"><a href="#lab1：针对应用场景，优化内存分配器组件" class="headerlink" title="lab1：针对应用场景，优化内存分配器组件"></a>lab1：针对应用场景，优化内存分配器组件</h2><h3 id="分配器内存的初始化和申请"><a href="#分配器内存的初始化和申请" class="headerlink" title="分配器内存的初始化和申请"></a>分配器内存的初始化和申请</h3><p>总共可用于分配的堆内存大小是多少？<br>根据axalloc::global_init(start_vaddr, size) -&gt; GLOBAL_ALLOCATOR.init(start_vaddr, size) 可得size参数的大小即为分配的堆内存大小。查找global_init的使用得axruntime::init_allocator</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// axruntime::init_allocator</span></span><br><span class="line">...</span><br><span class="line"><span class="keyword">for</span> r <span class="keyword">in</span> memory_regions() &#123;</span><br><span class="line">    <span class="keyword">if</span> r.flags.contains(MemRegionFlags::FREE) &amp;&amp; r.paddr == max_region_paddr &#123;</span><br><span class="line">            axalloc::global_init(phys_to_virt(r.paddr).as_usize(), r.size);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">for</span> r <span class="keyword">in</span> memory_regions() &#123;</span><br><span class="line">    <span class="keyword">if</span> r.flags.contains(MemRegionFlags::FREE) &amp;&amp; r.paddr != max_region_paddr &#123;    axalloc::global_add_memory(phys_to_virt(r.paddr).as_usize(), r.size)</span><br><span class="line">            .expect(<span class="string">"add heap memory region failed"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>由上述代码可得标记为free的内存区域都分配给内存分配器使用。</p>
+<p>memory_regions -&gt; platform_regions，当前平台为riscv64</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//riscv64_qemu_virt_/mem.rs</span></span><br><span class="line"><span class="comment">/// Returns platform-specific memory regions.</span></span><br><span class="line"><span class="keyword">pub</span>(<span class="keyword">crate</span>) <span class="function"><span class="keyword">fn</span> <span class="title">platform_regions</span></span>() -&gt; <span class="keyword">impl</span> <span class="built_in">Iterator</span>&lt;Item = MemRegion&gt; &#123;</span><br><span class="line">    crate::mem::default_free_regions().chain(crate::mem::default_mmio_regions())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>default_free_regions里标记为free，块起始地址为_ekernel，结束地址为PHYS_MEMORY_END。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PHYS_MEMORY_END: <span class="built_in">usize</span> = PHYS_MEMORY_BASE + PHYS_MEMORY_SIZE;</span><br></pre></td></tr></table></figure>
+
+<p>定义在config.rs里，查找可得物理内存大小为128m，根据128m查找可得由来为qemu启动时设置的物理内存参数128m。运行时添加LOG=debug参加也可以在输出信息里直观看到分配给分配器的内存，initialize global allocator at: [0xf<br>fffffc080270000, 0xffffffc088000000), size:131661824。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// GlobalAllocator::alloc</span></span><br><span class="line">	<span class="keyword">let</span> old_size = balloc.total_bytes();</span><br><span class="line">	<span class="keyword">let</span> expand_size = old_size</span><br><span class="line">		.max(layout.size())</span><br><span class="line">		.next_power_of_two()</span><br><span class="line">		.max(PAGE_SIZE);</span><br><span class="line">	<span class="keyword">let</span> heap_ptr = <span class="keyword">match</span> <span class="keyword">self</span>.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE) &#123;</span><br><span class="line">		<span class="literal">Ok</span>(ptr) =&gt; ptr,</span><br><span class="line">		<span class="literal">Err</span>(e) =&gt; <span class="built_in">panic!</span>(<span class="string">"Bumb: &#123;:?&#125;."</span>, e),&#125;</span><br></pre></td></tr></table></figure>
+
+<p>初始分给字节分配器32KB，当alloc内存不够时，由页分配器再分配页倍数大小的内存。注意分配时要求的内存大小和字节分配器的total_bytes函数返回的值有关，若total_bytes实现不当返回值过大，则一次要求的内存会远远超过实际需要的内存，造成字节分配器分配内存失败，提前终止迭代（我实现的total_bytes返回的是可分配的内存大小，这样每次申请的内存就和需要的内存接近了）。</p>
+<h3 id="应用程序内存的申请和释放"><a href="#应用程序内存的申请和释放" class="headerlink" title="应用程序内存的申请和释放"></a>应用程序内存的申请和释放</h3><p>通过在alloc和dealloc函数里log，分析堆上内存的分配和释放时机，主要和三个变量有关：pool、items和a。a类型是Vec&lt;u8&gt;，可以简单看作是一个内部地址连续的内存块。items和pool类型是Vec&lt;Vec&lt;u8&gt;&gt;，可以看成是存储Vec胖指针的集合。</p>
+<p>在主循环里的每一轮先调用alloc_pass申请大量内存，连续申请$a_n\quad (n = 0, 1, 2, \ldots, 14)+\delta$大小的内存块，其中$\delta$表示轮数，$a_n$是首项为32，最大项为524288的以2为公比等比数列，用等比数列的求和公式可得一轮申请的内存块之和大约为1MB。每申请一个内存块便push进items里，items扩容是翻倍，初始申请$4\times32$B大小的内存，扩容的时候先申请$8\times32$B大小的内存，再释放之前申请的。因为一轮循环里总共申请15块内存，items最大容量为$16\times32=384$B。</p>
+<p>alloc_pass结束后通过free_pass函数连续释放掉偶数项的内存块。然后将items append进pool里，每一轮循环结束pool就增加$7\times24=168$B大小，pool每次扩容时同样会释放掉之前占用的内存。pool的作用域是整个循环，pool本身及对应奇数项占用的内存在循环结束后才释放，随着循环次数的增加，占用内存越来越大，直到耗光128MB总内存。</p>
+<p>我们可以粗略进行分析，如果忽视掉pool和items变量本身的大小（使用bumb算法，items变量最多占用$96+192+384=672$B，pool最多占用$168\times\sum_{n=1}^\delta k$ B）和每次循环递增的$\delta$，每一轮循环释放掉偶数项的总和约为$\frac{2}{3}$ MB，那么理论上最大循环次数约为$128\times3=384$。注意这是在保留奇数项内容正确性，不对奇数项所占内存进行覆写的情况下。</p>
+<h3 id="自定义内存分配器的设计"><a href="#自定义内存分配器的设计" class="headerlink" title="自定义内存分配器的设计"></a>自定义内存分配器的设计</h3><p>根据上面的分析可知，items能占用的最大空间是有限的，且在每轮循环结束后会全部释放，适合在固定大小的内存区域里使用bumb算法管理。偶数项所占用的内存空间随着$\delta$变化非常缓慢，且同样也会在每轮循环结束前全部释放，同样适合在固定固定大小的内存区域里使用bumb算法管理。同时，items和偶数项都会在全部释放完后再重新分配，所以items和偶数项可以在一块内存里用bumb算法管理。pool和奇数项占用空间是持续增加的，pool会释放，奇数项不会，但为了简单处理一样用bumb算法管理（pool占用内存在轮数较大时存在较大的优化空间）。</p>
+<p>分配器初始可用内存为32KB，当分配不够时再向页分配器申请扩容。为了方便划分区域进行管理，在申请第0轮第0项大小的内存时，我们在alloc函数里返回nomemory错误，并在total_bytes函数返回items和偶数项之和的大小来申请足够的内存。在不覆写奇数项情况下，理论最大轮数大约为384，偶数项之和每一项增加15，所以items和偶数项之和为$672+699040+384\times15=704932$B大小，这样分配器初始就能申请向上取整2的n次方和4096的倍数1048576B大小的内存使用。</p>
+<p>由初始地址开始，大小为704932B大小的内存区域用来进行items和偶数项的分配和释放。剩下的区域用来进行pool和奇数项的分配和释放，随着奇数项的增加再向页分配器申请新的扩容，直至最终内存耗尽，所有区域内部均使用bumb算法进行管理。注意，每一轮循环里items和偶数项都会在申请完毕后全部释放，奇数项在整个循环期间不释放，所以用bumb管理是合适的。但pool在循环内是会释放的，且随着轮数的增加，空闲内存大小不容忽视，未来可以用更高效的算法来管理pool的内存，还能进一步增加轮数。</p>
+<h2 id="课后练习：-实现最简单的Hypervisor，响应VM-EXIT常见情况"><a href="#课后练习：-实现最简单的Hypervisor，响应VM-EXIT常见情况" class="headerlink" title="课后练习： 实现最简单的Hypervisor，响应VM_EXIT常见情况"></a>课后练习： 实现最简单的Hypervisor，响应VM_EXIT常见情况</h2><p>先从simple_hv/src/main.rs里的main函数开始运行，此时处于host域。用new_user_aspace创建地址空间，load_vm_image加载要在guest域里运行的内核文件。prepare_guest_context伪造guest上下文件，设置初始特权级为S，sepc值为VM_ENTRY（内核文件的入口地址）。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Kick off vm and wait for it to exit.</span></span><br><span class="line">    <span class="keyword">while</span> !run_guest(&amp;<span class="keyword">mut</span> ctx) &#123;&#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">run_guest</span></span>(ctx: &amp;<span class="keyword">mut</span> VmCpuRegisters) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        _run_guest(ctx);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    vmexit_handler(ctx)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>while循环里将会启动guest并等待它退出。_run_guest在guest.S里，主要功能是保存host上下文和恢复guest上下文，具体细节下次课会讲，最后sret跳转到sepc里的地址，切换到了guest里的内核执行。触发中断后会跳转到_guest_exit里执行，执行完后会进入vmexit_handler函数里执行（执行完_guest_exit后会接着执行_restore_csrs，里面恢复了ra寄存器的值，并在最后使用ret返回到调用_run_guest的下一行）。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//payload/skernel/src/main.rs</span></span><br><span class="line"><span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">_start</span></span>() -&gt; ! &#123;</span><br><span class="line">    core::arch::asm!(</span><br><span class="line">        <span class="string">"csrr a1, mhartid"</span>,</span><br><span class="line">        <span class="string">"ld a0, 64(zero)"</span>,</span><br><span class="line">        <span class="string">"li a7, 8"</span>,</span><br><span class="line">        <span class="string">"ecall"</span>,</span><br><span class="line">        options(noreturn)</span><br><span class="line">    )</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>内核程序如上所示，当执行csrr a1, mhartid时，VS态写入了M态的寄存器，触发非法指令异常。ld 10, 64(zero)，写入了非法内存地址，触发页错误异常。ecall指令超出VS态执行权限，触发异常。</p>
+<p>先触发非法指令异常，在异常函数处理中，我们先需要将sepc+=4（一条指令长度为4字节），以便下次_run_guest里的sret能正确跳转到下条指令执行。然后返回false，以便while循环不退出，继续执行run_guest函数。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这个阶段学得不是很扎实，很多内容都只看了视频，没有完成课后练习，等后面还要进一步回锅。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/01/2024%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">2024三阶段总结</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-01 17:47:45" itemprop="dateCreated datePublished" datetime="2024-12-01T17:47:45+00:00">2024-12-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="2024三阶段总结"><a href="#2024三阶段总结" class="headerlink" title="2024三阶段总结"></a>2024三阶段总结</h1><p>由于考试和双十一的影响，导致我实际学习三阶段的时间不到一周，到目前为止，勉强把实验做完了（除了最后一个套娃arceos的实验还没有看）。考试自不必多说，至于双十一嘛，是由于外存不够了，要升级一下，然后迁移系统、配置环境什么的。</p>
+<p>由于时间较少，而且刚考完一场试，变懒了，所以对ArceOS还没有仔细研究，下面的内容可能较空泛、可能有错误。</p>
+<h2 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h2><p>在我看来，Unikernel是一个与业务无关的裸机应用，分层、模块化且可扩展，根据业务的需要可以选取需要模块或对模块进行扩展，可以像正常开发linux c应用或std rust应用一样迅速开发裸机应用。</p>
+<p>在这一阶段，被迫看了一些关于feature、attribute、条件编译的一些知识，头一次知道原来rust里面还有workspace。</p>
+<blockquote>
+<ul>
+<li>print_with_color </li>
+</ul>
+<p>就加一些特殊的字符</p>
+</blockquote>
+<blockquote>
+<ul>
+<li>support_hashmap</li>
+</ul>
+<p>看群内大佬讨论，就引了一个库</p>
+</blockquote>
+<blockquote>
+<ul>
+<li>alt_alloc</li>
+</ul>
+<p>对于这个，一开始还想最初的页是怎么分配来的，后来才想明白这些页已经固定下来了，只要考虑怎么管理就行了。</p>
+</blockquote>
+<blockquote>
+<ul>
+<li>shell</li>
+</ul>
+<p>对于mv操作，我一开始想的是仅移动指向inode的指针，不拷贝文件，但发现实现有些难，就没有这样做。最终rename和mv都用了rename实现，感觉有些奇怪，但起码测例能过，不愧是arceOS，就是通用。</p>
+</blockquote>
+<h2 id="宏内核"><a href="#宏内核" class="headerlink" title="宏内核"></a>宏内核</h2><p>如果按照上面的理解的话，宏内核是Unikernel上的应用，但是又有些不太对，相比于实现业务目的，它更倾向于是扩展Unikernel，看起来有些像“内核之上不只有应用，还有内核的微内核”。</p>
+<blockquote>
+<ul>
+<li>page_fault</li>
+</ul>
+<p>相比于实现page_fault，我更关注的是linkme这种骚操作。</p>
+</blockquote>
+<blockquote>
+<ul>
+<li>sys_map</li>
+</ul>
+<p>就find_free_area然后read进去，虽然感觉用find_free_area找到的地方有些不符合man mmap的说明。</p>
+</blockquote>
+<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>在三阶段的实现中，看起来Hypervisor最没用，在裸机之上实现裸机，大部分实现都是透传的，相比于直接运行在裸机上，不仅功能减少了、性能变差了，就连能源的使用也不只是烧电，还烧头发，悲。</p>
+<p>还有，感觉可不可以在ArceOS上同时运行宏内核或其他应用和Hypervisor，ASA（ArceOS Subsystem for ArceOS）1.0就在眼前</p>
+<blockquote>
+<ul>
+<li>simple_hv</li>
+</ul>
+<p>改一下guest的sepc，设置一下a0、a1的值</p>
+</blockquote>
+<blockquote>
+<ul>
+<li>pflash设备模拟方式</li>
+</ul>
+<p>一开始没有搞清gpa映射到hpa时，没有经过host的satp，导致在host中拿着pa当va来用，出现了问题。另外，在完成后，修改了一下pflash的内容，想要读u128转string输出，但是没想到，在对* u128解引用时，它居然会先读u128的高64位，导致映射时页面没对齐。</p>
+</blockquote>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E7%8E%8B%E6%B5%B7%E6%97%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +494,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
               </span>
 
           
@@ -332,7 +562,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -413,7 +643,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
               </span>
 
           
@@ -513,7 +743,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
               </span>
 
           
@@ -590,7 +820,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:26" itemprop="dateModified" datetime="2025-05-18T05:10:26+00:00">2025-05-18</time>
               </span>
 
           
@@ -704,7 +934,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
               </span>
 
           
@@ -794,7 +1024,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -899,7 +1129,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
+                <time title="Modified: 2025-05-18 05:10:25" itemprop="dateModified" datetime="2025-05-18T05:10:25+00:00">2025-05-18</time>
               </span>
 
           
@@ -965,221 +1195,6 @@
 </ul>
 <p>其他实验由于忙于项目，暂时未做，后面有时间再补上其他的实验。</p>
 <p>之前总结的一个starry的实现流程也记录这里，方便以后实验查阅：<br><a href="starry-boot.jpeg">Starry启动流程</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/" class="post-title-link" itemprop="url">2024秋冬季训练营第三阶段总结-张宇驰</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-01 10:17:57" itemprop="dateCreated datePublished" datetime="2024-12-01T10:17:57+00:00">2024-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="组件化内核的意义与概念"><a href="#组件化内核的意义与概念" class="headerlink" title="组件化内核的意义与概念"></a>组件化内核的意义与概念</h1><p><strong>基于组件</strong>构造内核的方法，去构造<strong>不同场景</strong>的<strong>各种模式</strong>内核。组件之间单向依赖。</p>
-<p>与传统设计思路的差异：</p>
-<ol>
-<li>面向场景和应用需求构建内核</li>
-<li>以统一视角看待各种模式、不同规模的内核</li>
-</ol>
-<p>组件化内核相对传统构建方式的优势：</p>
-<ol>
-<li>提高内核开发效率</li>
-<li>降低内核维护难度</li>
-<li>开展基于组件的功能复用和开发协作</li>
-</ol>
-<p>内核模式：1)App和Kernel均处于S Mode.2)相互可见.3)编译形成一个Image.4)是App也是Kernel<br>可以通过组件增量的方式，实现扩展到宏内核与Hypervisor模式。</p>
-<h1 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h1><h2 id="学习心得"><a href="#学习心得" class="headerlink" title="学习心得"></a>学习心得</h2><p>Unikernel令我最惊讶的就是模块化的OS构建方式并通过组件增量的方式组成不同内核模式的OS.</p>
-<h2 id="特点"><a href="#特点" class="headerlink" title="特点"></a>特点</h2><ol>
-<li>应用与内核处于同一特权级（均为内核态），共享地址空间。Unikernel既是内核又是应用，二者合为一体</li>
-<li>优点: 应用与内核之间没有隔离和切换，简单高效</li>
-<li>缺点: 同样因为没有隔离和切换，所以安全性较低</li>
-</ol>
-<p>Unikernel框架与构成框架的核心组件是怎么来的？经历的阶段如下：</p>
-<p>(1) 直接开发一个裸机应用来满足输出Hello的简单需求<br>(2) 需求增加，发现可按照通用性和Arch相关实现分层复用<br>(3) 引入组件化，降低耦合性、提升复用性定制性灵活性。</p>
-<h2 id="应用的开发"><a href="#应用的开发" class="headerlink" title="应用的开发"></a>应用的开发</h2><p>面向应用：基于features选择必要组件的最小集合。</p>
-<ol>
-<li>学习了如何加载和执行外部应用程序</li>
-<li>实现了内核与应用程序的通信机制</li>
-<li>掌握了地址空间分离和切换的技术要点</li>
-</ol>
-<h2 id="课后练习"><a href="#课后练习" class="headerlink" title="课后练习"></a>课后练习</h2><h3 id="练习一"><a href="#练习一" class="headerlink" title="练习一"></a>练习一</h3><p>在打印宏的定义处，使用ANSI控制颜色即可，我使用的是：<code>\x1B[34m</code>和<code>\x1B[0m</code></p>
-<h3 id="练习二"><a href="#练习二" class="headerlink" title="练习二"></a>练习二</h3><p>我做了两版，一版就是直接引入hashbrown，这是最简单的方法，不过对于alloc和hashbrown中的有一个方法存在的冲突，我没有做处理，默认是让alloc的方法覆盖了hashbrown的。另一个版本是CV了std的实现，然后一点一点的修理，但是我还是觉得第一个更优雅一点。</p>
-<h3 id="练习三"><a href="#练习三" class="headerlink" title="练习三"></a>练习三</h3><p>我在EarlyAllocator中添加了start, end, b_pos, p_pos, count属性。然后将每一个Trait需要实现的函数实现出来。我发现PageAllocator中的部分函数并没有被使用，有些函数是直接打了unimplement()!的，但是一样能通过测试。</p>
-<h3 id="练习四"><a href="#练习四" class="headerlink" title="练习四"></a>练习四</h3><p>参数的检查可以直接参考官方函数的实现。<br>rename直接调用API fs::rename就可以。mv通过判断第二个参数dst是否是一个目录，如果是的话，吧文件src读入buf,然后在对应的路径写，最后删除原来的文件。</p>
-<h1 id="Monolithic"><a href="#Monolithic" class="headerlink" title="Monolithic"></a>Monolithic</h1><h2 id="学习心得-1"><a href="#学习心得-1" class="headerlink" title="学习心得"></a>学习心得</h2><p>宏内核在如今的市场上还是占有大量的比率，而Linux也为我们证明了，宏内核加上一些合理的缓解措施，并不意味着会比其他模式差。所以，学习宏内核是很多有意义的。</p>
-<h2 id="特点-1"><a href="#特点-1" class="headerlink" title="特点"></a>特点</h2><p>基于组件化方法构建宏内核模式。</p>
-<ol>
-<li>Unikernel到宏内核：<br>以构建最小化的宏内核为目标，说明：<br>宏内核特点、与Unikernel的差异分析、框架和组件构成、具体实现示例。</li>
-<li>地址空间管理和支持Linux应用：<br>1）用户地址空间映射、缺页加载机制；<br>2）支持运行最简单的Linux的原始应用</li>
-</ol>
-<p>Unikernel模式的应用和内核：<br>(1）处于同一特权级 - 内核特权级<br>(2) 共享同一地址空间 - 相互可见<br>(3) 编译形成一个Image，一体运行<br>(4) Unikernel既是应用又是内核，二者合体</p>
-<h2 id="课后练习-1"><a href="#课后练习-1" class="headerlink" title="课后练习"></a>课后练习</h2><h3 id="练习五"><a href="#练习五" class="headerlink" title="练习五"></a>练习五</h3><p>使用register_trap_handler来标记对PAGE_FAULT的处理，然后实现处理函数：<code>handle_page_fualt()</code><br>处理的实现是通过axtask的接口去实现的，得到task的ext，将aspace上锁后，调用handle_page_fualt同名函数，最后直接打印了对应的输出，然后返回一个正确处理。如果同名函数没有正确执行，那么就直接返回false.</p>
-<h3 id="练习六"><a href="#练习六" class="headerlink" title="练习六"></a>练习六</h3><p>从当前的aspace中调用find_free_area，得到length的addr_src，然后进行4K对齐，同时，对length进行对齐得到size。</p>
-<p>prot和flags通过调用MmapProt::from_bits_truncate(prot), MmapFlags::from_bits_truncate(flags)得到，需要的mappingFlags就from(prot)即可。</p>
-<p>调用aspace的map_alloc方法。</p>
-<p>之后处理一下MmapFlags::MAP_ANONYMOUS。如果有这个flags，直接返回就好</p>
-<p>如果没有MmapFlags::MAP_ANONYMOUS。则通过get_file_like得到我们所需的文件，并将其读取进入buf，然后写入aspace。</p>
-<h1 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h1><h2 id="学习心得-2"><a href="#学习心得-2" class="headerlink" title="学习心得"></a>学习心得</h2><p>HyperVisor，即所谓的虚拟机管理程序，从代码实现来看，和宏内核思想差不多，都是一个高特权级的“内核”为低特权级的“应用”创建独属于它的“虚拟空间”，为它准备对应的资源，然后切换特权级去执行该“应用”。当“应用”发生“中断”的时候，就trap回“内核”处理。GuestOS，就像是一个特殊的应用。</p>
-<h2 id="特点-2"><a href="#特点-2" class="headerlink" title="特点"></a>特点</h2><p>HyperVisor，即所谓的虚拟机管理程序，从代码实现来看，和宏内核思想差不多，都是一个高特权级的“内核”为低特权级的“应用”创建独属于它的“虚拟空间”，为它准备对应的资源，然后切换特权级去执行该“应用”。当“应用”发生“中断”的时候，就trap回“内核”处理。GuestOS，就像是一个特殊的应用。</p>
-<p>基于一台物理计算机建立一些OS的就是虚拟机，我们这里用的是I形虚拟机，也就是不存在宿主机，直接在硬件平台运行的。<br>虚拟机的特点包括：同质、高校、资源受控。为了实现虚拟化，支持了以下层次的对象VM、vCPU、vMem、vDevice、vUtilities。</p>
-<h2 id="课后题"><a href="#课后题" class="headerlink" title="课后题"></a>课后题</h2><h3 id="练习七"><a href="#练习七" class="headerlink" title="练习七"></a>练习七</h3><p>这里处理Trap的时候，需要更改掉panic，然后在这道题中，要求A0、A1为0x1234和0x6688，只需要在处理这些Trap的时候，将对应的寄存器进行修改就可以</p>
-<hr>
-<p>笔记：<a href="https://github.com/inchinaxiaofeng/Blog-arceos" target="_blank" rel="noopener">https://github.com/inchinaxiaofeng/Blog-arceos</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-sts/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-sts/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结报告-sts</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-01 00:00:00" itemprop="dateCreated datePublished" datetime="2024-12-01T00:00:00+00:00">2024-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-18 05:10:14" itemprop="dateModified" datetime="2025-05-18T05:10:14+00:00">2025-05-18</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/oscamp-2024fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2024fall arceos unikernel</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <blockquote>
-<p>进入第三阶段当然很高兴，但时间上实在太紧，我一开始的心态是按看懂源代码中的每一步来走的，但目前只是看完了所有相关的 makefile，以及看了部分 PPT 中强调部分的源代码。实验的话也是完成了第一周的内容以及 Hypervisor 的实验一。</p>
-</blockquote>
-<h2 id="arceos流程小结"><a href="#arceos流程小结" class="headerlink" title="arceos流程小结"></a>arceos流程小结</h2><p>总体执行流程：axhal的boot.rs中先引导，用于初始化内核栈，设置初始的页表，这里映射了两个 1G 的大页，分别是低地址恒等映射以及高地址的一个映射。随后要调用 axruntime 的 rust_main 来进一步完善运行时，这里会涉及到 axfeat 里面用到的 feature 条件编译并初始化一些东西，比如启用了 paging 这个 feature 就会重新映射页表这样。调用 rust_main 的时候加了一个偏移，偏移的大小其实就是高地址映射的偏移这样。随后 axruntime 做好运行时之后，调用 main 函数。随后调用结束函数，结束整个流程。</p>
-<h2 id="课后练习1：支持带颜色的打印输出。"><a href="#课后练习1：支持带颜色的打印输出。" class="headerlink" title="课后练习1：支持带颜色的打印输出。"></a>课后练习1：支持带颜色的打印输出。</h2><p>具体实现：修改axhal中putchar的实现，在打印每一个字符时都加入相应的转义字符。</p>
-<p>关于转义字符的具体解析的话：颜色定义的部分可以参考 <a href="https://www.man7.org/linux/man-pages/man4/console_codes.4.html" target="_blank" rel="noopener">console_codes(4) — Linux manual page</a> 的 <code>ECMA-48 Select Graphic Rendition</code> 部分。在 makefile 中的 <code>run_cmd</code> 函数用于辅助输出同时会以颜色输出命令，参数 1 控制颜色为白色，参数 2 控制为灰色，随后执行命令。</p>
-<p>颜色控制部分关键如下</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">param      result</span><br><span class="line">0          reset all attributes to their defaults</span><br><span class="line">1          set bold</span><br><span class="line">2          set half-bright (simulated with color on a color display)</span><br><span class="line">3          set italic (since Linux 2.6.22; simulated with color on a color display)</span><br><span class="line">4          set underscore (simulated with color on a color display) (the colors</span><br><span class="line">			used to simulate dim or underline are set using ESC ] ...)</span><br><span class="line">5          set blink</span><br><span class="line">7          set reverse video</span><br><span class="line">10         reset selected mapping, display control flag, and toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;primary font&quot;).</span><br><span class="line">11         select null mapping, set display control flag, reset toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;first alternate font&quot;).</span><br><span class="line">12         select null mapping, set display control flag, set toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;second alternate font&quot;).  The toggle meta flag causes the</span><br><span class="line">			high bit of a byte to be toggled before the mapping table translation is</span><br><span class="line">			done.</span><br><span class="line">21         set underline; before Linux 4.17, this value set normal intensity (as is</span><br><span class="line">			done in many other terminals)</span><br><span class="line">22         set normal intensity</span><br><span class="line">23         italic off (since Linux 2.6.22)</span><br><span class="line">24         underline off</span><br><span class="line">25         blink off</span><br><span class="line">27         reverse video off</span><br><span class="line">30         set black foreground</span><br><span class="line">31         set red foreground</span><br><span class="line">32         set green foreground</span><br><span class="line">33         set brown foreground</span><br><span class="line">34         set blue foreground</span><br><span class="line">35         set magenta foreground</span><br><span class="line">36         set cyan foreground</span><br><span class="line">37         set white foreground</span><br><span class="line">38         256&#x2F;24-bit foreground color follows, shoehorned into 16 basic colors</span><br><span class="line">			(before Linux 3.16: set underscore on, set default foreground color)</span><br><span class="line">39         set default foreground color (before Linux 3.16: set underscore off, set</span><br><span class="line">			default foreground color)</span><br><span class="line">40         set black background</span><br><span class="line">41         set red background</span><br><span class="line">42         set green background</span><br><span class="line">43         set brown background</span><br><span class="line">44         set blue background</span><br><span class="line">45         set magenta background</span><br><span class="line">46         set cyan background</span><br><span class="line">47         set white background</span><br><span class="line">48         256&#x2F;24-bit background color follows, shoehorned into 8 basic colors</span><br><span class="line">49         set default background color</span><br><span class="line">90..97     set foreground to bright versions of 30..37</span><br><span class="line">100..107   set background, same as 40..47 (bright not supported)</span><br><span class="line"></span><br><span class="line">Commands 38 and 48 require further arguments:</span><br><span class="line">;5;x       256 color: values 0..15 are IBGR (black,  red,  green,</span><br><span class="line">			...  white),  16..231  a  6x6x6 color cube, 232..255 a</span><br><span class="line">			grayscale ramp</span><br><span class="line">;2;r;g;b   24-bit color, r&#x2F;g&#x2F;b components are in the range 0..255</span><br></pre></td></tr></table></figure>
-
-<p> <code>ECMA-48  SGR</code> 序列以 <code>ESC[ parameters m</code> 的格式控制显示的属性。parameters 用分号隔开，<code>\033[92;1m</code> 为例，033 为八进制，表示 ESC，92 和 1分别是 param，参考上文的 <code>ECMA-48 Select Graphic Rendition</code> 92 表示绿色明亮前景色。1 表示加粗，0 表示重置属性。</p>
-<h2 id="课后练习2：支持-HashMap"><a href="#课后练习2：支持-HashMap" class="headerlink" title="课后练习2：支持 HashMap"></a>课后练习2：支持 HashMap</h2><p>ax_api 作为下层 module 的抽象，随后 axstd 作为我们自己定义的标准库供用户程序调用。</p>
-<p>我的想法其实也是直接看 std 的 HashMap 怎么实现，然后改一改，做到最小的满足测试案例中的那些操作。然后慢慢改一改，后面看到官方也用了 hashbrown 作为实现，然后我就改了改，把随机数用到 hashbrown 这边大概。然后就好了。</p>
-<h2 id="课后练习3：实现-alt-alloc"><a href="#课后练习3：实现-alt-alloc" class="headerlink" title="课后练习3：实现 alt_alloc"></a>课后练习3：实现 alt_alloc</h2><p>这个分配器应当是用作早期boot之后系统初始化阶段的内存分配器，所以实现上相对简单，每次分配都向后增长。dealloc的时候尝试减掉已经alloc的空间大小，如果为0，那就重新开始从头分配这样。</p>
-<h2 id="挑战题目：实现特定分配算法"><a href="#挑战题目：实现特定分配算法" class="headerlink" title="挑战题目：实现特定分配算法"></a>挑战题目：实现特定分配算法</h2><p>这个算法的话，还是要感谢万能的群友，我一开始想的也是在TLSF基础上改一改这样。后面发现有取巧的地方，主要也是循环一直进行，奇数项的内容永不释放，所以就取巧了，会记录每次奇数次申请的空间，下次申请如果比上次的小，那就返回该地址。如果比上次大，那就重新申请，释放上次的内容这样。</p>
-<p>达到的轮次是65536应该是，也是一个非常 unsigned int 的值。</p>
-<p>思路详细描述：由于每次申请的空间大小会加1，相比上一次。例如，delta 为1，申请的空间依次是32 + 1， 32 * 2 + 1， 。delta 为 2，申请的空间依次是32 +2， 32*2 +2，。所以，第一次循环会反复替换掉分配器中的记录。</p>
-<p>但是，从第二次开始，每次当 index 为 13 的时候，会替换上一次的内容。因为上一次的 13 比这次的 13 申请的空间小 1。但是呢，14 不是最后一次循环吗，因为 14 是偶数所以不管。奇数就很神奇，每次都是到 index 为 13 的时候重新申请一次空间。其余时候，其实大家返回的地址都是一样的。嘿嘿。而且，每次替换的时候都会把上次的给释放了，哎，就很神奇。</p>
-<p>首先主体部分使用特定内存分配器 tlsf。包括申请，释放等操作。</p>
-<p>其次，定制 alloc 函数。用 indicator 记录此时调用 alloc_pass 函数的 delta值。用 index 记录 alloc_pass 函数中的循环次数。</p>
-<p>alloc 的时候需要谨慎计算，2的多少次方啊，当index = 14 的时候，重置为 0，然后indiactor需要加 1 啊，之类的。</p>
-<p>这里要注意一点，源码里，分配器有个special变量，为bool类型。这里用它的主要原因在于有个很神奇的点：当indiactor为32， index = 1的时候，items需要申请 0x60 的空间，而恰好，下次申请向量空间也是 0x60 的大小。就，重复了。嗯。所以，作为单独判断条件，然后重置，第一次出现先不管，然后继续。然后，bug解决。</p>
-<h2 id="Hypervisor课后练习1"><a href="#Hypervisor课后练习1" class="headerlink" title="Hypervisor课后练习1"></a>Hypervisor课后练习1</h2><p>hypervisior流程分析：这里初始化阶段我们的hyper会布置好一个现场类似我们在宏内核中设置好sstatus寄存器那样，随后通过sret到GUEST中执行，GUEST中遇到无法处理的情况又会陷入Hypervisior中，通过对不同类型的陷入执行不同的代码，处理好用户的错误设置寄存器等操作，随后返回GUEST继续执行。</p>
-<p>这里的第一个实验比较简单：只需要在处理错误函数中设置寄存器的值，然后设置sepc += 4，让GUEST去执行出错指令的下一条指令即可。</p>
-<h2 id="Hypervisior课后练习2"><a href="#Hypervisior课后练习2" class="headerlink" title="Hypervisior课后练习2"></a>Hypervisior课后练习2</h2><p>这里会涉及到虚拟化里的地址二阶段映射。主要流程：GUEST中的虚拟地址先通过 VSATP 翻译，通过 GVA 到 GPA，然后通过 HGATP 把GPA翻译到 HPA 这样。</p>
-<p>课后练习尚未完成，嗯。</p>
-<h2 id="Hypervisior课后练习3"><a href="#Hypervisior课后练习3" class="headerlink" title="Hypervisior课后练习3"></a>Hypervisior课后练习3</h2><p>这里涉及 GUEST 的中断。主要涉及时钟中断，一种实现方式是当 GUEST 配置 RTC 的时候会陷入 Hyper，由 Hyper 来设置时钟，当时钟触发的时候，Hyper 会触发 GUEST 的时钟中断位这样。Hyper在设置完之后应该是会关中断的，待下次GUEST设置中断的时候再打开，这样保持一致。</p>
-<p>课后练习尚未完成，嗯。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这里总结的话，三阶段实在不完美，时间上太赶了，然后各种东西都想弄明白细节，这样就很来不及。原本还准备看RISCV的指令集虚拟化扩展这样，也只看了一小部分，内容上其实不算多，但要补的内容比较多，就比较费劲。</p>
 
       
     </div>
