@@ -6,7 +6,7 @@ categories:
 tags:
     - author:Lfan-ke
     - author-alias:禾可/禾可1228/"Leo Cheng"
-    - repo:https://github.com/LearningOS/rust-rustlings-2024-autumn-Lfan-ke
+    - repo:https://github.com/LearningOS/2025s-rustling-Lfan-ke
     - description:初次学习Rust整理后的笔记
 mathjax: true
 ---
