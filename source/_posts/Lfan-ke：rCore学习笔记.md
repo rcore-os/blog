@@ -6,7 +6,7 @@ categories:
 tags:
     - author:Lfan-ke
     - author-alias:heke/heke1228
-    - repo:https://github.com/LearningOS/2024a-rcore-Lfan-ke
+    - repo:https://github.com/LearningOS/2025s-rcore-Lfan-ke
 mathjax: true
 ---
 
