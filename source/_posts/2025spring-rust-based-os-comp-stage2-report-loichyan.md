@@ -1,8 +1,7 @@
 ---
 title: 2025春夏季开源操作系统训练营第二阶段总结报告
 date: 2025-05-05 20:31:32
-categories:
-  - 2025春夏季开源操作系统
+categories: [开源操作系统训练营]
 tags:
   - author: loichyan
   - repo: https://github.com/LearningOS/2025s-rcore-loichyan
@@ -57,6 +56,6 @@ tags:
 以上便是第二阶段中的主要收获，此外，关于文件系统和各种同步原语的实现，也偶有一些“灵光一现”，不过限于时间不足，并没来得及实践．对于下一阶段，打算集中精力攻克第三个选题，即基于 Rust 语言异步机制的内核改造．因为，此前一直对 Rust 的异步实现“耿耿于怀”，借此机会，可以更深入理解其工作原理．
 
 [^1]: <https://rcore-os.cn/rCore-Tutorial-Book-v3/>
-[^2]: <https://www.kernel.org/doc/html/next/x86/pti.html>
+[^2]: <https://www.kernel.org/doc/html/v6.1/x86/pti.html>
 [^3]: <https://github.com/arceos-org/arceos/>
 [^4]: <https://github.com/rustsbi/fast-trap/>
