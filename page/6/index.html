@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">686</span>
+          <span class="site-state-item-count">687</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
 
           
@@ -332,7 +332,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -340,7 +340,7 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">2025春夏季开源操作系统</span></a>
+                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
                 </span>
             </span>
 
@@ -362,7 +362,7 @@
 <li>内核虚拟内存空间和用户虚存被映射到了相同的地址段，这导致除了访问用户指针时需要先映射到实际的物理内存，稍有遗漏便可能导致访存异常，能否使用一个页表呢？</li>
 <li>每个任务都有两个栈，即内核栈和用户栈，并且在调度任务时需要反复地在不同内核栈之间轮替，能否使用一个单独的栈解决问题呢？</li>
 </ol>
-<h3 id="单页表虚拟内存"><a href="#单页表虚拟内存" class="headerlink" title="单页表虚拟内存"></a>单页表虚拟内存</h3><p>单页表的实现在教程中有所提及，关于为何没有使用，文中给出的理由是单页表会导致熔断攻击．如果要避免熔断攻击，那么用户态就一定不能包含内核空间的页表项，这一点很容易想到．再稍加思考，只需要将地址空间一分为二，高位和低位分别留给内核和用户，然后再维护两个页表，其中一个只包含用户程序和必要的内核程序即可．后来，进一步研究了 Linux 的 PTI<a href="https://www.kernel.org/doc/html/next/x86/pti.html" target="_blank" rel="noopener">^2</a> 机制后，发现基本的思路一致．并且从中了解到，在实现细节上，可以将两个页表放在物理内存的两个连续页面上，这样只需要若干寄存器运算就能实现换表．</p>
+<h3 id="单页表虚拟内存"><a href="#单页表虚拟内存" class="headerlink" title="单页表虚拟内存"></a>单页表虚拟内存</h3><p>单页表的实现在教程中有所提及，关于为何没有使用，文中给出的理由是单页表会导致熔断攻击．如果要避免熔断攻击，那么用户态就一定不能包含内核空间的页表项，这一点很容易想到．再稍加思考，只需要将地址空间一分为二，高位和低位分别留给内核和用户，然后再维护两个页表，其中一个只包含用户程序和必要的内核程序即可．后来，进一步研究了 Linux 的 PTI<a href="https://www.kernel.org/doc/html/v6.1/x86/pti.html" target="_blank" rel="noopener">^2</a> 机制后，发现基本的思路一致．并且从中了解到，在实现细节上，可以将两个页表放在物理内存的两个连续页面上，这样只需要若干寄存器运算就能实现换表．</p>
 <p>起初我一直认为单页表无疑是比双页表更简洁方便的方案．后来，在落实时才发现，实现单页表的一大难点在于：内核被映射到虚拟内存的高位（比如 0xffffffc080200000），但实际上被加载到物理内存的低位运行（比如 0x80200000）．这便到导致了内核链接时的基址和运行时的基址不一致，从而可能使得某些绝对寻址的访存错误，进一步引发难以察觉的 BUG．故，需要在内核启动时，需要手写一小段仅使用相对寻址的汇编代码来构造一个最小可用的内核页表，然后再进行更为细致地初始化流程．</p>
 <p>在这个过程中，本打算参考 ArceOS<a href="https://github.com/arceos-org/arceos/" target="_blank" rel="noopener">^3</a> 的实现，但此内核中直接在若干简短的 Rust 函数中完成了初始化．猜测应该是编译成了位置无关的代码，但总感觉这样有些”过度“依赖于编译器．因此，经过一番探索之后，用大约 50 行汇编代码完成了最小内核页表的初始化工作．这个过程是比较困难的，因为整个系统还没有启动，非常难以调试．不过也因此深化了对 GDB 等调试工具的理解和使用．</p>
 <p>此外，在更进一步地思考后，发现每个程序的内核页表都是该程序初始化时的全局内核页表的一个拷贝，如果后续内核页表更新，可能会导致访存的不一致．对于此问题，最简单的办法就是预先分配好三级页表的全部项，这样后续就完全不必担心同步的问题．当然，这不可避免的占用了少量额外内存（更确切地，2MB），但这个“少量”对于嵌入式设备来说并非可接受的开销．因此，最好的方案似乎还是按需同步，考虑到内核页表不会变化太频繁，这应该是一个合理的选择．不过，最终该如何漂亮地解决这个问题，还需要进一步的调研．</p>
@@ -378,6 +378,107 @@
 </ol>
 <p>在经过大量试错和调整之后，最终在不需要额外的访存操作的情况下，实现了一个相对通用的两阶段陷入处理方案．实现时，更进一步学习了许多 GDB 的调试技巧以及 Rust 声明宏的使用技巧．</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>以上便是第二阶段中的主要收获，此外，关于文件系统和各种同步原语的实现，也偶有一些“灵光一现”，不过限于时间不足，并没来得及实践．对于下一阶段，打算集中精力攻克第三个选题，即基于 Rust 语言异步机制的内核改造．因为，此前一直对 Rust 的异步实现“耿耿于怀”，借此机会，可以更深入理解其工作原理．</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025spring-rust-based-os-comp-stage3-report-loichyan/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/05/05/2025spring-rust-based-os-comp-stage3-report-loichyan/" class="post-title-link" itemprop="url">2025春夏季开源操作系统训练营第三阶段总结报告</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-05 20:31:32" itemprop="dateCreated datePublished" datetime="2025-05-05T20:31:32+00:00">2025-05-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h2><p>见 <a href="./2025spring-rust-based-os-comp-stage2-report-loichyan.md">2025spring-rust-based-os-comp-stage2-report-loichyan</a>．</p>
+<h2 id="主要收获"><a href="#主要收获" class="headerlink" title="主要收获"></a>主要收获</h2><h3 id="抢占式内核任务"><a href="#抢占式内核任务" class="headerlink" title="抢占式内核任务"></a>抢占式内核任务</h3><p>在<a href="./2025spring-rust-based-os-comp-stage2-report-loichyan.md">前文</a>中，构思了一种单内核栈的思路．但如果需要实现抢占式内核任务，仅凭单个内核栈是无法做到的——当某个内核任务被打断，需要保存完整的上下文，包括整个执行栈．因此，需要在单内核栈的基础上，增加动态分配的内核栈<a href="https://osdev.wiki/wiki/Thread" target="_blank" rel="noopener">^1</a>．具体而言，</p>
+<ol>
+<li>每个任务启动时从内核栈池中领取一个内核栈；</li>
+<li>如果该任务正常结束，归还内核栈；</li>
+<li>否则，该内核任务被打断（通常是时间片耗尽），将内核栈与上下文一并保存．</li>
+</ol>
+<p>这样便能按需使用多内核栈，以最大化利用单核栈带来的优势．</p>
+<h3 id="Rust-无栈协程模型"><a href="#Rust-无栈协程模型" class="headerlink" title="Rust 无栈协程模型"></a>Rust 无栈协程模型</h3><p>在 Rust 的异步模型中，编译器将每个异步函数转换为一个状态机<a href="https://rust-lang.github.io/async-book/04_pinning/01_chapter.html" target="_blank" rel="noopener">^2</a>，从而避免了任务挂起时对执行栈的保存（虽然加重了编译器的负担）．因此，Rust 无栈协程模型天然地适用于单内核栈的系统：</p>
+<ul>
+<li>多内核栈系统中，通过 IRQ<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter9/2device-driver-3.html" target="_blank" rel="noopener">^3</a> (Interrupt ReQuest) 机制等待 I/O 操作时，可以主动放弃执行权从而挂起当前任务，此时需要保存整个执行栈；</li>
+<li>而在单内核栈系统中，通过 IRQ 机制实现异步 I/O，<code>await</code> I/O 操作时，只需将当前任务加入 Executor 的等待队列即可．</li>
+</ul>
+<h3 id="Thread-per-core-模型"><a href="#Thread-per-core-模型" class="headerlink" title="Thread-per-core 模型"></a>Thread-per-core 模型</h3><p>在多核环境中，为了保证数据一致性，原子数据结构（如 <code>Arc</code>、<code>Atomic*</code> 等）和同步锁（如 <code>Mutex</code>、<code>RwLock</code> 等）是必不可少的．但除了文件系统读写等任务必须加锁以外，大部分任务都是在单核上处理的，此时对原子计数和同步原语的频繁读写就成了额外的负担．并且，主流异步运行时（如 Tokio、async-std 等）默认要求 <code>Future</code> 多线程安全，这使得编写异步函数没那么“愉快”，也是 Rust 异步体验被广为诟病的一点<a href="https://maciej.codes/2022-06-09-local-async.html" target="_blank" rel="noopener">^4</a>．Thread-per-core 模型<a href="https://without.boats/blog/thread-per-core/" target="_blank" rel="noopener">^5</a>便因此有了不少拥趸，例如 Glommio<a href="https://www.datadoghq.com/blog/engineering/introducing-glommio/" target="_blank" rel="noopener">^6</a> 是一个适用于 Linux 的 Thread-per-core 框架，它是以 io_uring<a href="https://en.wikipedia.org/wiki/Io_uring" target="_blank" rel="noopener">^7</a> 为基础构建的．</p>
+<p>之所以 Tokio 等运行时要求 <code>Future</code> 多线程安全，是因为它们使用了工作窃取的调度算法<a href="https://tokio.rs/blog/2019-10-scheduler" target="_blank" rel="noopener">^8</a>，即在线程 A 创建的任务可能被线程 B “偷走”来减少线程空闲．Linux 的任务调度算法也使用了工作窃取<a href="https://www.kernel.org/doc/html/v6.1/scheduler/sched-domains.html" target="_blank" rel="noopener">^9</a>．Thread-per-core 和工作窃取模型各有优劣<a href="https://without.boats/blog/thread-per-core/" target="_blank" rel="noopener">^5</a>：</p>
+<ul>
+<li>Thread-per-core 中，绝大部分数据结构都不必是线程安全的，避免了多线程同步带来的开销，同时也使得编写异步函数更为简便；</li>
+<li>Thread-per-core 中，任务基本上都是在单个 CPU 核心是执行的，减少了执行环境变更导致的高速缓存丢失；</li>
+<li>工作窃取中，空闲线程从忙碌线程中窃取任务，从而使得各核心之间负载均衡，能最大化利用多核资源；</li>
+<li>在实际应用场景中，通常不容易彻底区分 CPU 密集型和 I/O 密集型任务，因此工作窃取适用面更广泛．</li>
+</ul>
+<p>此外，从 Glommio 的介绍<a href="https://www.datadoghq.com/blog/engineering/introducing-glommio/" target="_blank" rel="noopener">^6</a>中不难看出，它很大程度上依赖于各任务之间的相互协作，即理想情况下，任务需要周期地归还执行权，来使得权重更高的任务优先执行．并且，在 Thread-per-core 模型中，为了充分利用各核心的执行资源，需要将 CPU 密集型和 I/O 密集型任务细致地划分给不同的核心，这无疑给开发维护带来了额外的心智负担．从这个角度来看，Thread-per-core 和工作窃取又分别类似于内核的协作式任务调度<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter3/3multiprogramming.html" target="_blank" rel="noopener">^10</a>和抢占式任务调度<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter3/4time-sharing-system.html" target="_blank" rel="noopener">^11</a>．前两者和后两者的不同之处在于：</p>
+<ul>
+<li>内核的任务调度算法主要面向于用户任务，它们所需要的资源通常是未知的，并且都希望能独占资源；</li>
+<li>而同一个应用程序中（内核本身也可以视为一个复杂的应用程序），各任务所需的资源通常有一个预期，因此，在理论上，通过最细致地划分可以让整个应用达到极致的性能．</li>
+</ul>
+<p>不过，综合考量各方面因素，还是工作窃取更适用，也更容易实现 :)</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>以上便是第三阶段的主要收获，接下来需要进一步研究 IRQ 机制与 Rust 异步的集成，以及 io_uring 模型的实现和应用，最终达成对 ArceOS 内核的异步化改造．</p>
 
       
     </div>
@@ -428,7 +529,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
 
           
@@ -498,7 +599,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
 
           
@@ -644,7 +745,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -830,7 +931,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
 
           
@@ -944,7 +1045,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
 
           
@@ -1196,7 +1297,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
 
           
@@ -1310,7 +1411,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
 
           
@@ -1333,71 +1434,6 @@
             </div>
           <!--/noindex-->
         
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/01/2025%E6%98%A5%E5%A4%8F%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-heirish/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/05/01/2025%E6%98%A5%E5%A4%8F%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-heirish/" class="post-title-link" itemprop="url">2025春夏操作系统训练营第二阶段总结-heirish</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-01 17:45:15" itemprop="dateCreated datePublished" datetime="2025-05-01T17:45:15+00:00">2025-05-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>第二阶段的强度慢慢上来了，由于平时要上班和前期收不到短信验证码的问题,不能跟上每周的直播课，主要通过学习tutorial文档和课后看录频和课件的方式学习。本阶段对内存管理，进程管理和文件系统, 线程进行了系统的学习。特别是内存映射和文件系统章节，学习到很多。同时，随着代码量增大，学习的同时画UML图对理解代码和整个框架也很有帮助。</p>
-
       
     </div>
 

@@ -30,7 +30,7 @@
 <meta property="og:description" content="学习历程因为并非计算机专业出身，所以一直都有系统学习计算机底层原理的念头，趁着备研把理论性的知识学了一些．虽然现阶段只看了计算机组成原理，不过，早便萌生了自己动手去实践那些理论技巧的想法．去年秋冬季的夏令营也有报名，但由于时间安排仓促混乱，只得作罢．今年，虽然学习安排亦比较紧张，不过，想着动手得来的知识要比苦读书本记忆的更为深刻． 在第一阶段中，因为本身就有一些 Rust 开发经验，所以总体上是复">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2025-05-05T20:31:32.000Z">
-<meta property="article:modified_time" content="2025-05-19T08:59:45.848Z">
+<meta property="article:modified_time" content="2025-05-19T09:19:45.413Z">
 <meta property="article:author" content="rcore-os Group">
 <meta property="article:tag" content="[object Object]">
 <meta name="twitter:card" content="summary">
@@ -190,7 +190,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">686</span>
+          <span class="site-state-item-count">687</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -270,7 +270,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-19 08:59:45" itemprop="dateModified" datetime="2025-05-19T08:59:45+00:00">2025-05-19</time>
+                <time title="Modified: 2025-05-19 09:19:45" itemprop="dateModified" datetime="2025-05-19T09:19:45+00:00">2025-05-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -278,7 +278,7 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">2025春夏季开源操作系统</span></a>
+                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
                 </span>
             </span>
 
@@ -300,7 +300,7 @@
 <li>内核虚拟内存空间和用户虚存被映射到了相同的地址段，这导致除了访问用户指针时需要先映射到实际的物理内存，稍有遗漏便可能导致访存异常，能否使用一个页表呢？</li>
 <li>每个任务都有两个栈，即内核栈和用户栈，并且在调度任务时需要反复地在不同内核栈之间轮替，能否使用一个单独的栈解决问题呢？</li>
 </ol>
-<h3 id="单页表虚拟内存"><a href="#单页表虚拟内存" class="headerlink" title="单页表虚拟内存"></a>单页表虚拟内存</h3><p>单页表的实现在教程中有所提及，关于为何没有使用，文中给出的理由是单页表会导致熔断攻击．如果要避免熔断攻击，那么用户态就一定不能包含内核空间的页表项，这一点很容易想到．再稍加思考，只需要将地址空间一分为二，高位和低位分别留给内核和用户，然后再维护两个页表，其中一个只包含用户程序和必要的内核程序即可．后来，进一步研究了 Linux 的 PTI<a href="https://www.kernel.org/doc/html/next/x86/pti.html" target="_blank" rel="noopener">^2</a> 机制后，发现基本的思路一致．并且从中了解到，在实现细节上，可以将两个页表放在物理内存的两个连续页面上，这样只需要若干寄存器运算就能实现换表．</p>
+<h3 id="单页表虚拟内存"><a href="#单页表虚拟内存" class="headerlink" title="单页表虚拟内存"></a>单页表虚拟内存</h3><p>单页表的实现在教程中有所提及，关于为何没有使用，文中给出的理由是单页表会导致熔断攻击．如果要避免熔断攻击，那么用户态就一定不能包含内核空间的页表项，这一点很容易想到．再稍加思考，只需要将地址空间一分为二，高位和低位分别留给内核和用户，然后再维护两个页表，其中一个只包含用户程序和必要的内核程序即可．后来，进一步研究了 Linux 的 PTI<a href="https://www.kernel.org/doc/html/v6.1/x86/pti.html" target="_blank" rel="noopener">^2</a> 机制后，发现基本的思路一致．并且从中了解到，在实现细节上，可以将两个页表放在物理内存的两个连续页面上，这样只需要若干寄存器运算就能实现换表．</p>
 <p>起初我一直认为单页表无疑是比双页表更简洁方便的方案．后来，在落实时才发现，实现单页表的一大难点在于：内核被映射到虚拟内存的高位（比如 0xffffffc080200000），但实际上被加载到物理内存的低位运行（比如 0x80200000）．这便到导致了内核链接时的基址和运行时的基址不一致，从而可能使得某些绝对寻址的访存错误，进一步引发难以察觉的 BUG．故，需要在内核启动时，需要手写一小段仅使用相对寻址的汇编代码来构造一个最小可用的内核页表，然后再进行更为细致地初始化流程．</p>
 <p>在这个过程中，本打算参考 ArceOS<a href="https://github.com/arceos-org/arceos/" target="_blank" rel="noopener">^3</a> 的实现，但此内核中直接在若干简短的 Rust 函数中完成了初始化．猜测应该是编译成了位置无关的代码，但总感觉这样有些”过度“依赖于编译器．因此，经过一番探索之后，用大约 50 行汇编代码完成了最小内核页表的初始化工作．这个过程是比较困难的，因为整个系统还没有启动，非常难以调试．不过也因此深化了对 GDB 等调试工具的理解和使用．</p>
 <p>此外，在更进一步地思考后，发现每个程序的内核页表都是该程序初始化时的全局内核页表的一个拷贝，如果后续内核页表更新，可能会导致访存的不一致．对于此问题，最简单的办法就是预先分配好三级页表的全部项，这样后续就完全不必担心同步的问题．当然，这不可避免的占用了少量额外内存（更确切地，2MB），但这个“少量”对于嵌入式设备来说并非可接受的开销．因此，最好的方案似乎还是按需同步，考虑到内核页表不会变化太频繁，这应该是一个合理的选择．不过，最终该如何漂亮地解决这个问题，还需要进一步的调研．</p>
@@ -334,8 +334,8 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/blog/2025/05/05/2025%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E5%88%98%E8%BD%B6%E5%87%A1/" rel="prev" title="2025开源操作系统训练营总结-刘轶凡">
-      <i class="fa fa-chevron-left"></i> 2025开源操作系统训练营总结-刘轶凡
+    <a href="/blog/2025/05/05/2025spring-rust-based-os-comp-stage3-report-loichyan/" rel="prev" title="2025春夏季开源操作系统训练营第三阶段总结报告">
+      <i class="fa fa-chevron-left"></i> 2025春夏季开源操作系统训练营第三阶段总结报告
     </a></div>
       <div class="post-nav-item">
     <a href="/blog/2025/05/05/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-drin/" rel="next" title="2025春夏开源操作系统训练营前三阶段总结-drin">
