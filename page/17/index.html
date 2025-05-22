@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">692</span>
+          <span class="site-state-item-count">693</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,107 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-sts/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-sts/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结报告-sts</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-01 00:00:00" itemprop="dateCreated datePublished" datetime="2024-12-01T00:00:00+00:00">2024-12-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/oscamp-2024fall-arceos-unikernel/" itemprop="url" rel="index"><span itemprop="name">oscamp 2024fall arceos unikernel</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <blockquote>
+<p>进入第三阶段当然很高兴，但时间上实在太紧，我一开始的心态是按看懂源代码中的每一步来走的，但目前只是看完了所有相关的 makefile，以及看了部分 PPT 中强调部分的源代码。实验的话也是完成了第一周的内容以及 Hypervisor 的实验一。</p>
+</blockquote>
+<h2 id="arceos流程小结"><a href="#arceos流程小结" class="headerlink" title="arceos流程小结"></a>arceos流程小结</h2><p>总体执行流程：axhal的boot.rs中先引导，用于初始化内核栈，设置初始的页表，这里映射了两个 1G 的大页，分别是低地址恒等映射以及高地址的一个映射。随后要调用 axruntime 的 rust_main 来进一步完善运行时，这里会涉及到 axfeat 里面用到的 feature 条件编译并初始化一些东西，比如启用了 paging 这个 feature 就会重新映射页表这样。调用 rust_main 的时候加了一个偏移，偏移的大小其实就是高地址映射的偏移这样。随后 axruntime 做好运行时之后，调用 main 函数。随后调用结束函数，结束整个流程。</p>
+<h2 id="课后练习1：支持带颜色的打印输出。"><a href="#课后练习1：支持带颜色的打印输出。" class="headerlink" title="课后练习1：支持带颜色的打印输出。"></a>课后练习1：支持带颜色的打印输出。</h2><p>具体实现：修改axhal中putchar的实现，在打印每一个字符时都加入相应的转义字符。</p>
+<p>关于转义字符的具体解析的话：颜色定义的部分可以参考 <a href="https://www.man7.org/linux/man-pages/man4/console_codes.4.html" target="_blank" rel="noopener">console_codes(4) — Linux manual page</a> 的 <code>ECMA-48 Select Graphic Rendition</code> 部分。在 makefile 中的 <code>run_cmd</code> 函数用于辅助输出同时会以颜色输出命令，参数 1 控制颜色为白色，参数 2 控制为灰色，随后执行命令。</p>
+<p>颜色控制部分关键如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">param      result</span><br><span class="line">0          reset all attributes to their defaults</span><br><span class="line">1          set bold</span><br><span class="line">2          set half-bright (simulated with color on a color display)</span><br><span class="line">3          set italic (since Linux 2.6.22; simulated with color on a color display)</span><br><span class="line">4          set underscore (simulated with color on a color display) (the colors</span><br><span class="line">			used to simulate dim or underline are set using ESC ] ...)</span><br><span class="line">5          set blink</span><br><span class="line">7          set reverse video</span><br><span class="line">10         reset selected mapping, display control flag, and toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;primary font&quot;).</span><br><span class="line">11         select null mapping, set display control flag, reset toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;first alternate font&quot;).</span><br><span class="line">12         select null mapping, set display control flag, set toggle meta flag</span><br><span class="line">			(ECMA-48 says &quot;second alternate font&quot;).  The toggle meta flag causes the</span><br><span class="line">			high bit of a byte to be toggled before the mapping table translation is</span><br><span class="line">			done.</span><br><span class="line">21         set underline; before Linux 4.17, this value set normal intensity (as is</span><br><span class="line">			done in many other terminals)</span><br><span class="line">22         set normal intensity</span><br><span class="line">23         italic off (since Linux 2.6.22)</span><br><span class="line">24         underline off</span><br><span class="line">25         blink off</span><br><span class="line">27         reverse video off</span><br><span class="line">30         set black foreground</span><br><span class="line">31         set red foreground</span><br><span class="line">32         set green foreground</span><br><span class="line">33         set brown foreground</span><br><span class="line">34         set blue foreground</span><br><span class="line">35         set magenta foreground</span><br><span class="line">36         set cyan foreground</span><br><span class="line">37         set white foreground</span><br><span class="line">38         256&#x2F;24-bit foreground color follows, shoehorned into 16 basic colors</span><br><span class="line">			(before Linux 3.16: set underscore on, set default foreground color)</span><br><span class="line">39         set default foreground color (before Linux 3.16: set underscore off, set</span><br><span class="line">			default foreground color)</span><br><span class="line">40         set black background</span><br><span class="line">41         set red background</span><br><span class="line">42         set green background</span><br><span class="line">43         set brown background</span><br><span class="line">44         set blue background</span><br><span class="line">45         set magenta background</span><br><span class="line">46         set cyan background</span><br><span class="line">47         set white background</span><br><span class="line">48         256&#x2F;24-bit background color follows, shoehorned into 8 basic colors</span><br><span class="line">49         set default background color</span><br><span class="line">90..97     set foreground to bright versions of 30..37</span><br><span class="line">100..107   set background, same as 40..47 (bright not supported)</span><br><span class="line"></span><br><span class="line">Commands 38 and 48 require further arguments:</span><br><span class="line">;5;x       256 color: values 0..15 are IBGR (black,  red,  green,</span><br><span class="line">			...  white),  16..231  a  6x6x6 color cube, 232..255 a</span><br><span class="line">			grayscale ramp</span><br><span class="line">;2;r;g;b   24-bit color, r&#x2F;g&#x2F;b components are in the range 0..255</span><br></pre></td></tr></table></figure>
+
+<p> <code>ECMA-48  SGR</code> 序列以 <code>ESC[ parameters m</code> 的格式控制显示的属性。parameters 用分号隔开，<code>\033[92;1m</code> 为例，033 为八进制，表示 ESC，92 和 1分别是 param，参考上文的 <code>ECMA-48 Select Graphic Rendition</code> 92 表示绿色明亮前景色。1 表示加粗，0 表示重置属性。</p>
+<h2 id="课后练习2：支持-HashMap"><a href="#课后练习2：支持-HashMap" class="headerlink" title="课后练习2：支持 HashMap"></a>课后练习2：支持 HashMap</h2><p>ax_api 作为下层 module 的抽象，随后 axstd 作为我们自己定义的标准库供用户程序调用。</p>
+<p>我的想法其实也是直接看 std 的 HashMap 怎么实现，然后改一改，做到最小的满足测试案例中的那些操作。然后慢慢改一改，后面看到官方也用了 hashbrown 作为实现，然后我就改了改，把随机数用到 hashbrown 这边大概。然后就好了。</p>
+<h2 id="课后练习3：实现-alt-alloc"><a href="#课后练习3：实现-alt-alloc" class="headerlink" title="课后练习3：实现 alt_alloc"></a>课后练习3：实现 alt_alloc</h2><p>这个分配器应当是用作早期boot之后系统初始化阶段的内存分配器，所以实现上相对简单，每次分配都向后增长。dealloc的时候尝试减掉已经alloc的空间大小，如果为0，那就重新开始从头分配这样。</p>
+<h2 id="挑战题目：实现特定分配算法"><a href="#挑战题目：实现特定分配算法" class="headerlink" title="挑战题目：实现特定分配算法"></a>挑战题目：实现特定分配算法</h2><p>这个算法的话，还是要感谢万能的群友，我一开始想的也是在TLSF基础上改一改这样。后面发现有取巧的地方，主要也是循环一直进行，奇数项的内容永不释放，所以就取巧了，会记录每次奇数次申请的空间，下次申请如果比上次的小，那就返回该地址。如果比上次大，那就重新申请，释放上次的内容这样。</p>
+<p>达到的轮次是65536应该是，也是一个非常 unsigned int 的值。</p>
+<p>思路详细描述：由于每次申请的空间大小会加1，相比上一次。例如，delta 为1，申请的空间依次是32 + 1， 32 * 2 + 1， 。delta 为 2，申请的空间依次是32 +2， 32*2 +2，。所以，第一次循环会反复替换掉分配器中的记录。</p>
+<p>但是，从第二次开始，每次当 index 为 13 的时候，会替换上一次的内容。因为上一次的 13 比这次的 13 申请的空间小 1。但是呢，14 不是最后一次循环吗，因为 14 是偶数所以不管。奇数就很神奇，每次都是到 index 为 13 的时候重新申请一次空间。其余时候，其实大家返回的地址都是一样的。嘿嘿。而且，每次替换的时候都会把上次的给释放了，哎，就很神奇。</p>
+<p>首先主体部分使用特定内存分配器 tlsf。包括申请，释放等操作。</p>
+<p>其次，定制 alloc 函数。用 indicator 记录此时调用 alloc_pass 函数的 delta值。用 index 记录 alloc_pass 函数中的循环次数。</p>
+<p>alloc 的时候需要谨慎计算，2的多少次方啊，当index = 14 的时候，重置为 0，然后indiactor需要加 1 啊，之类的。</p>
+<p>这里要注意一点，源码里，分配器有个special变量，为bool类型。这里用它的主要原因在于有个很神奇的点：当indiactor为32， index = 1的时候，items需要申请 0x60 的空间，而恰好，下次申请向量空间也是 0x60 的大小。就，重复了。嗯。所以，作为单独判断条件，然后重置，第一次出现先不管，然后继续。然后，bug解决。</p>
+<h2 id="Hypervisor课后练习1"><a href="#Hypervisor课后练习1" class="headerlink" title="Hypervisor课后练习1"></a>Hypervisor课后练习1</h2><p>hypervisior流程分析：这里初始化阶段我们的hyper会布置好一个现场类似我们在宏内核中设置好sstatus寄存器那样，随后通过sret到GUEST中执行，GUEST中遇到无法处理的情况又会陷入Hypervisior中，通过对不同类型的陷入执行不同的代码，处理好用户的错误设置寄存器等操作，随后返回GUEST继续执行。</p>
+<p>这里的第一个实验比较简单：只需要在处理错误函数中设置寄存器的值，然后设置sepc += 4，让GUEST去执行出错指令的下一条指令即可。</p>
+<h2 id="Hypervisior课后练习2"><a href="#Hypervisior课后练习2" class="headerlink" title="Hypervisior课后练习2"></a>Hypervisior课后练习2</h2><p>这里会涉及到虚拟化里的地址二阶段映射。主要流程：GUEST中的虚拟地址先通过 VSATP 翻译，通过 GVA 到 GPA，然后通过 HGATP 把GPA翻译到 HPA 这样。</p>
+<p>课后练习尚未完成，嗯。</p>
+<h2 id="Hypervisior课后练习3"><a href="#Hypervisior课后练习3" class="headerlink" title="Hypervisior课后练习3"></a>Hypervisior课后练习3</h2><p>这里涉及 GUEST 的中断。主要涉及时钟中断，一种实现方式是当 GUEST 配置 RTC 的时候会陷入 Hyper，由 Hyper 来设置时钟，当时钟触发的时候，Hyper 会触发 GUEST 的时钟中断位这样。Hyper在设置完之后应该是会关中断的，待下次GUEST设置中断的时候再打开，这样保持一致。</p>
+<p>课后练习尚未完成，嗯。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这里总结的话，三阶段实在不完美，时间上太赶了，然后各种东西都想弄明白细节，这样就很来不及。原本还准备看RISCV的指令集虚拟化扩展这样，也只看了一小部分，内容上其实不算多，但要补的内容比较多，就比较费劲。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/30/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +365,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:39" itemprop="dateModified" datetime="2025-05-22T09:45:39+00:00">2025-05-22</time>
               </span>
 
           
@@ -329,7 +430,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
               </span>
 
           
@@ -595,7 +696,7 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -682,7 +783,7 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -999,7 +1100,7 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1084,7 +1185,7 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1161,7 +1262,7 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:39" itemprop="dateModified" datetime="2025-05-22T09:45:39+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1244,7 +1345,7 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:39" itemprop="dateModified" datetime="2025-05-22T09:45:39+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1328,7 +1429,7 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 09:45:39" itemprop="dateModified" datetime="2025-05-22T09:45:39+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1361,94 +1462,6 @@ GlobalAllocator提供<code>alloc_pages(&amp;self, num_pages: usize, align_pow2: 
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">#[cfg(feature &#x3D; &quot;alloc&quot;)]</span><br><span class="line">#[doc(hidden)]</span><br><span class="line">pub use hashbrown::HashMap as HashMap;</span><br></pre></td></tr></table></figure>
 <p>需要为hashmap添加全局分配器，所以要引入alloc，否则会报出如下错误</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">error: no global memory allocator found but one is required; link to std or add &#96;#[global_allocator]&#96; to a static item that implements the GlobalAlloc trait</span><br></pre></td></tr></table></figure>
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/11/mtul-rcore-%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/11/mtul-rcore-%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">mtul-rcore-第一二阶段总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-11 22:22:14" itemprop="dateCreated datePublished" datetime="2024-11-11T22:22:14+00:00">2024-11-11</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:02:07" itemprop="dateModified" datetime="2025-05-22T09:02:07+00:00">2025-05-22</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="第一阶段-rust基础与算法"><a href="#第一阶段-rust基础与算法" class="headerlink" title="第一阶段 - rust基础与算法"></a>第一阶段 - rust基础与算法</h2><p>由于我有rust基础，没有遇到什么困难，但还是第一次完整地做一次rustlings，有一定收获</p>
-<h2 id="第二阶段-专业阶段"><a href="#第二阶段-专业阶段" class="headerlink" title="第二阶段 - 专业阶段"></a>第二阶段 - 专业阶段</h2><h3 id="实验环境配置"><a href="#实验环境配置" class="headerlink" title="实验环境配置"></a>实验环境配置</h3><p>rcore开发的环境配置比较繁琐，而我恰好比较熟悉nix，因此我用nix定义的一个完美兼容rcore的开发环境。由于不需要 <code>rustup</code> ， 必须在 <code>os/Makefile</code> 中禁用 rust 环境的检测. <code>flake.nix</code> 如下：</p>
-<figure class="highlight nix"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">description</span> = <span class="string">"rCore dev flake"</span>;</span><br><span class="line"></span><br><span class="line">  <span class="attr">inputs</span> = &#123;</span><br><span class="line">    nixpkgs.<span class="attr">url</span> = <span class="string">"github:NixOS/nixpkgs/nixpkgs-unstable"</span>;</span><br><span class="line">    oldnixpkgs.<span class="attr">url</span> = <span class="string">"github:NixOS/nixpkgs/7cf5ccf1cdb2ba5f08f0ac29fc3d04b0b59a07e4"</span>;</span><br><span class="line">    flake-utils.<span class="attr">url</span> = <span class="string">"github:numtide/flake-utils"</span>;</span><br><span class="line">    <span class="attr">rust-overlay</span> = &#123;</span><br><span class="line">      <span class="attr">url</span> = <span class="string">"github:oxalica/rust-overlay"</span>;</span><br><span class="line">      inputs.nixpkgs.<span class="attr">follows</span> = <span class="string">"nixpkgs"</span>;</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">  <span class="attr">outputs</span> = &#123;</span><br><span class="line">    nixpkgs,</span><br><span class="line">    oldnixpkgs,</span><br><span class="line">    flake-utils,</span><br><span class="line">    rust-overlay,</span><br><span class="line">    ...</span><br><span class="line">  &#125;:</span><br><span class="line">    flake-utils.lib.eachDefaultSystem (system: <span class="keyword">let</span></span><br><span class="line">      <span class="attr">pkgs</span> = <span class="built_in">import</span> nixpkgs &#123;</span><br><span class="line">        <span class="keyword">inherit</span> system;</span><br><span class="line">        <span class="attr">overlays</span> = [(<span class="built_in">import</span> rust-overlay)];</span><br><span class="line">      &#125;;</span><br><span class="line">      <span class="attr">oldpkgs</span> = <span class="built_in">import</span> oldnixpkgs &#123;</span><br><span class="line">        <span class="keyword">inherit</span> system;</span><br><span class="line">      &#125;;</span><br><span class="line">    <span class="keyword">in</span> &#123;</span><br><span class="line">      devShells.<span class="attr">default</span> = pkgs.mkShell &#123;</span><br><span class="line">        <span class="attr">packages</span> = <span class="keyword">with</span> pkgs;</span><br><span class="line">          [</span><br><span class="line">            (rust-bin.nightly.<span class="string">"2024-05-02"</span>.minimal.override &#123;</span><br><span class="line">              <span class="attr">extensions</span> = [</span><br><span class="line">                <span class="string">"rust-src"</span></span><br><span class="line">                <span class="string">"llvm-tools"</span></span><br><span class="line">                <span class="string">"rustfmt"</span></span><br><span class="line">                <span class="string">"rust-analyzer"</span></span><br><span class="line">                <span class="string">"rust-docs"</span></span><br><span class="line">                <span class="string">"clippy"</span></span><br><span class="line">              ];</span><br><span class="line">              <span class="attr">targets</span> = [<span class="string">"riscv64gc-unknown-none-elf"</span>];</span><br><span class="line">            &#125;)</span><br><span class="line">            cargo-binutils</span><br><span class="line">            python3</span><br><span class="line">            gdb</span><br><span class="line">            tmux</span><br><span class="line">          ]</span><br><span class="line">          ++ [oldpkgs.qemu];</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 进入环境后显示rust和qemu版本</span></span><br><span class="line">        <span class="attr">shellHook</span> = <span class="string">''</span></span><br><span class="line"><span class="string">          rustc --version</span></span><br><span class="line"><span class="string">          cargo --version</span></span><br><span class="line"><span class="string">          qemu-system-riscv64 --version</span></span><br><span class="line"><span class="string">          qemu-riscv64 --version</span></span><br><span class="line"><span class="string">        ''</span>;</span><br><span class="line">      &#125;;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这份 <code>flake.nix</code> 也已经分享到<a href="https://opencamp.cn/os2edu/bbs/1391" target="_blank" rel="noopener">官方问答论坛</a></p>
-<h3 id="第一-二章"><a href="#第一-二章" class="headerlink" title="第一/二章"></a>第一/二章</h3><p>阅读这两章需要先了解riscv，特别是特权级相关设计。</p>
-<p>主要参考:</p>
-<ul>
-<li><a href="https://ysyx.oscc.cc/books/riscv-reader.html" target="_blank" rel="noopener">RISC-V开放架构设计之道</a></li>
-<li><a href="http://www.riscvbook.com/" target="_blank" rel="noopener">The RISC-V Reader: An Open Architecture Atlas</a> 前一个的英文原著，而且有能下载到单独的RISC-V Green Card，方便查阅</li>
-<li><a href="https://github.com/riscv/riscv-isa-manual" target="_blank" rel="noopener">RISC-V Instruction Set Manual</a> 完整详细</li>
-</ul>
-<h3 id="第三章：多道程序与分时多任务"><a href="#第三章：多道程序与分时多任务" class="headerlink" title="第三章：多道程序与分时多任务"></a>第三章：多道程序与分时多任务</h3><p>学习了系统调用，陷入等知识，上下文切换过程中通用寄存器和CSR的使用加深了我对riscv特权级设计的理解。</p>
-<p>本章练习较为简单。</p>
-<h3 id="第四章：地址空间"><a href="#第四章：地址空间" class="headerlink" title="第四章：地址空间"></a>第四章：地址空间</h3><p>SV39的设计又引入了若干相关的寄存器，如satp, pmp csr。查阅<a href="https://github.com/riscv/riscv-isa-manual" target="_blank" rel="noopener">riscv manul</a>以加深理解。</p>
-<p>本章练习中，为了处理<em>请求映射已经被映射的页</em>的错误，我使用了<code>Result</code>错误传递，无法想象如果不使用<code>Result</code>和<code>?</code>语法糖我的代码会多么丑陋。然而很奇怪，整个rcore中极少使用<code>Result</code>。</p>
-<h3 id="第五章：进程及进程管理"><a href="#第五章：进程及进程管理" class="headerlink" title="第五章：进程及进程管理"></a>第五章：进程及进程管理</h3><p>本章内容比较轻松，完善了TCB的设计并实现<code>fork()</code>和<code>exec()</code>系统调用。</p>
-<p>本章练习也比较简单。</p>
-<h3 id="第六章：文件系统"><a href="#第六章：文件系统" class="headerlink" title="第六章：文件系统"></a>第六章：文件系统</h3><p>easy-fs is <strong>NOT</strong> easy！层层抽象几乎让我晕头转向！</p>
-<p>尽管如此，easy-fs囊括了superblock、索引节点、blockcache等现代文件系统中的基础概念，似乎不能再精简了。</p>
-<p>link和unlink操作主要是查找inode并创建/删除目录项。在inode_block里创建与删除目录项无非是一些线性序列的操作，但由于没有封装成<code>&amp;[DirEntry]</code>，需要手动操作，比较费劲。将来有空我会尝试改进一下。</p>
-<h3 id="第七章：进程间通信"><a href="#第七章：进程间通信" class="headerlink" title="第七章：进程间通信"></a>第七章：进程间通信</h3><p>本章内容较少，但进程间通信是个大话题，还需拓展学习。</p>
-<h3 id="第八章：并发"><a href="#第八章：并发" class="headerlink" title="第八章：并发"></a>第八章：并发</h3><p>学习了多线程的同步与互斥。</p>
-<p>练习：学习了死锁检测算法</p>
-
       
     </div>
 
