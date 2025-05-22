@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">688</span>
+          <span class="site-state-item-count">689</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">49</span>
+        <span class="site-state-item-count">50</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">595</span>
+        <span class="site-state-item-count">597</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,323 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/28/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%A8%E5%AD%A6%E8%81%AA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/28/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%A8%E5%AD%A6%E8%81%AA/" class="post-title-link" itemprop="url">2024秋冬开源操作系统训练营第三阶段总结-杨学聪</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-28 10:36:20" itemprop="dateCreated datePublished" datetime="2024-11-28T10:36:20+00:00">2024-11-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-22 03:22:40" itemprop="dateModified" datetime="2025-05-22T03:22:40+00:00">2025-05-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/summary/" itemprop="url" rel="index"><span itemprop="name">summary</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>After the 3rd stage of the 2024 autumn winter open source operating system training camp, I would like to share my experience and summary with you.</p>
+<p>There are three system structures to compare: </p>
+<ul>
+<li>Unikernel<ul>
+<li>Single-Privilege Physical-Address-Space Combination-of-Kernel-and-UserApps</li>
+</ul>
+</li>
+<li>Macrokernel Mode<ul>
+<li>Multi-Privilege Paging-Address-Space Isolation-between-Kernel-and-UserApps</li>
+</ul>
+</li>
+<li>Hypervisor (Virtual) Mode<ul>
+<li>Isolation-between-Host-and-Guest</li>
+</ul>
+</li>
+</ul>
+<p>The critical key to the Component-based design is the <code>Feature</code>. This can be configured in the Cargo.toml file and in the Makefile environment variable, which can decide which content to compile and link. It feels like a advanced <code>#if - #endif</code> switch option.</p>
+<h3 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h3><!-- U1 -->
+
+<p>We use 3 stages to express the system advancing from bare-metal program to a component-based system.</p>
+<ul>
+<li>Bare-metal program<ul>
+<li>Hardfirm + Bootloader</li>
+<li>Initialize the special registers</li>
+<li>Initialize MMU (for Paging)</li>
+<li>Initialize Stack</li>
+<li>Initialize Interrupt Vector </li>
+<li>Initialize Peripherals / Devices</li>
+<li>Transfer to <code>main</code> program</li>
+</ul>
+</li>
+<li>Layer / Hierarchy<ul>
+<li>Hardfirm + Bootloader (Layer)</li>
+<li><strong>Hardware Initialization</strong>(Layer): the special registers 、MMU(for Paging)、STACK、Interrupt Vector</li>
+<li>Peripherals (Layer)</li>
+<li>Transfer to <code>main</code> program (Layer)</li>
+</ul>
+</li>
+<li>Component-based<ul>
+<li>Hardfirm + Bootloader</li>
+<li><strong>Hardware Initialization</strong> (HAL)</li>
+<li>Runtime Environment (RTE)</li>
+<li>Transfer to <code>main</code> program</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">Reset_Handler</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</span><br><span class="line">  <span class="function">__asm__ <span class="title">volatile</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">".code 32                                         \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"CPSID   if                                      \n"</span><span class="comment">// Mask interrupts</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="comment">/* Put any cores other than 0 to sleep */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"MRC     p15, 0, R0, c0, c0, 5                   \n"</span>  <span class="comment">/* Read MPIDR */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"ANDS    R0, R0, #3                              \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"goToSleep:                                      \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"ITT  NE                                         \n"</span>  <span class="comment">/* Needed when in Thumb mode for following WFINE instruction */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"WFINE                                           \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BNE     goToSleep                               \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="comment">/* Reset SCTLR Settings */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"MRC     p15, 0, R0, c1, c0, 0                   \n"</span>  <span class="comment">/* Read CP15 System Control register */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BIC     R0, R0, #(0x1 &lt;&lt; 12)                    \n"</span>  <span class="comment">/* Clear I bit 12 to disable I Cache */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BIC     R0, R0, #(0x1 &lt;&lt;  2)                    \n"</span>  <span class="comment">/* Clear C bit  2 to disable D Cache */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BIC     R0, R0, #0x1                            \n"</span>  <span class="comment">/* Clear M bit  0 to disable MMU */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BIC     R0, R0, #(0x1 &lt;&lt; 11)                    \n"</span>  <span class="comment">/* Clear Z bit 11 to disable branch prediction */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BIC     R0, R0, #(0x1 &lt;&lt; 13)                    \n"</span>  <span class="comment">/* Clear V bit 13 to disable hivecs */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BIC     R0, R0, #(0x1 &lt;&lt; 29)                    \n"</span>  <span class="comment">/* Clear AFE bit 29 to enable the full range of access permissions */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"ORR     R0, R0, #(0x1 &lt;&lt; 30)                    \n"</span>  <span class="comment">/* Set TE bit to take exceptions in Thumb mode */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"MCR     p15, 0, R0, c1, c0, 0                   \n"</span>  <span class="comment">/* Write value back to CP15 System Control register */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"ISB                                             \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="comment">/* Configure ACTLR */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"MRC     p15, 0, r0, c1, c0, 1                   \n"</span>  <span class="comment">/* Read CP15 Auxiliary Control Register */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"ORR     r0, r0, #(1 &lt;&lt;  1)                      \n"</span>  <span class="comment">/* Enable L2 prefetch hint (UNK/WI since r4p1) */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"MCR     p15, 0, r0, c1, c0, 1                   \n"</span>  <span class="comment">/* Write CP15 Auxiliary Control Register */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="comment">/* Set Vector Base Address Register (VBAR) to point to this application's vector table */</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"LDR    R0, =Vectors                             \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"MCR    p15, 0, R0, c12, c0, 0                   \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"ISB                                             \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  ...</span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"CPSIE  if                                       \n"</span><span class="comment">// Unmask interrupts</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BL __libc_init_array \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  <span class="string">"BL     main                                     \n"</span></span></span></span><br><span class="line"><span class="function"><span class="params">  ...)</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>The above code selected from the HAL Code of STM32MP13, as the initialization and reset handler code, which will help initialize STACK, Interrupt-Vector and critical registers, and end up transferring to <code>main</code> program.<br>The code is followed similar logic as the rCore, and can help us have a better understanding of the MCU, MPU and CPU.</p>
+<hr>
+<!-- U2 -->
+
+<p>Like rCore, We need to provide implementation for the memory interfaces about heap operations, to avoid memory leaks and memory fragmentation.<br>This can help us manage memory more efficiently, and provide convenience for future expansion.</p>
+<p>There are 2 kinds of Memory Allocation Functions: One is based on Page (<code>palloc</code>), and the other is based on Byte (<code>balloc</code>), where the “ByteAlloc” is based on “PageAlloc”.</p>
+<blockquote>
+<p>If we take “PageAlloc” based on “ByteAlloc”, it will be difficult to align.</p>
+</blockquote>
+<p>Algorithm for Memory Allocation </p>
+<ul>
+<li>TLSF, Two-Level Segregated Fit</li>
+<li>Buddy</li>
+<li>Slab</li>
+<li>Bump</li>
+</ul>
+<hr>
+<!-- U3 -->
+
+<p>How to enable paging mechanism:</p>
+<ol>
+<li>Early in the kernel startup, use the ruled identity mapping part of memory<ul>
+<li><code>0xffff_ffc0_8000_0000 ~ 0xffff_ffc0_C000_FFFF</code> $\rightarrow$ <code>0x8000_0000~0xC000_0000</code></li>
+<li>Note that some address-related registers, such as SP, need to be changed to linear addresses</li>
+</ul>
+</li>
+<li>Then if paging feature specified, rebuild the complete paging reflect.</li>
+</ol>
+<hr>
+<!-- U4 -->
+
+<p><strong>Task switching</strong>:<br>Swaps the task currently being executed with a task in the ready queue.<br>For Single-core CPU, the form of multitasking can only be concurrent, but not parallel.</p>
+<p>State of Task</p>
+<ul>
+<li>Running<ul>
+<li>The number is equal to the number of processor cores</li>
+<li><strong>SWITCH-TO</strong>: Ready or Blocked or Exited</li>
+</ul>
+</li>
+<li>Ready<ul>
+<li>Is ready to be scheduled at any time</li>
+<li><strong>SWITCH-TO</strong>: Running</li>
+</ul>
+</li>
+<li>Blocked<ul>
+<li>Waiting for an event or resource satisfying a condition</li>
+<li><strong>SWITCH-TO</strong>: Ready</li>
+</ul>
+</li>
+<li>Exited<ul>
+<li>The task is finished and waiting to be recycled</li>
+</ul>
+</li>
+</ul>
+<hr>
+<!-- U5 -->
+
+<p>Task switching: Firsty, save the context of the current task. Then, restore the context of the new task. Finally, trandfer to switch tasks.<br>Note that the interrupt enable state of the processor switching the task, should be off during the switching process (CLI).<br>If neccessary, the <strong>Spinlock</strong> and <strong>Mutex</strong> are required to be used to avoid race conditions (SMP?).</p>
+<hr>
+<!-- U6 -->
+
+<p>There are usual preemption conditions: One is the time slice of the task is exhausted, and the other is the interrupt source, such as the clock (Timer). The privilege level may be used to determine the nested or re-entry of the traps.</p>
+<p>Algorithm of Scheduling</p>
+<ul>
+<li>Collaborative scheduling algorithm (FIFO, fair)</li>
+<li>Preemptive scheduling algorithm (Privileged)<ul>
+<li>ROUND_ROBIN</li>
+<li>CFS (Completely Fair Scheduler)</li>
+</ul>
+</li>
+</ul>
+<hr>
+<!-- U7 -->
+
+<p>The DEVICEs are usually in the kinds of <code>net</code>, <code>block</code>, <code>display</code> and so on.</p>
+<p>How to <strong>discover and initialize devices</strong></p>
+<ul>
+<li>(axruntime at startup) discovers the device and initializes it with the appropriate driver</li>
+<li>axdriver Indicates the process of discovering and initializing devices<ul>
+<li>2-stage cyclic detection discovers the device<ul>
+<li><strong>Level 1</strong>: traverses all virtio_mmio address ranges, determined by the platform physical memory layout, and performs transition page mapping</li>
+<li><strong>Level 2</strong>: Enumerate devices with the for_each_drivers macro, and then probe each virtio device probe_mmio</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>probe discovers devices based on the bus, matches drivers one by one, and initializes them<ul>
+<li>Bus connecting with devices<ul>
+<li>PCI</li>
+<li>MMIO</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<hr>
+<!-- U8 -->
+
+<p>A File System is a mechanism used in an operating system to manage files and data on computer storage devices such as hard disks, SSDS, flash memory, etc.<br>(In Linux, every device will also exist as one or more files)</p>
+<p>File System</p>
+<ul>
+<li>RAMFS: A memory-based virtual file system <ul>
+<li>For temporary data storage that is fast but easy to lose.</li>
+</ul>
+</li>
+<li>DEVFS: Device file system<ul>
+<li>For managing and accessing hardware devices, simplifying the development and access of device drivers.</li>
+</ul>
+</li>
+<li>ProcFS: process file system<ul>
+<li>Provides system process and status information for system monitoring and management.</li>
+</ul>
+</li>
+<li>SysFS: System file system <ul>
+<li>Exports kernel objects and properties for viewing and managing hardware devices and drivers.</li>
+</ul>
+</li>
+</ul>
+<h3 id="Macro-kernel"><a href="#Macro-kernel" class="headerlink" title="Macro kernel"></a>Macro kernel</h3><p>More than before:</p>
+<ul>
+<li>Privilege Level</li>
+<li>Address space</li>
+</ul>
+<p>So we need</p>
+<ul>
+<li>Map user/kernel space (address space)<ul>
+<li>Usual method<ul>
+<li>The high end of the page table is used as kernel space</li>
+<li>The low end is used as user application space, because user programs mostly start from low addresses</li>
+</ul>
+</li>
+<li>Kernel space is shared and user space is used independently</li>
+</ul>
+</li>
+<li>Add system call (cross-privilege + address space)</li>
+</ul>
+<!-- M1 -->
+
+<p>The user applications toggle between two privilege levels:</p>
+<ul>
+<li>Task Context : User Level, execute application logic</li>
+<li>Trap Context : Kernel Level, handle system calls and exceptions</li>
+</ul>
+<hr>
+<!-- M2 -->
+
+<p>Address space Area mapping Back-end <code>Backend</code> maps specific areas in a space</p>
+<ul>
+<li><strong>Linear</strong><ul>
+<li><strong>case</strong> The target physical address space area already exists, and the mapping relationship is directly established</li>
+<li>It can be used for MMIO area mapping and special shared address area mapping</li>
+<li>Corresponding physical page frames must be <strong>consecutive</strong></li>
+</ul>
+</li>
+<li><strong>Alloc</strong> (Lazy)<ul>
+<li><strong>case</strong> Use missing page exception (亡羊补牢)</li>
+<li>Mapped by page, the corresponding physical page frames are usually <strong>discontinuous</strong></li>
+</ul>
+</li>
+</ul>
+<hr>
+<!-- M3 -->
+
+<p>To compatible with Linux applications, we should implement the compatible system calls, file systems and other system resources. This asks us to follow the POSIX standard. </p>
+<p>POSIX allows developers to write applications using a standard set of apis without worrying about differences in the underlying operating system. </p>
+<p>Except <em>Windows</em>, many modern operating systems, such as <em>Linux</em>, <em>macOS</em> (based on <em>Unix</em>), and many embedded systems (RtOS ?) , are partially or fully POSIX compliant. This allows applications developed on these systems to run seamlessly on different platforms.</p>
+<p>When loading the ELF-formatted application, the <code>VirtAddr</code> and <code>MemSiz</code> are used to place the segment in the target virtual memory location. Beware that some segments like .bss are all zeros, so the actual data is not stored in the ELF file, but rather dynamically allocated space is requested.</p>
+<p>The important support to do is to implemwnt hosted-standing environment <code>main</code> function.<br>We should provide:</p>
+<ul>
+<li>Parameter information (<code>argc</code> and <code>argv</code>): parameter number, parameter string pointer array</li>
+<li>Environment information (<code>envv</code>): environment variable string pointer array</li>
+</ul>
+<h3 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h3><p>Each virtual machine has its own independent virtual machine hardware, based on the physical computer. Each virtual machine runs its own operating system, and the operating system believes that it is alone in the execution environment, and cannot distinguish whether the environment is a physical machine or a virtual machine. (ideal state)</p>
+<blockquote>
+<p>This is similar to virtualization software, like VMware ?</p>
+</blockquote>
+<blockquote>
+<p>Is the <strong>virtual 8086 mode</strong> on x86 the same or similar principle?</p>
+</blockquote>
+<p>The difference between a Hypervisor and an Emulator is <em>whether the architecture of the virtual running environment is the same as that of the physical running environment that supports it</em>.</p>
+<blockquote>
+<p>It Seems to have something to do with emulation KVM acceleration.</p>
+</blockquote>
+<p>Layers of resource objects supported by the Hypervisor:</p>
+<ul>
+<li>VM: manages the address space. </li>
+<li>vCPU: indicates the virtualization of computing resources and the flow of execution on VMS</li>
+<li>vMem: Memory virtualization based on the physical space layout of VMS</li>
+<li>vDevice: indicates device virtualization, including direct mapping and emulation</li>
+<li>vUtilities: interrupts virtualization and bus device operation</li>
+</ul>
+<p>Usually use below items to implement a Hypervisor:</p>
+<ul>
+<li><strong>run_guest</strong>  is responsible for entering Guest environment</li>
+<li><strong>guest_exit</strong> is responsible for exiting Guest environment</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/13/stage-2-ProerLoneW/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +581,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:40" itemprop="dateModified" datetime="2025-05-22T03:22:40+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -349,7 +666,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:40" itemprop="dateModified" datetime="2025-05-22T03:22:40+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -426,7 +743,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:39" itemprop="dateModified" datetime="2025-05-22T03:22:39+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -509,7 +826,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:39" itemprop="dateModified" datetime="2025-05-22T03:22:39+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -593,7 +910,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:39" itemprop="dateModified" datetime="2025-05-22T03:22:39+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -675,7 +992,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:40" itemprop="dateModified" datetime="2025-05-22T03:22:40+00:00">2025-05-22</time>
               </span>
 
           
@@ -763,7 +1080,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:39" itemprop="dateModified" datetime="2025-05-22T03:22:39+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -838,7 +1155,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:40" itemprop="dateModified" datetime="2025-05-22T03:22:40+00:00">2025-05-22</time>
               </span>
 
           
@@ -909,7 +1226,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
+                <time title="Modified: 2025-05-22 03:22:39" itemprop="dateModified" datetime="2025-05-22T03:22:39+00:00">2025-05-22</time>
               </span>
 
           
@@ -932,99 +1249,6 @@
             </div>
           <!--/noindex-->
         
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/11/sevetis-%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5blog/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/11/sevetis-%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5blog/" class="post-title-link" itemprop="url">sevetis-一二阶段blog</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-11 14:52:02" itemprop="dateCreated datePublished" datetime="2024-11-11T14:52:02+00:00">2024-11-11</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-21 07:26:22" itemprop="dateModified" datetime="2025-05-21T07:26:22+00:00">2025-05-21</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><ul>
-<li>一个大三学生, 偶然看到这个学习活动就来玩一下了. 之前学校操作系统课学了个寂寞, 正好来学多点补全知识, 并且练练rust.</li>
-</ul>
-<h2 id="rustling"><a href="#rustling" class="headerlink" title="rustling"></a>rustling</h2><ul>
-<li>这个还好, 以前有点点rust基础. 做着没什么困难, 顺便查漏补缺了一下.</li>
-</ul>
-<h2 id="rcore"><a href="#rcore" class="headerlink" title="rcore"></a>rcore</h2><ul>
-<li>二阶段开始, 内容一下多了起来, 文档看着也挺枯燥的, 有些地方感觉写得对小菜菜不太友好QAQ.</li>
-<li>lab1<ul>
-<li>翻翻文档, 翻到了ch3. 懒得再细看文档了, 直接写代码做实验!看了一下要求, 直接加点东西就一次过了, 开心.</li>
-</ul>
-</li>
-<li>lab2<ul>
-<li>ch4这个卡了我两周, 内存虚拟化这块真的很不会, 做着不明不白. 有点想摆烂了, 看了看群里聊天记录(光是看群聊信息都能学很多), 有点思路, 往大方向试了一试, 通过.(可能通过了还是不太明白)</li>
-</ul>
-</li>
-<li>lab3<ul>
-<li>ch5不是很难, stride调度算法出了点小错误稍微卡了一下, 很快就过了.</li>
-</ul>
-</li>
-<li>lab4<ul>
-<li>听很多人说ch6最难. 文件系统我也不太会,但我认真看了文档和代码, 试了几次也过了, 没感觉太难.</li>
-</ul>
-</li>
-<li>lab5<ul>
-<li>做得最痛苦的实验. 这个实验主要实现死锁检测, 本身不是很难. 但我遇到了一些玄学问题, 有<code>sleep_blocking</code>的测例会在sleep卡住超时过不了, 找来找去找不到原因, 加上DDL到了, 心态小崩. 最后垂死挣扎, 卸了qemu9, 把它换成qemu7, 不怎么抱期望地跑了一下, 通过了!(据说有一些人用qemu9也可以通过, 但不知道为什么我不行.)</li>
-</ul>
-</li>
-</ul>
-<h4 id="总的来说-第二阶段学到了很多东西-以前漏掉没学的操作系统知识被补上很多-但更感觉有更多的东西要学-同时有时做实验遇到困难怎么尝试都通过不了-最后再坚持一下通过了-很有成就感-感觉实验测例有点简单"><a href="#总的来说-第二阶段学到了很多东西-以前漏掉没学的操作系统知识被补上很多-但更感觉有更多的东西要学-同时有时做实验遇到困难怎么尝试都通过不了-最后再坚持一下通过了-很有成就感-感觉实验测例有点简单" class="headerlink" title="总的来说, 第二阶段学到了很多东西, 以前漏掉没学的操作系统知识被补上很多, 但更感觉有更多的东西要学. 同时有时做实验遇到困难怎么尝试都通过不了, 最后再坚持一下通过了, 很有成就感.(感觉实验测例有点简单..)"></a>总的来说, 第二阶段学到了很多东西, 以前漏掉没学的操作系统知识被补上很多, 但更感觉有更多的东西要学. 同时有时做实验遇到困难怎么尝试都通过不了, 最后再坚持一下通过了, 很有成就感.(感觉实验测例有点简单..)</h4>
       
     </div>
 
