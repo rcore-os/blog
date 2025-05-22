@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">690</span>
+          <span class="site-state-item-count">691</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">599</span>
+        <span class="site-state-item-count">601</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,195 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/19/%E4%B8%89%E9%98%B6%E6%AE%B5%E7%BB%84%E4%BB%B6%E5%8C%96%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/19/%E4%B8%89%E9%98%B6%E6%AE%B5%E7%BB%84%E4%BB%B6%E5%8C%96%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/" class="post-title-link" itemprop="url">三阶段组件化操作系统总结-折鸦</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-19 15:10:50" itemprop="dateCreated datePublished" datetime="2025-04-19T15:10:50+00:00">2025-04-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="组件化操作系统设计与实现"><a href="#组件化操作系统设计与实现" class="headerlink" title="组件化操作系统设计与实现"></a>组件化操作系统设计与实现</h1><p>oscamp 第三节阶段总结. 由于部分操作系统原理性质的内容在二阶段中已经学过了, 因此总结主要针对两部分:</p>
+<ol>
+<li>新概念: ArceOS 在传统内核上的创新</li>
+<li>老概念: 与 rCore 的实现不同的部分, 以及分析原因</li>
+</ol>
+<h2 id="为什么要组件化"><a href="#为什么要组件化" class="headerlink" title="为什么要组件化?"></a>为什么要组件化?</h2><p>ArceOS 的优势区间在于快速针对特定领域构建出一个最合适的内核, 主要解决的痛点就是”从头开发一个操作系统太繁琐”, 而”现成的方案并不完全适用于应用场景”. 一些操作系统的可扩展性通过内核编译选项或者配置文件来实现, 但是这种方法无法在更深层次修改组装一个操作系统内核, 因此 ArceOS 采用了组件化的方案灵活组装某些功能.</p>
+<h2 id="ArceOS-的主要结构-Unikernel"><a href="#ArceOS-的主要结构-Unikernel" class="headerlink" title="ArceOS 的主要结构 (Unikernel)"></a>ArceOS 的主要结构 (Unikernel)</h2><ol>
+<li>ArceOS 提供 <code>axhal</code> (Hardware Abstraction Layer) 封装了硬件相关的接口和 <code>driver</code>, 整理统一为 <code>axhal</code> 组件对外的接口</li>
+<li>基于 <code>axhal</code>, 我们有 <code>axruntime</code> 作为运行时. </li>
+<li>应用与内核处于同一特权级, 编译为一个 Image 运行, 在实际应用中, 非传统 PC 上的操作系统往往不需要支持多种多样的任务(包括这个实验到最后也没有并行的实现, 只有任务并发调度)<ul>
+<li>应用于内核的交互在当前 Unikernel 阶段下是通过 <code>axstd</code> (对标 Rust 标准库), 而 <code>axstd</code> 会使用 <code>arceos_api</code> 提供的操作系统 API</li>
+<li>在未来宏内核拓展时则是通过实际的系统调用, 经过 Trap 在中断向量表中异常处理程序调用 <code>arceos_posix_api</code> 提供的操作系统 API, POSIX 标准的 API 是为了能够让 <code>glibc</code> / <code>musl-libc</code> 的 Linux 应用程序能够被兼容</li>
+</ul>
+</li>
+</ol>
+<h2 id="ArceOS-的引导过程-Unikernel"><a href="#ArceOS-的引导过程-Unikernel" class="headerlink" title="ArceOS 的引导过程(Unikernel)"></a>ArceOS 的引导过程(Unikernel)</h2><ol>
+<li>链接脚本指定的起始地址 <code>_start</code>, 这个过程里:<pre><code>1. 先建立栈, 以便可以调用函数
+ 2. 准备页表, 启用 MMU
+ 3. 切换地址空间后偏移一下栈指针
+ 4. 调用 `axhal` 中的 `rust_entry`</code></pre></li>
+<li><code>axhal</code> 组建的 <code>rust_entry</code>, 这个过程:<ul>
+<li>清理 <code>bss</code> 段</li>
+<li>设置中断向量表 <code>stvec</code> 寄存器</li>
+<li>调用 <code>axruntime</code> 的 <code>rust_main</code></li>
+</ul>
+</li>
+<li><code>axruntime</code> 的 <code>rust_main</code>, 这个过程:<ul>
+<li>相当于内核正式启动, 打印 logo 和必要信息等</li>
+<li>重映射, 以及一些必要的初始化(如设备和中断初始化)</li>
+<li>调用应用程序中的 <code>main()</code> 函数</li>
+</ul>
+</li>
+</ol>
+<h2 id="ArceOS-中一些特定功能的实现"><a href="#ArceOS-中一些特定功能的实现" class="headerlink" title="ArceOS 中一些特定功能的实现"></a>ArceOS 中一些特定功能的实现</h2><h3 id="组件组装编译-通过-Rust-的-feature-进行条件编译"><a href="#组件组装编译-通过-Rust-的-feature-进行条件编译" class="headerlink" title="组件组装编译(通过 Rust 的 feature 进行条件编译)"></a>组件组装编译(通过 Rust 的 feature 进行条件编译)</h3><h3 id="分页机制"><a href="#分页机制" class="headerlink" title="分页机制"></a>分页机制</h3><p>还是熟悉的 SV39. 但是注意 Hypervisor 下拓展了两位, 不过我们暂时并没有管这两位.</p>
+<p>内核启动早期恒等映射 SBI 和 Kernel, 然后再把这一段映射到高地址(<code>0xffff_ffc0_0000_0000</code> 以后), 目的是为未来宏内核拓展留下足够空间, 让 Unikernel 在高地址运行. 同时 <code>pc</code>, <code>sp</code> 也同样要增加偏移. </p>
+<h3 id="物理页帧分配与动态内存分配"><a href="#物理页帧分配与动态内存分配" class="headerlink" title="物理页帧分配与动态内存分配"></a>物理页帧分配与动态内存分配</h3><p>ArceOS 中的虚拟页面是通过 <code>MemoryArea::new(start, size, flags, Backend::new_alloc(populate))</code> 来将 <code>[start, start + size)</code> 映射到 <code>Backend</code> 新创建的物理页面上的, 而 Backend 则是:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// axmm/src/backend/alloc.rs</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">alloc_frame</span></span>(zeroed: <span class="built_in">bool</span>) -&gt; <span class="built_in">Option</span>&lt;PhysAddr&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> vaddr = VirtAddr::from(global_allocator().alloc_pages(<span class="number">1</span>, PAGE_SIZE_4K).ok()?);</span><br><span class="line">    <span class="keyword">if</span> zeroed &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; core::ptr::write_bytes(vaddr.as_mut_ptr(), <span class="number">0</span>, PAGE_SIZE_4K) &#125;;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">let</span> paddr = virt_to_phys(vaddr);</span><br><span class="line">    <span class="literal">Some</span>(paddr)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">dealloc_frame</span></span>(frame: PhysAddr) &#123;</span><br><span class="line">    <span class="keyword">let</span> vaddr = phys_to_virt(frame);</span><br><span class="line">    global_allocator().dealloc_pages(vaddr.as_usize(), <span class="number">1</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过动态内存分配器分配一段地址(返回的是虚拟地址), 再将虚拟地址转换为物理地址返回, 这样就新 allocate 了一个物理页面.</p>
+<p>ArceOS 的动态内存分配器提供两个功能: 按字节分配和按页分配. 后者是通常的动态内存调用, 前者是为了操作系统本身服务的, 相当于 rCore 的 <code>FrameAllocator</code>, 对物理地址进行管理, 分配页面. 字节分配器不够了也会向页分配器发送请求要求追加内存.</p>
+<p>ArceOS 的动态内存分配器框架向下封装算法, 向上暴露接口. 常见的(<em>字节</em>)动态内存分配算法有: TLSF, Buddy, Slab 等. 设计动态内存分配算法是挑战题目之一. <del>但我还一点没做</del> (页分配是通过 <code>Bitmap</code> 管理的)</p>
+<h3 id="任务与任务调度"><a href="#任务与任务调度" class="headerlink" title="任务与任务调度"></a>任务与任务调度</h3><p>数据结构方面和 rCore 差不多, 不过似乎没有内部可变性模式了, 不知道是出于什么考虑.</p>
+<p>ArceOS 的调度框架由 “当前可被调度的任务队列”<code>run_queue</code> 和 “当前阻塞中不可被调度的任务队列” <code>wait_queue</code> 和一个 “现在在运行的任务” <code>task</code> 组成 (系统还有 <code>idle</code> 待机任务 和 <code>gc</code> 回收清理任务); 向下需要 <code>TaskContext</code> 切换和<strong>特定调度算法</strong>的支持, 向上暴露 <code>yield</code> <code>sleep</code> <code>spawn</code> 等 API. 大部分 API 都非常直观, 操作相应含义的队列和任务控制块即可. 因此我们主要介绍向下需求的算法: 上下文切换和调度算法.</p>
+<ol>
+<li><p>上下文切换与 rCore 几乎一致, 保存 <code>ra</code>, <code>sp</code> 和 RISCV 调用约定规定的通用寄存器, 保存并切换到下一个任务的上下文即可</p>
+</li>
+<li><p>协作式 FIFO 调度算法: 字面意思, 按照队列的先进先出模式按照特定顺序调度</p>
+</li>
+<li><p>抢占式 Round Robin 调度算法: </p>
+<p> 被抢占 = 内部条件 &amp;&amp; 外部条件</p>
+<p> 外部条件是当前任务的抢占开关, 在”禁用抢占”-&gt;”启用抢占”的临界边缘触发. 这里我们在时钟中断时执行的 <code>on_time_tick</code> 里更新当前任务的外部抢占开关.</p>
+<p> 内部条件是内部设置的抢占 guard, 以及自旋锁等, 防止在任务不希望的时候被打断.</p>
+<p> 新任务仍会在队尾加入, 调度顺序不变, 只是多了一个抢占机制.</p>
+</li>
+<li><p>抢占式 CFS 调度算法(Completely Fair Scheduled, “绝对公平”的调度算法)</p>
+<p> $\text{vruntime} = \text{init_vruntime} + \frac{\delta}{weight(\text{prior})}$</p>
+<ul>
+<li>$\text{vruntime}$ 最小的任务优先执行</li>
+<li>新任务的 $ \text{init_vruntime}$ 初始化为 $min(\text{vruntime}_{tid})$, 以便让新任务尽快被调度</li>
+<li>每次触发时钟中断对<strong>当前任务</strong>的 $\delta$ 按照上述式子递增, $\text{prior}$ 是优先级, 优先级越高递增越缓慢也就越容易处在前列并被调度; 然后把 $\text{vruntime}$ 最小的任务放在队首</li>
+</ul>
+</li>
+</ol>
+<h3 id="存储设备-以及其他设备-的管理框架-与-rCore-不同"><a href="#存储设备-以及其他设备-的管理框架-与-rCore-不同" class="headerlink" title="存储设备(以及其他设备)的管理框架 (与 rCore 不同)"></a>存储设备(以及其他设备)的管理框架 (与 rCore 不同)</h3><p>存储底层设备是 QEMU <code>PFlash</code> 模拟的闪存磁盘, 通过 MMIO 方式将文件映射到特定内存地址(在 SBI 起始的 <code>0x80000000</code> 之前, 在 qemu 的设备树之后)</p>
+<p>也可以从块设备读取其数据 (<code>drv_block</code> 和 <code>drv_virtio</code> 模块)</p>
+<p>代码结构上, <code>AllDevices</code> 管理 <code>block</code> <code>net</code> <code>display</code> 等所有的设备, 设备用 <code>struct AxDeviceContainer&lt;D&gt;(Vec&lt;D&gt;)</code> 统一管理, 可以管理不同类型的 device.</p>
+<p>驱动是在 <code>axruntime::rust_main</code> 调用的 <code>init_drivers</code> 中初始化的, 先基于总线 <code>probe</code> 设备, 然后通过宏生成代码放入 <code>AllDevices</code></p>
+<h3 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h3><p>文件设备基于块设备, 块设备的行为描述为 <code>trait BlockDriverOps</code>.</p>
+<p>块设备以上的层次结构如下:</p>
+<img src="/blog/.io//2025/04/19/%E4%B8%89%E9%98%B6%E6%AE%B5%E7%BB%84%E4%BB%B6%E5%8C%96%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/ArceOS_FileSystem_Final.PNG" class title="ArceOS_File_System">
+
+<p>ArceOS 的文件设备相对 rCore 来说更加贴近现实, 如目录和挂载的概念: 目录项是一个 <code>DirNode</code>, 可以把一个 <code>fs</code> 文件系统挂载到这个目录上, 挂载 (mount) 的意义实际上就是把磁盘上扁平的数据关系建立为树形结构</p>
+<h2 id="宏内核支持"><a href="#宏内核支持" class="headerlink" title="宏内核支持"></a>宏内核支持</h2><p>目前为止我们的 Unikernel 架构 ArceOS 与宏内核 (Monolithic) 架构<del>八竿子打不着</del>还有很大差别:</p>
+<ul>
+<li>没有特权级切换</li>
+<li>没有应用自己的地址空间</li>
+<li>没有实现系统调用</li>
+<li>没有实现加载应用</li>
+</ul>
+<p>那么逻辑就很清楚了, 我们要按照上面的点增量构建一个宏内核(这也是组件化的有点, 高复用性):</p>
+<ol>
+<li>先创建用户地址空间: 一切操作都需要对数据进行, 而数据需要在地址空间上</li>
+<li>加载应用数据并建立用户栈到地址空间</li>
+<li>伪造现场(临时上下文)并放入新任务的内核栈上(此时仍然在内核态)</li>
+<li>调用 <code>sret</code> 从 S 特权级返回 U 特权级, 进入用户态, 从刚刚加载的应用入口开始执行</li>
+<li>用户应用调用了系统调用, 通过异常中断向量表 Trap 进 S 特权级, 内核处理这个调用</li>
+</ol>
+<h4 id="用户地址空间的内存分布"><a href="#用户地址空间的内存分布" class="headerlink" title="用户地址空间的内存分布"></a>用户地址空间的内存分布</h4><ul>
+<li>地址空间的高地址区域是内核空间(内核栈等可以共享)</li>
+<li>在内核根页表中只有高区域, 低地址区域是空</li>
+<li>以这个内核根页表为模板为应用进程复制了低地址区域的应用空间后, 所有页表中高地址那部分的内核空间的虚拟地址映射到相同的物理地址, 实现了共享.</li>
+</ul>
+<h4 id="加载用户数据"><a href="#加载用户数据" class="headerlink" title="加载用户数据"></a>加载用户数据</h4><p>读到内存缓存区, 再到内核地址空间, 再在用户地址空间中与内核地址空间存应用的那部分映射到相同的部分</p>
+<h4 id="任务控制块扩展"><a href="#任务控制块扩展" class="headerlink" title="任务控制块扩展"></a>任务控制块扩展</h4><p>宏内核需要一些 Unikernel 不具备的任务信息, 如用户地址空间, 上下文等. 这里用 <code>def_task_ext!</code> 宏注册扩展任务控制块的结构体类型.</p>
+<p>这样, 记下 <code>sepc</code> 寄存器值, 标记 <code>sstatus</code> CSR 为”切换前来自用户态”(因为 RISCV 不存在专门从内核态到用户态的切换的指令, 只能假装当前在内核态是因为刚刚从用户态过来的, 然后返回回去)</p>
+<h4 id="系统调用"><a href="#系统调用" class="headerlink" title="系统调用"></a>系统调用</h4><p>ArceOS Monolithic 中系统调用的实现路径是 Trap 进内核态后, 由 <code>axhal::arch::trap</code> 通过 <code>link_me</code> 从应用程序的 syscall 处理函数中调用到 <code>arcesos_posix_api</code> 来实现功能的</p>
+<p><code>link_me</code>: 对系统调用的响应函数通过 <code>#[register_trap_handler(SYSCALL)]</code> 注册.</p>
+<h2 id="Linux-App-支持"><a href="#Linux-App-支持" class="headerlink" title="Linux App 支持"></a>Linux App 支持</h2><p>我们已经有了一个最小化的宏内核, 但是还不能直接跑 Linux ELF 可执行文件:</p>
+<ul>
+<li><p>地址空间太 plain 了, 没有逻辑分段 (<code>.text</code> <code>.data</code> 等都要模仿 Linux)</p>
+<p>  逻辑段实现上是一个 <code>BTreeMap&lt;address, area&gt;</code>, 通过 <code>mmap</code> 映射一段地址到一段页面上(以及设置访问权限等). 映射后端包含 <code>Linear</code> 和 <code>Alloc</code> 两种方式, 前者是带偏移的连续地址映射到一个段, 后者是可能不连续的多个物理页帧的集合映射到一个段.</p>
+</li>
+<li><p>Linux App 大多数需要与 <code>glibc</code> 或 <code>musl-libc</code> 进行参数协同</p>
+<p>  加载 ELF 文件, 然后只需要读取 <code>r-x</code> 和 <code>rw-</code> 的部分 (<code>.text</code> 和 <code>.data</code>), 即 Type 为 <code>Load</code> 的两个段.</p>
+<p>  内存中和文件中代码段的长度和地址一般是恒等映射的, 毕竟就在第一个</p>
+<p>  但是由于 <code>BSS</code> 段的存在, 需要重新计算并映射 <code>.bss</code> 和 <code>.data</code> 段作为数据段</p>
+<p>  初始化用户栈, 把命令行参数加入进去(参数和环境变量), 这个二阶段管道那一章 ch7 有说过</p>
+<p>  <code>musl-libc</code> 启动较为简洁, 需要实现的系统调用较少.</p>
+</li>
+<li><p>其他缺少于 Linux 的部分: <code>procfs</code>, <code>sysfs</code>.</p>
+</li>
+</ul>
+<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>Hypervisor 是 Guest 与 Host 相同指令集情况下高效(<em>虚拟化消耗可忽略</em>)地对硬件资源进行管理的虚拟机</p>
+<h3 id="虚拟化模式的寄存器相关变化"><a href="#虚拟化模式的寄存器相关变化" class="headerlink" title="虚拟化模式的寄存器相关变化"></a>虚拟化模式的寄存器相关变化</h3><ul>
+<li><code>misa[7] = 1</code> 表示启用 Hypervisor 虚拟化</li>
+<li><code>s*</code> 寄存器作用不变(<code>sstatus</code> <code>stvec</code> <code>sepc</code>), Host 新增 <code>hs*</code> 寄存器用于对 Guest 的路径控制(异常/中断委托等)</li>
+<li><code>vs*</code> 寄存器操作 Guest 中的 S 特权级寄存器, 如 <code>vsepc</code> 要设置为 <code>0x80200000</code>, <code>vsstatus</code> 要设置为初始 S (VS) 特权级</li>
+<li><code>hstatus[7]</code> 记录上一次进入 HS 特权级前的模式 <code>sret</code> 根据这个决定是返回<strong>虚拟化用户态</strong>还是 <strong>Host</strong> 中</li>
+</ul>
+<h3 id="控制流"><a href="#控制流" class="headerlink" title="控制流"></a>控制流</h3><p>虚拟化实际就是在 Guest 和 Host 直接来回转换, 之所以要切回 Host 是因为有些操作必须让 Host 来执行(比如 <code>sbi_call</code> 或 中断注入)</p>
+<p>每个 <code>vCPU</code> (在这里为了简单, 仅对应一个 CPU 核心) 维护一组上下文状态, Guest 或者 Host.</p>
+<p>切换到另一个状态时保存当前上下文并切换到对应的上下文, Guest 到 Host 是 <code>VM_Exit</code>, 反之是 <code>sret</code></p>
+<p>分页处理: 嵌套分页: GVA -&gt; (<code>vsatp</code>) -&gt; GPA -&gt; (<code>hgatp</code>) -&gt; HPA</p>
+<p>虚拟设备: 透传模式或模拟模式</p>
+<p>中断处理(中断注入):  只有 <code>hvip</code> 的对应位被设置为 1, Guest 的 <code>vstvec</code> 才会被触发, 否则 Guest 完全不知道有中断发生. <code>vstvec</code> 是 Guest 的中断入口, 但它仅响应 <code>hvip</code> 中已注入的虚拟中断, 而不是物理中断.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/19/%E4%B8%80%E9%98%B6%E6%AE%B5rustlings%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +453,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
               </span>
 
           
@@ -456,7 +645,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -958,7 +1147,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:38" itemprop="dateModified" datetime="2025-05-22T03:54:38+00:00">2025-05-22</time>
               </span>
 
           
@@ -1054,7 +1243,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
               </span>
 
           
@@ -1357,7 +1546,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1461,7 +1650,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1550,7 +1739,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
               </span>
 
           
@@ -1653,7 +1842,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:38" itemprop="dateModified" datetime="2025-05-22T03:54:38+00:00">2025-05-22</time>
               </span>
 
           
@@ -1754,7 +1943,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-22 03:54:37" itemprop="dateModified" datetime="2025-05-22T03:54:37+00:00">2025-05-22</time>
               </span>
 
           
@@ -1792,318 +1981,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/22/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yck/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/22/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yck/" class="post-title-link" itemprop="url">2024-秋冬季开源操作系统训练营第四阶段总结-yck</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-22 03:27:10" itemprop="dateCreated datePublished" datetime="2024-12-22T03:27:10+00:00">2024-12-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 03:43:41" itemprop="dateModified" datetime="2025-05-22T03:43:41+00:00">2025-05-22</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>最后这一阶段，鄙人主要围绕rust的异步编程async/await及经典运行时库tokio展开阅读研究。但并没有深入理解其中原理及实现，更多的是比较浅显地了解，像tokio的有些模块并没有看，还又比较多的疑问在里面。如果后续有时间的话，希望能继续阅读并深入。代码实现上，仅在rcore上实现了一个极为简单的用户态运行时，跑了几个异步任务，有点协程的意思了（。但是并没有实现waker机制，后续考虑进一步实现完善</p>
-<h2 id="协程"><a href="#协程" class="headerlink" title="协程"></a>协程</h2><h3 id="有栈协程"><a href="#有栈协程" class="headerlink" title="有栈协程"></a>有栈协程</h3><p>函数运行在调用栈上，把函数作为一个协程，那么协程的上下文就是这个函数及其嵌套函数的栈帧存储的值，以及此时寄存器存储的值。如果我们调度协程，也就是保存当前正在运行的协程上下文，然后恢复下个将要运行的协程的上下文。这样我们就轻松的完成了协程调度。并且因为保存的上下文和普通函数执行的上下文是一样的，所以有栈协程可以在任意嵌套函数中挂起（无栈协程不行）。</p>
-<p>有栈协程的优点在易用性上，通常只需要调用对应的方法，就可以切换上下文挂起协程。在有栈协程调度时，需要频繁的切换上下文，开销较大。单从实现上看，有栈协程更接近于内核级线程，都需要为每个线程保存单独的上下文（寄存器、栈等），区别在于有栈协程的调度由应用程序自行实现，对内核是透明的，而内核级线程的调度由系统内核完成，是抢占式的。</p>
-<h3 id="无栈协程"><a href="#无栈协程" class="headerlink" title="无栈协程"></a>无栈协程</h3><p>相比于有栈协程直接切换栈帧的思路，无栈协程在不改变函数调用栈的情况下，采用类似生成器的思路实现了上下文切换。通过编译器将生成器改写为对应的迭代器类型（内部实现是一个状态机）。</p>
-<p>而无栈协程需要在编译器将代码编译为对应的状态机代码，挂起的位置在编译器确定。无栈协程的优点在性能上，不需要保存单独的上下文，内存占用低，切换成本低，性能高。缺点是需要编译器提供语义支持，无栈协程的实现是通过编译器对语法糖做支持，rust的aysnc\await就是语法糖，编译器将带有这些关键字的方法编译为生成器，以及对应的类型作为状态机。</p>
-<p>只有状态机的支持才能进行协程调度，例如Rust中的tokio，基于Future的用户态线程，根据poll方法获取Future状态，它不可以在任意嵌套函数中挂起（同步代码未实现状态机）。</p>
-<h2 id="tokio"><a href="#tokio" class="headerlink" title="tokio"></a>tokio</h2><p>我主要从tokio::main宏出发，一步步分析其中调用关系。主要围绕runtime库的build及Runtime结构体的方法及函数</p>
-<p>使用<code>#[tokio::main]</code>宏生成的代码</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    tokio::runtime::Builder::new_multi_thread()</span><br><span class="line">        .enable_all()</span><br><span class="line">        .build()</span><br><span class="line">        .unwrap()</span><br><span class="line">        .block_on(<span class="keyword">async</span> &#123;</span><br><span class="line">            <span class="comment">// ...</span></span><br><span class="line">        &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>结构体<code>Builder</code>用作运行时<code>runtime</code>配置，通过<code>new_current_thread()</code>使用单线程运行时，<code>new_multi_thread()</code>使用多线程运行时，并会返回<code>Builder</code>实例</p>
-<h3 id="new-multi-thread"><a href="#new-multi-thread" class="headerlink" title="new_multi_thread"></a>new_multi_thread</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Returns a new builder with the multi thread scheduler selected.</span></span><br><span class="line">   <span class="comment">///</span></span><br><span class="line">   <span class="comment">/// Configuration methods can be chained on the return value.</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"rt-multi-thread"</span>)]</span></span><br><span class="line">   <span class="meta">#[cfg_attr(docsrs, doc(cfg(feature = <span class="meta-string">"rt-multi-thread"</span>)))]</span></span><br><span class="line">   <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new_multi_thread</span></span>() -&gt; Builder &#123;</span><br><span class="line">       <span class="comment">// The number `61` is fairly arbitrary. I believe this value was copied from golang.</span></span><br><span class="line">       Builder::new(Kind::MultiThread, <span class="number">61</span>)</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
-
-<p>调用<code>new</code>方法返回一个<code>Kind</code>为<code>MultiThread</code>的<code>Builder</code>，对于定时器和I/O事件释放CPU之前需要61ticks</p>
-<h3 id="enable-all"><a href="#enable-all" class="headerlink" title="enable_all"></a>enable_all</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Enables both I/O and time drivers.</span></span><br><span class="line">   <span class="comment">///</span></span><br><span class="line">   <span class="comment">/// Doing this is a shorthand for calling `enable_io` and `enable_time`</span></span><br><span class="line">   <span class="comment">/// individually. If additional components are added to Tokio in the future,</span></span><br><span class="line">   <span class="comment">/// `enable_all` will include these future components.</span></span><br><span class="line">   <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">enable_all</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; &amp;<span class="keyword">mut</span> <span class="keyword">Self</span> &#123;</span><br><span class="line">           <span class="meta">#[cfg(any(</span></span><br><span class="line"><span class="meta">               feature = <span class="meta-string">"net"</span>,</span></span><br><span class="line"><span class="meta">               all(unix, feature = <span class="meta-string">"process"</span>),</span></span><br><span class="line"><span class="meta">               all(unix, feature = <span class="meta-string">"signal"</span>)</span></span><br><span class="line"><span class="meta">           ))]</span></span><br><span class="line">           <span class="keyword">self</span>.enable_io();</span><br><span class="line">           <span class="meta">#[cfg(feature = <span class="meta-string">"time"</span>)]</span></span><br><span class="line">           <span class="keyword">self</span>.enable_time();</span><br><span class="line"></span><br><span class="line">           <span class="keyword">self</span></span><br><span class="line">       &#125;</span><br></pre></td></tr></table></figure>
-
-<p>操作成员变量，使能运行时I/O和定时器</p>
-<h3 id="build"><a href="#build" class="headerlink" title="build"></a>build</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Creates the configured `Runtime`.</span></span><br><span class="line">   <span class="comment">///</span></span><br><span class="line">   <span class="comment">/// The returned `Runtime` instance is ready to spawn tasks.</span></span><br><span class="line">   <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">build</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; io::<span class="built_in">Result</span>&lt;Runtime&gt; &#123;</span><br><span class="line">       <span class="keyword">match</span> &amp;<span class="keyword">self</span>.kind &#123;</span><br><span class="line">           Kind::CurrentThread =&gt; <span class="keyword">self</span>.build_current_thread_runtime(),</span><br><span class="line">           <span class="meta">#[cfg(feature = <span class="meta-string">"rt-multi-thread"</span>)]</span></span><br><span class="line">           Kind::MultiThread =&gt; <span class="keyword">self</span>.build_threaded_runtime(),</span><br><span class="line">           <span class="meta">#[cfg(all(tokio_unstable, feature = <span class="meta-string">"rt-multi-thread"</span>))]</span></span><br><span class="line">           Kind::MultiThreadAlt =&gt; <span class="keyword">self</span>.build_alt_threaded_runtime(),</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
-
-<p>运行时创建的核心步骤，创建已经做配置的<code>runtime</code>，并返回<code>Runtime</code>实例准备创建异步任务</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Runtime</span></span> &#123;</span><br><span class="line">    <span class="comment">/// Task scheduler</span></span><br><span class="line">    scheduler: Scheduler,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/// Handle to runtime, also contains driver handles</span></span><br><span class="line">    handle: Handle,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/// Blocking pool handle, used to signal shutdown</span></span><br><span class="line">    blocking_pool: BlockingPool,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>scheduler</code>：异步任务调度器</p>
-<p><code>handle</code>：运行时句柄</p>
-<p><code>blocking_pool</code>：阻塞池句柄，用于发出关闭信号</p>
-<h3 id="build-gt-build-threaded-runtime"><a href="#build-gt-build-threaded-runtime" class="headerlink" title="build -&gt; build_threaded_runtime"></a>build -&gt; build_threaded_runtime</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">build_threaded_runtime</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; io::<span class="built_in">Result</span>&lt;Runtime&gt; &#123;</span><br><span class="line">            <span class="keyword">use</span> crate::loom::sys::num_cpus;</span><br><span class="line">            <span class="keyword">use</span> crate::runtime::&#123;Config, runtime::Scheduler&#125;;</span><br><span class="line">            <span class="keyword">use</span> crate::runtime::scheduler::&#123;<span class="keyword">self</span>, MultiThread&#125;;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">let</span> core_threads = <span class="keyword">self</span>.worker_threads.unwrap_or_else(num_cpus);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">let</span> (driver, driver_handle) = driver::Driver::new(<span class="keyword">self</span>.get_cfg(core_threads))?;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// Create the blocking pool</span></span><br><span class="line">            <span class="keyword">let</span> blocking_pool =</span><br><span class="line">                blocking::create_blocking_pool(<span class="keyword">self</span>, <span class="keyword">self</span>.max_blocking_threads + core_threads);</span><br><span class="line">            <span class="keyword">let</span> blocking_spawner = blocking_pool.spawner().clone();</span><br><span class="line"></span><br><span class="line">            <span class="comment">// Generate a rng seed for this runtime.</span></span><br><span class="line">            <span class="keyword">let</span> seed_generator_1 = <span class="keyword">self</span>.seed_generator.next_generator();</span><br><span class="line">            <span class="keyword">let</span> seed_generator_2 = <span class="keyword">self</span>.seed_generator.next_generator();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">let</span> (scheduler, handle, launch) = MultiThread::new(</span><br><span class="line">                core_threads,</span><br><span class="line">                driver,</span><br><span class="line">                driver_handle,</span><br><span class="line">                blocking_spawner,</span><br><span class="line">                seed_generator_2,</span><br><span class="line">                Config &#123;</span><br><span class="line">                    before_park: <span class="keyword">self</span>.before_park.clone(),</span><br><span class="line">                    after_unpark: <span class="keyword">self</span>.after_unpark.clone(),</span><br><span class="line">                    before_spawn: <span class="keyword">self</span>.before_spawn.clone(),</span><br><span class="line">                    after_termination: <span class="keyword">self</span>.after_termination.clone(),</span><br><span class="line">                    global_queue_interval: <span class="keyword">self</span>.global_queue_interval,</span><br><span class="line">                    event_interval: <span class="keyword">self</span>.event_interval,</span><br><span class="line">                    local_queue_capacity: <span class="keyword">self</span>.local_queue_capacity,</span><br><span class="line">                    <span class="meta">#[cfg(tokio_unstable)]</span></span><br><span class="line">                    unhandled_panic: <span class="keyword">self</span>.unhandled_panic.clone(),</span><br><span class="line">                    disable_lifo_slot: <span class="keyword">self</span>.disable_lifo_slot,</span><br><span class="line">                    seed_generator: seed_generator_1,</span><br><span class="line">                    metrics_poll_count_histogram: <span class="keyword">self</span>.metrics_poll_count_histogram_builder(),</span><br><span class="line">                &#125;,</span><br><span class="line">            );</span><br><span class="line"></span><br><span class="line">            <span class="keyword">let</span> handle = Handle &#123; inner: scheduler::Handle::MultiThread(handle) &#125;;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// Spawn the thread pool workers</span></span><br><span class="line">            <span class="keyword">let</span> _enter = handle.enter();</span><br><span class="line">            launch.launch();</span><br><span class="line"></span><br><span class="line">            <span class="literal">Ok</span>(Runtime::from_parts(Scheduler::MultiThread(scheduler), handle, blocking_pool))</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
-
-<ol>
-<li>引入</li>
-</ol>
-<p><code>num_cpus</code>：用于获取系统的 CPU 核心数量。</p>
-<p><code>Config</code>：运行时的配置项。</p>
-<p><code>MultiThread</code>：多线程调度器，负责在多个线程间调度异步任务。</p>
-<ol start="2">
-<li>确定核心线程数</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">let core_threads &#x3D; self.worker_threads.unwrap_or_else(num_cpus);</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><code>self.worker_threads</code>：用户在<code>Builder</code>配置的核心线程数。如果未指定，使用系统的 CPU 核心数作为默认值（<code>num_cpus()</code>）。</li>
-<li><code>core_threads</code> 是最终确定的核心线程数，表示运行时的调度线程数量。</li>
-</ul>
-<ol start="3">
-<li>初始化驱动</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> (driver, driver_handle) = driver::Driver::new(<span class="keyword">self</span>.get_cfg(core_threads))?;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong><code>driver</code></strong>：负责管理底层 IO 和定时器的核心组件。</li>
-<li><strong><code>driver_handle</code></strong>：运行时与驱动交互的句柄，用于调度异步任务和管理定时器。</li>
-<li><code>get_cfg(core_threads)</code>：返回结构体<code>driver::Cfg</code>，包含驱动的配置项，包含workers等配置。</li>
-</ul>
-<ol start="4">
-<li>创建阻塞任务池</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> blocking_pool = blocking::create_blocking_pool(<span class="keyword">self</span>, <span class="keyword">self</span>.max_blocking_threads + core_threads);</span><br><span class="line"><span class="keyword">let</span> blocking_spawner = blocking_pool.spawner().clone();</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><p>阻塞任务池：用于执行需要阻塞运行的任务（例如文件 IO 或计算密集型任务），避免阻塞异步任务调度线程。</p>
-<ul>
-<li>线程数 = 用户指定的 <code>max_blocking_threads</code> + 核心线程数。</li>
-</ul>
-</li>
-<li><p><code>blocking_spawner</code>：用于将任务提交到阻塞任务池的对象。</p>
-</li>
-</ul>
-<ol start="5">
-<li>生成随机数种子</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> seed_generator_1 = <span class="keyword">self</span>.seed_generator.next_generator();</span><br><span class="line"><span class="keyword">let</span> seed_generator_2 = <span class="keyword">self</span>.seed_generator.next_generator();</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>Tokio 的调度器可能需要随机化任务的分配，例如在多线程调度器中均衡负载。</li>
-<li><code>seed_generator_1</code> 和 <code>seed_generator_2</code> 是生成的两个独立随机数种子，分别用于不同的组件。</li>
-</ul>
-<ol start="6">
-<li>初始化调度器</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> (scheduler, handle, launch) = MultiThread::new(</span><br><span class="line">    core_threads,</span><br><span class="line">    driver,</span><br><span class="line">    driver_handle,</span><br><span class="line">    blocking_spawner,</span><br><span class="line">    seed_generator_2,</span><br><span class="line">    Config &#123; ... &#125;,</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><p>调用 <code>MultiThread::new</code> 创建一个多线程调度器，返回：</p>
-<ul>
-<li><code>scheduler</code>：核心调度器，管理线程间任务的分配和调度。</li>
-<li><code>handle</code>：调度器的句柄，用于外部与调度器交互。</li>
-<li><code>launch</code>：启动调度器工作线程的接口。</li>
-</ul>
-</li>
-<li><p>传递的参数：</p>
-<ul>
-<li><p><code>core_threads</code>：核心线程数。</p>
-</li>
-<li><p><code>driver</code> 和 <code>driver_handle</code>：用于与 IO 和定时器交互的驱动组件。</p>
-</li>
-<li><p><code>blocking_spawner</code>：用于执行阻塞任务的接口。</p>
-</li>
-<li><p><code>seed_generator_2</code>：随机数种子，用于内部调度逻辑。</p>
-</li>
-<li><p><code>Config</code>：调度器的配置，包括以下内容：</p>
-<ul>
-<li><code>before_park</code> 和 <code>after_unpark</code>：线程挂起与唤醒时的回调函数。</li>
-<li><code>before_spawn</code> 和 <code>after_termination</code>：任务生成和结束时的回调函数。</li>
-</ul>
-</li>
-<li><p><code>global_queue_interval</code> 和 <code>event_interval</code>：全局队列检查和事件处理的时间间隔。</p>
-<ul>
-<li><code>local_queue_capacity</code>：本地任务队列容量。</li>
-</ul>
-</li>
-<li><p>其他运行时的定制项。</p>
-</li>
-</ul>
-</li>
-</ul>
-<ol start="7">
-<li>创建运行时句柄</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> handle = Handle &#123; inner: scheduler::Handle::MultiThread(handle) &#125;;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><code>Handle</code> 是对调度器的抽象封装，用于外部访问运行时和调度器的功能。</li>
-</ul>
-<ol start="8">
-<li>启动工作线程</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> _enter = handle.enter();</span><br><span class="line">launch.launch();</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><code>handle.enter()</code>：将当前线程设置为调度器的上下文，用于初始化调度环境。</li>
-<li><code>launch.launch()</code>：启动调度器的所有工作线程，使其开始运行。</li>
-</ul>
-<ol start="9">
-<li>返回运行时</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="literal">Ok</span>(Runtime::from_parts(Scheduler::MultiThread(scheduler), handle, blocking_pool))</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>创建并返回完整的<code>Runtime</code>实例，包括：<ul>
-<li><code>Scheduler::MultiThread(scheduler)</code>：多线程调度器。</li>
-<li><code>handle</code>：运行时句柄。</li>
-<li><code>blocking_pool</code>：阻塞任务池。</li>
-</ul>
-</li>
-</ul>
-<h2 id="driver-Driver-new方法"><a href="#driver-Driver-new方法" class="headerlink" title="driver::Driver::new方法"></a>driver::Driver::new方法</h2><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span>(<span class="keyword">crate</span>) <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(cfg: Cfg) -&gt; io::<span class="built_in">Result</span>&lt;(<span class="keyword">Self</span>, Handle)&gt; &#123;</span><br><span class="line">        <span class="keyword">let</span> (io_stack, io_handle, signal_handle) = create_io_stack(cfg.enable_io, cfg.nevents)?;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> clock = create_clock(cfg.enable_pause_time, cfg.start_paused);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> (time_driver, time_handle) =</span><br><span class="line">            create_time_driver(cfg.enable_time, io_stack, &amp;clock, cfg.workers);</span><br><span class="line"></span><br><span class="line">        <span class="literal">Ok</span>((</span><br><span class="line">            <span class="keyword">Self</span> &#123; inner: time_driver &#125;,</span><br><span class="line">            Handle &#123;</span><br><span class="line">                io: io_handle,</span><br><span class="line">                signal: signal_handle,</span><br><span class="line">                time: time_handle,</span><br><span class="line">                clock,</span><br><span class="line">            &#125;,</span><br><span class="line">        ))</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<ol>
-<li>创建 IO 栈</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> (io_stack, io_handle, signal_handle) = create_io_stack(cfg.enable_io, cfg.nevents)?;</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><p>调用 <code>create_io_stack</code> 创建 IO 栈（底层 IO 相关的资源），返回：</p>
-<ul>
-<li><code>io_stack</code>：IO 栈的核心组件，用于管理底层 IO 操作。</li>
-<li><code>io_handle</code>：用于和 IO 栈交互的句柄。</li>
-<li><code>signal_handle</code>：用于处理信号的句柄（如处理 <code>Ctrl+C</code>）。</li>
-</ul>
-</li>
-<li><p>参数解释：</p>
-<ul>
-<li><code>cfg.enable_io</code>：如果为 <code>true</code>，启用 IO 支持；否则，不创建 IO 栈。</li>
-<li><code>cfg.nevents</code>：指定事件队列的大小，用于多路复用器。</li>
-</ul>
-</li>
-</ul>
-<ol start="2">
-<li>创建时钟</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">let clock &#x3D; create_clock(cfg.enable_pause_time, cfg.start_paused);</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>调用 <code>create_clock</code> 创建时钟组件，用于时间相关功能的管理，返回一个 <code>Clock</code> 对象。</li>
-<li>参数解释：<ul>
-<li><code>cfg.enable_pause_time</code>：是否支持暂停时间。</li>
-<li><code>cfg.start_paused</code>：是否让时钟在启动时进入暂停状态。</li>
-</ul>
-</li>
-</ul>
-<p>时钟的主要用途：</p>
-<ul>
-<li>为定时器、延迟任务提供精确的时间点。</li>
-<li>支持测试或调试时暂停时间的功能。</li>
-</ul>
-<ol start="3">
-<li>创建时间驱动器</li>
-</ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">let (time_driver, time_handle) &#x3D;</span><br><span class="line">    create_time_driver(cfg.enable_time, io_stack, &amp;clock, cfg.workers);</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><p>调用 <code>create_time_driver</code></p>
-<p>创建时间驱动器，返回：</p>
-<ul>
-<li><code>time_driver</code>：管理时间相关任务的核心组件（例如定时器、延迟任务）。</li>
-<li><code>time_handle</code>：与时间驱动器交互的句柄。</li>
-</ul>
-</li>
-<li><p>参数解释：</p>
-<ul>
-<li><code>cfg.enable_time</code>：是否启用时间功能。</li>
-<li><code>io_stack</code>：IO 栈，与时间驱动器共享底层的事件循环。</li>
-<li><code>&amp;clock</code>：前面创建的时钟，提供时间相关支持。</li>
-<li><code>cfg.workers</code>：用于分配时间任务的工作线程数。</li>
-</ul>
-</li>
-</ul>
-<p>时间驱动器的主要功能：</p>
-<ul>
-<li>实现异步延迟（如 <code>tokio::time::sleep</code>）。</li>
-<li>管理基于时间的任务调度。</li>
-</ul>
-<ol start="4">
-<li>返回结果</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="literal">Ok</span>((</span><br><span class="line">    <span class="keyword">Self</span> &#123; inner: time_driver &#125;,</span><br><span class="line">    Handle &#123;</span><br><span class="line">        io: io_handle,</span><br><span class="line">        signal: signal_handle,</span><br><span class="line">        time: time_handle,</span><br><span class="line">        clock,</span><br><span class="line">    &#125;,</span><br><span class="line">))</span><br></pre></td></tr></table></figure>
-
-<ul>
-<li>返回一个包含驱动器和其句柄的元组：<ul>
-<li><code>Self { inner: time_driver }</code><ul>
-<li>驱动器的核心部分是时间驱动器，封装到 <code>Self</code> 结构体中。</li>
-</ul>
-</li>
-<li><code>Handle</code>：<ul>
-<li>包含多个句柄，用于驱动器与外部的交互：<ul>
-<li><code>io_handle</code>：处理 IO 事件的句柄。</li>
-<li><code>signal_handle</code>：处理信号的句柄。</li>
-<li><code>time_handle</code>：管理时间任务的句柄。</li>
-<li><code>clock</code>：提供时间支持的时钟实例。</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<h3 id="tokio启动"><a href="#tokio启动" class="headerlink" title="tokio启动"></a>tokio启动</h3><p>通过<code>launch.launch();</code>启动所有的 <code>worker</code> 线程：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span>(<span class="keyword">crate</span>) <span class="function"><span class="keyword">fn</span> <span class="title">launch</span></span>(<span class="keyword">mut</span> <span class="keyword">self</span>) &#123;</span><br><span class="line">    <span class="keyword">for</span> worker <span class="keyword">in</span> <span class="keyword">self</span>.<span class="number">0</span>.drain(..) &#123;</span><br><span class="line">        runtime::spawn_blocking(<span class="keyword">move</span> || run(worker));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
-<p><code>runtime::spawn_blocking</code> 调用时， <code>|| run(worker)</code> 匿名函数会被传进去，这其实就是 worker 线程要执行的逻辑。</p>
-<p>如下，匿名函数会被包装为 <code>BlockingTask</code>，并被放在 blocking thread 的 run queue 中，这样当它运行时就会执行这个匿名函数。因为这时没有足够的线程，就会初始化一个新的 OS 线程（如果有 idle 的线程，就会通过 condvar 通知），并开始执行 blocking 线程的逻辑。每个 worker 都占用一个 blocking 线程，并在 blocking 线程中运行直到最后。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// runtime::spawn_blocking:</span></span><br><span class="line"><span class="keyword">let</span> (task, _handle) = task::joinable(BlockingTask::new(func));</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> shared = <span class="keyword">self</span>.inner.shared.lock();</span><br><span class="line">shared.queue.push_back(task);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> builder = thread::Builder::new(); <span class="comment">// Create OS thread</span></span><br><span class="line"><span class="comment">// run worker thread</span></span><br><span class="line">builder.spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    rt.blocking_spawner.inner.run(id);</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/10/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/blog/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/69/">69</a><a class="extend next" rel="next" href="/blog/page/12/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/10/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/blog/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/70/">70</a><a class="extend next" rel="next" href="/blog/page/12/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
