@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="这是rcore训练营前三个阶段的总结报告。 做实验的过程中有写一些笔记，不过是写给自己看的，行文有些杂乱：rcore-notes，arceos-notes。  在群里看到有人分享rcore训练营的消息，然后在rcore开营启动会那天加入了进来。对os的很多概念一直只能靠想象，没有代码级的理解，通过这次训练营，学到了非常非常多。以前尝试去看过《一个64位操作系统的设计与实现》这本书，但是这本书并无过">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2025s-rcore训练营总结">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/05/23/2025s-rcore%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E8%8A%B6%E6%96%B0%E6%98%93/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="这是rcore训练营前三个阶段的总结报告。 做实验的过程中有写一些笔记，不过是写给自己看的，行文有些杂乱：rcore-notes，arceos-notes。  在群里看到有人分享rcore训练营的消息，然后在rcore开营启动会那天加入了进来。对os的很多概念一直只能靠想象，没有代码级的理解，通过这次训练营，学到了非常非常多。以前尝试去看过《一个64位操作系统的设计与实现》这本书，但是这本书并无过">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-05-23T11:43:25.000Z">
+<meta property="article:modified_time" content="2025-05-23T09:58:00.864Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="[object Object]">
+<meta property="article:tag" content="author:plerks">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/05/23/2025s-rcore%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E8%8A%B6%E6%96%B0%E6%98%93/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2025s-rcore训练营总结 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第一阶段"><span class="nav-number">1.</span> <span class="nav-text">第一阶段</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第二阶段"><span class="nav-number">2.</span> <span class="nav-text">第二阶段</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#第三阶段"><span class="nav-number">3.</span> <span class="nav-text">第三阶段</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#总结"><span class="nav-number">4.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">695</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">50</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">606</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/23/2025s-rcore%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E8%8A%B6%E6%96%B0%E6%98%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2025s-rcore训练营总结
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2025-05-23 11:43:25 / Modified: 09:58:00" itemprop="dateCreated datePublished" datetime="2025-05-23T11:43:25+00:00">2025-05-23</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>这是rcore训练营前三个阶段的总结报告。</p>
+<p>做实验的过程中有写一些笔记，不过是写给自己看的，行文有些杂乱：<a href="https://github.com/plerks/rcore-notes" target="_blank" rel="noopener">rcore-notes</a>，<a href="https://github.com/plerks/arceos-notes" target="_blank" rel="noopener">arceos-notes</a>。</p>
+<hr>
+<p>在群里看到有人分享rcore训练营的消息，然后在rcore开营启动会那天加入了进来。对os的很多概念一直只能靠想象，没有代码级的理解，通过这次训练营，学到了非常非常多。以前尝试去看过<a href="https://www.ituring.com.cn/book/2450" target="_blank" rel="noopener">《一个64位操作系统的设计与实现》</a>这本书，但是这本书并无过多讲解，并不适合入门os代码，读不动。现在有了训练营的基础，后面有时间再试试。</p>
+<p>训练营的内容大部分时间是读代码，完成练习所需写的代码量并不大。训练营准备了详尽的文档与指导书，并已经准备好了构建脚本，能非常顺利地上手开始学习os。</p>
+<p>此外，这次训练营学习还连带着学习了rust，之前听说过rust和其它语言在思维上有些不同，不过实际接触下来感觉还好，还是和c++很相似的，只是有个所有权的机制很特别。rust吸收并处理了c++的一些好的概念与不足(移动语义，没有包管理器等等)，有Cargo这一点比c++方便多了。</p>
+<h1 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h1><p>学习rust基础，做rustlings的练习。</p>
+<p>这个比较基础，我是看了下rust的<a href="https://www.runoob.com/rust/rust-tutorial.html" target="_blank" rel="noopener">菜鸟教程</a>学rust，然后做的过程中不知道的问chatgpt就行。</p>
+<h1 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h1><p>学习rcore指导书并完成5个实验。</p>
+<p>rcore指导书的质量非常高，前几章基础的代码需要仔细阅读理解，这样就能知道基础的执行流程。</p>
+<p>前面的章节把一些代码(比如那几个汇编写的函数)交给chatgpt解读非常方便。后面的章节效果要差一些，有些主要起个提示作用。</p>
+<h1 id="第三阶段"><a href="#第三阶段" class="headerlink" title="第三阶段"></a>第三阶段</h1><p>学习arceos并完成6个练习。</p>
+<p>原本以为第三阶段是第二阶段的递进，会去学习M态的rustabi什么的，但是实际第三阶段的arceos是和rcore指导书平级的，相当于是另一种设计思路下实现的os。</p>
+<p>有了第二阶段rcore指导书的基础，第三阶段问题不大。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>训练营的质量非常高，特别是考虑到了对学生的教学，文档和工程都很齐全，rcore指导书的质量非常高。学习到了很多。</p>
+<p>感谢清华大学的老师们开放的课程，以及助教，群友等的答疑。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/object-Object/" rel="tag"># [object Object]</a>
+              <a href="/blog/tags/author-plerks/" rel="tag"># author:plerks</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/23/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/" rel="prev" title="第二阶段rcore学习心得-胡旭">
+      <i class="fa fa-chevron-left"></i> 第二阶段rcore学习心得-胡旭
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
