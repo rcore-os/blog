@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">693</span>
+          <span class="site-state-item-count">694</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">603</span>
+        <span class="site-state-item-count">605</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,131 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap7-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/Chap7-2/" class="post-title-link" itemprop="url">rcore-handnote-7-2</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-23 06:52:35" itemprop="dateModified" datetime="2025-05-23T06:52:35+00:00">2025-05-23</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Chapter-7-2"><a href="#Chapter-7-2" class="headerlink" title="Chapter 7-2"></a>Chapter 7-2</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>If a process want to notify other process with event semantics, such one-side mechanism called <strong>Signal</strong>, one process received specific event will pause and implement corresponding operation to handle the notification.</p>
+<p>For example, a program could receive the stop event sended by <code>Ctrl+C</code>, and stop itself.</p>
+<p>The abstraction of handling of signal:</p>
+<ul>
+<li>ignore: do own thing and ignore signal</li>
+<li>trap: call corresponding operation of the received signal</li>
+<li>stop: stop itself</li>
+</ul>
+<p>Now, beside this raw idea, we want to classify such abstraction with specified data.</p>
+<hr>
+<h3 id="Signal-Data"><a href="#Signal-Data" class="headerlink" title="Signal Data"></a>Signal Data</h3><p>First, we define raw info for each possible event.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/lib.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGDEF: <span class="built_in">i32</span> = <span class="number">0</span>; <span class="comment">// Default signal handling</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGHUP: <span class="built_in">i32</span> = <span class="number">1</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGINT: <span class="built_in">i32</span> = <span class="number">2</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGQUIT: <span class="built_in">i32</span> = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGILL: <span class="built_in">i32</span> = <span class="number">4</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGTRAP: <span class="built_in">i32</span> = <span class="number">5</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGABRT: <span class="built_in">i32</span> = <span class="number">6</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGBUS: <span class="built_in">i32</span> = <span class="number">7</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGFPE: <span class="built_in">i32</span> = <span class="number">8</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGKILL: <span class="built_in">i32</span> = <span class="number">9</span>;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>So, what if a process want to omit the signal, what should this process do? We will introduce <strong>Mask</strong> in bit design, which means higher number contains lower number, indicating higher priority.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/lib.rs</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">bitflags!</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">SignalFlags</span></span>: <span class="built_in">i32</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> SIGDEF = <span class="number">1</span>; <span class="comment">// Default signal handling</span></span><br><span class="line">        <span class="keyword">const</span> SIGHUP = <span class="number">1</span> &lt;&lt; <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGINT = <span class="number">1</span> &lt;&lt; <span class="number">2</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGQUIT = <span class="number">1</span> &lt;&lt; <span class="number">3</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGILL = <span class="number">1</span> &lt;&lt; <span class="number">4</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGTRAP = <span class="number">1</span> &lt;&lt; <span class="number">5</span>;</span><br><span class="line">        ...</span><br><span class="line">        <span class="keyword">const</span> SIGSYS = <span class="number">1</span> &lt;&lt; <span class="number">31</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>In a task block, it should record its current mask and current signal priority and each action corresponding to each flags, so we need a fixed array contains ptrs and its priority. After that, we need to record current flag it should implement.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/lib.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/// Action for a signal</span></span><br><span class="line"><span class="meta">#[repr(C, align(16))]</span></span><br><span class="line"><span class="meta">#[derive(Debug, Clone, Copy)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">SignalAction</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> handler: <span class="built_in">usize</span>,</span><br><span class="line">    <span class="keyword">pub</span> mask: SignalFlags,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/signal.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> MAX_SIG: <span class="built_in">usize</span> = <span class="number">31</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/action.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(Clone)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">SignalActions</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> table: [SignalAction; MAX_SIG + <span class="number">1</span>],</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">    ...</span><br><span class="line">	<span class="keyword">pub</span> handling_sig: <span class="built_in">isize</span>,</span><br><span class="line">	<span class="comment">// priority allowed</span></span><br><span class="line">	<span class="keyword">pub</span> signals: SignalFlags,</span><br><span class="line">	<span class="comment">// priority forbidden</span></span><br><span class="line">    <span class="keyword">pub</span> signal_mask: SignalFlags,</span><br><span class="line">    <span class="keyword">pub</span> signal_actions: SignalActions,</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Then our task know which signal should be implemented, which should be omitted.</p>
+<hr>
+<h3 id="Signal-Handle"><a href="#Signal-Handle" class="headerlink" title="Signal Handle"></a>Signal Handle</h3><p>Recall that, each process should receive signal and trap into possible level, some may be in S-level, some may be in U-level. And some of them may be illegal or atrocious that we should <code>stop</code> or <code>frozen</code> to wait. If so, we should backup our <code>trap_ctx</code>, because handler contains different environement.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">    ...</span><br><span class="line">	<span class="keyword">pub</span> killed: <span class="built_in">bool</span>,</span><br><span class="line">    <span class="keyword">pub</span> frozen: <span class="built_in">bool</span>,</span><br><span class="line">    <span class="keyword">pub</span> handling_sig: <span class="built_in">isize</span>,</span><br><span class="line">    <span class="keyword">pub</span> trap_ctx_backup: <span class="built_in">Option</span>&lt;TrapContext&gt;,</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Some signals are severe and handled by kernel.</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">call_kernel_signal_handler</span></span>(signal: SignalFlags) &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">match</span> signal &#123;</span><br><span class="line">        SignalFlags::SIGSTOP =&gt; &#123;</span><br><span class="line">            task_inner.frozen = <span class="literal">true</span>;</span><br><span class="line">            task_inner.signals ^= SignalFlags::SIGSTOP;</span><br><span class="line">        &#125;</span><br><span class="line">        SignalFlags::SIGCONT =&gt; &#123;</span><br><span class="line">            <span class="keyword">if</span> task_inner.signals.contains(SignalFlags::SIGCONT) &#123;</span><br><span class="line">                task_inner.signals ^= SignalFlags::SIGCONT;</span><br><span class="line">                task_inner.frozen = <span class="literal">false</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        _ =&gt; &#123;</span><br><span class="line">            <span class="comment">// println!(</span></span><br><span class="line">            <span class="comment">//     "[K] call_kernel_signal_handler:: current task sigflag &#123;:?&#125;",</span></span><br><span class="line">            <span class="comment">//     task_inner.signals</span></span><br><span class="line">            <span class="comment">// );</span></span><br><span class="line">            task_inner.killed = <span class="literal">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Some signals are normal and handled by user.</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">call_user_signal_handler</span></span>(sig: <span class="built_in">usize</span>, signal: SignalFlags) &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task_inner = task.inner_exclusive_access();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> handler = task_inner.signal_actions.table[sig].handler;</span><br><span class="line">    <span class="keyword">if</span> handler != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="comment">// register signal into task</span></span><br><span class="line">        task_inner.handling_sig = sig <span class="keyword">as</span> <span class="built_in">isize</span>;</span><br><span class="line">        task_inner.signals ^= signal;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// backup</span></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> trap_ctx = task_inner.get_trap_cx();</span><br><span class="line">        task_inner.trap_ctx_backup = <span class="literal">Some</span>(*trap_ctx);</span><br><span class="line"></span><br><span class="line">		<span class="comment">// modify current trap for our event handler</span></span><br><span class="line">        trap_ctx.sepc = handler;</span><br><span class="line">        trap_ctx.x[<span class="number">10</span>] = sig;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// default action</span></span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"[K] task/call_user_signal_handler: default action: ignore it or kill process"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Based on this, we could check our pending signal based on priority of <code>signals</code>, <code>signal_mask</code> of task and <code>signal_mask</code> of signal itself of table.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">check_pending_signals</span></span>() &#123;</span><br><span class="line">    <span class="keyword">for</span> sig <span class="keyword">in</span> <span class="number">0</span>..(MAX_SIG + <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">        <span class="keyword">let</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">        <span class="keyword">let</span> signal = SignalFlags::from_bits(<span class="number">1</span> &lt;&lt; sig).unwrap();</span><br><span class="line">        <span class="keyword">if</span> task_inner.signals.contains(signal) &amp;&amp; (!task_inner.signal_mask.contains(signal)) &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="keyword">mut</span> masked = <span class="literal">true</span>;</span><br><span class="line">            <span class="keyword">let</span> handling_sig = task_inner.handling_sig;</span><br><span class="line">            <span class="keyword">if</span> handling_sig == -<span class="number">1</span> &#123;</span><br><span class="line">                masked = <span class="literal">false</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">let</span> handling_sig = handling_sig <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">                <span class="keyword">if</span> !task_inner.signal_actions.table[handling_sig]</span><br><span class="line">                    .mask</span><br><span class="line">                    .contains(signal)</span><br><span class="line">                &#123;</span><br><span class="line">                    masked = <span class="literal">false</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> !masked &#123;</span><br><span class="line">                <span class="built_in">drop</span>(task_inner);</span><br><span class="line">                <span class="built_in">drop</span>(task);</span><br><span class="line">                <span class="keyword">if</span> signal == SignalFlags::SIGKILL</span><br><span class="line">                    || signal == SignalFlags::SIGSTOP</span><br><span class="line">                    || signal == SignalFlags::SIGCONT</span><br><span class="line">                    || signal == SignalFlags::SIGDEF</span><br><span class="line">                &#123;</span><br><span class="line">                    <span class="comment">// signal is a kernel signal</span></span><br><span class="line">                    call_kernel_signal_handler(signal);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="comment">// signal is a user signal</span></span><br><span class="line">                    call_user_signal_handler(sig, signal);</span><br><span class="line">                    <span class="keyword">return</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Then record a loop function to handle repeatedly while changing the state of task.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">handle_signals</span></span>() &#123;</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        check_pending_signals();</span><br><span class="line">        <span class="keyword">let</span> (frozen, killed) = &#123;</span><br><span class="line">            <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">            <span class="keyword">let</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">            (task_inner.frozen, task_inner.killed)</span><br><span class="line">        &#125;;</span><br><span class="line">        <span class="keyword">if</span> !frozen || killed &#123;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        suspend_current_and_run_next();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="System-Operation"><a href="#System-Operation" class="headerlink" title="System Operation"></a>System Operation</h3><p>Finally, we will design <code>sys</code> operations to construct interface.</p>
+<ul>
+<li>procmask: set mask of current process</li>
+<li>sigaction: set handler of a signal of current process and move original handler to our input <code>old_action</code> ptr.</li>
+<li>kill: current process send signal to the other</li>
+<li>sigreturn: clear current signal and back to original trap state</li>
+</ul>
+<p>We will construct it one by one.</p>
+<p><code>procmask</code> is simple, we just set it directly and return original one.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigprocmask</span></span>(mask: <span class="built_in">u32</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(task) = current_task() &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">        <span class="keyword">let</span> old_mask = inner.signal_mask;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(flag) = SignalFlags::from_bits(mask) &#123;</span><br><span class="line">            inner.signal_mask = flag;</span><br><span class="line">            old_mask.bits() <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            -<span class="number">1</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>sigaction</code> is a bit harder but still easy, however, notice that the ptr may be null.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">check_sigaction_error</span></span>(signal: SignalFlags, action: <span class="built_in">usize</span>, old_action: <span class="built_in">usize</span>) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> action == <span class="number">0</span></span><br><span class="line">        || old_action == <span class="number">0</span></span><br><span class="line">        || signal == SignalFlags::SIGKILL</span><br><span class="line">        || signal == SignalFlags::SIGSTOP</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="literal">true</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigaction</span></span>(</span><br><span class="line">    signum: <span class="built_in">i32</span>,</span><br><span class="line">    action: *<span class="keyword">const</span> SignalAction,</span><br><span class="line">    old_action: *<span class="keyword">mut</span> SignalAction,</span><br><span class="line">) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> token = current_user_token();</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> signum <span class="keyword">as</span> <span class="built_in">usize</span> &gt; MAX_SIG &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(flag) = SignalFlags::from_bits(<span class="number">1</span> &lt;&lt; signum) &#123;</span><br><span class="line">        <span class="keyword">if</span> check_sigaction_error(flag, action <span class="keyword">as</span> <span class="built_in">usize</span>, old_action <span class="keyword">as</span> <span class="built_in">usize</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">let</span> prev_action = inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>];</span><br><span class="line">        *translated_refmut(token, old_action) = prev_action;</span><br><span class="line">        inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>] = *translated_ref(token, action);</span><br><span class="line">        <span class="number">0</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>kill</code> is simple, we will extract the task from <code>pid</code>, and insert flag to it if there’s no flag has been set.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">check_sigaction_error</span></span>(signal: SignalFlags, action: <span class="built_in">usize</span>, old_action: <span class="built_in">usize</span>) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> action == <span class="number">0</span></span><br><span class="line">        || old_action == <span class="number">0</span></span><br><span class="line">        || signal == SignalFlags::SIGKILL</span><br><span class="line">        || signal == SignalFlags::SIGSTOP</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="literal">true</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigaction</span></span>(</span><br><span class="line">    signum: <span class="built_in">i32</span>,</span><br><span class="line">    action: *<span class="keyword">const</span> SignalAction,</span><br><span class="line">    old_action: *<span class="keyword">mut</span> SignalAction,</span><br><span class="line">) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> token = current_user_token();</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> signum <span class="keyword">as</span> <span class="built_in">usize</span> &gt; MAX_SIG &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(flag) = SignalFlags::from_bits(<span class="number">1</span> &lt;&lt; signum) &#123;</span><br><span class="line">        <span class="keyword">if</span> check_sigaction_error(flag, action <span class="keyword">as</span> <span class="built_in">usize</span>, old_action <span class="keyword">as</span> <span class="built_in">usize</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">let</span> prev_action = inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>];</span><br><span class="line">        *translated_refmut(token, old_action) = prev_action;</span><br><span class="line">        inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>] = *translated_ref(token, action);</span><br><span class="line">        <span class="number">0</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>sigreturn</code> is simple, because we only need to restore our backup one.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigreturn</span></span>() -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(task) = current_task() &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">        inner.handling_sig = -<span class="number">1</span>;</span><br><span class="line">        <span class="comment">// restore the trap context</span></span><br><span class="line">        <span class="keyword">let</span> trap_ctx = inner.get_trap_cx();</span><br><span class="line">        *trap_ctx = inner.trap_ctx_backup.unwrap();</span><br><span class="line">        <span class="number">0</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Phew! We finish our <strong>Signal</strong> mechanism!</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap8-1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +389,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:35" itemprop="dateModified" datetime="2025-05-23T06:52:35+00:00">2025-05-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -393,7 +518,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:35" itemprop="dateModified" datetime="2025-05-23T06:52:35+00:00">2025-05-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -536,7 +661,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:35" itemprop="dateModified" datetime="2025-05-23T06:52:35+00:00">2025-05-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -641,7 +766,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:36" itemprop="dateModified" datetime="2025-05-23T06:52:36+00:00">2025-05-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -699,6 +824,104 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/day-2/" class="post-title-link" itemprop="url">arceos-handnote-2</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-23 06:52:36" itemprop="dateModified" datetime="2025-05-23T06:52:36+00:00">2025-05-23</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Day-2"><a href="#Day-2" class="headerlink" title="Day-2"></a>Day-2</h2><h2 id="Paging"><a href="#Paging" class="headerlink" title="Paging"></a>Paging</h2><p>We delve into paging.</p>
+<h3 id="Example"><a href="#Example" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Physical address for pflash#1</span></span><br><span class="line"><span class="keyword">const</span> PFLASH_START: <span class="built_in">usize</span> = <span class="number">0x2200_0000</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">    <span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">    <span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Try to access dev region [&#123;:#X&#125;], got &#123;:#X&#125;"</span>, va, *ptr);</span><br><span class="line">        <span class="keyword">let</span> magic = mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr);</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;&#125;"</span>, <span class="built_in">str</span>::from_utf8(&amp;magic).unwrap());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>PFlash</strong> is the simulation of flash memory of qemu. When qemu boot, it will automatically load file to fixed <strong>MMIO</strong>, and can be directly accessed.</p>
+<p><strong>Paging</strong>: <code>feature = [&quot;paging&quot;]</code> is the way to evoke virtual memory management tu support <code>MMIO</code>. Located in <code>axruntime</code>.</p>
+<p>The workflow would be:</p>
+<ul>
+<li>qemu fdt: from <code>0x0c00_0000</code> to <code>0x3000_0000</code>. Construct the space of device.</li>
+<li>SBI: from <code>0x8000_0000</code> to <code>0x8020_0000</code>. RISC-V <strong>Supervisor Binary Interface</strong>, it construct a interface for programming language to manipulate device level things.</li>
+<li>Kernel Image: from <code>0x8020_0000</code>. <code>_skernel</code> contains S-level things like static data, code etc… <code>_ekernel</code> is user thing.</li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[link_section = <span class="meta-string">".data.boot_page_table"</span>]</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> BOOT_PT_SV39: [<span class="built_in">u64</span>; <span class="number">512</span>] = [<span class="number">0</span>; <span class="number">512</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_boot_page_table</span></span>() &#123;</span><br><span class="line">    <span class="comment">// 0x8000_0000..0xc000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">2</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">    <span class="comment">// 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">	<span class="comment">// shift 10 bits to store flags</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">0x102</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_mmu</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> page_table_root = BOOT_PT_SV39.as_ptr() <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    satp::set(satp::Mode::Sv39, <span class="number">0</span>, page_table_root &gt;&gt; <span class="number">12</span>);</span><br><span class="line">    riscv::asm::sfence_vma_all();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Each entry of page table will map 1G(<code>0x4000_0000</code>) memory. From <code>0x8000_0000</code> to <code>0xc0000_0000</code> at <code>pgd_idx = 2</code> to <code>0xffff_ffc0_8000_0000</code> to <code>0xffff_ffc0_c000_0000</code> at <code>pgd_idx = 102</code>. This will map to a bigger range.</p>
+<h2 id="Task"><a href="#Task" class="headerlink" title="Task"></a>Task</h2><h3 id="Example-1"><a href="#Example-1" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> worker = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">	<span class="built_in">println!</span>(<span class="string">"Spawned-thread ..."</span>);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">	<span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">	<span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">	<span class="keyword">let</span> magic = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">		mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr)</span><br><span class="line">	&#125;;</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Ok</span>(s) = <span class="built_in">str</span>::from_utf8(&amp;magic) &#123;</span><br><span class="line">		<span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;s&#125;"</span>);</span><br><span class="line">		<span class="number">0</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		-<span class="number">1</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>Each task will be in concurrency and dispatched by strategy. If it’s blocked, it will be moved to <code>wait_queue</code> to wait. If it’s ready, it will be moved to <code>run_queue</code> which is scheduler to be dispatched.</p>
+<h3 id="Message-Communication"><a href="#Message-Communication" class="headerlink" title="Message Communication"></a>Message Communication</h3><h3 id="Example-2"><a href="#Example-2" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> q1 = Arc::new(SpinNoIrq::new(VecDeque::new()));</span><br><span class="line"><span class="keyword">let</span> q2 = q1.clone();</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker1 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ..."</span>);</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..=LOOP_NUM &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"worker1 [&#123;i&#125;]"</span>);</span><br><span class="line">        q1.lock().push_back(i);</span><br><span class="line">        <span class="comment">// <span class="doctag">NOTE:</span> If worker1 doesn't yield, others have</span></span><br><span class="line">        <span class="comment">// no chance to run until it exits!</span></span><br><span class="line">        thread::yield_now();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ok!"</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker2 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ..."</span>);</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(num) = q2.lock().pop_front() &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2 [&#123;num&#125;]"</span>);</span><br><span class="line">            <span class="keyword">if</span> num == LOOP_NUM &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2: nothing to do!"</span>);</span><br><span class="line">            <span class="comment">// <span class="doctag">TODO:</span> it should sleep and wait for notify!</span></span><br><span class="line">            thread::yield_now();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ok!"</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>Cooperative Scheduling</strong>: Each tasks kindly yield themselves or exit otherwise it will block everyone because the power of CPU occupation is ownned by each tasks.</p>
+<p><strong>Preemptive Scheduling</strong>: Each tasks will be automatically suspended by external condition: No lock, no device access; inner condition: run out of current time slice. We can use a <code>disable_count</code> to record this, even for multiple condition restriction, we can sum them up.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">axhal::irq::register_handler(TIMER_IRQ_NUM, || &#123;</span><br><span class="line">    update_timer();</span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"multitask"</span>)]</span></span><br><span class="line">    axtask::on_timer_tick();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Enable IRQs before starting app</span></span><br><span class="line">axhal::arch::enable_irqs()</span><br></pre></td></tr></table></figure>
+
+<p><code>on_timer_tick</code> will be trigger in time slice. When time ticker ticks, <code>run_queue</code> will check and suspend task if possible.</p>
+<p>We can make it more dynamic. Which means each task has priority and during the implementation of cpu, each task has a <code>vruntime</code> to be dynamically adjusted by <code>init_vruntime + (delta/weight(nice))</code> where <code>delta</code> and <code>nice</code> are dynamic adjustment number. <code>delta</code> will be incremented by <code>timer</code>, <code>weight(nice)</code> is actually the priority of the task. We ensure that task with lowest <code>vruntime</code> will be placed at top.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -730,7 +953,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:36" itemprop="dateModified" datetime="2025-05-23T06:52:36+00:00">2025-05-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -832,7 +1055,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:36" itemprop="dateModified" datetime="2025-05-23T06:52:36+00:00">2025-05-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -891,104 +1114,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/27/day-2/" class="post-title-link" itemprop="url">arceos-handnote-2</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="Day-2"><a href="#Day-2" class="headerlink" title="Day-2"></a>Day-2</h2><h2 id="Paging"><a href="#Paging" class="headerlink" title="Paging"></a>Paging</h2><p>We delve into paging.</p>
-<h3 id="Example"><a href="#Example" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Physical address for pflash#1</span></span><br><span class="line"><span class="keyword">const</span> PFLASH_START: <span class="built_in">usize</span> = <span class="number">0x2200_0000</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">    <span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">    <span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Try to access dev region [&#123;:#X&#125;], got &#123;:#X&#125;"</span>, va, *ptr);</span><br><span class="line">        <span class="keyword">let</span> magic = mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr);</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;&#125;"</span>, <span class="built_in">str</span>::from_utf8(&amp;magic).unwrap());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><strong>PFlash</strong> is the simulation of flash memory of qemu. When qemu boot, it will automatically load file to fixed <strong>MMIO</strong>, and can be directly accessed.</p>
-<p><strong>Paging</strong>: <code>feature = [&quot;paging&quot;]</code> is the way to evoke virtual memory management tu support <code>MMIO</code>. Located in <code>axruntime</code>.</p>
-<p>The workflow would be:</p>
-<ul>
-<li>qemu fdt: from <code>0x0c00_0000</code> to <code>0x3000_0000</code>. Construct the space of device.</li>
-<li>SBI: from <code>0x8000_0000</code> to <code>0x8020_0000</code>. RISC-V <strong>Supervisor Binary Interface</strong>, it construct a interface for programming language to manipulate device level things.</li>
-<li>Kernel Image: from <code>0x8020_0000</code>. <code>_skernel</code> contains S-level things like static data, code etc… <code>_ekernel</code> is user thing.</li>
-</ul>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[link_section = <span class="meta-string">".data.boot_page_table"</span>]</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> BOOT_PT_SV39: [<span class="built_in">u64</span>; <span class="number">512</span>] = [<span class="number">0</span>; <span class="number">512</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_boot_page_table</span></span>() &#123;</span><br><span class="line">    <span class="comment">// 0x8000_0000..0xc000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">2</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">    <span class="comment">// 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">	<span class="comment">// shift 10 bits to store flags</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">0x102</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_mmu</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> page_table_root = BOOT_PT_SV39.as_ptr() <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    satp::set(satp::Mode::Sv39, <span class="number">0</span>, page_table_root &gt;&gt; <span class="number">12</span>);</span><br><span class="line">    riscv::asm::sfence_vma_all();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Each entry of page table will map 1G(<code>0x4000_0000</code>) memory. From <code>0x8000_0000</code> to <code>0xc0000_0000</code> at <code>pgd_idx = 2</code> to <code>0xffff_ffc0_8000_0000</code> to <code>0xffff_ffc0_c000_0000</code> at <code>pgd_idx = 102</code>. This will map to a bigger range.</p>
-<h2 id="Task"><a href="#Task" class="headerlink" title="Task"></a>Task</h2><h3 id="Example-1"><a href="#Example-1" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> worker = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">	<span class="built_in">println!</span>(<span class="string">"Spawned-thread ..."</span>);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">	<span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">	<span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">	<span class="keyword">let</span> magic = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">		mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr)</span><br><span class="line">	&#125;;</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Ok</span>(s) = <span class="built_in">str</span>::from_utf8(&amp;magic) &#123;</span><br><span class="line">		<span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;s&#125;"</span>);</span><br><span class="line">		<span class="number">0</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		-<span class="number">1</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<p>Each task will be in concurrency and dispatched by strategy. If it’s blocked, it will be moved to <code>wait_queue</code> to wait. If it’s ready, it will be moved to <code>run_queue</code> which is scheduler to be dispatched.</p>
-<h3 id="Message-Communication"><a href="#Message-Communication" class="headerlink" title="Message Communication"></a>Message Communication</h3><h3 id="Example-2"><a href="#Example-2" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> q1 = Arc::new(SpinNoIrq::new(VecDeque::new()));</span><br><span class="line"><span class="keyword">let</span> q2 = q1.clone();</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker1 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ..."</span>);</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..=LOOP_NUM &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"worker1 [&#123;i&#125;]"</span>);</span><br><span class="line">        q1.lock().push_back(i);</span><br><span class="line">        <span class="comment">// <span class="doctag">NOTE:</span> If worker1 doesn't yield, others have</span></span><br><span class="line">        <span class="comment">// no chance to run until it exits!</span></span><br><span class="line">        thread::yield_now();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ok!"</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker2 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ..."</span>);</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(num) = q2.lock().pop_front() &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2 [&#123;num&#125;]"</span>);</span><br><span class="line">            <span class="keyword">if</span> num == LOOP_NUM &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2: nothing to do!"</span>);</span><br><span class="line">            <span class="comment">// <span class="doctag">TODO:</span> it should sleep and wait for notify!</span></span><br><span class="line">            thread::yield_now();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ok!"</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<p><strong>Cooperative Scheduling</strong>: Each tasks kindly yield themselves or exit otherwise it will block everyone because the power of CPU occupation is ownned by each tasks.</p>
-<p><strong>Preemptive Scheduling</strong>: Each tasks will be automatically suspended by external condition: No lock, no device access; inner condition: run out of current time slice. We can use a <code>disable_count</code> to record this, even for multiple condition restriction, we can sum them up.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">axhal::irq::register_handler(TIMER_IRQ_NUM, || &#123;</span><br><span class="line">    update_timer();</span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"multitask"</span>)]</span></span><br><span class="line">    axtask::on_timer_tick();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Enable IRQs before starting app</span></span><br><span class="line">axhal::arch::enable_irqs()</span><br></pre></td></tr></table></figure>
-
-<p><code>on_timer_tick</code> will be trigger in time slice. When time ticker ticks, <code>run_queue</code> will check and suspend task if possible.</p>
-<p>We can make it more dynamic. Which means each task has priority and during the implementation of cpu, each task has a <code>vruntime</code> to be dynamically adjusted by <code>init_vruntime + (delta/weight(nice))</code> where <code>delta</code> and <code>nice</code> are dynamic adjustment number. <code>delta</code> will be incremented by <code>timer</code>, <code>weight(nice)</code> is actually the priority of the task. We ensure that task with lowest <code>vruntime</code> will be placed at top.</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A53%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%98%8E%E6%89%AC/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1020,7 +1145,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:35" itemprop="dateModified" datetime="2025-05-23T06:52:35+00:00">2025-05-23</time>
               </span>
 
           
@@ -1118,7 +1243,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
+                <time title="Modified: 2025-05-23 06:52:35" itemprop="dateModified" datetime="2025-05-23T06:52:35+00:00">2025-05-23</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1157,119 +1282,6 @@
 <p>实现时检查参数有效性，转换传进来的flags格式，获取当前任务的地址空间即可转换给定的虚拟地址为物理地址，使用mapalloc对内存大小完成映射，注意flag要加上USER，因为是要映射到用户空间。通过fd找到文件节点后直接读入到得到的物理内存处，完成映射。</p>
 <h2 id="4-16"><a href="#4-16" class="headerlink" title="4.16"></a>4.16</h2><p>虚拟化这个题，看过了视频后，有了老师给的提示还是非常容易的。虚拟机在执行到某个位置触发了系统异常，那肯定要在traphandler里找，返汇编后，看到有非该特权级的指令执行出发了异常指令，那就将pc指针步进继续执行，然后代替处理复制操作，后面的错误访问内存也一样，代替执行赋值后设置pc继续执行内核。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>三阶段做的这些题远远不够理解arceos，所以在做完后我确定在虚拟化上下功夫，仔细研究这一块的代码。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/" class="post-title-link" itemprop="url">2025OS训练营二阶段记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-25 17:21:55" itemprop="dateCreated datePublished" datetime="2025-04-25T17:21:55+00:00">2025-04-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-22 09:45:40" itemprop="dateModified" datetime="2025-05-22T09:45:40+00:00">2025-05-22</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2025OS训练营二阶段记录"><a href="#2025OS训练营二阶段记录" class="headerlink" title="2025OS训练营二阶段记录"></a>2025OS训练营二阶段记录</h1><h2 id="3-18-3-21"><a href="#3-18-3-21" class="headerlink" title="3.18-3.21"></a>3.18-3.21</h2><p>这段时间是在开营前，我在用rcorebook学习，这几天完成了ch1-ch3的学习。</p>
-<h3 id="ch1"><a href="#ch1" class="headerlink" title="ch1"></a>ch1</h3><p><strong>环境配置</strong>：我用的是ubuntu20.04，按照教程来配置还是相当容易的，没有碰到什么问题。</p>
-<p><strong>个人基础</strong>：我是在寒假接触自制操作系统的，看的一本书叫做《操作系统真象还原》，这本书用c语言和汇编实现了一个x86的32的操作系统。书的内容很多，对于基础盲区也讲解很全，作者从MBR到Bios、bootloader再到用显存来实现print，操作系统的必要组件。所以我学起来还没那么吃力。</p>
-<p>riscv我没有接触过，有一些x86的汇编先不系统学习还是可以看得懂的，毕竟rcore没有涉及太多汇编内容。</p>
-<p>rust的编译工具安装、编译方便在开始都让我非常惊喜。内核的第一条指令涉及到一个linker.ld，这个文件就是链接脚本，通过分析内容可以很容易理解程序的内存分布，首先是固定的内存入口，其次是 .data .bss .rodata等段的排布很清晰。</p>
-<p>简单学习了下gdb调试和远程连接，反编译反汇编工具。</p>
-<p>第一次接触rust的外部链接extern “C”，使用声明函数的方式来找到链接脚本确定的内存区域起始符号。</p>
-<p>rustsbi这个东西真的很方便，当然也是riscv架构的标准。像打印字符这种函数都实现在里面，要不然需要用汇编来自己实现。对sbi进行封装后很容易就能实现write函数和print宏。</p>
-<h3 id="ch2"><a href="#ch2" class="headerlink" title="ch2"></a>ch2</h3><p>这一章是写一个批处理系统，系统在运行前就明确了所有要运行的app，这些app都按顺序执行直到最后一道，然后系统panic结束。应用的内存地址都是在运行前要手动计算确定的。riscv架构从大到小分为0，1，2，3四个特权级，还提供了ecall，eret用来切换特权级。这个批处理系统分成了用户态和内核态，ecall就是用来从用户态进入内核态，eret用来返回用户态。ecall属于riscv规定的一种异常，而操作系统属于在riscv的s模式特权级，在用户态ecall就会触发陷入机制进入s模式特权级，用sret来返回u特权级。进入s模式后会调用二进制接口，也称为系统调用。</p>
-<p>系统调用的意义在于很多操作交给用户来做非常不安全，系统稳定性难以保证，所以需要划分出内核态用户态，内核根据需求做出安全的系统调用操作。</p>
-<p>程序的入口准确来说是_start就是linker里的start符号位置，这里我们不能使用原生架构编译工具，而是使用交叉工具链，所以rust std内容都用不了，main函数也不能完成作为程序入口的作用。在rust声明外部链接符号就要在link操作的宏。</p>
-<p>创建系统调用的触发接口，使用内敛汇编调用ecall传入系统调用号和参数，在操作系统就会捕捉异常，判断类型为ecall后根据对应系统调用号即可处理系统调用，完成系统调用后返回用户态。</p>
-<p>这里的测试没有实现具体的系统调用，而是用了linux相同的系统调用好在linux环境进行测试，测试正常。</p>
-<p>rcore写了build.rs用来构建linker.ld链接脚本，app需要使用路径方式进行导入，每个app的入口地址和执行顺序挂钩。使用的测试用例是在linux系统调用环境下编译的，编译的结果是elf的，需要使用工具来将elf转换成bin二进制文件。在设计上rcore创建了UnSafeCell用来在单核上可以安全使用全局可变借用。</p>
-<p>load_app根据固定的标号入口地址来从内存里找到app的代码段，加载到APP_BASE_ADDR，这个地址是个固定值。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">批处理操作系统为了建立好应用程序的执行环境，需要在执行应用程序之前进行一些初始化工作，并监控应用程序的执行，具体体现在：</span><br><span class="line">当启动应用程序的时候，需要初始化应用程序的用户态上下文，并能切换到用户态执行应用程序；</span><br><span class="line">当应用程序发起系统调用（即发出 Trap）之后，需要到批处理操作系统中进行处理；</span><br><span class="line">当应用程序执行出错的时候，需要到批处理操作系统中杀死该应用并加载运行下一个应用；</span><br><span class="line">当应用程序执行结束的时候，需要到批处理操作系统中加载运行下一个应用（实际上也是通过系统调用 sys_exit 来实现的）。</span><br><span class="line">这些处理都涉及到特权级切换，因此需要应用程序、操作系统和硬件一起协同，完成特权级切换机制。</span><br></pre></td></tr></table></figure>
-
-<p>系统调用和异常都涉及到了切换特权级，特权级的切换最重要的就是保存上下文。因为不管是trap还是异常都是停止执行当前的程序，转去执行系统调用或者异常处理，这时候就需要保存当前应用的寄存器环境，这个就是上下文，将这些寄存器按固定顺序保存到用户栈，在ret时再逆顺序恢复寄存器。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sstatus 的 SPP 字段会被修改为 CPU 当前的特权级（U&#x2F;S）。</span><br><span class="line">sepc 会被修改为 Trap 处理完成后默认会执行的下一条指令的地址。</span><br><span class="line">scause&#x2F;stval 分别会被修改成这次 Trap 的原因以及相关的附加信息。</span><br><span class="line">CPU 会跳转到 stvec 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后从Trap 处理入口地址处开始执行。</span><br></pre></td></tr></table></figure>
-
-<p>这些是riscv用到的硬件辅助寄存器。</p>
-<p>rcore使用汇编实现了alltrap和restore，用来保存和恢复寄存器，需要注意sp寄存器，sp寄存器的值用到sscratch，这个寄存器用来交换内核栈sp值，还要注意处理当前执行的位置。</p>
-<p>traphandler中根据scause的结果，对不同的异常进行处理，包括ecall，runnext等操作。</p>
-<h3 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h3><p>这一章要创建一个多道程序处理系统，需要实现分时调用就必须要将应用都加载到内存，这也意味着也要为当前每个应用都分配独立栈空间。所以不能像上节一样都加载到base地址，需要确保应用占用的空间不会重叠。切换任务必然也要保存上下文，与系统调用不同的是，任务切换的操作保存寄存器恢复寄存器都是在用户态。rcore根据sbi实现了gettime，设定计时器后，计时器到时触发异常，traphandler捕捉到后执行任务切换操作。</p>
-<p>任务切换最重要的是switch操作，在执行之前已经将下个任务的栈顶地址保存起来，保存当前寄存器环境后，导入下个任务的寄存器环境。yeild操作为计时器中断触发切换任务的系统调用。</p>
-<h2 id="3-24-3-25"><a href="#3-24-3-25" class="headerlink" title="3.24-3.25"></a>3.24-3.25</h2><p>关于trace的系统调用实现,需要判断request来实现不同功能. 在request为0时:需要将id转换成<em>const u8 再解引用,再转换为isize返回;在request为1时:要将id转换成</em>mut u8,再将data转换成u8,复制给id转换后指针的解引用,返回0;</p>
-<p>当request为2时: 想要获取每个任务的某个系统调用次数,并且考虑到批处理系统会进行任务切换,所以在切换到其他任务时也要保存着其他刮起的人物的调用次数,所以我就在syscall/mod.rs中实现了个全局变量SYSCALL_COUNT,类型为Mutex&lt;BTreeMap&lt;usize, BTreeMap&lt;usize, usize&gt;&gt;&gt;,Mutex包裹是因为他是全局变量(rust的要求? 按理说批处理单进程用不到锁,但是我编译没过就加上了.),外层BTree key为app_id,value为内层BTree,内层BTree为(sys_id, count).这样就可以通过app_id来得到所有系统调用的次数.syscall_count方法在syscall里用来计数,insert_syscall_count为当前任务初始化记录,已有记录则返回,delete_syscall_count在进程退出时删除记录,get_syscall_count就用来在sys_trace里获取当前任务的系统调用次数.</p>
-<h2 id="3-25-3-26"><a href="#3-25-3-26" class="headerlink" title="3.25-3.26"></a>3.25-3.26</h2><p>在sys_get_time和sys_trace实现最主要的是将虚拟地址转换成物理地址,因为内核不能访问应用的虚拟地址.sys_get_time首先获取应用虚拟页表,将ts转换成虚拟地址,记录偏移,通过页表转换后可以得到对应的物理页表项,将表项加上偏移就得到了对应ts的物理地址,然后转换成mut指针,将获取的timeval复制给该地址.判断跨页是要在ts地址上加上timeval长度得到截至地址,与start%Pagesize后判断是否相等,不相等则要处理跨页,还是计算出物理地址分别在对应部分拷贝该部分的数据.</p>
-<p> sys_trace相比上次只需要处理0,1的情况,要想办法通过虚拟地址读取或写入,同样转换为物理地址就可以将其转换成指针.在获取物理页表项时要注意判断页表项的有效性 可读性 可写性.</p>
-<p> mmap就是要为应用程序申请一块动态区域,这个就要在memset上处理,本来我是准备将内存加入areas的,但是在写unmap时判断vpn来删除有些困难,就考虑重新为mmap的内存重新建立映射结构.处理时就是要几个点注意,1:判断port是否全0或者无效位有非0, 2:判断start是否页表对齐,没有对齐就返回, 3:PTEFlags不仅要加上port的标志,还需要有效位V和用户位U, 4:计算虚拟页表起始地址,然后对每个页循环遍历, 5: 判断虚拟页表有效性,有效则返回(mapped), 6: 申请物理页建立映射.</p>
-<p> unmap要判断虚拟页表无效性,然后循环遍历每个vpn在虚拟页表中被unmap,并移除mmap_set对应项.</p>
-<h2 id="3-26-3-28"><a href="#3-26-3-28" class="headerlink" title="3.26-3.28"></a>3.26-3.28</h2><p>关于spawn,相比fork就是不要复制父进程的内存布局,将传进来的字符串指针转换成string,通过这个名字获取应用elf_data,后面就对TCB进行初始化,和TCB::new一样,注意三点,父进程设置为当前进程;将该进程加入父进程的child列表;将该进程加入运行队列.</p>
-<p> 关于stride,我定义了两个常量BASE_STRIDE=91,BIG_STRIDE=99991.在TCBinner里加入两个量:pass=0,prio=1,封装updatepass:</p>
-<p>pass += (BASE_STRIDE / prio) % BIG_STRIDE</p>
-<p>留出相关接口.再到run_task调用updatepass, 在fatch里对ready_queue取出最小pass的TCB.</p>
-<h2 id="3-28-3-30"><a href="#3-28-3-30" class="headerlink" title="3.28-3.30"></a>3.28-3.30</h2><p> 关于link，与linux的ln命令类似，对文件创建链接相当于在操作系统层面增加个INode，但是磁盘里共用统一片块，那相当于拥有相同的inode编号，我们先通过原文件名称获取编号，已知所有文件都在根目录。找到编号后就可以得到块位置id和offset，在创建inode时需要。接下来修改目录项，需要先扩展目录项的存储区域，后写入目录项。返回一个新的inode。</p>
-<p> 关于unlink，通过name找到根节点后计算目录项数目，循环读取根节点每个文件对比名称，找到index后，把末尾的目录项换到index处，减小目录大小。</p>
-<p> stat就连两个项需要获取，ino就是blockid，nlink需要通过块位置来对目录里所有文件的块位置进行比较，相同计数加1.在返回时我和gettime的处理一样，将虚拟地址转换成物理地址后再转换成可变指针，将stat结构体指针放进去。</p>
-<h2 id="3-30-4-3"><a href="#3-30-4-3" class="headerlink" title="3.30-4.3"></a>3.30-4.3</h2><p>这节还挺费劲的。刚开始看了很久没发现是银行家算法，不知道如何来抽象这些资源。</p>
-<p>首先就是清楚是要以每个进程为单位来进行资源管理，所以在pcb inner里添加了死锁检测模块。模块数据一维为线程tid，二维为资源rid，模块需要实现几个功能，isunsafe就是银行家算法用来查看当前状态是否安全，tryallocate在检查unsafe同时通过tid和rid处理减小available和need，增加allocation；setneed需要在设置资源前调用，在分配失败时会保留，在分配成功会减小。release在up时增加available和减小allocation；检测开关只需要设置enabled。在创建线程和创建资源时需要更新数据结构，在添加一个线程时会为二维结构添加资源数的全为0的向量，在添加mutex时avail则push 1，sem则push 初始化值。在down时首先判断是否打开了检测，打开了就首先setneed，然后判断unsafe如果不安全则直接返回dead，安全则尝试分配（会失败），然后调用down；up时判断检测打开之后就调用release，release判断了当前分配数是否为0。</p>
 
       
     </div>

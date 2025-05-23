@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="一阶段总结第一阶段主要是rustling，只需要应用Rust本身的设计理念来满足测试要求。整体难度不大，理解起来也比较顺利。 难点相比于语言本身，算法部分的挑战更大。虽然按照要求可以找到相应算法的描述，照着实现基本能完成任务，但有两个方面：  同类算法的取舍：平均复杂度同为O(n)的两种算法，在同一实际场景中的表现不同，我并不了解这些算法的最佳适用区间。 不同实现的差异：同一个算法，采用不同的数据">
+<meta property="og:type" content="article">
+<meta property="og:title" content="前三阶段总结-letttop">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/05/22/%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-letttop/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="一阶段总结第一阶段主要是rustling，只需要应用Rust本身的设计理念来满足测试要求。整体难度不大，理解起来也比较顺利。 难点相比于语言本身，算法部分的挑战更大。虽然按照要求可以找到相应算法的描述，照着实现基本能完成任务，但有两个方面：  同类算法的取舍：平均复杂度同为O(n)的两种算法，在同一实际场景中的表现不同，我并不了解这些算法的最佳适用区间。 不同实现的差异：同一个算法，采用不同的数据">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-05-22T23:32:44.000Z">
+<meta property="article:modified_time" content="2025-05-23T06:52:36.040Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:letttop">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;LearningOS&#x2F;2025s-arceos-letttop">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/05/22/%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-letttop/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>前三阶段总结-letttop | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#一阶段"><span class="nav-number">1.</span> <span class="nav-text">一阶段</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">1.1.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#难点"><span class="nav-number">1.2.</span> <span class="nav-text">难点</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#二阶段"><span class="nav-number">2.</span> <span class="nav-text">二阶段</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#总结-1"><span class="nav-number">2.1.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#难点-1"><span class="nav-number">2.2.</span> <span class="nav-text">难点</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#三阶段"><span class="nav-number">3.</span> <span class="nav-text">三阶段</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#总结-2"><span class="nav-number">3.1.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#难点-2"><span class="nav-number">3.2.</span> <span class="nav-text">难点</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#未尽"><span class="nav-number">4.</span> <span class="nav-text">未尽</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">694</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">50</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">605</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/22/%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-letttop/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          前三阶段总结-letttop
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-22 23:32:44" itemprop="dateCreated datePublished" datetime="2025-05-22T23:32:44+00:00">2025-05-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-23 06:52:36" itemprop="dateModified" datetime="2025-05-23T06:52:36+00:00">2025-05-23</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="一阶段"><a href="#一阶段" class="headerlink" title="一阶段"></a>一阶段</h1><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>第一阶段主要是rustling，只需要应用Rust本身的设计理念来满足测试要求。整体难度不大，理解起来也比较顺利。</p>
+<h2 id="难点"><a href="#难点" class="headerlink" title="难点"></a>难点</h2><p>相比于语言本身，算法部分的挑战更大。虽然按照要求可以找到相应算法的描述，照着实现基本能完成任务，但有两个方面：</p>
+<ol>
+<li><strong>同类算法的取舍</strong>：平均复杂度同为O(n)的两种算法，在同一实际场景中的表现不同，我并不了解这些算法的最佳适用区间。</li>
+<li><strong>不同实现的差异</strong>：同一个算法，采用不同的数据结构实现，所需的时间和空间开销也会不同。<h1 id="二阶段"><a href="#二阶段" class="headerlink" title="二阶段"></a>二阶段</h1><h2 id="总结-1"><a href="#总结-1" class="headerlink" title="总结"></a>总结</h2>第二阶段主要是对操作系统的认识。每个实验大致分为三步：</li>
+<li>阅读相关材料，了解操作系统的相关知识；</li>
+<li>梳理实验中涉及的类与函数的层级结构及其功能；</li>
+<li>编写实验代码，完成具体实现。<br>整体过程也比较顺利。<h2 id="难点-1"><a href="#难点-1" class="headerlink" title="难点"></a>难点</h2>二阶段对文件相关内容印象最深，文件系统这个从纯指针一步一步抽象到文件的过程，通过多个层级的抽象来提供简单的交互，通过各种锁和标记来管理权限和控制并发，让我对C的便利性、内存管理有了更深刻的理解。<h1 id="三阶段"><a href="#三阶段" class="headerlink" title="三阶段"></a>三阶段</h1><h2 id="总结-2"><a href="#总结-2" class="headerlink" title="总结"></a>总结</h2>三阶段有些难度，主要侧重于基于unikernel的模块化内核，不像二阶段那样深入去看代码，这就导致有些实验，虽然我知道应该怎么做，但是不知道我需要的函数在哪里，这也跟vscode工具不熟练有关；有的实验，我虽然知道怎么做，但是实现的位置不对，导致与其他实验冲突。<h2 id="难点-2"><a href="#难点-2" class="headerlink" title="难点"></a>难点</h2></li>
+<li>在rename里，由于入口时fs.root.rename，而在dirnode里只能通过parent查找父节点，通过children查找子节点，造成了根节点的识别与文件查找的差异，之后再看到rename的标注，仅能在同一mountpoint的文件系统内使用，才明白实验的ramfs就是在/tmp下，就是这么设计的。</li>
+<li>挑战题没有过线，tlsf实现后达到162。本来的计划是先实现一次tlsf，再优化。但是tlsf实现的工程量超出预期，本身的代码量就有很多，还有很多debug用的log和test，应该是我抽象的层级不够。<h1 id="未尽"><a href="#未尽" class="headerlink" title="未尽"></a>未尽</h1></li>
+<li>找到更好的代码分析方法，更好地梳理函数调用</li>
+<li>使用debug mode，目前都是通过log调试</li>
+<li>完成挑战题，重新设计一个内存分配方法</li>
+<li>最后两个视频未完成</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-letttop/" rel="tag"># author:letttop</a>
+              <a href="/blog/tags/repo-https-github-com-LearningOS-2025s-arceos-letttop/" rel="tag"># repo:https://github.com/LearningOS/2025s-arceos-letttop</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/22/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-elebirds/" rel="prev" title="2025春夏季开源操作系统训练营学习总结-elebirds">
+      <i class="fa fa-chevron-left"></i> 2025春夏季开源操作系统训练营学习总结-elebirds
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/23/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E7%9D%BF/" rel="next" title="2023开源操作系统训练营总结报告-周睿">
+      2023开源操作系统训练营总结报告-周睿 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
