@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">695</span>
+          <span class="site-state-item-count">696</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -329,6 +329,107 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025spring-rust-based-os-comp-stage3-report-loichyan/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/05/05/2025spring-rust-based-os-comp-stage3-report-loichyan/" class="post-title-link" itemprop="url">2025春夏季开源操作系统训练营第三阶段总结报告</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-05 20:31:32" itemprop="dateCreated datePublished" datetime="2025-05-05T20:31:32+00:00">2025-05-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h2><p>见 <a href="./2025spring-rust-based-os-comp-stage2-report-loichyan.md">2025spring-rust-based-os-comp-stage2-report-loichyan</a>．</p>
+<h2 id="主要收获"><a href="#主要收获" class="headerlink" title="主要收获"></a>主要收获</h2><h3 id="抢占式内核任务"><a href="#抢占式内核任务" class="headerlink" title="抢占式内核任务"></a>抢占式内核任务</h3><p>在<a href="./2025spring-rust-based-os-comp-stage2-report-loichyan.md">前文</a>中，构思了一种单内核栈的思路．但如果需要实现抢占式内核任务，仅凭单个内核栈是无法做到的——当某个内核任务被打断，需要保存完整的上下文，包括整个执行栈．因此，需要在单内核栈的基础上，增加动态分配的内核栈<a href="https://osdev.wiki/wiki/Thread" target="_blank" rel="noopener">^1</a>．具体而言，</p>
+<ol>
+<li>每个任务启动时从内核栈池中领取一个内核栈；</li>
+<li>如果该任务正常结束，归还内核栈；</li>
+<li>否则，该内核任务被打断（通常是时间片耗尽），将内核栈与上下文一并保存．</li>
+</ol>
+<p>这样便能按需使用多内核栈，以最大化利用单核栈带来的优势．</p>
+<h3 id="Rust-无栈协程模型"><a href="#Rust-无栈协程模型" class="headerlink" title="Rust 无栈协程模型"></a>Rust 无栈协程模型</h3><p>在 Rust 的异步模型中，编译器将每个异步函数转换为一个状态机<a href="https://rust-lang.github.io/async-book/04_pinning/01_chapter.html" target="_blank" rel="noopener">^2</a>，从而避免了任务挂起时对执行栈的保存（虽然加重了编译器的负担）．因此，Rust 无栈协程模型天然地适用于单内核栈的系统：</p>
+<ul>
+<li>多内核栈系统中，通过 IRQ<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter9/2device-driver-3.html" target="_blank" rel="noopener">^3</a> (Interrupt ReQuest) 机制等待 I/O 操作时，可以主动放弃执行权从而挂起当前任务，此时需要保存整个执行栈；</li>
+<li>而在单内核栈系统中，通过 IRQ 机制实现异步 I/O，<code>await</code> I/O 操作时，只需将当前任务加入 Executor 的等待队列即可．</li>
+</ul>
+<h3 id="Thread-per-core-模型"><a href="#Thread-per-core-模型" class="headerlink" title="Thread-per-core 模型"></a>Thread-per-core 模型</h3><p>在多核环境中，为了保证数据一致性，原子数据结构（如 <code>Arc</code>、<code>Atomic*</code> 等）和同步锁（如 <code>Mutex</code>、<code>RwLock</code> 等）是必不可少的．但除了文件系统读写等任务必须加锁以外，大部分任务都是在单核上处理的，此时对原子计数和同步原语的频繁读写就成了额外的负担．并且，主流异步运行时（如 Tokio、async-std 等）默认要求 <code>Future</code> 多线程安全，这使得编写异步函数没那么“愉快”，也是 Rust 异步体验被广为诟病的一点<a href="https://maciej.codes/2022-06-09-local-async.html" target="_blank" rel="noopener">^4</a>．Thread-per-core 模型<a href="https://without.boats/blog/thread-per-core/" target="_blank" rel="noopener">^5</a>便因此有了不少拥趸，例如 Glommio<a href="https://www.datadoghq.com/blog/engineering/introducing-glommio/" target="_blank" rel="noopener">^6</a> 是一个适用于 Linux 的 Thread-per-core 框架，它是以 io_uring<a href="https://en.wikipedia.org/wiki/Io_uring" target="_blank" rel="noopener">^7</a> 为基础构建的．</p>
+<p>之所以 Tokio 等运行时要求 <code>Future</code> 多线程安全，是因为它们使用了工作窃取的调度算法<a href="https://tokio.rs/blog/2019-10-scheduler" target="_blank" rel="noopener">^8</a>，即在线程 A 创建的任务可能被线程 B “偷走”来减少线程空闲．Linux 的任务调度算法也使用了工作窃取<a href="https://www.kernel.org/doc/html/v6.1/scheduler/sched-domains.html" target="_blank" rel="noopener">^9</a>．Thread-per-core 和工作窃取模型各有优劣<a href="https://without.boats/blog/thread-per-core/" target="_blank" rel="noopener">^5</a>：</p>
+<ul>
+<li>Thread-per-core 中，绝大部分数据结构都不必是线程安全的，避免了多线程同步带来的开销，同时也使得编写异步函数更为简便；</li>
+<li>Thread-per-core 中，任务基本上都是在单个 CPU 核心是执行的，减少了执行环境变更导致的高速缓存丢失；</li>
+<li>工作窃取中，空闲线程从忙碌线程中窃取任务，从而使得各核心之间负载均衡，能最大化利用多核资源；</li>
+<li>在实际应用场景中，通常不容易彻底区分 CPU 密集型和 I/O 密集型任务，因此工作窃取适用面更广泛．</li>
+</ul>
+<p>此外，从 Glommio 的介绍<a href="https://www.datadoghq.com/blog/engineering/introducing-glommio/" target="_blank" rel="noopener">^6</a>中不难看出，它很大程度上依赖于各任务之间的相互协作，即理想情况下，任务需要周期地归还执行权，来使得权重更高的任务优先执行．并且，在 Thread-per-core 模型中，为了充分利用各核心的执行资源，需要将 CPU 密集型和 I/O 密集型任务细致地划分给不同的核心，这无疑给开发维护带来了额外的心智负担．从这个角度来看，Thread-per-core 和工作窃取又分别类似于内核的协作式任务调度<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter3/3multiprogramming.html" target="_blank" rel="noopener">^10</a>和抢占式任务调度<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter3/4time-sharing-system.html" target="_blank" rel="noopener">^11</a>．前两者和后两者的不同之处在于：</p>
+<ul>
+<li>内核的任务调度算法主要面向于用户任务，它们所需要的资源通常是未知的，并且都希望能独占资源；</li>
+<li>而同一个应用程序中（内核本身也可以视为一个复杂的应用程序），各任务所需的资源通常有一个预期，因此，在理论上，通过最细致地划分可以让整个应用达到极致的性能．</li>
+</ul>
+<p>不过，综合考量各方面因素，还是工作窃取更适用，也更容易实现 :)</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>以上便是第三阶段的主要收获，接下来需要进一步研究 IRQ 机制与 Rust 异步的集成，以及 io_uring 模型的实现和应用，最终达成对 ArceOS 内核的异步化改造．</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E5%88%98%E8%BD%B6%E5%87%A1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -360,7 +461,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
 
           
@@ -430,7 +531,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
 
           
@@ -576,7 +677,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -762,7 +863,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
 
           
@@ -876,7 +977,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
 
           
@@ -1128,7 +1229,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
 
           
@@ -1242,7 +1343,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
 
           
@@ -1314,7 +1415,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
+                <time title="Modified: 2025-05-24 11:25:36" itemprop="dateModified" datetime="2025-05-24T11:25:36+00:00">2025-05-24</time>
               </span>
 
           
@@ -1330,158 +1431,6 @@
       
           <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>第二阶段的强度慢慢上来了，由于平时要上班和前期收不到短信验证码的问题,不能跟上每周的直播课，主要通过学习tutorial文档和课后看录频和课件的方式学习。本阶段对内存管理，进程管理和文件系统, 线程进行了系统的学习。特别是内存映射和文件系统章节，学习到很多。同时，随着代码量增大，学习的同时画UML图对理解代码和整个框架也很有帮助。</p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/01/Lfan-ke%EF%BC%9ARust%E8%A1%A5%E5%AE%8C%E8%AE%A1%E5%88%92/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/05/01/Lfan-ke%EF%BC%9ARust%E8%A1%A5%E5%AE%8C%E8%AE%A1%E5%88%92/" class="post-title-link" itemprop="url"><Rust补完计划></a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-01 12:00:28" itemprop="dateCreated datePublished" datetime="2025-05-01T12:00:28+00:00">2025-05-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-23 09:58:00" itemprop="dateModified" datetime="2025-05-23T09:58:00+00:00">2025-05-23</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/%E8%A1%A5%E5%AE%8C%E8%AE%A1%E5%88%92/" itemprop="url" rel="index"><span itemprop="name">补完计划</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="Rust补完计划"><a href="#Rust补完计划" class="headerlink" title="Rust补完计划"></a>Rust补完计划</h1><p>src：<a href="https://www.rust-lang.org/" target="_blank" rel="noopener">rust官网</a>，<a href="https://doc.rust-lang.org/std/index.html" target="_blank" rel="noopener">rust官文</a>，<a href="https://github.com/rust-lang/" target="_blank" rel="noopener">rust官仓</a>，<a href="crates.io">crates.io</a>，<a href="https://rustwiki.org/zh-CN/reference/items/associated-items.html" target="_blank" rel="noopener">rust-wiki</a>，<a href="https://course.rs/about-book.html" target="_blank" rel="noopener">卡狗圣经</a></p>
-<p>​    Rust可看作一个在语法层面（编译时）具有严格检查和限制的C语言上位。且扩展了面向对象的便捷方法绑定。编译和运行方式类似于C/C++，可以<code>rustc xxx.rs</code>编译，<code>./xxx</code>运行。有约定的项目目录格式，可使用<code>Cargo</code>配置<code>toml</code>进行包管理、编译、运行、测试等等。包资源网站为<code>CratesIO</code>，见<code>src↑</code>。不支持运算符重载，支持多态。其中语句为：<code>表达式+;</code>，语句的值是<code>()</code>。</p>
-<p>​    为了安全，几乎所有的方法/变量/属性都是私有的，除非使用<code>pub</code>进行显式公用声明。</p>
-<p>​    说到底，编程语言就是人类用来快速生成机器码以便于执行的模板引擎，有的语法层面(编译时/解释时)有强约束，有的仅仅是把特定字符串替换成另外的字符串或二进制，属于弱约束或者无约束。所有你在编程语言所看到的抽象，在机器码的层面本来就是一场幻月楼阁。比如你在编程语言层面，继承多态面向对象权限生命周期搞的花里胡哨的，但是在机器码看来，就仅仅是把PC变一下，或者某数据/指针变一下而已，你所关心的语法层面，语义特性，都是高层编译时/解释时的语法约束。这些约束让你写正确的高级语法的同时，最重要的是保证执行的结果符合预期。所以学底层的，一定要层层解耦，梳理层层抽象！</p>
-<h2 id="快速开始"><a href="#快速开始" class="headerlink" title="快速开始"></a>快速开始</h2><p>安装：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</span><br></pre></td></tr></table></figure>
-
-<p>推荐开发环境：</p>
-<blockquote>
-<p>VSCode + <a href="https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer" target="_blank" rel="noopener">rust-analyzer</a>，VIM，<a href="https://www.jetbrains.com/rust/" target="_blank" rel="noopener">RustRover</a></p>
-</blockquote>
-<p>见面礼：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.rs</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123; <span class="built_in">println!</span>(<span class="string">"hello world!"</span>) &#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rustc main.rs -o main &amp;&amp; ./main</span><br></pre></td></tr></table></figure>
-
-<p>使用包管理器：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">cargo new my_project_name	# 生成项目目录结构，包括&#96;toml&#96;、&#96;lock&#96;、&#96;src&#96;、&#96;test&#96;等等</span><br><span class="line">cargo build					# 编译后生成文件在&#96;target&#x2F;debug&#x2F;项目名&#96;下生成可执行文件，可选--release生成优化版本</span><br><span class="line">cargo run					# 仅run也会build</span><br><span class="line">cargo clean					# 清除target下编译后的文件</span><br><span class="line">cargo check					# 仅检查语法是否出错</span><br><span class="line"># 安装新的包，在Cargo.toml的依赖下配置：&#96;包名&#x3D;版本&#96;即可</span><br></pre></td></tr></table></figure>
-
-<p>包管理器代理：<code>vim ~/.cargo/config.toml</code></p>
-<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[source.crates-io]</span></span><br><span class="line"><span class="attr">replace-with</span> = <span class="string">'ustc'</span></span><br><span class="line"></span><br><span class="line"><span class="section">[source.ustc]</span></span><br><span class="line"><span class="attr">registry</span> = <span class="string">"sparse+https://mirrors.ustc.edu.cn/crates.io-index/"</span></span><br></pre></td></tr></table></figure>
-
-
-
-<h2 id="初次接触"><a href="#初次接触" class="headerlink" title="初次接触"></a>初次接触</h2><p>语法语义一览表：</p>
-<blockquote>
-<p>标识符：<code>^[a-Z0-9_][a-Z0-9_$]*</code> 其中，命名习惯为：<code>CONST_VAL</code>，<code>StructName</code>，<code>ImplName</code>，<code>method_name</code>，<code>val_name</code></p>
-<p>注释符：<code>// 单行注释</code>，<code>/* 多行注释 */</code>，<code>/// 文档注释，支持MD语法以及文档测试以及自动生成文档</code></p>
-<p>运算符：<code>+ - * / % += -= *= /= %= ! ~|&amp; ^ [] ; , &gt;&gt; &lt;&lt; == != &lt; &lt;= &gt; &gt;= &amp;&amp; ||</code></p>
-<p>变量声明：<code>const CONST_VAL: i32 = 123;</code> <code>static STATIC_VAL: u32 = 321;</code> <code>let emm = 233;</code> <code>let mut var = 0;</code></p>
-<p>类型别名：<code>type word = u64</code></p>
-<p>类型转换：<code>var as type_name</code> <code>type_name::from(var)</code></p>
-<p>分支：<code>if 条件必须是布尔值 { ... } else { ... }</code> <code>match obj { case xx =&gt; { ... }, _ =&gt; { ... } }</code></p>
-<p>循环：<code>loop { ... }</code> <code>for i in 0..10</code> <code>while n &lt; 233</code>，<code>break</code> <code>continue</code></p>
-<p>支持循环标签来跳出指定的循环：<code>tag1: loop { tag2: while true { break: tag1 } }</code></p>
-<p>函数格式：<code>fn add(a: i32, b: i32) -&gt; i32 { a + b }</code> 默认返回值是最后一条表达式的值，等同于：<code>return a+b;</code></p>
-<p>匿名函数：<code>|a: i32, b: i32| -&gt; i32 { a + b }</code> 如果只有一条执行语句，可以省略大括号</p>
-<p>类和对象：采用结构体<code>struct</code>(存数据)和特质<code>trait</code>(类似于抽象<code>interface</code>存方法)抽象，数据方法分离的思想</p>
-<p>方法多态：方法和数据的关系是多对多，支持采用数据/特质签名来访问匿去的数据/方法：<code>TraitA::fun1(&amp;obj)</code></p>
-<p>基本类型：i8 u8 i16 u16 … 有无符号+位数，str，bool，f64 … 同整型</p>
-<p>类型变体：<code>&amp;i32</code> - 不可变引用，<code>&amp;mut</code> - 可变引用，<code>*const</code> - 不可变裸指针，<code>*mut</code> - 可变裸指针</p>
-<p>容器类型：<code>[1, 2, 3]</code> - <code>Array</code> - 定长同类型，<code>(1, &quot;heke&quot;, 1228)</code> - <code>Tuple</code> - 定长不可变</p>
-<p>数据容器：<code>struct Person { age: u8; name: &amp;str; }</code> <code>struct Bag (i32, i32, u8)</code></p>
-<p>枚举类型：<code>enum State { StateA, StateB, State233=233, ,PA(ch) ... }</code> 详见特殊部分与模式匹配 <code>↓</code></p>
-<p>其他容器：<code>Vec</code>，<code>Deque</code>，<code>Queue</code>，<code>BTreeSet</code>，<code>BTreeMap</code> …</p>
-<p>导入管理：<code>mod package_emm;</code> <code>mod mode_name { fn emm() { ... } }</code> <code>use mode_name::emm;</code></p>
-<p>异步支持：<code>async</code>，<code>await</code>，<code>std::thread</code>，以及异步的通道和异步智能指针</p>
-</blockquote>
-<p>快速迁移（将采用Py作为对比语言）：</p>
-<hr>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">emm</span><span class="params">(a: int, b: int)</span> -&gt; float:</span></span><br><span class="line">    <span class="keyword">return</span> float(a) + b</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">emm</span></span>(a: <span class="built_in">i32</span>, b: <span class="built_in">i32</span>) -&gt; <span class="built_in">f64</span> &#123;</span><br><span class="line">    <span class="comment">// 运算块的值是最后一句表达式的值，所以不显示写return也可以，语句的值是()表示空！</span></span><br><span class="line">    a <span class="keyword">as</span> <span class="built_in">f64</span> + b    <span class="comment">// 或写为：`return a as f64 + b` 或 `return f64::from(a) + b;`</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<hr>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">emm</span><span class="params">(op)</span> -&gt; (int, str, int):</span></span><br><span class="line">    op</span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>, <span class="string">"heke"</span>, <span class="number">1228</span></span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">emm</span></span>(op) -&gt; (<span class="built_in">i32</span>, &amp;<span class="built_in">str</span>, <span class="built_in">i32</span>) &#123;  <span class="comment">// op会在编译时自动根据所调用时的类型生成对应类型标签的多态方法</span></span><br><span class="line">    op;</span><br><span class="line">    <span class="number">1</span>, <span class="string">"heke"</span>.as_str(), <span class="number">1228</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<hr>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">A</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, a: int, b: int, c: int)</span>:</span></span><br><span class="line">        self.a = a</span><br><span class="line">        self.b = b</span><br><span class="line">        self.c = c</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">method233</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.a += self.b</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">	obj = A(<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>)</span><br><span class="line">    obj.method233()</span><br><span class="line">    print(<span class="string">f"a: <span class="subst">&#123;obj.a&#125;</span>, b: <span class="subst">&#123;obj.b&#125;</span>"</span>)</span><br><span class="line">    print(<span class="string">"c: "</span>, obj.c)</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">A</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> a: <span class="built_in">i32</span>,</span><br><span class="line">    <span class="keyword">pub</span> b: <span class="built_in">i32</span>,</span><br><span class="line">    <span class="keyword">pub</span> c: <span class="built_in">i32</span>,</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">impl</span> A &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">method233</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">        <span class="keyword">self</span>.a += <span class="keyword">self</span>.b;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">None</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> obj = A &#123;a: <span class="number">1</span>, b: <span class="number">2</span>, c: <span class="number">3</span>&#125;;</span><br><span class="line">    obj.method233();</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"&#123;&#125;"</span>, <span class="built_in">format!</span>(<span class="string">"a: &#123;&#125;, b: &#123;&#125;"</span>, obj.a, obj.b));</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"c: &#123;&#125;"</span>, obj.c);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<hr>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># method.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">func</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
-
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># __init__.py</span></span><br><span class="line"><span class="keyword">from</span> method <span class="keyword">import</span> *		<span class="comment"># '0</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> method <span class="keyword">import</span> func		<span class="comment"># 语法多余，但是为了对比语法'1</span></span><br><span class="line"><span class="keyword">from</span> .method <span class="keyword">import</span> func	<span class="comment"># 语法多余，但是为了对比语法'2</span></span><br><span class="line">__all__ = [<span class="string">'func'</span>]			<span class="comment"># 'export</span></span><br><span class="line"></span><br><span class="line">func()</span><br><span class="line">method.func()</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// method.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">func</span></span>() &#123;</span><br><span class="line">    ;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// lib.rs / mod.rs</span></span><br><span class="line"><span class="keyword">mod</span> method;						<span class="comment">// '0</span></span><br><span class="line"><span class="keyword">use</span> method::*;					<span class="comment">// '0</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">use</span> method::func;			<span class="comment">// pub use使得导入此包的也可以被别的包从此包导入'1 'export</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">use</span> crate::method::func;	<span class="comment">// crate表示从包的根目录进行相对路径索引'2 'export</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 如果有main，则在main内：</span></span><br><span class="line">func();</span><br><span class="line">method::func();</span><br><span class="line">crate::method::func();</span><br></pre></td></tr></table></figure>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2025/05/01/Lfan-ke%EF%BC%9ARust%E8%A1%A5%E5%AE%8C%E8%AE%A1%E5%88%92/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 
