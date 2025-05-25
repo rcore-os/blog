@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="2025 春季开源操作系统训练营前三阶段总结报告学习背景在进行网络编程的时候，如果要提高程序的并发性能会用到 io 多路复用和协程，很多框架和语言都会有自己的实现，在逐渐深入的过程中，就会提出一些问题：  io 多路复用 select、epoll、io_uring 是如何做到可以提高并发性的 阻塞和非阻塞又是如何做到的 到底什么是同步什么是异步 协程底层是如何实现的  这些问题虽然网上有很多资料，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2025年春夏开源操作系统训练营三阶段总结-noah">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/05/25/2025s-os-camp-123-summary-noah/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="2025 春季开源操作系统训练营前三阶段总结报告学习背景在进行网络编程的时候，如果要提高程序的并发性能会用到 io 多路复用和协程，很多框架和语言都会有自己的实现，在逐渐深入的过程中，就会提出一些问题：  io 多路复用 select、epoll、io_uring 是如何做到可以提高并发性的 阻塞和非阻塞又是如何做到的 到底什么是同步什么是异步 协程底层是如何实现的  这些问题虽然网上有很多资料，">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-05-25T14:33:00.000Z">
+<meta property="article:modified_time" content="2025-05-25T07:47:43.034Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/05/25/2025s-os-camp-123-summary-noah/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2025年春夏开源操作系统训练营三阶段总结-noah | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#2025-春季开源操作系统训练营前三阶段总结报告"><span class="nav-number">1.</span> <span class="nav-text">2025 春季开源操作系统训练营前三阶段总结报告</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#学习背景"><span class="nav-number">1.1.</span> <span class="nav-text">学习背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#学习仓库"><span class="nav-number">1.2.</span> <span class="nav-text">学习仓库</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#各阶段学习内容总结"><span class="nav-number">1.3.</span> <span class="nav-text">各阶段学习内容总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#第一阶段-rustling"><span class="nav-number">1.3.1.</span> <span class="nav-text">第一阶段 rustling</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第二阶段-rcore"><span class="nav-number">1.3.2.</span> <span class="nav-text">第二阶段 rcore</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第三阶段-arceos"><span class="nav-number">1.3.3.</span> <span class="nav-text">第三阶段 arceos</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结学习方法"><span class="nav-number">1.4.</span> <span class="nav-text">总结学习方法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#渐进式的学习"><span class="nav-number">1.4.1.</span> <span class="nav-text">渐进式的学习</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#如何高效学习"><span class="nav-number">1.4.2.</span> <span class="nav-text">如何高效学习</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#遗憾之处"><span class="nav-number">1.5.</span> <span class="nav-text">遗憾之处</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">701</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">612</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/25/2025s-os-camp-123-summary-noah/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2025年春夏开源操作系统训练营三阶段总结-noah
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2025-05-25 14:33:00 / Modified: 07:47:43" itemprop="dateCreated datePublished" datetime="2025-05-25T14:33:00+00:00">2025-05-25</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="2025-春季开源操作系统训练营前三阶段总结报告"><a href="#2025-春季开源操作系统训练营前三阶段总结报告" class="headerlink" title="2025 春季开源操作系统训练营前三阶段总结报告"></a>2025 春季开源操作系统训练营前三阶段总结报告</h1><h2 id="学习背景"><a href="#学习背景" class="headerlink" title="学习背景"></a>学习背景</h2><p>在进行网络编程的时候，如果要提高程序的并发性能会用到 io 多路复用和协程，很多框架和语言都会有自己的实现，在逐渐深入的过程中，就会提出一些问题：</p>
+<ul>
+<li>io 多路复用 select、epoll、io_uring 是如何做到可以提高并发性的</li>
+<li>阻塞和非阻塞又是如何做到的</li>
+<li>到底什么是同步什么是异步</li>
+<li>协程底层是如何实现的</li>
+</ul>
+<p>这些问题虽然网上有很多资料，但如果自己不亲自去写一些 case 去验证，感觉是很难理解透彻的。而这些技术的实现都是直接或者间接的依赖操作系统才可以做到，也就是说要理解这些知识点，那就必须要学操作系统的知识。</p>
+<p>正好我也在模仿着想实现一个协程框架(有栈的)，发现要用到汇编知识，发现写操作系统也需要汇编知识，于是顺手查了下比较好的操作系统课程：</p>
+<ul>
+<li>南京大学的操作系统</li>
+<li>清华大学操作系统 - ucore &amp; rcore</li>
+<li>MIT xv6 操作系统</li>
+</ul>
+<p>在视频网站上看到有人分享参加了开源操作系统训练营，于是便在今年 1 月份就定计划要专供下操作系统的知识，来参与下开源操作系统训练营了，也算是补上十多年前没学好的专业课吧(出来混，早晚都要还的)</p>
+<p>另外，也想通过这次的学习，寻找一些志同道合的朋友，一起进步。</p>
+<h2 id="学习仓库"><a href="#学习仓库" class="headerlink" title="学习仓库"></a>学习仓库</h2><p>跟着老师和同学们一起学习用的代码仓库，里面包含了每次作业的提交内容</p>
+<ul>
+<li><a href="https://github.com/LearningOS/2025s-rustling-CreatorMetaSky" target="_blank" rel="noopener">rustling</a></li>
+<li><a href="https://github.com/LearningOS/2025s-rcore-CreatorMetaSky" target="_blank" rel="noopener">rcore</a></li>
+<li><a href="https://github.com/LearningOS/2025s-arceos-CreatorMetaSky" target="_blank" rel="noopener">ucore</a></li>
+<li><a href="https://github.com/osxspace/qhos" target="_blank" rel="noopener">qhos</a> - 记录了一些学习笔记 - 记录的有些凌乱</li>
+</ul>
+<h2 id="各阶段学习内容总结"><a href="#各阶段学习内容总结" class="headerlink" title="各阶段学习内容总结"></a>各阶段学习内容总结</h2><h3 id="第一阶段-rustling"><a href="#第一阶段-rustling" class="headerlink" title="第一阶段 rustling"></a>第一阶段 rustling</h3><p>rustling 很久之前曾经刷过一遍了，这次是温故知新，复习了以下知识点：</p>
+<ul>
+<li>rust 的基本语法</li>
+<li>模式匹配</li>
+<li>所有权转移</li>
+<li>容器智能指针</li>
+<li>包管理机制</li>
+<li>使用 async await</li>
+</ul>
+<h3 id="第二阶段-rcore"><a href="#第二阶段-rcore" class="headerlink" title="第二阶段 rcore"></a>第二阶段 rcore</h3><p>在学习 rCore 的过程中，首先通读了一遍 <a href="https://learningos.cn/rCore-Tutorial-Guide-2025S" target="_blank" rel="noopener">rCore-Tutorial-Guide</a>， 发现其中大部分章节只是罗列了代码的改动，对于基础知识原理，并没有过多的介绍。<br>又开始阅读学习 <a href="https://rcore-os.cn/rCore-Tutorial-Book-v3" target="_blank" rel="noopener">rCore-Book</a>，后续配合陈渝老师导学阶段的视频(2022年教学视频)，才逐渐走上了学习的正轨。学到了以下知识：</p>
+<p><strong>构建操作系统的步骤</strong></p>
+<ul>
+<li>env setup - 模拟器搭建裸机运行环境</li>
+<li>libos - 在内核上跑一个最简单的程序</li>
+<li>batchos - 支持批量运行多个程序 - 引入特权级机制</li>
+<li>taskos - 实现分时多任务执行</li>
+<li>asos - 地址空间以及映射</li>
+<li>pos - 进程 - 从 TCB 到 PCB 的进化</li>
+<li>fos - 支持文件系统 - 从文件读取程序执行</li>
+<li>ipcos - 进程间通信 - shell 的方式进行进程切换</li>
+<li>tcos - 线程、协程 - 进程对应资源，线程对应调度</li>
+</ul>
+<p><strong>操作系统内核核心组件</strong></p>
+<ul>
+<li>地址空间</li>
+<li>进程管理和切换</li>
+<li>文件系统</li>
+</ul>
+<p><strong>学到的具体知识点</strong></p>
+<ul>
+<li>程序的内存布局结构、如何通过 linker.ld 去修改程序布局</li>
+<li>页表机制以及虚拟地址到物理地址的映射方式</li>
+<li>进程的协作式调度和抢占式调度以及不同的调度算法的历史演进</li>
+<li>文件系统 inode 的结构组织方式，逐层递进的调用方式，为深入理解一切皆 io 打下基础</li>
+<li>从进程发展的角度去理解 fork exec spawn</li>
+<li>进程间通信 pipe 和 shell</li>
+<li>从操作系统源码层面深入的理解进程、线程、绿色线程以及它们的异同</li>
+<li>理解互斥、同步的概念，锁、信号量、条件变量</li>
+</ul>
+<p><strong>帮助理解的知识点</strong></p>
+<ul>
+<li>操作系统的启动流程</li>
+<li>中断和崩溃信号量机制的实现</li>
+<li>内存分配和管理机制</li>
+<li>IO 多路复用技术</li>
+<li>协程以及调度实现</li>
+<li>各种锁的实现原理</li>
+<li>RingBuffer</li>
+<li>LRU</li>
+</ul>
+<p>通过上述知识的学习，终于明白了操作系统是为上层应用开发提供硬件抽象的一种系统软件实现这句话，也为我揭开了操作系统的神秘面纱</p>
+<h3 id="第三阶段-arceos"><a href="#第三阶段-arceos" class="headerlink" title="第三阶段 arceos"></a>第三阶段 arceos</h3><p>arceos 这部分主要是把老师的上课视频给走了一遍，个人理解就是把 rCore 中的各部分代码用 rust 的包管理机制打散，最终做到通过拼装组件就可以形成操作系统的效果，类似应用开发中的模块化和组件化。</p>
+<p><strong>学到的知识点</strong></p>
+<ul>
+<li>unikernel 调用流程，如何从应用层通过系统调用调用内核的实现</li>
+<li>如何拼装新的模块到 unikernel 中</li>
+<li>理解 unikernel 到 宏内核的转变过程 - 解决特权级切换(用户态到内核态的切换)、地址空间的问题是关键</li>
+<li>能够运行标准 linux 二进制 - 这块还是挺感兴趣的</li>
+<li>hypervisor 这块牵扯到在虚拟环境中运行 rCore 操作系统 - 个人理解相当于在操作系统中再次嵌套操作系统 - 学的有点吃力了</li>
+</ul>
+<h2 id="总结学习方法"><a href="#总结学习方法" class="headerlink" title="总结学习方法"></a>总结学习方法</h2><h3 id="渐进式的学习"><a href="#渐进式的学习" class="headerlink" title="渐进式的学习"></a>渐进式的学习</h3><ul>
+<li>what - 某个技术是什么，有个初步的认识</li>
+<li>when - 什么时候用，在什么情况下或者说上下文下使用这种技术</li>
+<li>how - 如何用这种技术，如何写代码</li>
+<li>why - 为什么要用，为什么要使用这种技术</li>
+<li>build - 内部是如何实现的，自己写一个</li>
+</ul>
+<h3 id="如何高效学习"><a href="#如何高效学习" class="headerlink" title="如何高效学习"></a>如何高效学习</h3><p>就像面试自己一样，不断地向自己提问题是最好的学习方式，这样才能加深理解，才算是真正理解</p>
+<h2 id="遗憾之处"><a href="#遗憾之处" class="headerlink" title="遗憾之处"></a>遗憾之处</h2><ol>
+<li>时间上的原因，并没有把自己提问的问题以及理解，全部深入的汇总出来</li>
+<li>我们目前是学的 Risc-V 架构的操作系统，但是目前 x86 架构依然是主流，之前 uCore 的操作系统实现就是基于 x86 的，后续还要学习下 uCore 的实现。</li>
+<li>在参加这次训练营的过程中，只是走马观花的看和了解了一些基础知识和概念，虽然也做了课后作业，但是跟自己实际上手去实现还是差着十万八千里，对于一些用到的库，基本都是拿来主义，也没有深入的去探索其内部的实现原理，如：内存分配算法，进程调度算法、rust-sbi，希望自己以后还是能脚踏实地的从头跟着 rCore-Book 手搓一个真正自己的操作系统。</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/25/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/" rel="prev" title="第二阶段rcore学习心得-胡旭">
+      <i class="fa fa-chevron-left"></i> 第二阶段rcore学习心得-胡旭
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

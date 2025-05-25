@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">700</span>
+          <span class="site-state-item-count">701</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,90 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/05/%E5%B0%9A%E4%B9%A6%E7%9A%84rcore%E6%8B%BE%E9%81%97-%E9%98%B6%E6%AE%B53/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/05/%E5%B0%9A%E4%B9%A6%E7%9A%84rcore%E6%8B%BE%E9%81%97-%E9%98%B6%E6%AE%B53/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结报告-zerich</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-05 21:27:01" itemprop="dateCreated datePublished" datetime="2024-12-05T21:27:01+00:00">2024-12-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-25 07:47:43" itemprop="dateModified" datetime="2025-05-25T07:47:43+00:00">2025-05-25</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>第三阶段和第二阶段相比明显更加<strong>基础</strong>，虽然有一些第二阶段涉及过的内容，例如任务切换，地址空间等等，但是第三阶段重点在于ArceOS和组件化操作系统，强调了如何从裸机（或者qemu）上通过各层模块的调用实现一个完整的操作系统。</p>
+<h2 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h2><p>第一周的课程围绕着unikernel展开，讲解了使用各个组件来实现一个unikernel。包括内存分配，地址空间，任务与运行队列，调度，块设备驱动和文件系统。</p>
+<p>以实验1为例，要求修改println的输出颜色。</p>
+<p>不难发现println!基于ulib调用arceos_api,实现输出流调用抽象层axhal中的console::write_bytes进行不同platform的putchar()来操作sbi。所以在ulib处或者axhal处使用ANSI escape codes都可以起到目标的效果，并且在ulib处只作用于println!,而在axhal处作用于启动后的所有输出。</p>
+<p>tour2同理，找到调用的modules/axalloc模块，发现其cargo.toml默认为未实现的lab，进行修改即可。</p>
+<p>就这样，我们通过config，可以在rust便捷构建unikernel组件。接着的课程继续处理调度，总线，文件系统等来构建一个完整的unikernel。</p>
+<h2 id="Monolithic"><a href="#Monolithic" class="headerlink" title="Monolithic"></a>Monolithic</h2><p>接下来的课程带领我们从unikernel跨到宏内核，主要任务在于用户空间和内核空间的切换。</p>
+<p>从Unikernel基础到目标最小化宏内核需要完成的增量工作：</p>
+<ol>
+<li>用户地址空间的创建和区域映射</li>
+<li>在异常中断响应的基础上增加系统调用</li>
+<li>复用Unikernel原来的调度机制，针对宏内核扩展Task属性</li>
+<li>在内核与用户两个特权级之间的切换机制</li>
+</ol>
+<p>我了解了riscv下进入用户态的伪造现场机制，剩下的内容就是处理好用户态的地址空间，实现musl工具链。</p>
+<p>这部分很有意思的内容有一个关于异构内核的讨论，也就是说实现异构内核的Task结构体来记录任务信息，但是在异构核上不同的task需要记录的信息是不一样的。</p>
+<p>如果在task结构体上直接通过编译选项控制的话，不利于扩展性，使用基础属性和额外属性的关联索引则需要查找开销，所以引入类似TLS的指针扩展机制是一个折中的方案。</p>
+<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>第三周的内容就是关于RISCV的虚拟化了，虽然在之前了解过虚拟化的大致原理，但是深入了解RISCV硬件支持的hs和vs寄存器组和sv39的页表扩展，仍然感到这样的设计之精妙。</p>
+<p>课程详细讲解了hyperv上抽象的VCPU结构体和如何实现VM_entry,VM_exit，接下来再介绍包括透传，中断等其他事项的处理。</p>
+<h2 id="End"><a href="#End" class="headerlink" title="End"></a>End</h2><p>受限于课业忙碌，笔者并没有对挑战任务做出贡献，也缺少对arceos的深入了解，但是课程提纲挈领的讲解令我收获良多。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/05/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E9%B8%BF%E9%92%A7%20/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +348,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:43" itemprop="dateModified" datetime="2025-05-25T07:47:43+00:00">2025-05-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -361,7 +445,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:42" itemprop="dateModified" datetime="2025-05-25T07:47:42+00:00">2025-05-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -521,7 +605,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:42" itemprop="dateModified" datetime="2025-05-25T07:47:42+00:00">2025-05-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -775,7 +859,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:42" itemprop="dateModified" datetime="2025-05-25T07:47:42+00:00">2025-05-25</time>
               </span>
 
           
@@ -840,7 +924,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:42" itemprop="dateModified" datetime="2025-05-25T07:47:42+00:00">2025-05-25</time>
               </span>
 
           
@@ -917,7 +1001,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:42" itemprop="dateModified" datetime="2025-05-25T07:47:42+00:00">2025-05-25</time>
               </span>
 
           
@@ -1010,7 +1094,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:43" itemprop="dateModified" datetime="2025-05-25T07:47:43+00:00">2025-05-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1089,7 +1173,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:42" itemprop="dateModified" datetime="2025-05-25T07:47:42+00:00">2025-05-25</time>
               </span>
 
           
@@ -1160,7 +1244,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-25 07:47:42" itemprop="dateModified" datetime="2025-05-25T07:47:42+00:00">2025-05-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1199,168 +1283,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/02/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yck/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/02/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yck/" class="post-title-link" itemprop="url">2024-秋冬季开源操作系统训练营第三阶段总结-yck</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-02 02:00:28" itemprop="dateCreated datePublished" datetime="2024-12-02T02:00:28+00:00">2024-12-02</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 02:51:47" itemprop="dateModified" datetime="2025-05-25T02:51:47+00:00">2025-05-25</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="Areos引导机制"><a href="#Areos引导机制" class="headerlink" title="Areos引导机制"></a>Areos引导机制</h1><ul>
-<li>首先进入<code>axhal</code>中平台架构的boot程序的<code>_start</code>函数，参数为OpenSBI传入的两个参数，一个是<code>hartid</code>用于识别CPU，一个是<code>dtb_ptr</code>传入DTB的指针。</li>
-<li>然后会建立栈用于函数调用，准备页表启动MMU分页机制，后即可进入Rust。</li>
-</ul>
-<p>然后进入axruntime初始化应用运行时的环境，即根据feature条件编译各组件框架</p>
-<h1 id="启用页表机制"><a href="#启用页表机制" class="headerlink" title="启用页表机制"></a>启用页表机制</h1><p>SBI配置FW_TEXT_START，BIOS负责把SBI加载到内存的起始位置</p>
-<p>0x8000 0000存放SBI，SBI会跳转到以0x8020 0000起始的内核代码，存放.bss、.data、.rodata、.text段。</p>
-<p>axhal中的linker_riscv64-qemu-virt.lds指导rust的链接器来实现段布局</p>
-<p>一阶段：即上面提到<code>_start</code>函数中的初始化MMU，将物理地址空间<strong>恒等映射</strong>，再添偏移量。</p>
-<p>二阶段：重建映射，一阶段的映射并<strong>没有添加权限</strong>进行管理。若启用”paging”的feature，首先会调用axmm中的<code>init_memory_management()</code>，进行创建内核空间(<code>new_kernel_aspace()</code>)，将根页表地址写入stap寄存器(<code>axhal::paging::set_kernel_page_table_root</code>)。</p>
-<h1 id="多任务"><a href="#多任务" class="headerlink" title="多任务"></a>多任务</h1><p>启用”multitask”的feature，执行<code>axtask::init_scheduler()</code>,会进行就绪队列的初始化，以及系统timers的初始化。</p>
-<ul>
-<li>就绪队列的初始化：初始化系统任务idle、main、gc<ul>
-<li>main为主任务，其他任务均为其子任务</li>
-<li>idle，其他任务都阻塞时会执行它</li>
-<li>gc，除main之外的任务退出后，将由gc负责回收清理</li>
-</ul>
-</li>
-</ul>
-<h2 id="调度算法"><a href="#调度算法" class="headerlink" title="调度算法"></a>调度算法</h2><h3 id="CFS"><a href="#CFS" class="headerlink" title="CFS"></a>CFS</h3><p>“init_vruntime”在os启动调度的时候决定调度顺序，”nice”则是优先级，优先级越大”vruntime”增长越慢，从而达到高优先。</p>
-<p>当时间片结束后，当前任务将被为设为可抢占，当前任务释放控制权，加入就绪队列。并且如果外部条件满足抢占，则会将就绪队列中的队首弹出并切换到该任务</p>
-<h1 id="宏内核"><a href="#宏内核" class="headerlink" title="宏内核"></a>宏内核</h1><h3 id="m-1-0启动"><a href="#m-1-0启动" class="headerlink" title="m_1_0启动"></a>m_1_0启动</h3><ul>
-<li>首先为应用创建独立的用户地址空间。</li>
-</ul>
-<p><code>axmm::new_user_aspace</code></p>
-<ul>
-<li>将应用程序代码加载到地址空间。</li>
-</ul>
-<p><code>load_user_app</code></p>
-<ul>
-<li>初始化用户栈</li>
-</ul>
-<p><code>init_user_stack</code></p>
-<ul>
-<li>spawn创建用户任务，以用户地址空间及应用入口、用户栈为参数</li>
-</ul>
-<p><code>task::spawn_user_task</code></p>
-<ul>
-<li>当前任务释放CPU，使用户任务运行</li>
-</ul>
-<p><code>user_task.join</code></p>
-<h3 id="用户空间"><a href="#用户空间" class="headerlink" title="用户空间"></a>用户空间</h3><p>页表管理内核地址空间和用户地址空间</p>
-<p>内核地址空间只有高端（高地址）存放内核代码数据</p>
-<p>用户地址空间高端存放内核，但这部分的页表项设为用户不可见，只有陷入内核态之后才能访问。低端地址存放应用</p>
-<p>每个用户地址空间高端的内核均相同，只有存放应用的区域不同</p>
-<p>地址空间后端Backend：</p>
-<p>Linear：目标物理地址空间已经存在，直接建立映射关系，物理页帧必须连续</p>
-<p>Alloc：仅建立空映射，当真正被访问时将会触发缺页异常，然后在缺页响应函数内部完成物理页帧的申请和补齐映射，也就是Lazy方式。物理页帧通常情况下不连续</p>
-<h3 id="ELF格式应用加载"><a href="#ELF格式应用加载" class="headerlink" title="ELF格式应用加载"></a>ELF格式应用加载</h3><p>代码段加载无偏移。</p>
-<p>数据段加载到虚拟地址空间分为.data、.bss。但.bss在ELF文件中为节省空间紧凑存储不做存放，仅做标记位置和长度。内核直接预留空间并清零</p>
-<h3 id="缺页异常"><a href="#缺页异常" class="headerlink" title="缺页异常"></a>缺页异常</h3><p>当发生缺页异常时，由aspace的<code>handle_page_fault</code>来完成对物理页帧的申请与映射</p>
-<p>首先检查发生页面错误的虚拟地址 <code>vaddr</code> 是否在当前虚拟地址范围 <code>va_range</code> 内。</p>
-<p>然后找到<code>vaddr</code>的区域area，进入area的后端，缺页异常通常由后端Alloc的Lazy策略造成，故进入Alloc分支调用<code>handle_page_fault_alloc</code>对页表<code>remap</code>完成页表映射</p>
-<h1 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h1><p>虚拟化基于RISCV64的S特权级的H扩展，Host将在HS特权级下进行<code>VM_ENTRY</code>以及<code>VM_EXIT</code></p>
-<p>S特权模式进行H扩展后，原有的s[xxx]寄存器组作用不变，将新增hs[xxx]和vs[xxx]</p>
-<ul>
-<li>hs[xxx]寄存器组的作用：面向Guest进行路径控制</li>
-<li>vs[xxx]寄存器组的作用：直接操纵Guset域中的VS，为其准备或设置状态</li>
-</ul>
-<p>设置hstatus的SPV位（指示特权级模式的来源，1为VS，0为U）SPVP位（指示HS对V模式下地址空间是否由操作权限）</p>
-<p>启动Guest之前，设置Guest的sstatus，设置初始特权级为Supervisor</p>
-<p>设置sepc为OS启动入口地址VM_ENTRY，地址为0x8020 0000</p>
-<p>run_guest切换：保存Host上下文，将Guest上下文（第一次切换为伪造的上下文）载入寄存器组</p>
-<p>VM_EXIT返回Host：保存Guest上下文，将Host上下文载入寄存器组</p>
-<h3 id="Guest和Host地址空间"><a href="#Guest和Host地址空间" class="headerlink" title="Guest和Host地址空间"></a>Guest和Host地址空间</h3><p>Hypervisor负责基于Host物理地址空间HPA面向Guest映射Guest物理地址空间GPA</p>
-<p>Guest会认为GPA是实际的物理地址空间，它基于satp映射内部的GVA虚拟空间</p>
-<p>启用RISC64指令集的G扩展：</p>
-<ul>
-<li>引入vsatp用于第一阶段的页表翻译，即将Guest的虚拟地址空间映射为Guest的物理地址空间</li>
-<li>引入hgatp用于第二阶段的页表翻译，即将Guest的物理地址空间映射到Host的物理地址空间</li>
-</ul>
-<h3 id="虚拟机物理地址空间布局"><a href="#虚拟机物理地址空间布局" class="headerlink" title="虚拟机物理地址空间布局"></a>虚拟机物理地址空间布局</h3><p>低端区域留给设备空间和DMA</p>
-<p>0x8000 0000在Host中是存放SBI的，但是虚拟机没有M模式，是无法访问SBI，所以这部分进行保留</p>
-<p>0x8020 0000存放内核</p>
-<p>高于内核的地址用作物理内存区</p>
-<h3 id="Hypervisor主逻辑"><a href="#Hypervisor主逻辑" class="headerlink" title="Hypervisor主逻辑"></a>Hypervisor主逻辑</h3><ul>
-<li>准备VM的资源：VM地址空间和单个vCPU</li>
-<li>切换到进入Guest的代码</li>
-<li>响应VM_EXIT各种原因的代码</li>
-</ul>
-<p>实现流程：</p>
-<ol>
-<li>创建地址空间        为目标虚拟机创建物理地址空间                       axmm</li>
-<li>建立区域布局        在地址空间中为Guest内核和设备建立区域     axmm</li>
-<li>加载内核                把Guest内核Image加载到内核区域                 axmm, axfs</li>
-<li>初始化vCPU          把vCPU的启动入口设置为Guest内核入口，同时设置EPT页表地址 </li>
-</ol>
-<p>最后在Host和Guest环境循环切换，支持虚拟机持续运行</p>
-<p>VCPU的准备：</p>
-<ul>
-<li>通过<code>set_entry（VM_ENTRY）</code>设置sepc来配置入口地址0x8020 0000</li>
-<li>通过<code>set_ept_root</code>向hgatp设置模式（SV39）和根页表的页帧</li>
-</ul>
-<h3 id="axruntime和axhal时钟中断处理"><a href="#axruntime和axhal时钟中断处理" class="headerlink" title="axruntime和axhal时钟中断处理"></a>axruntime和axhal时钟中断处理</h3><p><code>axhal::irq::register_handler</code> 通过<code>update_timer</code>在中断向量表中注册对应的中断响应函数，更新时钟。然后<code>axtask::on_timer_tick()</code>触发定时任务</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/14/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/14/">14</a><span class="page-number current">15</span><a class="page-number" href="/blog/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/70/">70</a><a class="extend next" rel="next" href="/blog/page/16/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/14/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/14/">14</a><span class="page-number current">15</span><a class="page-number" href="/blog/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/71/">71</a><a class="extend next" rel="next" href="/blog/page/16/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
