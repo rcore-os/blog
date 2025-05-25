@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="rustling 阶段总结先来一份 C++ 转 Rust 急救指南（ &#x2F; Mutable Borrow &amp; take ownershiprust 中函数传递参数有三种方式，不可变借用，可变借用以及获取所有权。这三种方式贯穿了 rust 的设计思想。它们的定义对应了 &amp;T, &amp;mut T, T 三种类型。与 C++ 不同，rust 中值传递的默认行为是 move 而非 cop">
+<meta property="og:type" content="article">
+<meta property="og:title" content="rcore-study-report-by-mio">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/05/24/rcore-study-report-by-mio/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="rustling 阶段总结先来一份 C++ 转 Rust 急救指南（ &#x2F; Mutable Borrow &amp; take ownershiprust 中函数传递参数有三种方式，不可变借用，可变借用以及获取所有权。这三种方式贯穿了 rust 的设计思想。它们的定义对应了 &amp;T, &amp;mut T, T 三种类型。与 C++ 不同，rust 中值传递的默认行为是 move 而非 cop">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-05-24T23:48:45.000Z">
+<meta property="article:modified_time" content="2025-05-25T07:51:46.812Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="rcore-lab">
+<meta property="article:tag" content="[object Object]">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/05/24/rcore-study-report-by-mio/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>rcore-study-report-by-mio | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#rustling-阶段总结"><span class="nav-number">1.</span> <span class="nav-text">rustling 阶段总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Mutable-Borrow-amp-take-ownership"><span class="nav-number">1.1.</span> <span class="nav-text">&#x2F; Mutable Borrow &amp; take ownership</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Borrow-amp"><span class="nav-number">1.2.</span> <span class="nav-text">Borrow &amp;</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Iterator"><span class="nav-number">1.3.</span> <span class="nav-text">Iterator</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Index"><span class="nav-number">1.4.</span> <span class="nav-text">Index</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Deref"><span class="nav-number">1.5.</span> <span class="nav-text">Deref</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Drop"><span class="nav-number">1.6.</span> <span class="nav-text">Drop</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RefCell"><span class="nav-number">1.7.</span> <span class="nav-text">RefCell</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Lifetime"><span class="nav-number">1.8.</span> <span class="nav-text">Lifetime</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Non-Lexical-Lifetime"><span class="nav-number">1.9.</span> <span class="nav-text">Non-Lexical Lifetime</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Copy-amp-Clone"><span class="nav-number">1.10.</span> <span class="nav-text">Copy &amp; Clone</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rcore-阶段总结"><span class="nav-number">2.</span> <span class="nav-text">rcore 阶段总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#arceos-阶段总结"><span class="nav-number">3.</span> <span class="nav-text">arceos 阶段总结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">703</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">614</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/24/rcore-study-report-by-mio/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          rcore-study-report-by-mio
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-24 23:48:45" itemprop="dateCreated datePublished" datetime="2025-05-24T23:48:45+00:00">2025-05-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-25 07:51:46" itemprop="dateModified" datetime="2025-05-25T07:51:46+00:00">2025-05-25</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="rustling-阶段总结"><a href="#rustling-阶段总结" class="headerlink" title="rustling 阶段总结"></a>rustling 阶段总结</h2><p>先来一份 C++ 转 Rust 急救指南（</p>
+<h3 id="Mutable-Borrow-amp-take-ownership"><a href="#Mutable-Borrow-amp-take-ownership" class="headerlink" title="/ Mutable Borrow &amp; take ownership"></a>/ Mutable Borrow &amp; take ownership</h3><p>rust 中函数传递参数有三种方式，不可变借用，可变借用以及获取所有权。这三种方式贯穿了 rust 的设计思想。<br>它们的定义对应了 <code>&amp;T, &amp;mut T, T</code> 三种类型。与 C++ 不同，rust 中值传递的默认行为是 <code>move</code> 而非 <code>copy</code>，对于 <code>copy</code> 需要实现 <code>Copy</code> 的 trait。 且类型一旦实现 <code>Copy</code> trait 之后，默认行为就变为 <code>copy</code>。</p>
+<h3 id="Borrow-amp"><a href="#Borrow-amp" class="headerlink" title="Borrow &amp;"></a>Borrow &amp;</h3><p>rust 中的 <code>&amp;T</code> 应等同于 C++ 中的指针，只是 rust 对于 <code>&amp;T</code> 实现了隐式 <code>Deref</code>，在大部分情况下避免了显式 <code>* / &amp;</code>。<br>迭代器有三种类型：<code>iter(), iter_mut(), into_iter()</code>，分别对应了 <code>&amp;T, &amp;mut T, T</code> 三种类型。</p>
+<h3 id="Iterator"><a href="#Iterator" class="headerlink" title="Iterator"></a>Iterator</h3><p>rust 中迭代器的成员函数被分为两类，<strong>Non-Consuming Adaptors</strong> 返回对应的迭代器，是惰性的，<strong>Consuming Adaptors</strong> 返回结果，会消耗迭代器的所有权，在使用后无法再次使用该迭代器。</p>
+<h3 id="Index"><a href="#Index" class="headerlink" title="Index"></a>Index</h3><p><code>[]</code> 应返回 <code>&amp;T</code> 或 <code>&amp;mut T</code>，不应获取所有权，这是为了避免通过 index 访问而隐式获得所有权的情况。</p>
+<h3 id="Deref"><a href="#Deref" class="headerlink" title="Deref"></a>Deref</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">Deref</span></span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Target</span></span>: ?<span class="built_in">Sized</span>;  <span class="comment">// 关联类型，表示解引用后的目标类型</span></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">deref</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;Self::Target;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这是 rust 中关于 Deref 的定义，通过在 impl 的时候指定相关的类型，就可以无需像泛型定义那样显式指定类型。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Deref <span class="keyword">for</span> <span class="built_in">String</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Target</span></span> = <span class="built_in">str</span>; <span class="comment">// 指定解引用目标为 `str`</span></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">deref</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;<span class="built_in">str</span> &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; <span class="built_in">str</span>::from_utf8_unchecked(&amp;<span class="keyword">self</span>.as_bytes()) &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由此我们也知道了，对于一个 <code>Deref</code> 实现来说，它所返回的类型是 single 的，并不会出现解引用可以返回不同类型的情况。对 <code>&amp;String</code> 解引用可以得到 <code>&amp;str</code>，是因为 <code>Target = str</code>。<br>正因如此，编译器可以通过 <code>T, U</code> 类型推断这两个类型是否可以通过 <code>Deref</code> 转换。</p>
+<h3 id="Drop"><a href="#Drop" class="headerlink" title="Drop"></a>Drop</h3><p><code>Drop::drop()</code> 会在变量离开作用域后由编译器隐式调用，不应显式调用该函数。<br><code>Drop</code> trait 被实现用于回收资源，若需要显式调用，可使用 <code>std::mem::drop(x)</code> 通过消耗 <code>x</code> 的所有权来提前触发析构。</p>
+<h3 id="RefCell"><a href="#RefCell" class="headerlink" title="RefCell"></a>RefCell</h3><p>在编译时允许同时存在多个可变引用，但运行时仍会检查是否存在多个可变引用，通过 <code>borrow(), borrow_mut()</code> 中的引用计数来实现。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">RefCell</span></span>&lt;T&gt; &#123;</span><br><span class="line">    value: T,</span><br><span class="line">    borrow_count: <span class="built_in">usize</span>,</span><br><span class="line">    is_mut_borrowed: <span class="built_in">bool</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;T&gt; RefCell&lt;T&gt; &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">borrow</span></span>(&amp;<span class="keyword">self</span>) -&gt; Ref&lt;T&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.is_mut_borrowed &#123;</span><br><span class="line">            <span class="built_in">panic!</span>(<span class="string">"Already mutably borrowed!"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">self</span>.borrow_count += <span class="number">1</span>;</span><br><span class="line">        Ref &#123; <span class="comment">/* ... */</span> &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">borrow_mut</span></span>(&amp;<span class="keyword">self</span>) -&gt; RefMut&lt;T&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.borrow_count &gt; <span class="number">0</span> || <span class="keyword">self</span>.is_mut_borrowed &#123;</span><br><span class="line">            <span class="built_in">panic!</span>(<span class="string">"Already borrowed!"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">self</span>.is_mut_borrowed = <span class="literal">true</span>;</span><br><span class="line">        RefMut &#123; <span class="comment">/* ... */</span> &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>RefCell&lt;T&gt;</code> 会返回 <code>Ref&lt;T&gt;</code> 或者 <code>RefMut&lt;T&gt;</code>。<code>Ref&lt;T&gt;</code> 的所有权检查发生在运行时，且可以通过 <code>map</code> 来拆分借用，更加灵活。<br>可以通过 <code>RefCell</code> 来实现内部可变性。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::cell::RefCell;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Cache</span></span> &#123;</span><br><span class="line">    data: RefCell&lt;<span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt;&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> Cache &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">get_data</span></span>(&amp;<span class="keyword">self</span>) -&gt; <span class="built_in">String</span> &#123;</span><br><span class="line">        <span class="comment">// 检查缓存</span></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> cache = <span class="keyword">self</span>.data.borrow_mut();</span><br><span class="line">        <span class="keyword">if</span> cache.is_none() &#123;</span><br><span class="line">            *cache = <span class="literal">Some</span>(<span class="string">"Expensive result"</span>.to_string());</span><br><span class="line">        &#125;</span><br><span class="line">        cache.as_ref().unwrap().clone()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> cache = Cache &#123; data: RefCell::new(<span class="literal">None</span>) &#125;;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Data: &#123;&#125;"</span>, cache.get_data()); <span class="comment">// 计算并缓存</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Cached: &#123;&#125;"</span>, cache.get_data()); <span class="comment">// 直接读取缓存</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用 <code>borrow_mut()</code> 时，由于变量的生命周期与临时值不同，应谨慎与变量进行绑定。</p>
+<h3 id="Lifetime"><a href="#Lifetime" class="headerlink" title="Lifetime"></a>Lifetime</h3><p>rust 的临时值会在表达式结束后析构，因此允许存在这样的情况。在 <code>clone2.borrow_mut()</code> 语句执行的时候，<code>clone1.borrow_mut()</code> 已经被析构，所以 <code>borrow_mut()</code> 不会因为引用计数 <code>&gt; 1</code> 而崩溃。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> shared_data = Rc::new(RefCell::new(<span class="number">42</span>)); <span class="comment">// 克隆 Rc（共享所有权） </span></span><br><span class="line"><span class="keyword">let</span> clone1 = Rc::clone(&amp;shared_data); </span><br><span class="line"><span class="keyword">let</span> clone2 = Rc::clone(&amp;shared_data);</span><br><span class="line">*clone1.borrow_mut() += <span class="number">10</span>; <span class="comment">// 步骤1：获取可变借用，修改后立即释放</span></span><br><span class="line">*clone2.borrow_mut() *= <span class="number">2</span>;  <span class="comment">// 步骤2：前一个可变借用已释放，安全获取新借用</span></span><br></pre></td></tr></table></figure>
+<p>作为对比，如果改成</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> shared_data = Rc::new(RefCell::new(<span class="number">42</span>)); <span class="comment">// 克隆 Rc（共享所有权） </span></span><br><span class="line"><span class="keyword">let</span> clone1 = Rc::clone(&amp;shared_data); </span><br><span class="line"><span class="keyword">let</span> clone2 = Rc::clone(&amp;shared_data);</span><br><span class="line"><span class="keyword">let</span> longer_lifetime = clone1.borrow_mut();</span><br><span class="line">*longer_lifetime += <span class="number">10</span>; </span><br><span class="line">*clone2.borrow_mut() *= <span class="number">2</span>;  <span class="comment">// 前一个可变借用未释放，程序崩溃</span></span><br></pre></td></tr></table></figure>
+<p>就无法正常运行，因为 <code>longer_lifetime</code> 作为 <code>RefCell</code> 和 <code>NLL</code> 的交互，其行为表现为它的生命周期持续到该作用域结束。</p>
+<h3 id="Non-Lexical-Lifetime"><a href="#Non-Lexical-Lifetime" class="headerlink" title="Non-Lexical Lifetime"></a>Non-Lexical Lifetime</h3><p>Non-Lexical Lifetimes (NLL) 是 Rust 编译器的一项核心特性，通过更精细的生命周期分析，允许变量在其<strong>最后一次使用后</strong>立即释放（而非必须等到词法作用域结束），但与某些类型的交互具有其他的表现。</p>
+<h3 id="Copy-amp-Clone"><a href="#Copy-amp-Clone" class="headerlink" title="Copy &amp; Clone"></a>Copy &amp; Clone</h3><p><code>Copy</code> trait 是面向编译器实现的，<code>Clone</code> trait 是面向程序员实现的。一旦实现 <code>Copy</code> trait 默认行为将变为 <code>copy</code> 而非 <code>move</code>。在语义上，如果实现了 <code>Copy</code>，实现的 <code>Clone</code> 应当与之相容，可以通过调用 <code>[#derived(Copy, Clone)]</code> 获取默认实现。<br>并没有对于 <code>Clone</code> trait 实现的硬性约束。</p>
+<p>这些是我觉得印象比较深刻的点，除此之外感觉似乎不太难。rust 唯一能折磨我的数据结构只有 <code>Box&lt;T&gt;</code>，但归根到底还是没有完全学会语言底层逻辑，没有完全学会用 rust 的方式写代码。</p>
+<h2 id="rcore-阶段总结"><a href="#rcore-阶段总结" class="headerlink" title="rcore 阶段总结"></a>rcore 阶段总结</h2><p>进入到这个阶段之后意识到，之前学的 xv6 还是有些太玩具了，尽管 rcore-os 也是一个教学用途的操作系统，但它的深度似乎是远大于 xv6 的，你可以在这里面接触到链接器是如何编写的，如何用自己的一套交叉编译工具链来编译并且运行 kernel 以及裸机程序。</p>
+<p>Chapter1 给我的印象很深刻，上来就告诉我们要写一个裸机程序，要抛弃 std 库，但彼时的我还是连 rustling 都没有写明白的完全的 rust 萌新，看到这些东西未免觉得有些难以下手，好在 rcore-os 提供的简明 Tutorial 十分清晰，静下心来读基本上没有不理解的地方。</p>
+<p>整个 rcore 阶段最困扰我也是让我思考了最久的一个问题：</p>
+<blockquote>
+<p>为什么一个物理页不会同时被分配为页表和供内存使用？</p>
+</blockquote>
+<p>因为在创建页表的过程中会使用 <code>PageTable.map()</code>，该函数会调用 <code>PageTable().find_pte_create()</code>，在这一创建多层页表的过程中会使用 <code>frame_alloc()</code>。<br>而在分配内存的部分，<code>MemorySet</code> 的 <code>Framed</code> 映射会调用 <code>frame_alloc()</code> 分配新的物理页供其使用，这是除了创建页表之外我们唯一能使用到 <code>[ekernel, MEMORY_END)</code> 这段内存的部分。<br>而在 <code>MemorySet</code> 里，主要是 <code>KERNEL_SPACE</code> 会产生一个恒等映射 <code>[ekernel, MEMORY_END)</code>。这部分恒等映射被用于寻找页表。<br>即使开启虚拟内存映射后，我们在 <code>PhysPageNum.get_pte_array()</code> 处也可以直接将 <code>pa</code> 转为 <code>*mut PageTableEntry</code>，就是因为此处的恒等映射会直接将 <code>pa</code> 对应的虚拟地址映射为物理地址。</p>
+<p>我觉得愿意去弄明白这些，不给自己留有太多的疑惑，这个阶段的收获基本是不小的。</p>
+<p>rcore-os 阶段让我印象最深刻的 lab 还是 filesystem 相关的部分，要求我们试着给文件维护一个引用计数。这个引用计数维护起来并不困难，但对于这样持久化的数据来说，在什么抽象层来维护十分重要，如果在视图层维护，那么是无法维护的。具体来说 <code>OSInode</code> 和 <code>Inode</code> 便是对于 <code>DiskInode</code> 的视图，而看明白这一点，需要对整个代码的结构有比较好的了解。</p>
+<h2 id="arceos-阶段总结"><a href="#arceos-阶段总结" class="headerlink" title="arceos 阶段总结"></a>arceos 阶段总结</h2><p>这个阶段是我过的比较急的一个阶段。但其实这个阶段的代码质量远高于 rcore-os 阶段，因为是接近工业级别的代码，解耦合等各种设计思想也能学到不少。</p>
+<p>lab2 的实现 HashMap 是我耗时最长的一个 lab，因为对于 Box<T> 的特性不太熟悉，而且在不可变引用迭代器中，又很容易涉及到 second borrow 的问题。</T></p>
+<p>感觉这个阶段的 lab 都是很贴近实际工程环境的 lab，但难度相较于 rcore-os 阶段来说其实下降了一些，因为通过 demo 并不要求效率，也不考虑 corner case。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/rcore-lab/" rel="tag"># rcore-lab</a>
+              <a href="/blog/tags/object-Object/" rel="tag"># [object Object]</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/24/rCore-%E4%B8%89%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-Nzzz964/" rel="prev" title="rCore-三阶段学习总结-Nzzz964">
+      <i class="fa fa-chevron-left"></i> rCore-三阶段学习总结-Nzzz964
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/25/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E7%9D%BF/" rel="next" title="2023开源操作系统训练营总结报告-周睿">
+      2023开源操作系统训练营总结报告-周睿 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
