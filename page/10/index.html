@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">707</span>
+          <span class="site-state-item-count">708</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,7 +233,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap6-2/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -247,7 +247,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/04/27/Chap6-2/" class="post-title-link" itemprop="url">rcore-handnote-6-2</a>
+            <a href="/blog/2025/04/27/Chap3/" class="post-title-link" itemprop="url">rcore-handnote-3</a>
         </h2>
 
         <div class="post-meta">
@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -287,23 +287,45 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="Chapter-6-2"><a href="#Chapter-6-2" class="headerlink" title="Chapter 6-2"></a>Chapter 6-2</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>We gonna load our <code>easy-fs</code> to kernel. First, we need to know our device interface. Second, our <strong>Inode</strong> should be wrapped in OS as <strong>OSInode</strong> for extended functionality. Then we implement <code>sys_read/write</code> for it.</p>
-<h3 id="MMIO-Memory-Mapped-I-O"><a href="#MMIO-Memory-Mapped-I-O" class="headerlink" title="MMIO-Memory-Mapped I/O"></a>MMIO-Memory-Mapped I/O</h3><p>The device registers of peripherals can be accessed through specific physical memory addresses, <strong>VirtIO</strong> MMIO physical address range for the peripheral bus is 4KiB starting at 0X10001000. </p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/config.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"board_qemu"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> MMIO: &amp;[(<span class="built_in">usize</span>, <span class="built_in">usize</span>)] = &amp;[</span><br><span class="line">    (<span class="number">0x10001000</span>, <span class="number">0x1000</span>),</span><br><span class="line">];</span><br></pre></td></tr></table></figure>
+          <h2 id="Chapter-3"><a href="#Chapter-3" class="headerlink" title="Chapter 3"></a>Chapter 3</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>We need to place multiple app to multiple memory address to run app in cycle. Rather run once and clear for next.</p>
+<p>First We want to place each app to each isolated addr, due to our kernel restriction, we need to load it with <code>build.py</code>.</p>
+<hr>
+<h3 id="Task"><a href="#Task" class="headerlink" title="Task"></a>Task</h3><p>Task: a workflow process</p>
+<p>Define every time slice of <strong>Task</strong> as <strong>Task Slice</strong></p>
+<p>Define the switch between app as <strong>Task switching</strong></p>
+<p>We need to store <strong>Task Context</strong></p>
+<p>Design:<br><img src="/blog/.io//assets/Lab3-1.png" alt="switch"></p>
+<p>We will store these register in ctx:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/context.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskContext</span></span> &#123;</span><br><span class="line">    ra: <span class="built_in">usize</span>,</span><br><span class="line">    sp: <span class="built_in">usize</span>,</span><br><span class="line">    s: [<span class="built_in">usize</span>; <span class="number">12</span>],</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h3 id="OS-Inode"><a href="#OS-Inode" class="headerlink" title="OS Inode"></a>OS Inode</h3><p>We only take restriction on our operations with <code>readable</code> and <code>writable</code> by <code>OpenFlags</code>. <code>offset</code> and <code>Arc</code> is a way to tackle simple situation of multi processes.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/fs/inode.rs</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">bitflags!</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OpenFlags</span></span>: <span class="built_in">u32</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> RDONLY = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">const</span> WRONLY = <span class="number">1</span> &lt;&lt; <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">const</span> RDWR = <span class="number">1</span> &lt;&lt; <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">const</span> CREATE = <span class="number">1</span> &lt;&lt; <span class="number">9</span>;</span><br><span class="line">        <span class="keyword">const</span> TRUNC = <span class="number">1</span> &lt;&lt; <span class="number">10</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> OpenFlags &#123;</span><br><span class="line">    <span class="comment">/// Do not check validity for simplicity</span></span><br><span class="line">    <span class="comment">/// Return (readable, writable)</span></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">read_write</span></span>(&amp;<span class="keyword">self</span>) -&gt; (<span class="built_in">bool</span>, <span class="built_in">bool</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.is_empty() &#123;</span><br><span class="line">            (<span class="literal">true</span>, <span class="literal">false</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> <span class="keyword">self</span>.contains(Self::WRONLY) &#123;</span><br><span class="line">            (<span class="literal">false</span>, <span class="literal">true</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            (<span class="literal">true</span>, <span class="literal">true</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OSInode</span></span> &#123;</span><br><span class="line">    readable: <span class="built_in">bool</span>,</span><br><span class="line">    writable: <span class="built_in">bool</span>,</span><br><span class="line">    inner: Mutex&lt;OSInodeInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OSInodeInner</span></span> &#123;</span><br><span class="line">    offset: <span class="built_in">usize</span>,</span><br><span class="line">    inode: Arc&lt;Inode&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> OSInode &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(</span><br><span class="line">        readable: <span class="built_in">bool</span>,</span><br><span class="line">        writable: <span class="built_in">bool</span>,</span><br><span class="line">        inode: Arc&lt;Inode&gt;,</span><br><span class="line">    ) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        <span class="keyword">Self</span> &#123;</span><br><span class="line">            readable,</span><br><span class="line">            writable,</span><br><span class="line">            inner: Mutex::new(OSInodeInner &#123;</span><br><span class="line">                offset: <span class="number">0</span>,</span><br><span class="line">                inode,</span><br><span class="line">            &#125;),</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">.altmacro</span><br><span class="line">.macro SAVE_SN n</span><br><span class="line">    sd s\n, (\n+2)*8(a0)</span><br><span class="line">.endm</span><br><span class="line">.macro LOAD_SN n</span><br><span class="line">    ld s\n, (\n+2)*8(a1)</span><br><span class="line">.endm</span><br><span class="line">    .section .text</span><br><span class="line">    .globl __switch</span><br><span class="line">__switch:</span><br><span class="line">...</span><br><span class="line"># logic by store previous context and take out the new one to current register</span><br></pre></td></tr></table></figure>
 
-<h4 id="File-Descriptor-Table"><a href="#File-Descriptor-Table" class="headerlink" title="File Descriptor Table"></a>File Descriptor Table</h4><p>Now we need to connect file operations with process, each process need a descriptors table(which manage many files!) to indicate file record infos. </p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">pub</span> fd_table: <span class="built_in">Vec</span>&lt;<span class="built_in">Option</span>&lt;Arc&lt;<span class="keyword">dyn</span> File + <span class="built_in">Send</span> + <span class="built_in">Sync</span>&gt;&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Expose to Rust</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/switch.rs</span></span><br><span class="line"></span><br><span class="line">global_asm!(<span class="built_in">include_str!</span>(<span class="string">"switch.S"</span>));</span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> super::TaskContext;</span><br><span class="line"></span><br><span class="line"><span class="keyword">extern</span> <span class="string">"C"</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">__switch</span></span>(</span><br><span class="line">        current_task_cx_ptr: *<span class="keyword">mut</span> TaskContext,</span><br><span class="line">        next_task_cx_ptr: *<span class="keyword">const</span> TaskContext</span><br><span class="line">    );</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>Remember our previous root inode? We load it directly for easy manipulation. So our workflow would be for current process, push a descriptor of allocation, and return the ptr of this allocation.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/fs/inode.rs</span></span><br><span class="line"></span><br><span class="line">lazy_static! &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">static</span> <span class="keyword">ref</span> ROOT_INODE: Arc&lt;Inode&gt; = &#123;</span><br><span class="line">        <span class="keyword">let</span> efs = EasyFileSystem::open(BLOCK_DEVICE.clone());</span><br><span class="line">        Arc::new(EasyFileSystem::root_inode(&amp;efs))</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">open_file</span></span>(name: &amp;<span class="built_in">str</span>, flags: OpenFlags) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;OSInode&gt;&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> (readable, writable) = flags.read_write();</span><br><span class="line">    <span class="keyword">if</span> flags.contains(OpenFlags::CREATE) &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(inode) = ROOT_INODE.find(name) &#123;</span><br><span class="line">            <span class="comment">// clear size</span></span><br><span class="line">            inode.clear();</span><br><span class="line">            <span class="literal">Some</span>(Arc::new(OSInode::new(</span><br><span class="line">                readable,</span><br><span class="line">                writable,</span><br><span class="line">                inode,</span><br><span class="line">            )))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// create file</span></span><br><span class="line">            ROOT_INODE.create(name)</span><br><span class="line">                .map(|inode| &#123;</span><br><span class="line">                    Arc::new(OSInode::new(</span><br><span class="line">                        readable,</span><br><span class="line">                        writable,</span><br><span class="line">                        inode,</span><br><span class="line">                    ))</span><br><span class="line">                &#125;)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        ROOT_INODE.find(name)</span><br><span class="line">            .map(|inode| &#123;</span><br><span class="line">                <span class="keyword">if</span> flags.contains(OpenFlags::TRUNC) &#123;</span><br><span class="line">                    inode.clear();</span><br><span class="line">                &#125;</span><br><span class="line">                Arc::new(OSInode::new(</span><br><span class="line">                    readable,</span><br><span class="line">                    writable,</span><br><span class="line">                    inode</span><br><span class="line">                ))</span><br><span class="line">            &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>We will design <code>TaskManager</code>:</p>
+<ul>
+<li>Store each App state array and current running app.</li>
+<li>each state store <code>TaskContext</code> and <code>TaskState</code> for running or exited etc…</li>
+<li>Init and ready by store the <code>__restore</code> ctx to <code>TaskContext</code></li>
+<li>Run for switch cx if needed.</li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> current_task_cx_ptr = &amp;<span class="keyword">mut</span> inner.tasks[current].task_cx <span class="keyword">as</span> *<span class="keyword">mut</span> TaskContext;</span><br><span class="line"><span class="keyword">let</span> next_task_cx_ptr = &amp;inner.tasks[next].task_cx <span class="keyword">as</span> *<span class="keyword">const</span> TaskContext;</span><br><span class="line"><span class="built_in">drop</span>(inner);</span><br><span class="line"><span class="comment">// before this, we should drop local variables that must be dropped manually</span></span><br><span class="line"><span class="keyword">unsafe</span> &#123;</span><br><span class="line">	__switch(</span><br><span class="line">		current_task_cx_ptr,</span><br><span class="line">		next_task_cx_ptr,</span><br><span class="line">	);</span><br><span class="line">&#125;rust</span><br></pre></td></tr></table></figure>
 
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/fs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_open</span></span>(path: *<span class="keyword">const</span> <span class="built_in">u8</span>, flags: <span class="built_in">u32</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> token = current_user_token();</span><br><span class="line">    <span class="keyword">let</span> path = translated_str(token, path);</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(inode) = open_file(</span><br><span class="line">        path.as_str(),</span><br><span class="line">        OpenFlags::from_bits(flags).unwrap()</span><br><span class="line">    ) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.acquire_inner_lock();</span><br><span class="line">        <span class="keyword">let</span> fd = inner.alloc_fd();</span><br><span class="line">        inner.fd_table[fd] = <span class="literal">Some</span>(inode);</span><br><span class="line">        fd <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/syscall/fs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_close</span></span>(fd: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> fd &gt;= inner.fd_table.len() &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> inner.fd_table[fd].is_none() &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    inner.fd_table[fd].take();</span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>The implementation is same for <code>sys_read/write</code>.</p>
+<h3 id="Dispatch-Design"><a href="#Dispatch-Design" class="headerlink" title="Dispatch Design"></a>Dispatch Design</h3><h4 id="Collaboration"><a href="#Collaboration" class="headerlink" title="Collaboration"></a>Collaboration</h4><p>Manually design interface <code>yield</code> for App to use</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_yield</span></span>() -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    syscall(SYSCALL_YIELD, [<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>])</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// user/src/lib.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">yield_</span></span>() -&gt; <span class="built_in">isize</span> &#123; sys_yield() &#125;</span><br></pre></td></tr></table></figure>
 
+<p>But it can be inefficient for some case that app already done its work but reluctant to exit.</p>
+<h4 id="Preemptive"><a href="#Preemptive" class="headerlink" title="Preemptive"></a>Preemptive</h4><p>We will design interrupt clock in a fixed time bound to force switch between app.</p>
+<ul>
+<li>Set timer design and get time</li>
+<li>Set timer for trigger</li>
+<li>enable timer and handle the interrupt cause of Timer in <code>ecall</code></li>
+</ul>
+<p>You should know this as a pre-knowledge:</p>
+<p><img src="/blog/.io//assets/Lab3-2.png" alt></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> SBI_SET_TIMER: <span class="built_in">usize</span> = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">set_timer</span></span>(timer: <span class="built_in">usize</span>) &#123;</span><br><span class="line">    sbi_call(SBI_SET_TIMER, timer, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/timer.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> crate::config::CLOCK_FREQ;</span><br><span class="line"><span class="keyword">const</span> TICKS_PER_SEC: <span class="built_in">usize</span> = <span class="number">100</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">set_next_trigger</span></span>() &#123;</span><br><span class="line">    set_timer(get_time() + CLOCK_FREQ / TICKS_PER_SEC);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/trap/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">match</span> scause.cause() &#123;</span><br><span class="line">    Trap::Interrupt(Interrupt::SupervisorTimer) =&gt; &#123;</span><br><span class="line">        set_next_trigger();</span><br><span class="line">        suspend_current_and_run_next();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// enable supervisor clock</span></span><br><span class="line"><span class="comment">// os/src/trap/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> riscv::register::sie;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">enable_timer_interrupt</span></span>() &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123; sie::set_stimer(); &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
       
     </div>
 
@@ -353,7 +375,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -484,6 +506,95 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap6-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/Chap6-2/" class="post-title-link" itemprop="url">rcore-handnote-6-2</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Chapter-6-2"><a href="#Chapter-6-2" class="headerlink" title="Chapter 6-2"></a>Chapter 6-2</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>We gonna load our <code>easy-fs</code> to kernel. First, we need to know our device interface. Second, our <strong>Inode</strong> should be wrapped in OS as <strong>OSInode</strong> for extended functionality. Then we implement <code>sys_read/write</code> for it.</p>
+<h3 id="MMIO-Memory-Mapped-I-O"><a href="#MMIO-Memory-Mapped-I-O" class="headerlink" title="MMIO-Memory-Mapped I/O"></a>MMIO-Memory-Mapped I/O</h3><p>The device registers of peripherals can be accessed through specific physical memory addresses, <strong>VirtIO</strong> MMIO physical address range for the peripheral bus is 4KiB starting at 0X10001000. </p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/config.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"board_qemu"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> MMIO: &amp;[(<span class="built_in">usize</span>, <span class="built_in">usize</span>)] = &amp;[</span><br><span class="line">    (<span class="number">0x10001000</span>, <span class="number">0x1000</span>),</span><br><span class="line">];</span><br></pre></td></tr></table></figure>
+
+<h3 id="OS-Inode"><a href="#OS-Inode" class="headerlink" title="OS Inode"></a>OS Inode</h3><p>We only take restriction on our operations with <code>readable</code> and <code>writable</code> by <code>OpenFlags</code>. <code>offset</code> and <code>Arc</code> is a way to tackle simple situation of multi processes.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/fs/inode.rs</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">bitflags!</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OpenFlags</span></span>: <span class="built_in">u32</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> RDONLY = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">const</span> WRONLY = <span class="number">1</span> &lt;&lt; <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">const</span> RDWR = <span class="number">1</span> &lt;&lt; <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">const</span> CREATE = <span class="number">1</span> &lt;&lt; <span class="number">9</span>;</span><br><span class="line">        <span class="keyword">const</span> TRUNC = <span class="number">1</span> &lt;&lt; <span class="number">10</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> OpenFlags &#123;</span><br><span class="line">    <span class="comment">/// Do not check validity for simplicity</span></span><br><span class="line">    <span class="comment">/// Return (readable, writable)</span></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">read_write</span></span>(&amp;<span class="keyword">self</span>) -&gt; (<span class="built_in">bool</span>, <span class="built_in">bool</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.is_empty() &#123;</span><br><span class="line">            (<span class="literal">true</span>, <span class="literal">false</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> <span class="keyword">self</span>.contains(Self::WRONLY) &#123;</span><br><span class="line">            (<span class="literal">false</span>, <span class="literal">true</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            (<span class="literal">true</span>, <span class="literal">true</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OSInode</span></span> &#123;</span><br><span class="line">    readable: <span class="built_in">bool</span>,</span><br><span class="line">    writable: <span class="built_in">bool</span>,</span><br><span class="line">    inner: Mutex&lt;OSInodeInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OSInodeInner</span></span> &#123;</span><br><span class="line">    offset: <span class="built_in">usize</span>,</span><br><span class="line">    inode: Arc&lt;Inode&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> OSInode &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(</span><br><span class="line">        readable: <span class="built_in">bool</span>,</span><br><span class="line">        writable: <span class="built_in">bool</span>,</span><br><span class="line">        inode: Arc&lt;Inode&gt;,</span><br><span class="line">    ) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        <span class="keyword">Self</span> &#123;</span><br><span class="line">            readable,</span><br><span class="line">            writable,</span><br><span class="line">            inner: Mutex::new(OSInodeInner &#123;</span><br><span class="line">                offset: <span class="number">0</span>,</span><br><span class="line">                inode,</span><br><span class="line">            &#125;),</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="File-Descriptor-Table"><a href="#File-Descriptor-Table" class="headerlink" title="File Descriptor Table"></a>File Descriptor Table</h4><p>Now we need to connect file operations with process, each process need a descriptors table(which manage many files!) to indicate file record infos. </p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">pub</span> fd_table: <span class="built_in">Vec</span>&lt;<span class="built_in">Option</span>&lt;Arc&lt;<span class="keyword">dyn</span> File + <span class="built_in">Send</span> + <span class="built_in">Sync</span>&gt;&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Remember our previous root inode? We load it directly for easy manipulation. So our workflow would be for current process, push a descriptor of allocation, and return the ptr of this allocation.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/fs/inode.rs</span></span><br><span class="line"></span><br><span class="line">lazy_static! &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">static</span> <span class="keyword">ref</span> ROOT_INODE: Arc&lt;Inode&gt; = &#123;</span><br><span class="line">        <span class="keyword">let</span> efs = EasyFileSystem::open(BLOCK_DEVICE.clone());</span><br><span class="line">        Arc::new(EasyFileSystem::root_inode(&amp;efs))</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">open_file</span></span>(name: &amp;<span class="built_in">str</span>, flags: OpenFlags) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;OSInode&gt;&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> (readable, writable) = flags.read_write();</span><br><span class="line">    <span class="keyword">if</span> flags.contains(OpenFlags::CREATE) &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(inode) = ROOT_INODE.find(name) &#123;</span><br><span class="line">            <span class="comment">// clear size</span></span><br><span class="line">            inode.clear();</span><br><span class="line">            <span class="literal">Some</span>(Arc::new(OSInode::new(</span><br><span class="line">                readable,</span><br><span class="line">                writable,</span><br><span class="line">                inode,</span><br><span class="line">            )))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// create file</span></span><br><span class="line">            ROOT_INODE.create(name)</span><br><span class="line">                .map(|inode| &#123;</span><br><span class="line">                    Arc::new(OSInode::new(</span><br><span class="line">                        readable,</span><br><span class="line">                        writable,</span><br><span class="line">                        inode,</span><br><span class="line">                    ))</span><br><span class="line">                &#125;)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        ROOT_INODE.find(name)</span><br><span class="line">            .map(|inode| &#123;</span><br><span class="line">                <span class="keyword">if</span> flags.contains(OpenFlags::TRUNC) &#123;</span><br><span class="line">                    inode.clear();</span><br><span class="line">                &#125;</span><br><span class="line">                Arc::new(OSInode::new(</span><br><span class="line">                    readable,</span><br><span class="line">                    writable,</span><br><span class="line">                    inode</span><br><span class="line">                ))</span><br><span class="line">            &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/fs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_open</span></span>(path: *<span class="keyword">const</span> <span class="built_in">u8</span>, flags: <span class="built_in">u32</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> token = current_user_token();</span><br><span class="line">    <span class="keyword">let</span> path = translated_str(token, path);</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(inode) = open_file(</span><br><span class="line">        path.as_str(),</span><br><span class="line">        OpenFlags::from_bits(flags).unwrap()</span><br><span class="line">    ) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.acquire_inner_lock();</span><br><span class="line">        <span class="keyword">let</span> fd = inner.alloc_fd();</span><br><span class="line">        inner.fd_table[fd] = <span class="literal">Some</span>(inode);</span><br><span class="line">        fd <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/syscall/fs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_close</span></span>(fd: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> fd &gt;= inner.fd_table.len() &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> inner.fd_table[fd].is_none() &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    inner.fd_table[fd].take();</span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>The implementation is same for <code>sys_read/write</code>.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap6-1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -515,7 +626,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -682,7 +793,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -809,7 +920,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -934,7 +1045,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1077,7 +1188,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1206,7 +1317,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1304,7 +1415,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
+                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1343,108 +1454,6 @@
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">	App --&gt; axstd</span><br><span class="line">	axstd --&gt; |axfeat| aceros_api</span><br><span class="line">	aceros_api --&gt; axruntime</span><br><span class="line">	axruntime --&gt;|alloc| axalloc</span><br><span class="line">	axruntime --&gt; axhal</span><br><span class="line">	axruntime --&gt;|irq| irq</span><br><span class="line">	axruntime --&gt;|multitask| axtask</span><br></pre></td></tr></table></figure>
 
 
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-3/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/27/day-3/" class="post-title-link" itemprop="url">arceos-handnote-3</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-25 14:55:18" itemprop="dateModified" datetime="2025-05-25T14:55:18+00:00">2025-05-25</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="Day-3"><a href="#Day-3" class="headerlink" title="Day-3"></a>Day-3</h2><h2 id="Device"><a href="#Device" class="headerlink" title="Device"></a>Device</h2><p>In common, devices can be separated to <strong>FS</strong>, <strong>Net</strong>, <strong>Dispaly</strong>.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// A structure that contains all device drivers, organized by their category.</span></span><br><span class="line"><span class="meta">#[derive(Default)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">AllDevices</span></span> &#123;</span><br><span class="line">    <span class="comment">/// All network device drivers.</span></span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"net"</span>)]</span></span><br><span class="line">    <span class="keyword">pub</span> net: AxDeviceContainer&lt;AxNetDevice&gt;,</span><br><span class="line">    <span class="comment">/// All block device drivers.</span></span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"block"</span>)]</span></span><br><span class="line">    <span class="keyword">pub</span> block: AxDeviceContainer&lt;AxBlockDevice&gt;,</span><br><span class="line">    <span class="comment">/// All graphics device drivers.</span></span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"display"</span>)]</span></span><br><span class="line">    <span class="keyword">pub</span> display: AxDeviceContainer&lt;AxDisplayDevice&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Devices will be initiated in <code>axruntime</code>, where <code>axdriver</code> module will be loaded to seek each device and mount drivers.</p>
-<p>In qemu, <code>virtio-mmio</code> will send request to probe driver response otherwise return 0 as non-driver.</p>
-<h3 id="Block-Driver"><a href="#Block-Driver" class="headerlink" title="Block Driver"></a>Block Driver</h3><p>Block driver provide interface to write and read block providing IO operations and perennial storage.</p>
-<p>Aceros use module <code>axfs</code>, with definition of interface <code>vfs</code>, and concrete implementation of <code>ramfs</code> and <code>devfs</code>.</p>
-<h2 id="Monolith"><a href="#Monolith" class="headerlink" title="Monolith"></a>Monolith</h2><p>In U-Level, we will separate kernel memory and user memory, allowing user context used for process.</p>
-<p>The basic logic would be construct new user space,load file to it and initiate user stack, then spawn user task with app_entry.</p>
-<p>The top of page root would be shared as kernel space, and below would be independent as user space.</p>
-<p>In user space separation, many kinds of resources can’t be shared as global resources, rather the demand of <code>TaskExt</code> as a reference to those independent resources owned by each user apps.</p>
-<p>In <code>TaskInner</code>, we store the ptr of <code>TaskExt</code> by macro declaration of such type.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">AxTask</span></span> &#123;</span><br><span class="line">    ...</span><br><span class="line">    task_ext_ptr: *<span class="keyword">mut</span> <span class="built_in">u8</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Task extended data for the monolithic kernel.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskExt</span></span> &#123;</span><br><span class="line">    <span class="comment">/// The process ID.</span></span><br><span class="line">    <span class="keyword">pub</span> proc_id: <span class="built_in">usize</span>,</span><br><span class="line">    <span class="comment">/// The user space context.</span></span><br><span class="line">    <span class="keyword">pub</span> uctx: UspaceContext,</span><br><span class="line">    <span class="comment">/// The virtual memory address space.</span></span><br><span class="line">    <span class="keyword">pub</span> aspace: Arc&lt;Mutex&lt;AddrSpace&gt;&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// It will expanded as a trait implmentation of reference to ptr as the `TaskExt` type.</span></span><br><span class="line">def_task_ext!(TaskExt)</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">spawn_user_task</span></span>(aspace: Arc&lt;Mutex&lt;AddrSpace&gt;&gt;, uctx: UspaceContext) -&gt; AxTaskRef &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task = TaskInner::new(</span><br><span class="line">        || &#123;</span><br><span class="line">            <span class="keyword">let</span> curr = axtask::current();</span><br><span class="line">            <span class="keyword">let</span> kstack_top = curr.kernel_stack_top().unwrap();</span><br><span class="line">            ax_println!(</span><br><span class="line">                <span class="string">"Enter user space: entry=&#123;:#x&#125;, ustack=&#123;:#x&#125;, kstack=&#123;:#x&#125;"</span>,</span><br><span class="line">                curr.task_ext().uctx.get_ip(),</span><br><span class="line">                curr.task_ext().uctx.get_sp(),</span><br><span class="line">                kstack_top,</span><br><span class="line">            );</span><br><span class="line">            <span class="keyword">unsafe</span> &#123; curr.task_ext().uctx.enter_uspace(kstack_top) &#125;;</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="string">"userboot"</span>.into(),</span><br><span class="line">        crate::KERNEL_STACK_SIZE,</span><br><span class="line">    );</span><br><span class="line">    task.ctx_mut()</span><br><span class="line">        .set_page_table_root(aspace.lock().page_table_root());</span><br><span class="line">    task.init_task_ext(TaskExt::new(uctx, aspace));</span><br><span class="line">    axtask::spawn_task(task)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="NameSpace"><a href="#NameSpace" class="headerlink" title="NameSpace"></a>NameSpace</h3><p>To reuse resources, we will construct a <code>axns_resource</code> section in compilation to form a global namespace. Each will be shared by <code>Arc::new()</code>.</p>
-<p>If there’s a demand of uniqueness, we will allocate space and copy them.</p>
-<h3 id="Page-Fault"><a href="#Page-Fault" class="headerlink" title="Page Fault"></a>Page Fault</h3><p>We could implement lazy allocation of user space memory. We register <code>PAGE_FAULT</code> for our function and call <code>handle_page_fault</code> for <code>AddrSpace</code>.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> AddrSpace</span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">handle_page_fault</span></span>(...) -&gt; ...</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(area) = <span class="keyword">self</span>.areas.find(vaddr) &#123;</span><br><span class="line">            <span class="keyword">let</span> orig_flags = area.flags();</span><br><span class="line">            <span class="keyword">if</span> orig_flags.contains(access_flags) &#123;</span><br><span class="line">                <span class="keyword">return</span> area</span><br><span class="line">                    .backend()</span><br><span class="line">                    .handle_page_fault(vaddr, orig_flags, &amp;<span class="keyword">mut</span> <span class="keyword">self</span>.pt);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>MemoryArea</code> has two way:</p>
-<ul>
-<li>Linear: direct construct map relation of memory based on physical contiguous mmemory.</li>
-<li>Alloc: only construct null-map, and call <code>handle_page_fault</code> to really allocate memory.</li>
-</ul>
-<h3 id="User-App"><a href="#User-App" class="headerlink" title="User App"></a>User App</h3><p><strong>ELF</strong> is the default format of many apps. Kernel take the responsibility to load app to correct region.</p>
-<p>Notice the offset of file and virtual space may be different due to optimization of <strong>ELF</strong>.</p>
-<p>In order to load apps from linux, we will construct a <strong>Posix Api</strong> given interface mimic to linux.</p>
 
       
     </div>
