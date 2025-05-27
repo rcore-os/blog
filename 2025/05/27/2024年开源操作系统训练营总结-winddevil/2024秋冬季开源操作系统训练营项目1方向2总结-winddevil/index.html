@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="详细编写过程附在ArceOS igb网卡驱动编写上 体会前边很多时间用在流控、过滤器上边。由于igb-drive和ixgbe-drive的抽象化不一样。尤其是对ring和dma内存的结构的抽象。 比如把ring初始化的时候的操作，需要适配Tx和Rx。看文档的时间花了很久，具体怎么抽象化反而做的很差。 最后igb-drive卡在Descriptor构成之后想要写入Tail发送，但是想不出怎么进行发送">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024年开源操作系统训练营总结-winddevil&#x2F;2024秋冬季开源操作系统训练营项目1方向2总结-winddevil">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/05/27/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E9%A1%B9%E7%9B%AE1%E6%96%B9%E5%90%912%E6%80%BB%E7%BB%93-winddevil/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="详细编写过程附在ArceOS igb网卡驱动编写上 体会前边很多时间用在流控、过滤器上边。由于igb-drive和ixgbe-drive的抽象化不一样。尤其是对ring和dma内存的结构的抽象。 比如把ring初始化的时候的操作，需要适配Tx和Rx。看文档的时间花了很久，具体怎么抽象化反而做的很差。 最后igb-drive卡在Descriptor构成之后想要写入Tail发送，但是想不出怎么进行发送">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-05-27T02:08:17.156Z">
+<meta property="article:modified_time" content="2025-05-27T02:08:17.156Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/05/27/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E9%A1%B9%E7%9B%AE1%E6%96%B9%E5%90%912%E6%80%BB%E7%BB%93-winddevil/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024年开源操作系统训练营总结-winddevil/2024秋冬季开源操作系统训练营项目1方向2总结-winddevil | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#详细编写过程"><span class="nav-number">1.</span> <span class="nav-text">详细编写过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#体会"><span class="nav-number">2.</span> <span class="nav-text">体会</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#后续"><span class="nav-number">3.</span> <span class="nav-text">后续</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">709</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">622</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/27/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E9%A1%B9%E7%9B%AE1%E6%96%B9%E5%90%912%E6%80%BB%E7%BB%93-winddevil/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024年开源操作系统训练营总结-winddevil/2024秋冬季开源操作系统训练营项目1方向2总结-winddevil
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-27 02:08:17" itemprop="dateCreated datePublished" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="详细编写过程"><a href="#详细编写过程" class="headerlink" title="详细编写过程"></a>详细编写过程</h1><p>附在ArceOS igb网卡驱动编写上</p>
+<h1 id="体会"><a href="#体会" class="headerlink" title="体会"></a>体会</h1><p>前边很多时间用在流控、过滤器上边。由于igb-drive和ixgbe-drive的抽象化不一样。尤其是对ring和dma内存的结构的抽象。</p>
+<p>比如把ring初始化的时候的操作，需要适配Tx和Rx。看文档的时间花了很久，具体怎么抽象化反而做的很差。</p>
+<p>最后igb-drive卡在Descriptor构成之后想要写入Tail发送，但是想不出怎么进行发送上边。</p>
+<p>很难解决具体的问题。</p>
+<p>后来看到群友有人魔改ixgbe-dirve,得到成功。进而参考学习，自己也可以通过修改本地的ixgbe驱动来实现成功的httpserver。</p>
+<p>并且看到有的人参考的驱动是旧版本的linux驱动，而我参考的是新版本的驱动，这就体现了我策略性的问题。</p>
+<h1 id="后续"><a href="#后续" class="headerlink" title="后续"></a>后续</h1><p>不管这次结果如何，仍然想要参加下一期的学习，并且尝试自己完成igb驱动的编写，并且放到自己的blog中去。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/27/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/" rel="prev" title="2024年开源操作系统训练营总结-winddevil/2024年开源操作系统训练营总结-winddevil">
+      <i class="fa fa-chevron-left"></i> 2024年开源操作系统训练营总结-winddevil/2024年开源操作系统训练营总结-winddevil
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/05/27/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%9B%B9%E8%BE%B0%E5%AE%87/" rel="next" title="2024开源操作系统训练营第四阶段总结报告-曹辰宇">
+      2024开源操作系统训练营第四阶段总结报告-曹辰宇 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

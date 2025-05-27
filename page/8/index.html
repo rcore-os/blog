@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">708</span>
+          <span class="site-state-item-count">709</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">620</span>
+        <span class="site-state-item-count">622</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,139 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%8E%E6%98%8E%E6%B6%9B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/05/05/2025%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%8E%E6%98%8E%E6%B6%9B/" class="post-title-link" itemprop="url">2025春季开源操作系统训练营总结-李明涛</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-05 23:23:32" itemprop="dateCreated datePublished" datetime="2025-05-05T23:23:32+00:00">2025-05-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="rcore-总结"><a href="#rcore-总结" class="headerlink" title="rcore 总结"></a>rcore 总结</h1><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>之前就对rust有一些了解了，跟着《Rust语言圣经(Rust Course)》学过一遍，也做了《Rust by Example》，所以rustling很快就做完了。不过rcore是需要把操作系统相关的知识利用起来的，做完之后是有很多感想和体会的。</p>
+<h2 id="ch1"><a href="#ch1" class="headerlink" title="ch1"></a>ch1</h2><p>第一个难点是，我第一次接触rust的裸机编程，不过很幸运，因为它和C/C++是很相似的，<code>extern &quot;C&quot;</code>声明一个弱引用符号， 就可以在rust内部获取到符号的地址，通过这种方式可以很轻松地与汇编进行交互了。</p>
+<p>第二个难点是rust sbi， 首先我不太能理解SBI是什么，全称叫Supervisor Binary Interface，其次x86里面也没有这种东西可以参考。<br>我参考了《The RISC-V reader: an open architecture atlas》有关特权架构的部分，了解到riscv中，存在三层特权等级，从下往上依次是机器特权(M)，监控特权(S)，用户特权(U)，SBI有一个类似于x86中bootlooder的作用，用于启动内核镜像，还有一个作用是管理最底层的硬件资源，包括电源、串口和时钟，给处于S模式的内核提供基本的支持。</p>
+<h2 id="ch2"><a href="#ch2" class="headerlink" title="ch2"></a>ch2</h2><p>这一个章节是一个批处理操作系统，从我们的视角上看，我们终于有了一个用户态和内核态的区分了。在这个操作系统中，一个内核和一个应用被打包到同一个镜像中，在开机时也同时加载到内存中，由内核来执行在内存中放置好的应用程序，结束后直接关机。</p>
+<p>这一章节比较复杂的是<code>build.rs</code>，它的任务是加载应用程序并生成一个<code>link_app.S</code>文件，用于指导应用在内存中的布局，如何正确加载到合理的地方，并生成符号，让内核能够读取到应用的入口点。</p>
+<p>这一个章节第一次加入了系统调用的概念，这样就将操作系统和用户程序之间联系起来了。在现代处理器中，为了安全，U态的应用是不能访问S态的内存的，这意味着用户应用将将永远不能调用内核的函数，修改内核的数据。但是内核将应用程序与机器隔离了，如果用户不能影响内核，那应用在内核的视角下，与一个<code>while(true)</code>是等价的。</p>
+<p>所以系统调用显得尤为重要，用户要进入内核态，需要使用<code>ecall</code>进行调用，在riscv中<code>ecall</code>会使控制流会进入<code>stvec</code>指向的地址，这就是从用户态向内核态的转变入口了，我们在这个位置设置一个<code>trap</code>就可以进行捕获。内核工作结束后，内核调用<code>sret</code>在此返回用户态，只要保证切换前后必须的寄存器状态不变，那么应用就会像什么也没有发生一样正常工作了。</p>
+<h2 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h2><p>这一个章节是一个多道程序处理系统，这次需要处理两件事情，第一个是我们的系统需要一次性在内存中加载多个应用程序，第二个是实现分时多任务。</p>
+<p>面对第一个问题，基本保持ch2中的代码不变，只需要依次把应用顺序地加载到内存相应的位置即可。唯一需要在意的就是用户的栈空间，这个只需要在内存的某个地方分配一个固定大小的空间即可。</p>
+<p>但是第二个问题，需要考虑的就多的了。需要加入以下的内容：</p>
+<ol>
+<li>进程的概念</li>
+<li>上下文切换</li>
+<li>时钟中断</li>
+</ol>
+<p>这里的进程并不复杂，最好理解为一个应用程序的执行流，我们需要对这个执行流维护寄存器信息，来保证能够合理地进行上下文切换(switch)。switch操作是不用进入内核的，这个过程只需要保存原进程的寄存器到TaskContext中，再将目标进程的TaskContext恢复回当前的寄存器状态中，如此完成进程切换。</p>
+<p>下来是时钟中断，对于时钟和时钟中断，我们需要有硬件的配合，这个任务主要交给SBI。但是要实现合理的时钟中断机制，还需要在<code>trap_handler</code>中添加对Trap的处理。</p>
+<p>现在来完成题目，需要引入一个新的系统调用 <code>sys_trace</code>（ID 为 410）用来追踪当前任务系统调用的历史信息，并做对应的修改。</p>
+<p>由于当前，我们的内核中还没有“虚拟地址”的概念，所以对于传入的指针可以直接进行读写，不用担心地址空间不同的问题，因此<code>trace_request</code>为0、1的情况可以轻松解决。对于<code>trace_request</code>为2的情况，我在每个进程的结构体中添加了<code>BTreeMap&lt;uszie, usize&gt;</code>来对每一个系统调用的此时进行映射，也由此完成了lab1。</p>
+<h2 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h2><p>这一章加入了地址空间的概念，这也是我做得最吃力的一章。我所遇到的核心难点如下：</p>
+<ol>
+<li>如何对代码进行更好地debug？</li>
+<li>用户空间和内核空间如何进行交互？</li>
+</ol>
+<p>针对第一个难点，其实rcore里面已经给了很好的方案了，但是在gdb中看代码真的很痛苦！所以我选择使用vscode的codelldb插件，其实后端用的也是gdb，但是在vscode中看代码绝对会舒服很多。</p>
+<p>想要用上vscode来debug，涉及两个文件</p>
+<ol>
+<li><p>.vscode/launch.json</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">"version"</span>: <span class="string">"0.2.0"</span>,</span><br><span class="line">    <span class="attr">"configurations"</span>: [</span><br><span class="line">        <span class="comment">// 对 qemu 进行调试</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="attr">"type"</span>: <span class="string">"lldb"</span>,</span><br><span class="line">            <span class="attr">"request"</span>: <span class="string">"launch"</span>,</span><br><span class="line">            <span class="attr">"name"</span>: <span class="string">"qemu-debug"</span>,</span><br><span class="line">            <span class="comment">// 从 ELF 文件中获取 debug 符号表</span></span><br><span class="line">            <span class="attr">"program"</span>: <span class="string">"$&#123;workspaceFolder&#125;/os/target/riscv64gc-unknown-none-elf/release/os"</span>,</span><br><span class="line">            <span class="attr">"args"</span>: [],</span><br><span class="line">            <span class="attr">"processCreateCommands"</span>: [<span class="string">"gdb-remote 1234"</span>],</span><br><span class="line">            <span class="attr">"cwd"</span>: <span class="string">"$&#123;workspaceFolder&#125;"</span></span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>os/Cargo.toml</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[profile.release]</span></span><br><span class="line"><span class="attr">debug</span> = <span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<p>配置完成后，直接启动</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启动 gdbgdbserver</span></span><br><span class="line"><span class="built_in">cd</span> os</span><br><span class="line">make gdbserver</span><br><span class="line"><span class="comment"># 在 vscode 调试页面启动 qemu-debug</span></span><br></pre></td></tr></table></figure>
+
+<p>实现了debug，接下来还需要处理用户空间和内核空间的交互问题。源代码中已经提供了一个<code>translated_byte_buffer</code>函数，用于获取用户态下，虚拟地址空间区域在物理地址空间的映射。因此，在内核态访问和修改用户态内存，可以通过处理返回的<code>Vec&lt;&amp;&#39;static mut [u8]&gt;</code>，逐个字节进行处理。接下来就可以对<code>sys_trace</code>和<code>sys_get_time</code>通过这样的方式进行更新了。</p>
+<h2 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h2><p>这一章向操作系统添加了进程管理，前几章的<code>task</code>可以理解为一个执行流，并且其中只是维护了一个用于switch的上下文，缺少父子进程的概念，无法在进程中生成其他进程，同时也几乎没有任务调度的方案。</p>
+<p>本章的难度并不大，通过参考已有的<code>sys_fork</code>和<code>sys_exec</code>系统调用，可以轻松添加<code>sys_spawn</code>。</p>
+<h2 id="ch6"><a href="#ch6" class="headerlink" title="ch6"></a>ch6</h2><p>这一章向操作系统中添加了文件系统，这样，当我们运行任务时，我们不再需要将所有的应用加载到内存中，而是保存在更廉价的磁盘里。在<code>easy-fs</code>中特别值得关注的就是分层的思想，从下到上分五层：</p>
+<ol>
+<li>磁盘块设备接口层</li>
+<li>块缓存层</li>
+<li>磁盘数据结构层</li>
+<li>磁盘块管理器层</li>
+<li>索引节点层</li>
+</ol>
+<p>我对文件系统的认知基本来自于《操作系统导论》的VSFS(Very Simple File System)，里面还没有硬链接的概念，而且并不区分<code>Inode</code>(面向用户操作的对象)和<code>DiskInode</code>(位于物理磁盘上)两者。也是这个原因，我在做实验时就很疑惑，因为我不清楚links需要在哪里进行维护。所以我还得找资料，我参考了《图解linux内核 基于6.x》中文件系统篇，最后将<code>links</code>放置在DiskInode中。这是这部分第一个需要考量的问题。</p>
+<p>第二个问题是结构体的大小，<code>layout.rs</code>中部分结构体大小是需要严格划定的，因为那些结构体是磁盘上的映射，本质上是放在硬盘上的，所以存在一些对齐要求：</p>
+<ol>
+<li>DiskInode：125字节(由于<code>#[repr(C)]</code>进行4字节对齐，实际大小为128字节)</li>
+<li>DirEntry：32字节</li>
+</ol>
+<p>所以如果放置在<code>DiskInode</code>中的<code>links</code>类型的大小大于3个字节，是会出现运行时异常的！参考《死灵书》：<code>https://nomicon.purewhite.io/data.html</code></p>
+<p>接下来的作业就不成问题了。</p>
+<h2 id="ch7"><a href="#ch7" class="headerlink" title="ch7"></a>ch7</h2><p>说真的ch7没怎么看，因为它也跑不起来，看报错大概是因为<code>zerocopy</code>库不支持<code>nightly-2024-02-25</code>的版本</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[toolchain]</span></span><br><span class="line"><span class="attr">profile</span> = <span class="string">"minimal"</span></span><br><span class="line"><span class="comment"># use the nightly version of the last stable toolchain, see &lt;https://forge.rust-lang.org/&gt;</span></span><br><span class="line"><span class="attr">channel</span> = <span class="string">"nightly-2024-02-25"</span></span><br><span class="line"><span class="attr">components</span> = [<span class="string">"rust-src"</span>, <span class="string">"llvm-tools-preview"</span>, <span class="string">"rustfmt"</span>, <span class="string">"clippy"</span>]</span><br></pre></td></tr></table></figure>
+
+<p>有趣的是其他章节的版本用的工具链是<code>nightly-2024-05-02</code></p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[toolchain]</span></span><br><span class="line"><span class="attr">profile</span> = <span class="string">"minimal"</span></span><br><span class="line"><span class="comment"># use the nightly version of the last stable toolchain, see &lt;https://forge.rust-lang.org/&gt;</span></span><br><span class="line"><span class="attr">channel</span> = <span class="string">"nightly-2024-05-02"</span></span><br><span class="line"><span class="attr">components</span> = [<span class="string">"rust-src"</span>, <span class="string">"llvm-tools-preview"</span>, <span class="string">"rustfmt"</span>, <span class="string">"clippy"</span>]</span><br></pre></td></tr></table></figure>
+
+<h2 id="ch8"><a href="#ch8" class="headerlink" title="ch8"></a>ch8</h2><p>这一章节，可以看到rcore中的进程模型又发生了变化，和linux相似。线程作为最基本的调度单位只维护用于switch的上下文，而进程变成了多个线程的载体，维护所有线程的共享资源，主要就包括这一节添加的<code>mux</code>，<code>condvar</code>和<code>semaphore</code>。</p>
+<p>本节的练习是死锁检测，好巧不巧，我参考的《操作系统概念(原书第10版)》上就有对应的算法解析，类似于用于死锁避免的银行家算法。</p>
+<p>最后这道题算是一个趣味题，像这样仅仅提供文字资料和要求的练习还是相对的考验人的！</p>
+<h2 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h2><p>第二阶段给我最大压力的应该就是虚拟地址和文件系统部分，其他章节还好。之前对于操作系统，基本停留在理论阶段，稍微看过一点xv6的代码，不过其实没有太深入，通过rcore的训练，我对操作系统的认识更加深入了。虽然每个地方都是做了一点点的训练，但是从ch1一直到ch8真的实实在在从零构建了一个较为完整的操作系统了。</p>
+<p>这个过程中，最受益匪浅的还是查资料的过程，rcore的资料已经很丰富了，但是永远不能指望所有细节都能面面俱到，我参考了很多手册，从配置环境用的qemu9.0，需要修改<code>sbi.rs</code>参考的《RISC-V Supervisor Binary Interface》，还有需要深入rv39虚拟地址机制参考的《The RISC-V Reader:  An Open Architecture Atlas》，这样的经历都非常的有价值。</p>
+<p>最后是rcore的设计理念，最惊艳的还是文件系统中分层架构，借助rust的语言机制实现几乎零成本抽象，这个过程中，我也逐渐知道什么是好的代码，又一次对于“抽象”有了更深一层的理解。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%8E%E6%98%8E%E6%B6%9B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +397,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
 
           
@@ -355,7 +488,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
 
           
@@ -373,102 +506,6 @@
 <h2 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h2><p>围绕rcore、riscv展开，从<code>裸机</code>到<code>多任务</code>到<code>系统调用</code>、<code>特权级</code>、<code>内存管理</code>、<code>文件系统</code>以及<code>并发</code>，即使是初学对照文档也能够掌握操作系统的主要组成</p>
 <h2 id="第三阶段"><a href="#第三阶段" class="headerlink" title="第三阶段"></a>第三阶段</h2><p>该阶段围绕arceos。rcore更像是对传统操作系统的rust语言的重写，而arceos的项目组织更让人眼前一亮，借助rust现代化的语法，操作系统得以组件化而且通过一些rust宏的封装。在部件解耦的过程中并不牺牲一些处理或传参上的安全性，这使得在开发的过程中可以更多的将注意力摆到功能逻辑上，也能够更好适用于多元化的场景。通过6次练习，更是深切感受到了开发的便利。在这阶段还另外涉及了虚拟化相关的内容，更完善了我对现代操作系统的认知</p>
 <p>操作系统对硬件而言是应用，对应用而言又是基础，这是一个承上启下的分支。在我的理解中这是一个十分复杂的“系统”，作为非专业必修，一直都不是很愿意下得了决心去学。训练营在统共十几个不长的章节就绘制出了这个复杂系统的整个框架，化繁为简，完成了我对操作系统认知的祛媚</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025spring-rust-based-os-comp-stage2-report-loichyan/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/05/05/2025spring-rust-based-os-comp-stage2-report-loichyan/" class="post-title-link" itemprop="url">2025春夏季开源操作系统训练营第二阶段总结报告</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-05 20:31:32" itemprop="dateCreated datePublished" datetime="2025-05-05T20:31:32+00:00">2025-05-05</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="学习历程"><a href="#学习历程" class="headerlink" title="学习历程"></a>学习历程</h2><p>因为并非计算机专业出身，所以一直都有系统学习计算机底层原理的念头，趁着备研把理论性的知识学了一些．虽然现阶段只看了计算机组成原理，不过，早便萌生了自己动手去实践那些理论技巧的想法．去年秋冬季的夏令营也有报名，但由于时间安排仓促混乱，只得作罢．今年，虽然学习安排亦比较紧张，不过，想着动手得来的知识要比苦读书本记忆的更为深刻．</p>
-<p>在第一阶段中，因为本身就有一些 Rust 开发经验，所以总体上是复习了一遍语言基础，前后并没有占用多少时间．第二阶段开始的时间稍晚，在 4 月下旬才腾出时间来专门研读 rCore 教程，也算是为了接下来学习操作系统做铺垫吧．一直拖沓的月底才把 rCore 教程 V3<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/" target="_blank" rel="noopener">^1</a> 看完，五月初到现在差不多 4 天的时间完成了各章节的实验题目．</p>
-<h2 id="主要收获"><a href="#主要收获" class="headerlink" title="主要收获"></a>主要收获</h2><p>在阅读 rCore 教程的时候，始终有两个问题一直困扰我，在 rCore 的实现中，</p>
-<ol>
-<li>内核虚拟内存空间和用户虚存被映射到了相同的地址段，这导致除了访问用户指针时需要先映射到实际的物理内存，稍有遗漏便可能导致访存异常，能否使用一个页表呢？</li>
-<li>每个任务都有两个栈，即内核栈和用户栈，并且在调度任务时需要反复地在不同内核栈之间轮替，能否使用一个单独的栈解决问题呢？</li>
-</ol>
-<h3 id="单页表虚拟内存"><a href="#单页表虚拟内存" class="headerlink" title="单页表虚拟内存"></a>单页表虚拟内存</h3><p>单页表的实现在教程中有所提及，关于为何没有使用，文中给出的理由是单页表会导致熔断攻击．如果要避免熔断攻击，那么用户态就一定不能包含内核空间的页表项，这一点很容易想到．再稍加思考，只需要将地址空间一分为二，高位和低位分别留给内核和用户，然后再维护两个页表，其中一个只包含用户程序和必要的内核程序即可．后来，进一步研究了 Linux 的 PTI<a href="https://www.kernel.org/doc/html/v6.1/x86/pti.html" target="_blank" rel="noopener">^2</a> 机制后，发现基本的思路一致．并且从中了解到，在实现细节上，可以将两个页表放在物理内存的两个连续页面上，这样只需要若干寄存器运算就能实现换表．</p>
-<p>起初我一直认为单页表无疑是比双页表更简洁方便的方案．后来，在落实时才发现，实现单页表的一大难点在于：内核被映射到虚拟内存的高位（比如 0xffffffc080200000），但实际上被加载到物理内存的低位运行（比如 0x80200000）．这便到导致了内核链接时的基址和运行时的基址不一致，从而可能使得某些绝对寻址的访存错误，进一步引发难以察觉的 BUG．故，需要在内核启动时，需要手写一小段仅使用相对寻址的汇编代码来构造一个最小可用的内核页表，然后再进行更为细致地初始化流程．</p>
-<p>在这个过程中，本打算参考 ArceOS<a href="https://github.com/arceos-org/arceos/" target="_blank" rel="noopener">^3</a> 的实现，但此内核中直接在若干简短的 Rust 函数中完成了初始化．猜测应该是编译成了位置无关的代码，但总感觉这样有些”过度“依赖于编译器．因此，经过一番探索之后，用大约 50 行汇编代码完成了最小内核页表的初始化工作．这个过程是比较困难的，因为整个系统还没有启动，非常难以调试．不过也因此深化了对 GDB 等调试工具的理解和使用．</p>
-<p>此外，在更进一步地思考后，发现每个程序的内核页表都是该程序初始化时的全局内核页表的一个拷贝，如果后续内核页表更新，可能会导致访存的不一致．对于此问题，最简单的办法就是预先分配好三级页表的全部项，这样后续就完全不必担心同步的问题．当然，这不可避免的占用了少量额外内存（更确切地，2MB），但这个“少量”对于嵌入式设备来说并非可接受的开销．因此，最好的方案似乎还是按需同步，考虑到内核页表不会变化太频繁，这应该是一个合理的选择．不过，最终该如何漂亮地解决这个问题，还需要进一步的调研．</p>
-<h3 id="单内核栈系统"><a href="#单内核栈系统" class="headerlink" title="单内核栈系统"></a>单内核栈系统</h3><p>刚开始学习多任务时，就一直纠结单内核栈该怎么实现．后来学习进程管理机制时，突然意识到，如果换一个角度看待用户程序：对操作系统来说，执行用户程序相当于调用一个函数，只不过，函数的返回依赖于陷入机制．这一点和用户角度很像，即不发生异常时，大多数时候，操作系统对于用户程序就是一个提供了许多系统调用的函数库．用户程序可以在一个栈上“不间断地”执行（陷入处理对用户透明），那么操作系统肯定也能实现类似的机制．</p>
-<p>对于进一步的细节，相当于将 rCore 的上下文切换和用户执行态恢复整合一起：每次需要执行用户程序时，将当前的内核运行状态保存；而在处理用户陷入时，保存过用户的执行状态后，紧接着便加载先前保存的内核状态．整体上看，相当于内核把用户视为函数调用了一次，而在它返回后，内核便可以着手进行调度或者处理用户请求．</p>
-<p>这样，一个最显著的优点便是使得内核的调度更加直观：从始自终，内核在一个循环中不断地“call”用户程序．并且，可以大幅减少全局变量的使用，更容易利用 Rust 所有权模型的优势，也有利好内核实现复杂的调度算法．</p>
-<h3 id="两阶段陷入处理"><a href="#两阶段陷入处理" class="headerlink" title="两阶段陷入处理"></a>两阶段陷入处理</h3><p>上述单内核栈的方案也引发了一个新问题：每次发生陷入都要保存大量寄存器，包括全部的用户通用寄存器、CSR 以及一部分调用上下文；而多内核栈的方案中，不发生调度时，相比可以减少约 2/3 的寄存器存取操作．因此，自然而然地，需要找到一种方法来减少上下文的保存操作．</p>
-<p>由陷入机制入手，从本质上讲，陷入处理实际上是在任意位置插入一条函数调用，而各种处理器架构均定义了汇编层面的调用约定．既然陷入处理相当于函数调用，那么在陷入处理的入点，只需要保存调用者（caller-saved）寄存器和若干其它寄存器（CSR、tp、sp 等）即可．后来，偶然发现了 rCore 维护者提出的 fast-trap<a href="https://github.com/rustsbi/fast-trap/" target="_blank" rel="noopener">^4</a> 快速陷入处理机制，这是一个相当通用（但有些复杂）的多阶段陷入处理机制．</p>
-<p>深入研究之后，发现似乎两个阶段的陷入处理机制就能满足绝大部分的需求：</p>
-<ol>
-<li>第一阶段，只需要保存约一半的寄存器（如上文所述），主要用于处理各种异常（包括内核和用户）以及一部分不需要切换上下文的系统调用．处理内核陷入仅需要此阶段即可．</li>
-<li>第二阶段，保存完整的用户寄存器和内核调用上下文，沿用前文单内核栈方案的陷入处理机制．</li>
-</ol>
-<p>在经过大量试错和调整之后，最终在不需要额外的访存操作的情况下，实现了一个相对通用的两阶段陷入处理方案．实现时，更进一步学习了许多 GDB 的调试技巧以及 Rust 声明宏的使用技巧．</p>
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>以上便是第二阶段中的主要收获，此外，关于文件系统和各种同步原语的实现，也偶有一些“灵光一现”，不过限于时间不足，并没来得及实践．对于下一阶段，打算集中精力攻克第三个选题，即基于 Rust 语言异步机制的内核改造．因为，此前一直对 Rust 的异步实现“耿耿于怀”，借此机会，可以更深入理解其工作原理．</p>
 
       
     </div>
@@ -519,7 +556,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -589,6 +626,102 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025spring-rust-based-os-comp-stage2-report-loichyan/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/05/05/2025spring-rust-based-os-comp-stage2-report-loichyan/" class="post-title-link" itemprop="url">2025春夏季开源操作系统训练营第二阶段总结报告</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-05 20:31:32" itemprop="dateCreated datePublished" datetime="2025-05-05T20:31:32+00:00">2025-05-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="学习历程"><a href="#学习历程" class="headerlink" title="学习历程"></a>学习历程</h2><p>因为并非计算机专业出身，所以一直都有系统学习计算机底层原理的念头，趁着备研把理论性的知识学了一些．虽然现阶段只看了计算机组成原理，不过，早便萌生了自己动手去实践那些理论技巧的想法．去年秋冬季的夏令营也有报名，但由于时间安排仓促混乱，只得作罢．今年，虽然学习安排亦比较紧张，不过，想着动手得来的知识要比苦读书本记忆的更为深刻．</p>
+<p>在第一阶段中，因为本身就有一些 Rust 开发经验，所以总体上是复习了一遍语言基础，前后并没有占用多少时间．第二阶段开始的时间稍晚，在 4 月下旬才腾出时间来专门研读 rCore 教程，也算是为了接下来学习操作系统做铺垫吧．一直拖沓的月底才把 rCore 教程 V3<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/" target="_blank" rel="noopener">^1</a> 看完，五月初到现在差不多 4 天的时间完成了各章节的实验题目．</p>
+<h2 id="主要收获"><a href="#主要收获" class="headerlink" title="主要收获"></a>主要收获</h2><p>在阅读 rCore 教程的时候，始终有两个问题一直困扰我，在 rCore 的实现中，</p>
+<ol>
+<li>内核虚拟内存空间和用户虚存被映射到了相同的地址段，这导致除了访问用户指针时需要先映射到实际的物理内存，稍有遗漏便可能导致访存异常，能否使用一个页表呢？</li>
+<li>每个任务都有两个栈，即内核栈和用户栈，并且在调度任务时需要反复地在不同内核栈之间轮替，能否使用一个单独的栈解决问题呢？</li>
+</ol>
+<h3 id="单页表虚拟内存"><a href="#单页表虚拟内存" class="headerlink" title="单页表虚拟内存"></a>单页表虚拟内存</h3><p>单页表的实现在教程中有所提及，关于为何没有使用，文中给出的理由是单页表会导致熔断攻击．如果要避免熔断攻击，那么用户态就一定不能包含内核空间的页表项，这一点很容易想到．再稍加思考，只需要将地址空间一分为二，高位和低位分别留给内核和用户，然后再维护两个页表，其中一个只包含用户程序和必要的内核程序即可．后来，进一步研究了 Linux 的 PTI<a href="https://www.kernel.org/doc/html/v6.1/x86/pti.html" target="_blank" rel="noopener">^2</a> 机制后，发现基本的思路一致．并且从中了解到，在实现细节上，可以将两个页表放在物理内存的两个连续页面上，这样只需要若干寄存器运算就能实现换表．</p>
+<p>起初我一直认为单页表无疑是比双页表更简洁方便的方案．后来，在落实时才发现，实现单页表的一大难点在于：内核被映射到虚拟内存的高位（比如 0xffffffc080200000），但实际上被加载到物理内存的低位运行（比如 0x80200000）．这便到导致了内核链接时的基址和运行时的基址不一致，从而可能使得某些绝对寻址的访存错误，进一步引发难以察觉的 BUG．故，需要在内核启动时，需要手写一小段仅使用相对寻址的汇编代码来构造一个最小可用的内核页表，然后再进行更为细致地初始化流程．</p>
+<p>在这个过程中，本打算参考 ArceOS<a href="https://github.com/arceos-org/arceos/" target="_blank" rel="noopener">^3</a> 的实现，但此内核中直接在若干简短的 Rust 函数中完成了初始化．猜测应该是编译成了位置无关的代码，但总感觉这样有些”过度“依赖于编译器．因此，经过一番探索之后，用大约 50 行汇编代码完成了最小内核页表的初始化工作．这个过程是比较困难的，因为整个系统还没有启动，非常难以调试．不过也因此深化了对 GDB 等调试工具的理解和使用．</p>
+<p>此外，在更进一步地思考后，发现每个程序的内核页表都是该程序初始化时的全局内核页表的一个拷贝，如果后续内核页表更新，可能会导致访存的不一致．对于此问题，最简单的办法就是预先分配好三级页表的全部项，这样后续就完全不必担心同步的问题．当然，这不可避免的占用了少量额外内存（更确切地，2MB），但这个“少量”对于嵌入式设备来说并非可接受的开销．因此，最好的方案似乎还是按需同步，考虑到内核页表不会变化太频繁，这应该是一个合理的选择．不过，最终该如何漂亮地解决这个问题，还需要进一步的调研．</p>
+<h3 id="单内核栈系统"><a href="#单内核栈系统" class="headerlink" title="单内核栈系统"></a>单内核栈系统</h3><p>刚开始学习多任务时，就一直纠结单内核栈该怎么实现．后来学习进程管理机制时，突然意识到，如果换一个角度看待用户程序：对操作系统来说，执行用户程序相当于调用一个函数，只不过，函数的返回依赖于陷入机制．这一点和用户角度很像，即不发生异常时，大多数时候，操作系统对于用户程序就是一个提供了许多系统调用的函数库．用户程序可以在一个栈上“不间断地”执行（陷入处理对用户透明），那么操作系统肯定也能实现类似的机制．</p>
+<p>对于进一步的细节，相当于将 rCore 的上下文切换和用户执行态恢复整合一起：每次需要执行用户程序时，将当前的内核运行状态保存；而在处理用户陷入时，保存过用户的执行状态后，紧接着便加载先前保存的内核状态．整体上看，相当于内核把用户视为函数调用了一次，而在它返回后，内核便可以着手进行调度或者处理用户请求．</p>
+<p>这样，一个最显著的优点便是使得内核的调度更加直观：从始自终，内核在一个循环中不断地“call”用户程序．并且，可以大幅减少全局变量的使用，更容易利用 Rust 所有权模型的优势，也有利好内核实现复杂的调度算法．</p>
+<h3 id="两阶段陷入处理"><a href="#两阶段陷入处理" class="headerlink" title="两阶段陷入处理"></a>两阶段陷入处理</h3><p>上述单内核栈的方案也引发了一个新问题：每次发生陷入都要保存大量寄存器，包括全部的用户通用寄存器、CSR 以及一部分调用上下文；而多内核栈的方案中，不发生调度时，相比可以减少约 2/3 的寄存器存取操作．因此，自然而然地，需要找到一种方法来减少上下文的保存操作．</p>
+<p>由陷入机制入手，从本质上讲，陷入处理实际上是在任意位置插入一条函数调用，而各种处理器架构均定义了汇编层面的调用约定．既然陷入处理相当于函数调用，那么在陷入处理的入点，只需要保存调用者（caller-saved）寄存器和若干其它寄存器（CSR、tp、sp 等）即可．后来，偶然发现了 rCore 维护者提出的 fast-trap<a href="https://github.com/rustsbi/fast-trap/" target="_blank" rel="noopener">^4</a> 快速陷入处理机制，这是一个相当通用（但有些复杂）的多阶段陷入处理机制．</p>
+<p>深入研究之后，发现似乎两个阶段的陷入处理机制就能满足绝大部分的需求：</p>
+<ol>
+<li>第一阶段，只需要保存约一半的寄存器（如上文所述），主要用于处理各种异常（包括内核和用户）以及一部分不需要切换上下文的系统调用．处理内核陷入仅需要此阶段即可．</li>
+<li>第二阶段，保存完整的用户寄存器和内核调用上下文，沿用前文单内核栈方案的陷入处理机制．</li>
+</ol>
+<p>在经过大量试错和调整之后，最终在不需要额外的访存操作的情况下，实现了一个相对通用的两阶段陷入处理方案．实现时，更进一步学习了许多 GDB 的调试技巧以及 Rust 声明宏的使用技巧．</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>以上便是第二阶段中的主要收获，此外，关于文件系统和各种同步原语的实现，也偶有一些“灵光一现”，不过限于时间不足，并没来得及实践．对于下一阶段，打算集中精力攻克第三个选题，即基于 Rust 语言异步机制的内核改造．因为，此前一直对 Rust 的异步实现“耿耿于怀”，借此机会，可以更深入理解其工作原理．</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E5%88%98%E8%BD%B6%E5%87%A1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -620,7 +753,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
 
           
@@ -690,7 +823,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
 
           
@@ -836,7 +969,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1022,7 +1155,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
 
           
@@ -1136,7 +1269,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
+                <time title="Modified: 2025-05-27 02:08:17" itemprop="dateModified" datetime="2025-05-27T02:08:17+00:00">2025-05-27</time>
               </span>
 
           
@@ -1338,120 +1471,6 @@
 <li>具体实现modules/riscv_vcpu/src/vcpu.rs</li>
 <li>管理上的层次结构：虚拟机（VM），设备组VmDevGroup以及设备VmDev。Riscv架构下，虚拟机包含的各种外设通常是通过MMIO方式访问，因此主要用地址范围标记它们的资源。</li>
 </ol>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/02/2025%E6%98%A5%E5%A4%8F%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/05/02/2025%E6%98%A5%E5%A4%8F%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">2025春夏季OS训练营学习笔记</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-02 21:39:01" itemprop="dateCreated datePublished" datetime="2025-05-02T21:39:01+00:00">2025-05-02</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-05-26 14:56:07" itemprop="dateModified" datetime="2025-05-26T14:56:07+00:00">2025-05-26</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>终于完成了前三个阶段的练习。我这个系统方向的博士生，读了很多操作系统方面的论文，但是直到今天终于是脱离了书籍上的一知半解，可以称得上是“了解”操作系统的基本原理了。作为一个转专业学生，我从统计学起步，跨专业申请到了计算机方向的硕士，到现在在异国他乡博士在读。也算是凭着对计算机的热爱走到了现在。只是要在这个领域做出好的问题和好的研究，还是一件很困难的事情。写完最后一个hypervisor实验的感慨倒是适合放在此处： “仔细想想，实际上type-II hypervisor也几乎可以通过类似的机制实现。这一套并不局限于直接运行在硬件上的Type-I Hypervisor，只要硬件提供特权级的隔离的功能可以轻易实现。硬件支持真是个好东西。想到了当时读Xen的论文，通过Para Virtualization重量级实现hypervisor那种巨大的工程量，再到现在各个处理器指令集都支持虚拟化扩展，可以通过几百行代码实现一个简单虚拟机。也算是软件系统的需求促进的硬件发展的一个样例了。<br>时过境迁，前两年Timothy在OSDI疾呼研究者应该回归OS的本质做hardware-software co-design。现在新硬件层出不穷，硬件加速器，智能网卡，TEE，还有RDMA，CXL一堆新名词。好像“攻守之势异也”，变成了硬件推动OS进步了。面对着越来越多的外设和越来越专业化的使用场景，操作系统研究者的未来又在何方呢？”</p>
-<p>祝自己将来能成为一名好的system researcher</p>
-<h1 id="rcore部分"><a href="#rcore部分" class="headerlink" title="rcore部分"></a>rcore部分</h1><h2 id="Chapter-1-应用程序与基本执行环境"><a href="#Chapter-1-应用程序与基本执行环境" class="headerlink" title="Chapter  1 应用程序与基本执行环境"></a>Chapter  1 应用程序与基本执行环境</h2><p>Ref: <a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter1/index.html" target="_blank" rel="noopener">https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter1/index.html</a><br>作为rCore教程的第一章，这章其实并未涉及到太多OS的概念。而是主要介绍了OS作为一个系统软件和应用层软件的区别：执行环境。并通过代码介绍了编写在OS执行环境中可以执行的代码。<br>我们在之前的学习中编写的用户态代码在执行时依赖于语言提供的运行时+标准库。运行时是一些预编译好的代码，会在编译时与我们自己编写的代码编译在一起，来实现一些诸如数组越界检查等功能。而标准库包含了对于很多系统调用的封装，比如说在使用print时，这个标准库函数在底层调用了操作系统提供的系统调用write 来把希望打印的内容输出到屏幕上。在运行时，操作系统也会帮我们完成准备和收尾工作，比如开辟虚拟内存，将程序代码载入到内存中，并在程序退出后执行清理工作等等等等等等。但是对于OS来说，它直接运行在硬件上，并没有封装好的系统调用，也没有其它软件为他进行准备工作了。因此一切都需要我们使用代码完成。</p>
-<p>编译选项</p>
-<p>首先就是在编译层面我们需要设置特别的编译选项。默认情况下Rust的编译选项默认标准库和对应的操作系统存在，因此生成代码时会用到其中的功能，这显然是不能接收的。因此我们需要把编译选项中只指定硬件架构RISCV 和基本的二进制文件格式elf 。</p>
-<p>设置内存布局</p>
-<p>由于没有fork 等系统调用，我们必须自己处理程序启动时的准备工作才能让程序运行起来。好在我们还可以使用rust_sbi 以及系统架构和上面的固件。RISCV固件在加电启动时会默认从内存0x1000 开始运行代码，并帮助我们跳转到rust_sbi 的启动流程中去。rust_sbi 规定系统软件的代码需要被放置在0x800002000 以保证正常执行。因此我们只需要在启动时把编译好的二进制文件load到0x80002000 中去即可。另一点需要注意的是rust的链接器（最终决定二进制内存布局）的默认设置并不符合QEMU中RISCV的要求。因此我们需要手动设置链接器的脚本以确保各个段被放置在合适的位置。从而保证load后能顺利运行</p>
-<p>编写代码</p>
-<p>由于这一章中仅仅是使用rust_sbi 完成输出Hello World，所以大部分内容属于调用SBI的细节无需赘述。需要注意的有几点，第一是在没有标准库后，代码默认的panic和exit都需要我们进行退出处理（甚至没有标准库的情况下它甚至无法指定默认入口为main 函数，我们需要给代码标注上![no_main] 宏然后在汇编中call main函数，并在链接脚本中指定开始执行的指令）。因此我们需要在代码中编写panic handler函数以处理出现panic的情况。另外就是作为系统软件，我们需要手动编写代码在启动时将.bss(全局变量)所在的内存段清零，防止后面出现奇怪的错误。当然，我们还需要在汇编代码中分配好栈的大小（由于现在并没有虚拟内存的支持因此只能分配固定大小的栈，我们没有很好的办法防止栈溢出，在完成虚拟内存章节后我们就完全避免这个问题了。）<br>当然我们还需要用宏将我们预编写的汇编语言包含在源代码中这样也生成的二进制中就也会包含我们写的汇编啦(汇编中包含函数入口，分配栈等内容)</p>
-<p>ASM和链接器解析</p>
-<p>下面是注释后的entry.asm和链接器脚本。asm生成了一些符号然后链接器会把他们按照链接脚本的方式计算出实际地址并翻译为二进制代码。</p>
-<p>一个注释后的entry.asm</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">.section .text.entry       # 定义代码段，.text.entry是一个特殊的段名</span><br><span class="line">.globl _start              # 声明_start符号为全局可见</span><br><span class="line">_start:                    # _start标签，程序入口点</span><br><span class="line">    la sp, boot_stack_top  # 将boot_stack_top的地址加载到栈指针(sp)</span><br><span class="line">    call rust_main         # 调用rust_main函数</span><br><span class="line">    </span><br><span class="line">.section .bss.stack        # 定义未初始化数据段，用于栈</span><br><span class="line">.globl boot_stack_lower_bound  # 声明栈底界限为全局可见</span><br><span class="line">boot_stack_lower_bound:    # 栈底界限标签</span><br><span class="line">    .space 4096 * 16       # 分配16页内存(每页4KB)作为栈空间</span><br><span class="line">.globl boot_stack_top      # 声明栈顶为全局可见</span><br><span class="line">boot_stack_top:            # 栈顶标签</span><br></pre></td></tr></table></figure>
-<ul>
-<li>boot_stack_lower_bound: 定义了栈底部的标签（地址）</li>
-<li>.space 4096 * 16 在这个标签之后预留了 64KB 的内存空间</li>
-<li>boot_stack_top: 定义了栈顶部的标签（地址）<br>boot_stack_top 后面什么都没有是因为它标记的是栈空间的结束位置。由于栈是向下增长的，实际的内存布局是这样的：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">高地址 --&gt; boot_stack_top         (栈指针初始位置)</span><br><span class="line">          |</span><br><span class="line">          | 64KB 的栈空间</span><br><span class="line">          |</span><br><span class="line">低地址 --&gt; boot_stack_lower_bound (栈底限制)</span><br></pre></td></tr></table></figure>
-
-</li>
-</ul>
-<p>一个注释后的链接器脚本</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br></pre></td><td class="code"><pre><span class="line">OUTPUT_ARCH(riscv)         &#x2F;&#x2F; 指定输出架构为RISC-V</span><br><span class="line">ENTRY(_start)              &#x2F;&#x2F; 指定程序入口点为_start符号</span><br><span class="line">BASE_ADDRESS &#x3D; 0x80200000; &#x2F;&#x2F; 定义基地址常量，这是RISC-V SBI通常加载内核的地址</span><br><span class="line"></span><br><span class="line">SECTIONS</span><br><span class="line">&#123;</span><br><span class="line">    . &#x3D; BASE_ADDRESS;      &#x2F;&#x2F; 将当前位置计数器设为基地址</span><br><span class="line">    skernel &#x3D; .;           &#x2F;&#x2F; 定义skernel符号，表示内核起始地址</span><br><span class="line"></span><br><span class="line">    stext &#x3D; .;             &#x2F;&#x2F; 定义stext符号，表示代码段起始地址</span><br><span class="line">    .text : &#123;              &#x2F;&#x2F; 定义.text段（代码段）</span><br><span class="line">        *(.text.entry)     &#x2F;&#x2F; 首先放入所有.text.entry段（启动代码）</span><br><span class="line">        *(.text .text.*)   &#x2F;&#x2F; 然后放入所有其他.text段（普通代码）</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);         &#x2F;&#x2F; 将当前位置按4KB对齐</span><br><span class="line">    etext &#x3D; .;             &#x2F;&#x2F; 定义etext符号，表示代码段结束地址</span><br><span class="line">    srodata &#x3D; .;           &#x2F;&#x2F; 定义srodata符号，表示只读数据段起始地址</span><br><span class="line">    .rodata : &#123;            &#x2F;&#x2F; 定义.rodata段（只读数据段）</span><br><span class="line">        *(.rodata .rodata.*) &#x2F;&#x2F; 放入所有.rodata段（常量等）</span><br><span class="line">        *(.srodata .srodata.*) &#x2F;&#x2F; 放入所有.srodata段（小型只读数据）</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);         &#x2F;&#x2F; 将当前位置按4KB对齐</span><br><span class="line">    erodata &#x3D; .;           &#x2F;&#x2F; 定义erodata符号，表示只读数据段结束地址</span><br><span class="line">    sdata &#x3D; .;             &#x2F;&#x2F; 定义sdata符号，表示数据段起始地址</span><br><span class="line">    .data : &#123;              &#x2F;&#x2F; 定义.data段（已初始化数据段）</span><br><span class="line">        *(.data .data.*)   &#x2F;&#x2F; 放入所有.data段（初始化的变量）</span><br><span class="line">        *(.sdata .sdata.*) &#x2F;&#x2F; 放入所有.sdata段（小型数据）</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);         &#x2F;&#x2F; 将当前位置按4KB对齐</span><br><span class="line">    edata &#x3D; .;             &#x2F;&#x2F; 定义edata符号，表示数据段结束地址</span><br><span class="line">    .bss : &#123;               &#x2F;&#x2F; 定义.bss段（未初始化数据段）</span><br><span class="line">        *(.bss.stack)      &#x2F;&#x2F; 首先放入.bss.stack段（栈空间）</span><br><span class="line">        sbss &#x3D; .;          &#x2F;&#x2F; 定义sbss符号，表示bss段主体起始地址</span><br><span class="line">        *(.bss .bss.*)     &#x2F;&#x2F; 放入所有.bss段（未初始化变量）</span><br><span class="line">        *(.sbss .sbss.*)   &#x2F;&#x2F; 放入所有.sbss段（小型bss数据）</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    . &#x3D; ALIGN(4K);         &#x2F;&#x2F; 将当前位置按4KB对齐</span><br><span class="line">    ebss &#x3D; .;              &#x2F;&#x2F; 定义ebss符号，表示bss段结束地址</span><br><span class="line">    ekernel &#x3D; .;           &#x2F;&#x2F; 定义ekernel符号，表示整个内核结束地址</span><br><span class="line"></span><br><span class="line">    &#x2F;DISCARD&#x2F; : &#123;          &#x2F;&#x2F; 定义丢弃段，这些段不会出现在最终二进制文件中</span><br><span class="line">        *(.eh_frame)       &#x2F;&#x2F; 丢弃所有.eh_frame段（异常处理框架，通常不需要）</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">关于你提到的 &quot;xx &#x3D; .&quot; 和 &quot;. &#x3D; xx&quot; 语法：</span><br><span class="line"></span><br><span class="line">xx &#x3D; .</span><br><span class="line"></span><br><span class="line">这种形式是在当前位置定义一个符号。</span><br><span class="line">例如 stext &#x3D; . 表示定义符号 stext 指向当前位置计数器的值。</span><br><span class="line">这些符号通常用于在程序中获取段的边界地址。</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">. &#x3D; xx</span><br><span class="line"></span><br><span class="line">这种形式是将当前位置计数器设置为某个值。</span><br><span class="line">例如 . &#x3D; BASE_ADDRESS 将位置计数器设为基地址。</span><br><span class="line">. &#x3D; ALIGN(4K) 将位置计数器向上对齐到4KB的整数倍。</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">链接器脚本的工作方式是按顺序处理各个段，并且使用一个&quot;位置计数器&quot;（用 . 表示）来跟踪当前的地址。每定义一个段，这个计数器就会增加该段的大小。</span><br><span class="line">通过这种方式，链接器能够：</span><br><span class="line"></span><br><span class="line">计算每个段和符号的最终内存地址</span><br><span class="line">调整代码中的引用，使它们指向正确的地址</span><br><span class="line">生成一个内存布局明确的最终二进制文件</span><br></pre></td></tr></table></figure>
-
-<h2 id="Chapter-2-批处理系统"><a href="#Chapter-2-批处理系统" class="headerlink" title="Chapter 2 批处理系统"></a>Chapter 2 批处理系统</h2><p>Ref: <a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter2/index.html" target="_blank" rel="noopener">https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter2/index.html</a><br>rCore的第二章主要内容是如何实现系统调用。这一章涉及的具体“知识”非常少，大部分是工程细节。系统调用和函数调用非常相似，为了防止寄存器被嵌套函数执行时修改，都需要在调用前保存好上下文并在返回时恢复。与编译原理中哪些prolog和epilog完全一致。<br>唯二的区别在于，首先。操作系统需要保存所有的通用寄存器（因为不再有convention保护），以及重要的CSR（控制寄存器）。CSR是用户态程序无需关心的。这些寄存器包括保存了CPU当前特权级的sstatus ，trap返回后继续执行的地址sepc trap的原因以及附加信息scause/stval 等等。其次，处于安全考虑，操作系统需要维护自己的栈，而不能和用户态程序一样单纯继续向下开辟栈。因此我们可以利用RISCV中提供的额外寄存器sscratch 来保存内核栈的地址。这样当trap发生时，我们就可以从sscratch 中找到内核栈的地址并开始处理了。<br>需要注意的是，由于目前为止所有操作都是在物理地址上发生的。所以实际上应用程序有能力访问所有内存的并找到操作系统的内核栈，目前我们的操作系统并没有实现任何内核态和用户态的隔离。这一点可以通过x86架构提供的段实现，RISCV有没有类似功能尚不清楚。当然，这个问题会在我们实现虚拟内存后完全解决。<br>祝自己明天开始写第一个lab顺利！</p>
-<h2 id="Chapter-3-多道程序与分时多任务"><a href="#Chapter-3-多道程序与分时多任务" class="headerlink" title="Chapter 3 多道程序与分时多任务"></a>Chapter 3 多道程序与分时多任务</h2><p>Ref:<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter3/index.html" target="_blank" rel="noopener">https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter3/index.html</a><br>rCore的第三章将操作系统的调度能力进一步拓展，在chapter 2中，我们的操作系统只能按照设定好的顺序逐个运行程序。而Chapter 3加入了抢占机制，使操作系统能够交替运行不同程序。极大的改善了程序的交互体验。<br>实现分时共享系统的核心是timer的加入。timer是一个来自硬件的中断发生器，会不断的向操作系统发出中断。每当中断来临时，操作系统就会接管节点，并决定是否要切换到另一个应用程序执行。切换的步骤与第二章中的系统调用是非常相似的。因为都是“打断”当前应用程序的执行并在稍后回复。因此需要保存应用运行的上下文。<br>在这一章中，应用程序有了task的抽象。并通过task数据结构被操作系统调度(突然理解了为什么linux中的进程管理块名叫task哈哈哈)<br>这一章的作业实现trace系统调用，还是比较简单的，希望之后一切顺利。容易错的点是题目实际要求的是分别统计每个应用的系统调用次数。因此需要简历一个二维数组。另外如果试图将数组放到更内层的TaskControlBlock 而不是TaskManager 会出现奇怪的内核崩溃bug。怀疑是因为TaskControlBlock 在内存中位置和长度都固定锁导致的.所以最终还是把二维数组放到了TaskManager 中</p>
-<h2 id="Chapter-4-地址空间"><a href="#Chapter-4-地址空间" class="headerlink" title="Chapter 4 地址空间"></a>Chapter 4 地址空间</h2><p>Ref:<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter4/index.html" target="_blank" rel="noopener">https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter4/index.html</a><br>这一章中终于实现了虚拟内存。我们的程序可以拥有单独的地址空间而不是时刻在意自己具体的内存位置了。虚拟内存的实现是通过名为MemorySet 和MemoryMap 的数据结构实现的，这点和Linux中的虚拟内存管理非常一致。<br>虚拟内存管理通过硬件上的MMU自动实现虚拟地址到物理地址的翻译。只需要将页表的root page放置在特定的寄存器中就可以让硬件实现正确寻址。<br>加入虚拟内存让内核迎来了一次比较大的重构。因为我们之前最重要的管理机制：系统调用和程序切换锁保存的上下文会发生不同。这里涉及到很多tricky的问题，比如说开启虚拟内存后，在我进入内核的地址空间后，需要通过应用态的页表手动找到需要保存的上下文。还有由于地址空间不同，在陷入内核态之前需要通过一个特定的相同的跳板页来实现丝滑switch。这些设计上的细节是之前理论上学习操作系统时根本没有想过的。<br>关于这一节的实验没想到最困难的并不是mmap和unmap，而是port sys_trace函数。再试图往对应地址写入是，我把PPN转usize再加上offset结果发现一直不对。然后发现PPN居然并不是Physical Address但是后面用0 padding，它就单纯的是个物理页号。需要先左移PAGE_SIZE再加offset才是对应的physical address。</p>
-<h2 id="Chapter-5-进程"><a href="#Chapter-5-进程" class="headerlink" title="Chapter 5 进程"></a>Chapter 5 进程</h2><p>Ref: <a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter5/5exercise.html" target="_blank" rel="noopener">https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter5/5exercise.html</a><br>这一节终于引入了进程的概念。它其实只是之前四章内容的更上一层抽象。进程的抽象让操作系统可以实现更加丰富的语义。比如更只能的进程调度，通过fork(), exec()运行新的程序。以及在这一章，我们终于有了shell！操作系统更像一个真正的操作系统了。<br>这一章具体的内容不多，大部分为有机的组合前四章的内容实现进程的概念。以及增加了进程管理的相关细节。比如如何启动第一个进程，进程退出后如何回收等等。<br>本章的实验倒是十分简单， spawn系统调用就是fork+exec拼一拼，只不过把复制memoryset的部分去掉。而stride调度器也只是在manager结构中统计一下步长和priority并根据它们调度。只要找到了对应的数据结构实现起来非常简单。</p>
-<h2 id="Chapter-6-文件系统"><a href="#Chapter-6-文件系统" class="headerlink" title="Chapter 6 文件系统"></a>Chapter 6 文件系统</h2><p>Ref: <a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter6/index.html" target="_blank" rel="noopener">https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter6/index.html</a><br>文件系统！终于可以把程序存在块设备上而不是呆在内存里了！因为在ECE566课上已经学过一遍了所以基本没有什么新知识。但是能看到具体的实现还是学到了很多细节。比如说具体如何和驱动程序沟通。但是由于disk的驱动程序已经做好了抽象所以实际上我们只需要实现对应的接口就可以了。<br>我在实验的第一版实现中犯了蠢在实现hardLink的时候给每个hardlink都创建了一个新的inode并且给inode增加一个新的type hardlink，然后修改read和write的逻辑。加一层indirection找到linkto的inode执行实际的读写<br>后面发现根本没必要啊！只需要在文件夹中的directory entry中将文件名link到对应的inode即可。另外一个奇怪的bug是如果在DiskNode加入太多的字段会触发奇怪的虚拟内存相关报错LoadPageError。而这个behavior在不同机器上跑的出现还不一样，非常随机。不知道为什么会这样，怀疑是加入太多字段会影响数据结构在内存中的排布？由于实在是太难debug了所以最终并没有发现根因、这个bug是所有rcore实验中困扰我最多的实验，干了一整个通宵，十分痛苦。<br>另一点是因为引入了stdout和stdin，在spawn创建新的进程的时候需要记得初始化stdout，否则会出现测试程序打印不出来内容的窘境。</p>
-<h2 id="Chapter-7-进程间通信"><a href="#Chapter-7-进程间通信" class="headerlink" title="Chapter 7 进程间通信"></a>Chapter 7 进程间通信</h2><p>Ref: <a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter7/index.html" target="_blank" rel="noopener">https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter7/index.html</a><br>之前一直觉得linux语法很难理解，， 总觉得程序是一步一步执行的。 比如a|b 就是先运行a再把输出传给b 但看到有一些命令就晕了比如为什么有的命令可以cmd xx &gt; yy &lt;&lt; zz 难道先执行xx和yy？ 看这一章惊觉shell命令是一起被处理而不是一步一步执行的，恍然大悟！<br>具体内容倒没有很多，我们只需要给不同的东西实现file trait就可以在进程中使用文件描述符等来管理它，再在运行时动态分配到stdout 特有的write函数中去打印到屏幕上。<br>io重定向也是类似的原理，通过一些操作读取第一个程序的stdout然后作为输入交给第二个程序，也就实现了重定向了。<br>进程间通信同理，我们给进程间通信的ringbuffer也实现read write等方法，在调用时实际写入一个ringbuffer而非实际文件即可。</p>
-<h2 id="Chapter-8-并发"><a href="#Chapter-8-并发" class="headerlink" title="Chapter 8 并发"></a>Chapter 8 并发</h2><p>这一节大部分内容真是学了无数遍了，OSTEP学了一遍，ECE650学了一遍，这次又学了一遍。锁，信号量，条件变量着实是滚瓜烂熟了。倒是线程管理的部分非常有趣。这一章把rcore变成了类似linux的方式，线程是基本的调度单位，进程仅仅维护fd_table, memoryset等进程共享资源。为了添加线程的支持，进程需要维护好每个线程的上下文和运行栈，线程的栈因为共享地址空间所以会被放置在特定的内存位置统一管理。在切换的时候与进程调度基本一致。<br>如果需要跨进程切换线程switch函数会负责切换地址空间，来保证线程的顺利运行。<br>这一章的lab是实现银行家算法。算是个蛮有意思的题目。但是感觉实现本身和OS的线程调度机制没有太大的关系，而且由于类似算法的时间复杂度实际操作系统中应该不会包含类似的算法。如果题目可以和OS本身更加相关就好了</p>
-<h1 id="arceos部分"><a href="#arceos部分" class="headerlink" title="arceos部分"></a>arceos部分</h1><h2 id="Lab1-Print"><a href="#Lab1-Print" class="headerlink" title="Lab1 Print"></a>Lab1 Print</h2><p>第一个lab非常简单，只需要在println宏中加入riscv对应颜色的转义字符即可。注意要在打印后使用reset转义字符，不然后面所有的输出就都变颜色了。<br>下面是一些常用的转义字符</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">const ANSI_CODES: &amp;[(&amp;str, &amp;str)] &#x3D; &amp;[</span><br><span class="line">    &#x2F;&#x2F; 基本颜色</span><br><span class="line">    (&quot;BLACK&quot;, &quot;\x1b[30m&quot;),</span><br><span class="line">    (&quot;RED&quot;, &quot;\x1b[31m&quot;),</span><br><span class="line">    (&quot;GREEN&quot;, &quot;\x1b[32m&quot;),</span><br><span class="line">    (&quot;YELLOW&quot;, &quot;\x1b[33m&quot;),</span><br><span class="line">    (&quot;BLUE&quot;, &quot;\x1b[34m&quot;),</span><br><span class="line">    (&quot;MAGENTA&quot;, &quot;\x1b[35m&quot;),</span><br><span class="line">    (&quot;CYAN&quot;, &quot;\x1b[36m&quot;),</span><br><span class="line">    (&quot;WHITE&quot;, &quot;\x1b[37m&quot;),</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 粗体颜色</span><br><span class="line">    (&quot;BRIGHT_BLACK&quot;, &quot;\x1b[90m&quot;),</span><br><span class="line">    (&quot;BRIGHT_RED&quot;, &quot;\x1b[91m&quot;),</span><br><span class="line">    (&quot;BRIGHT_GREEN&quot;, &quot;\x1b[92m&quot;),</span><br><span class="line">    (&quot;BRIGHT_YELLOW&quot;, &quot;\x1b[93m&quot;),</span><br><span class="line">    (&quot;BRIGHT_BLUE&quot;, &quot;\x1b[94m&quot;),</span><br><span class="line">    (&quot;BRIGHT_MAGENTA&quot;, &quot;\x1b[95m&quot;),</span><br><span class="line">    (&quot;BRIGHT_CYAN&quot;, &quot;\x1b[96m&quot;),</span><br><span class="line">    (&quot;BRIGHT_WHITE&quot;, &quot;\x1b[97m&quot;),</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 背景色</span><br><span class="line">    (&quot;BG_BLACK&quot;, &quot;\x1b[40m&quot;),</span><br><span class="line">    (&quot;BG_RED&quot;, &quot;\x1b[41m&quot;),</span><br><span class="line">    &#x2F;&#x2F; ... 其他背景色</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 样式</span><br><span class="line">    (&quot;BOLD&quot;, &quot;\x1b[1m&quot;),</span><br><span class="line">    (&quot;UNDERLINE&quot;, &quot;\x1b[4m&quot;),</span><br><span class="line">    (&quot;REVERSED&quot;, &quot;\x1b[7m&quot;),</span><br><span class="line">    </span><br><span class="line">    &#x2F;&#x2F; 控制</span><br><span class="line">    (&quot;RESET&quot;, &quot;\x1b[0m&quot;),</span><br><span class="line">];</span><br></pre></td></tr></table></figure>
-
-<h2 id="Lab-2-Hashmap"><a href="#Lab-2-Hashmap" class="headerlink" title="Lab 2 Hashmap"></a>Lab 2 Hashmap</h2><p>由于测例非常简单，所以偷了一下懒，用嵌套vector实现的hashmap，甚至没有实现resize(非常懒了！)<br>这一个lab的难度也不在写代码上，重点在于理解ArceOS的代码结构，然后把HashMap的代码糊上即可。<br>实验中遇到了两个小坑，</p>
-<ol>
-<li>因为在std的lib.rs 中已经引用了alloc中的collections，因此我们的hashmap不能在collections里面，必须命名成别的，我命名成了axcollections。exercise中的用户态程序也要同步更改。</li>
-<li>我的hashmap实现中用到了vector，因此需要用到globalallocator调用alloc动态分配内存。但是在第一个测试print_with_color编译选项中没有编译allocator。因此需要在axstd中我们的collections前面加上编译选项的宏，这样就编译第一个测试才不会报错。<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">#[cfg(feature &#x3D; &quot;alloc&quot;)]</span><br><span class="line">pub mod axcollections;</span><br></pre></td></tr></table></figure>
-目前对ArceOS有了一个比较初步的理解</li>
-<li>axlibc和axstd对应linux中的glibc和std。是用户态程序，会通过系统api(位于arceos/api )和os通信（而不是syscall？）</li>
-<li>OS的核心代码在modules中，包括了硬件抽象层HAL，内存管理MM，网络，进程管理等等都以模块化管理。这次作业比较相关的动态内存分配GlobalAllocator实现在了在axalloc中<br>还有一个意外得到知识是哈希函数本身<br>这次第一次用到Rust的Hash trait。 这个trait提供hash函数，接收一个实现了Hasher trait的state<br>为什么需要一个带state的Hasher而不能直接Hash返回一组字节呢？<br>因为希望灵活的处理哈希算法，并且比如你有多个字段或者字段内部有嵌套的字段它们都需要被被哈希，这个时候hash(hasher)可以帮助你抽象掉冗杂的细节，实现增量哈希。<br>ps: 在哈希或密码学最忌讳灵机一动,我一开始想着把多个字段的哈希值直接异或也可以得到一个值呀，但这样的算法会面临严重的碰撞问题，比如(a,b,c)和(c,b,a)会得到相同的哈希值，会对哈希表的性能产生很大的影响。</li>
-</ol>
-<h2 id="Lab-3-Bump-Allocator"><a href="#Lab-3-Bump-Allocator" class="headerlink" title="Lab 3 Bump Allocator"></a>Lab 3 Bump Allocator</h2><p>这次的实验是实现一个Global Allocator。这是我一直非常好奇的一个部分。在rcore实验，rcore已经提供了一个实现好的buddy allocator。这次终于有机会自己实现了。<br>研读代码后发现，Global Allocator虽然名义上管理memory的allocation，但它实际上并不操作任何memory。它只是个“数字管理器”，记录哪些块被分出去，哪些块没有。实际上也没有任何措施来保证未分配的块不能被访问——这个功能是由Page Table通过页表项中合理的bit设定通过硬件保证的。<br>我在这里意外的发现Slab Allocator的实现和之前在CSAPP学习到的malloc实现惊人的相似。都是通过二的幂次管理多重链表来平衡分配内存的时间复杂度和额外空间占用。仔细想来也非常合理。global allocator和malloc实际上不涉及任何用户态和内核态的内容。它们本质上都是管理一段连续的数组，然后通过一定的算法尽量保证这个数组被高效利用。那么最终收敛到相似的设计就完全可以理解了。<br>本身的代码非常简单，略过不提。</p>
-<h2 id="Lab-4-File-Rename"><a href="#Lab-4-File-Rename" class="headerlink" title="Lab 4 File Rename"></a>Lab 4 File Rename</h2><p>这次的实验是实现file rename操作。我照着ppt里的要求实现了结果发现ppt的作业和实际跑的test并不一样（尴尬。<br>由于myfilesystem的大部分实现是调用的现有库，无法更改。我的move实现本质上并没有操作文件系统，而是单纯的调用操作系统的API把一个文件内容读出来，然后创建并写入新文件。算是取巧过去了。<br>如果需要在文件系统层级实现rename，无需如此笨拙，只需更改directory node中对应的name，将name复制到new path 的directory node中即可。根本无需访问inode进行整个文件的读写</p>
-<h2 id="Lab-5-sys-mmap"><a href="#Lab-5-sys-mmap" class="headerlink" title="Lab 5 sys_mmap"></a>Lab 5 sys_mmap</h2><p>这次实验是给教学用的arceos添加mmap操作。之前并没怎么使用过linux的mmap映射文件的功能。恰好借助这个机会补充一下。map文件到内存听上去很高大上，其实仔细想来只需要做三件事。</p>
-<ol>
-<li>根据用户的参数申请一段连续内存</li>
-<li>将文件内容读入内存并写到对应的内存上</li>
-<li>当对应内存写入时，标记脏页并由内核线程写回磁盘(类似于文件写)<br>在这次lab中，由于测例比较简单并没有实现3.<br>1和2的实现方法需要找到陷入当前trap的进程的currentTask控制块，然后在它的地址空间中预定一块内存。然后调用fs的api读取文件，再将文件写入对应的内存中。更理想的实现可能为修改fs的接口，让文件读取可以直接读取到一段指定内存，这可以减少一次内存的复制操作。<br>实现3的方法应该是借助MemoryArea的分类进行。比如文件申请的内存为FileBlockMemoryArea，有一个异步线程会定期被唤醒去把脏页写回block。所以对应到mmap当mmap需求的是map文件时，在map.alloc这个调用中需要指定类型为FileBlock。对于普通的操作则申请匿名内存，不需要异步线程进行检查</li>
-</ol>
-<h2 id="Lab6-simple-hv"><a href="#Lab6-simple-hv" class="headerlink" title="Lab6 simple_hv"></a>Lab6 simple_hv</h2><p>这一个lab给我们展示了一个“最小hypervisor”的实现。类似于rcore Lab中的syscall实验。在rcore和arceos阶段研读过操作系统的代码后，实际上Hypervisor的运行方式并不难以想象。操作系统的目的是，安全，高效的同时运行多个程序。为了达成这个目的主要实现了抢占式调度，地址空间，以及特权级机制。Hypervisor同理，它要安全，高效的运行多个操作系统。因此也可以通过类似的方法，比如抢占式调度（或者干脆利用多核实现真并行调度，如教学代码所示），对于操作系统来说也需要“虚拟物理地址”，相当于一个vm级别的地址空间。另外，OS不再直接管理外设，也不能直接控制硬件，所以对于一些可能影响硬件的”危险操作“我们再进行一次特权级的隔离。让os通过与syscall类似的hypercall把这些操作的权利交给hypervisor定夺。<br>仔细想想，实际上type-II hypervisor也几乎可以通过类似的机制实现。这一套并不局限于直接运行在硬件上的Type-I Hypervisor，只要硬件提供特权级的隔离这一套可以轻易实现。硬件支持真是个好东西。想到了当时读Xen的论文，通过Para Virtualization重量级实现hypervisor那种巨大的工程量，再到现在各个处理器指令集都支持虚拟化扩展，可以通过几百行代码实现一个简单虚拟机。也算是软件系统的需求促进的硬件发展的一个样例了。<br>时过境迁，前两年Timothy在OSDI疾呼研究者应该回归OS的本质做hardware-software co-design。现在新硬件层出不穷，硬件加速器，智能网卡，TEE，还有RDMA，CXL一堆新名词。好像“攻守之势异也”，变成了硬件推动OS进步了。面对着越来越多的外设和越来越专业化的使用场景，操作系统研究者的未来又在何方呢？</p>
 
       
     </div>
