@@ -21,14 +21,6 @@ description: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲�
 
 ---
 
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-<script>
- mermaid.initialize({
-   startOnLoad: <%= theme.mermaid.options.startOnLoad || true %>,
-   theme: "<%= theme.mermaid.options.theme || 'default' %>"
- });
-</script>
-
 ## 内核发展史
 
 > 很早很早以前~，并不区分应用与操作系统。所有功能都绑定在一起，负责开发的也是同一批人。某些底层功能被频繁复用，慢慢的常用功能形成了特定的模块，通过接口与其他模块交互。比如：储存模块就是一个大数组。那么，为什么不能把系统作为一个库呢？
@@ -133,6 +125,14 @@ endmodule
 {% asset_img 20250529132546.png "系统启动过程" %}
 
 <!-- more -->
+
+虚拟化和仿真器的区别：`虚拟化-Hypervisor`是同种指令集，`仿真器-Emulator`是不同指令集。
+
+---
+
+ArceOS通过feature来启用不同的组件，不同层的组件影响范围不一致，比如：在shell启动前修改`axlog arceos_api::stdio::ax_console_write_fmt`会影响Logo颜色，修改`axstd:stdout().lock().write_fmt -> axio`只会影响在shell启动后的字符颜色，当然也可以修改屏蔽硬件细节的`axhal platform/arch/dw_apd_uart.rs`，逐字节控制颜色，但是会导致前台用户的颜色字符串被变成一堆`x[xx[`乱码。
+
+这次训练营最有收获的点就是参与训练营捋顺了硬件与操作系统之间的关系（除了驱动，不能直接从驱动理解操作系统行为是一个硬伤，下去自己找相关资料继续学习吧！），且接触了RV的H扩展，进行了简易的虚拟化实验。理解了Guest与Host之间的切换逻辑。结合其他训练营相关的内容，或许真的在不久的将来自己编写一个`MiniVMWare`。
 
 ---
 <h2 align="center">附录</h2>
