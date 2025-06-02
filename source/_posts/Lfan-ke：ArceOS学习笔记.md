@@ -5,13 +5,13 @@ about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://
 ---
 title: 穿越操作系统的迷雾
 date: 2025-05-29 10:38:44
-catogories:
+categories:
   - ArceOS
   - 阶段三
   - 2025S
 tags:
   - author:Lfan-ke
-  - repo:<https://github.com/LearningOS/2025s-arceos-Lfan-ke>
+  - repo:https://github.com/LearningOS/2025s-arceos-Lfan-ke
 mathjax: true
 mermaid.js: true
 mermaid:
