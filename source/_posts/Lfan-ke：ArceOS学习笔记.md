@@ -1,25 +1,25 @@
-# Lfan-ke：第三阶段总结报告
-
-about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke)
-
 ---
 title: 穿越操作系统的迷雾
 date: 2025-05-29 10:38:44
 categories:
-  - ArceOS
-  - 阶段三
-  - 2025S
+    - ArceOS
+    - 阶段三
+    - 2025S
+    - 补完计划
 tags:
-  - author:Lfan-ke
-  - repo:https://github.com/LearningOS/2025s-arceos-Lfan-ke
+    - author:Lfan-ke
+    - repo:https://github.com/LearningOS/2025s-arceos-Lfan-ke
 mathjax: true
 mermaid.js: true
 mermaid:
-  enable:true
-  theme:default
+    enable:true
+    theme:default
 description: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲来二期操作系统训练营、YSYX学习计划、DeepSeek补充、底层补完计划、部分博客与第三方内容……
-
 ---
+
+# Lfan-ke：第三阶段总结报告
+
+about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke)
 
 ## 内核发展史
 
