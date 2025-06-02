@@ -1,5 +1,5 @@
 ---
-title: <Rust补完计划>
+title: Rust补完计划
 date: 2025-05-01 12:00:28
 categories:
     - 补完计划
