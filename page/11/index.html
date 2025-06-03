@@ -233,7 +233,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap6-2/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap7-2/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -247,7 +247,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/04/27/Chap6-2/" class="post-title-link" itemprop="url">rcore-handnote-6-2</a>
+            <a href="/blog/2025/04/27/Chap7-2/" class="post-title-link" itemprop="url">rcore-handnote-7-2</a>
         </h2>
 
         <div class="post-meta">
@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -287,22 +287,58 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="Chapter-6-2"><a href="#Chapter-6-2" class="headerlink" title="Chapter 6-2"></a>Chapter 6-2</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>We gonna load our <code>easy-fs</code> to kernel. First, we need to know our device interface. Second, our <strong>Inode</strong> should be wrapped in OS as <strong>OSInode</strong> for extended functionality. Then we implement <code>sys_read/write</code> for it.</p>
-<h3 id="MMIO-Memory-Mapped-I-O"><a href="#MMIO-Memory-Mapped-I-O" class="headerlink" title="MMIO-Memory-Mapped I/O"></a>MMIO-Memory-Mapped I/O</h3><p>The device registers of peripherals can be accessed through specific physical memory addresses, <strong>VirtIO</strong> MMIO physical address range for the peripheral bus is 4KiB starting at 0X10001000. </p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/config.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"board_qemu"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> MMIO: &amp;[(<span class="built_in">usize</span>, <span class="built_in">usize</span>)] = &amp;[</span><br><span class="line">    (<span class="number">0x10001000</span>, <span class="number">0x1000</span>),</span><br><span class="line">];</span><br></pre></td></tr></table></figure>
+          <h2 id="Chapter-7-2"><a href="#Chapter-7-2" class="headerlink" title="Chapter 7-2"></a>Chapter 7-2</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>If a process want to notify other process with event semantics, such one-side mechanism called <strong>Signal</strong>, one process received specific event will pause and implement corresponding operation to handle the notification.</p>
+<p>For example, a program could receive the stop event sended by <code>Ctrl+C</code>, and stop itself.</p>
+<p>The abstraction of handling of signal:</p>
+<ul>
+<li>ignore: do own thing and ignore signal</li>
+<li>trap: call corresponding operation of the received signal</li>
+<li>stop: stop itself</li>
+</ul>
+<p>Now, beside this raw idea, we want to classify such abstraction with specified data.</p>
+<hr>
+<h3 id="Signal-Data"><a href="#Signal-Data" class="headerlink" title="Signal Data"></a>Signal Data</h3><p>First, we define raw info for each possible event.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/lib.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGDEF: <span class="built_in">i32</span> = <span class="number">0</span>; <span class="comment">// Default signal handling</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGHUP: <span class="built_in">i32</span> = <span class="number">1</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGINT: <span class="built_in">i32</span> = <span class="number">2</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGQUIT: <span class="built_in">i32</span> = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGILL: <span class="built_in">i32</span> = <span class="number">4</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGTRAP: <span class="built_in">i32</span> = <span class="number">5</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGABRT: <span class="built_in">i32</span> = <span class="number">6</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGBUS: <span class="built_in">i32</span> = <span class="number">7</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGFPE: <span class="built_in">i32</span> = <span class="number">8</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> SIGKILL: <span class="built_in">i32</span> = <span class="number">9</span>;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
 
-<h3 id="OS-Inode"><a href="#OS-Inode" class="headerlink" title="OS Inode"></a>OS Inode</h3><p>We only take restriction on our operations with <code>readable</code> and <code>writable</code> by <code>OpenFlags</code>. <code>offset</code> and <code>Arc</code> is a way to tackle simple situation of multi processes.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/fs/inode.rs</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">bitflags!</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OpenFlags</span></span>: <span class="built_in">u32</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> RDONLY = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">const</span> WRONLY = <span class="number">1</span> &lt;&lt; <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">const</span> RDWR = <span class="number">1</span> &lt;&lt; <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">const</span> CREATE = <span class="number">1</span> &lt;&lt; <span class="number">9</span>;</span><br><span class="line">        <span class="keyword">const</span> TRUNC = <span class="number">1</span> &lt;&lt; <span class="number">10</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> OpenFlags &#123;</span><br><span class="line">    <span class="comment">/// Do not check validity for simplicity</span></span><br><span class="line">    <span class="comment">/// Return (readable, writable)</span></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">read_write</span></span>(&amp;<span class="keyword">self</span>) -&gt; (<span class="built_in">bool</span>, <span class="built_in">bool</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.is_empty() &#123;</span><br><span class="line">            (<span class="literal">true</span>, <span class="literal">false</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> <span class="keyword">self</span>.contains(Self::WRONLY) &#123;</span><br><span class="line">            (<span class="literal">false</span>, <span class="literal">true</span>)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            (<span class="literal">true</span>, <span class="literal">true</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OSInode</span></span> &#123;</span><br><span class="line">    readable: <span class="built_in">bool</span>,</span><br><span class="line">    writable: <span class="built_in">bool</span>,</span><br><span class="line">    inner: Mutex&lt;OSInodeInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">OSInodeInner</span></span> &#123;</span><br><span class="line">    offset: <span class="built_in">usize</span>,</span><br><span class="line">    inode: Arc&lt;Inode&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> OSInode &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(</span><br><span class="line">        readable: <span class="built_in">bool</span>,</span><br><span class="line">        writable: <span class="built_in">bool</span>,</span><br><span class="line">        inode: Arc&lt;Inode&gt;,</span><br><span class="line">    ) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        <span class="keyword">Self</span> &#123;</span><br><span class="line">            readable,</span><br><span class="line">            writable,</span><br><span class="line">            inner: Mutex::new(OSInodeInner &#123;</span><br><span class="line">                offset: <span class="number">0</span>,</span><br><span class="line">                inode,</span><br><span class="line">            &#125;),</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>So, what if a process want to omit the signal, what should this process do? We will introduce <strong>Mask</strong> in bit design, which means higher number contains lower number, indicating higher priority.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/lib.rs</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">bitflags!</span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">SignalFlags</span></span>: <span class="built_in">i32</span> &#123;</span><br><span class="line">        <span class="keyword">const</span> SIGDEF = <span class="number">1</span>; <span class="comment">// Default signal handling</span></span><br><span class="line">        <span class="keyword">const</span> SIGHUP = <span class="number">1</span> &lt;&lt; <span class="number">1</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGINT = <span class="number">1</span> &lt;&lt; <span class="number">2</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGQUIT = <span class="number">1</span> &lt;&lt; <span class="number">3</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGILL = <span class="number">1</span> &lt;&lt; <span class="number">4</span>;</span><br><span class="line">        <span class="keyword">const</span> SIGTRAP = <span class="number">1</span> &lt;&lt; <span class="number">5</span>;</span><br><span class="line">        ...</span><br><span class="line">        <span class="keyword">const</span> SIGSYS = <span class="number">1</span> &lt;&lt; <span class="number">31</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h4 id="File-Descriptor-Table"><a href="#File-Descriptor-Table" class="headerlink" title="File Descriptor Table"></a>File Descriptor Table</h4><p>Now we need to connect file operations with process, each process need a descriptors table(which manage many files!) to indicate file record infos. </p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line">    <span class="keyword">pub</span> fd_table: <span class="built_in">Vec</span>&lt;<span class="built_in">Option</span>&lt;Arc&lt;<span class="keyword">dyn</span> File + <span class="built_in">Send</span> + <span class="built_in">Sync</span>&gt;&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>In a task block, it should record its current mask and current signal priority and each action corresponding to each flags, so we need a fixed array contains ptrs and its priority. After that, we need to record current flag it should implement.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// user/src/lib.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/// Action for a signal</span></span><br><span class="line"><span class="meta">#[repr(C, align(16))]</span></span><br><span class="line"><span class="meta">#[derive(Debug, Clone, Copy)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">SignalAction</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> handler: <span class="built_in">usize</span>,</span><br><span class="line">    <span class="keyword">pub</span> mask: SignalFlags,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/signal.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> MAX_SIG: <span class="built_in">usize</span> = <span class="number">31</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/action.rs</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[derive(Clone)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">SignalActions</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> table: [SignalAction; MAX_SIG + <span class="number">1</span>],</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">    ...</span><br><span class="line">	<span class="keyword">pub</span> handling_sig: <span class="built_in">isize</span>,</span><br><span class="line">	<span class="comment">// priority allowed</span></span><br><span class="line">	<span class="keyword">pub</span> signals: SignalFlags,</span><br><span class="line">	<span class="comment">// priority forbidden</span></span><br><span class="line">    <span class="keyword">pub</span> signal_mask: SignalFlags,</span><br><span class="line">    <span class="keyword">pub</span> signal_actions: SignalActions,</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>Remember our previous root inode? We load it directly for easy manipulation. So our workflow would be for current process, push a descriptor of allocation, and return the ptr of this allocation.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/fs/inode.rs</span></span><br><span class="line"></span><br><span class="line">lazy_static! &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">static</span> <span class="keyword">ref</span> ROOT_INODE: Arc&lt;Inode&gt; = &#123;</span><br><span class="line">        <span class="keyword">let</span> efs = EasyFileSystem::open(BLOCK_DEVICE.clone());</span><br><span class="line">        Arc::new(EasyFileSystem::root_inode(&amp;efs))</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">open_file</span></span>(name: &amp;<span class="built_in">str</span>, flags: OpenFlags) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;OSInode&gt;&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> (readable, writable) = flags.read_write();</span><br><span class="line">    <span class="keyword">if</span> flags.contains(OpenFlags::CREATE) &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(inode) = ROOT_INODE.find(name) &#123;</span><br><span class="line">            <span class="comment">// clear size</span></span><br><span class="line">            inode.clear();</span><br><span class="line">            <span class="literal">Some</span>(Arc::new(OSInode::new(</span><br><span class="line">                readable,</span><br><span class="line">                writable,</span><br><span class="line">                inode,</span><br><span class="line">            )))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// create file</span></span><br><span class="line">            ROOT_INODE.create(name)</span><br><span class="line">                .map(|inode| &#123;</span><br><span class="line">                    Arc::new(OSInode::new(</span><br><span class="line">                        readable,</span><br><span class="line">                        writable,</span><br><span class="line">                        inode,</span><br><span class="line">                    ))</span><br><span class="line">                &#125;)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        ROOT_INODE.find(name)</span><br><span class="line">            .map(|inode| &#123;</span><br><span class="line">                <span class="keyword">if</span> flags.contains(OpenFlags::TRUNC) &#123;</span><br><span class="line">                    inode.clear();</span><br><span class="line">                &#125;</span><br><span class="line">                Arc::new(OSInode::new(</span><br><span class="line">                    readable,</span><br><span class="line">                    writable,</span><br><span class="line">                    inode</span><br><span class="line">                ))</span><br><span class="line">            &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Then our task know which signal should be implemented, which should be omitted.</p>
+<hr>
+<h3 id="Signal-Handle"><a href="#Signal-Handle" class="headerlink" title="Signal Handle"></a>Signal Handle</h3><p>Recall that, each process should receive signal and trap into possible level, some may be in S-level, some may be in U-level. And some of them may be illegal or atrocious that we should <code>stop</code> or <code>frozen</code> to wait. If so, we should backup our <code>trap_ctx</code>, because handler contains different environement.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">    ...</span><br><span class="line">	<span class="keyword">pub</span> killed: <span class="built_in">bool</span>,</span><br><span class="line">    <span class="keyword">pub</span> frozen: <span class="built_in">bool</span>,</span><br><span class="line">    <span class="keyword">pub</span> handling_sig: <span class="built_in">isize</span>,</span><br><span class="line">    <span class="keyword">pub</span> trap_ctx_backup: <span class="built_in">Option</span>&lt;TrapContext&gt;,</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Some signals are severe and handled by kernel.</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">call_kernel_signal_handler</span></span>(signal: SignalFlags) &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">match</span> signal &#123;</span><br><span class="line">        SignalFlags::SIGSTOP =&gt; &#123;</span><br><span class="line">            task_inner.frozen = <span class="literal">true</span>;</span><br><span class="line">            task_inner.signals ^= SignalFlags::SIGSTOP;</span><br><span class="line">        &#125;</span><br><span class="line">        SignalFlags::SIGCONT =&gt; &#123;</span><br><span class="line">            <span class="keyword">if</span> task_inner.signals.contains(SignalFlags::SIGCONT) &#123;</span><br><span class="line">                task_inner.signals ^= SignalFlags::SIGCONT;</span><br><span class="line">                task_inner.frozen = <span class="literal">false</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        _ =&gt; &#123;</span><br><span class="line">            <span class="comment">// println!(</span></span><br><span class="line">            <span class="comment">//     "[K] call_kernel_signal_handler:: current task sigflag &#123;:?&#125;",</span></span><br><span class="line">            <span class="comment">//     task_inner.signals</span></span><br><span class="line">            <span class="comment">// );</span></span><br><span class="line">            task_inner.killed = <span class="literal">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Some signals are normal and handled by user.</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">call_user_signal_handler</span></span>(sig: <span class="built_in">usize</span>, signal: SignalFlags) &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> task_inner = task.inner_exclusive_access();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> handler = task_inner.signal_actions.table[sig].handler;</span><br><span class="line">    <span class="keyword">if</span> handler != <span class="number">0</span> &#123;</span><br><span class="line">		<span class="comment">// register signal into task</span></span><br><span class="line">        task_inner.handling_sig = sig <span class="keyword">as</span> <span class="built_in">isize</span>;</span><br><span class="line">        task_inner.signals ^= signal;</span><br><span class="line"></span><br><span class="line">		<span class="comment">// backup</span></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> trap_ctx = task_inner.get_trap_cx();</span><br><span class="line">        task_inner.trap_ctx_backup = <span class="literal">Some</span>(*trap_ctx);</span><br><span class="line"></span><br><span class="line">		<span class="comment">// modify current trap for our event handler</span></span><br><span class="line">        trap_ctx.sepc = handler;</span><br><span class="line">        trap_ctx.x[<span class="number">10</span>] = sig;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// default action</span></span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"[K] task/call_user_signal_handler: default action: ignore it or kill process"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/fs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_open</span></span>(path: *<span class="keyword">const</span> <span class="built_in">u8</span>, flags: <span class="built_in">u32</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> token = current_user_token();</span><br><span class="line">    <span class="keyword">let</span> path = translated_str(token, path);</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(inode) = open_file(</span><br><span class="line">        path.as_str(),</span><br><span class="line">        OpenFlags::from_bits(flags).unwrap()</span><br><span class="line">    ) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.acquire_inner_lock();</span><br><span class="line">        <span class="keyword">let</span> fd = inner.alloc_fd();</span><br><span class="line">        inner.fd_table[fd] = <span class="literal">Some</span>(inode);</span><br><span class="line">        fd <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/syscall/fs.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_close</span></span>(fd: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> fd &gt;= inner.fd_table.len() &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> inner.fd_table[fd].is_none() &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    inner.fd_table[fd].take();</span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Based on this, we could check our pending signal based on priority of <code>signals</code>, <code>signal_mask</code> of task and <code>signal_mask</code> of signal itself of table.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">check_pending_signals</span></span>() &#123;</span><br><span class="line">    <span class="keyword">for</span> sig <span class="keyword">in</span> <span class="number">0</span>..(MAX_SIG + <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">        <span class="keyword">let</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">        <span class="keyword">let</span> signal = SignalFlags::from_bits(<span class="number">1</span> &lt;&lt; sig).unwrap();</span><br><span class="line">        <span class="keyword">if</span> task_inner.signals.contains(signal) &amp;&amp; (!task_inner.signal_mask.contains(signal)) &#123;</span><br><span class="line">            <span class="keyword">let</span> <span class="keyword">mut</span> masked = <span class="literal">true</span>;</span><br><span class="line">            <span class="keyword">let</span> handling_sig = task_inner.handling_sig;</span><br><span class="line">            <span class="keyword">if</span> handling_sig == -<span class="number">1</span> &#123;</span><br><span class="line">                masked = <span class="literal">false</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">let</span> handling_sig = handling_sig <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">                <span class="keyword">if</span> !task_inner.signal_actions.table[handling_sig]</span><br><span class="line">                    .mask</span><br><span class="line">                    .contains(signal)</span><br><span class="line">                &#123;</span><br><span class="line">                    masked = <span class="literal">false</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> !masked &#123;</span><br><span class="line">                <span class="built_in">drop</span>(task_inner);</span><br><span class="line">                <span class="built_in">drop</span>(task);</span><br><span class="line">                <span class="keyword">if</span> signal == SignalFlags::SIGKILL</span><br><span class="line">                    || signal == SignalFlags::SIGSTOP</span><br><span class="line">                    || signal == SignalFlags::SIGCONT</span><br><span class="line">                    || signal == SignalFlags::SIGDEF</span><br><span class="line">                &#123;</span><br><span class="line">                    <span class="comment">// signal is a kernel signal</span></span><br><span class="line">                    call_kernel_signal_handler(signal);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="comment">// signal is a user signal</span></span><br><span class="line">                    call_user_signal_handler(sig, signal);</span><br><span class="line">                    <span class="keyword">return</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>The implementation is same for <code>sys_read/write</code>.</p>
+<p>Then record a loop function to handle repeatedly while changing the state of task.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/mod.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">handle_signals</span></span>() &#123;</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        check_pending_signals();</span><br><span class="line">        <span class="keyword">let</span> (frozen, killed) = &#123;</span><br><span class="line">            <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">            <span class="keyword">let</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">            (task_inner.frozen, task_inner.killed)</span><br><span class="line">        &#125;;</span><br><span class="line">        <span class="keyword">if</span> !frozen || killed &#123;</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        suspend_current_and_run_next();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="System-Operation"><a href="#System-Operation" class="headerlink" title="System Operation"></a>System Operation</h3><p>Finally, we will design <code>sys</code> operations to construct interface.</p>
+<ul>
+<li>procmask: set mask of current process</li>
+<li>sigaction: set handler of a signal of current process and move original handler to our input <code>old_action</code> ptr.</li>
+<li>kill: current process send signal to the other</li>
+<li>sigreturn: clear current signal and back to original trap state</li>
+</ul>
+<p>We will construct it one by one.</p>
+<p><code>procmask</code> is simple, we just set it directly and return original one.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigprocmask</span></span>(mask: <span class="built_in">u32</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(task) = current_task() &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">        <span class="keyword">let</span> old_mask = inner.signal_mask;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(flag) = SignalFlags::from_bits(mask) &#123;</span><br><span class="line">            inner.signal_mask = flag;</span><br><span class="line">            old_mask.bits() <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            -<span class="number">1</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>sigaction</code> is a bit harder but still easy, however, notice that the ptr may be null.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">check_sigaction_error</span></span>(signal: SignalFlags, action: <span class="built_in">usize</span>, old_action: <span class="built_in">usize</span>) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> action == <span class="number">0</span></span><br><span class="line">        || old_action == <span class="number">0</span></span><br><span class="line">        || signal == SignalFlags::SIGKILL</span><br><span class="line">        || signal == SignalFlags::SIGSTOP</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="literal">true</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigaction</span></span>(</span><br><span class="line">    signum: <span class="built_in">i32</span>,</span><br><span class="line">    action: *<span class="keyword">const</span> SignalAction,</span><br><span class="line">    old_action: *<span class="keyword">mut</span> SignalAction,</span><br><span class="line">) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> token = current_user_token();</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> signum <span class="keyword">as</span> <span class="built_in">usize</span> &gt; MAX_SIG &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(flag) = SignalFlags::from_bits(<span class="number">1</span> &lt;&lt; signum) &#123;</span><br><span class="line">        <span class="keyword">if</span> check_sigaction_error(flag, action <span class="keyword">as</span> <span class="built_in">usize</span>, old_action <span class="keyword">as</span> <span class="built_in">usize</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">let</span> prev_action = inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>];</span><br><span class="line">        *translated_refmut(token, old_action) = prev_action;</span><br><span class="line">        inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>] = *translated_ref(token, action);</span><br><span class="line">        <span class="number">0</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>kill</code> is simple, we will extract the task from <code>pid</code>, and insert flag to it if there’s no flag has been set.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">check_sigaction_error</span></span>(signal: SignalFlags, action: <span class="built_in">usize</span>, old_action: <span class="built_in">usize</span>) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> action == <span class="number">0</span></span><br><span class="line">        || old_action == <span class="number">0</span></span><br><span class="line">        || signal == SignalFlags::SIGKILL</span><br><span class="line">        || signal == SignalFlags::SIGSTOP</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="literal">true</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigaction</span></span>(</span><br><span class="line">    signum: <span class="built_in">i32</span>,</span><br><span class="line">    action: *<span class="keyword">const</span> SignalAction,</span><br><span class="line">    old_action: *<span class="keyword">mut</span> SignalAction,</span><br><span class="line">) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> token = current_user_token();</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> signum <span class="keyword">as</span> <span class="built_in">usize</span> &gt; MAX_SIG &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(flag) = SignalFlags::from_bits(<span class="number">1</span> &lt;&lt; signum) &#123;</span><br><span class="line">        <span class="keyword">if</span> check_sigaction_error(flag, action <span class="keyword">as</span> <span class="built_in">usize</span>, old_action <span class="keyword">as</span> <span class="built_in">usize</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">let</span> prev_action = inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>];</span><br><span class="line">        *translated_refmut(token, old_action) = prev_action;</span><br><span class="line">        inner.signal_actions.table[signum <span class="keyword">as</span> <span class="built_in">usize</span>] = *translated_ref(token, action);</span><br><span class="line">        <span class="number">0</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>sigreturn</code> is simple, because we only need to restore our backup one.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_sigreturn</span></span>() -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(task) = current_task() &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = task.inner_exclusive_access();</span><br><span class="line">        inner.handling_sig = -<span class="number">1</span>;</span><br><span class="line">        <span class="comment">// restore the trap context</span></span><br><span class="line">        <span class="keyword">let</span> trap_ctx = inner.get_trap_cx();</span><br><span class="line">        *trap_ctx = inner.trap_ctx_backup.unwrap();</span><br><span class="line">        <span class="number">0</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        -<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Phew! We finish our <strong>Signal</strong> mechanism!</p>
 
       
     </div>
@@ -353,7 +389,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -482,7 +518,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -625,7 +661,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -714,7 +750,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -816,7 +852,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -914,7 +950,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1004,7 +1040,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
 
           
@@ -1071,6 +1107,341 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/" class="post-title-link" itemprop="url">2025OS训练营一阶段记录</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-25 17:21:55" itemprop="dateCreated datePublished" datetime="2025-04-25T17:21:55+00:00">2025-04-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="2025OS训练营一阶段记录"><a href="#2025OS训练营一阶段记录" class="headerlink" title="2025OS训练营一阶段记录"></a>2025OS训练营一阶段记录</h1><p>说明一下，我是提前为训练营做准备，所以记录时间比开营要早，毕竟以我这种基础不笨鸟先飞怕跟不上哈哈。</p>
+<h2 id="3-12"><a href="#3-12" class="headerlink" title="3.12"></a>3.12</h2><p>今天开始学Rust，之前对这个语言也没咋接触过，但是之前学过点go，都是函数式编程，应该有相通处吧。</p>
+<p>我找了经验贴都说看course.rs的Rust圣经，于是按照提示搭建了下环境，我用的是ubuntu20.04，装起环境没有碰到什么问题。还跟着作者用vscode，装了几个推荐的插件。</p>
+<p>了解了cargo 跑了下helloworld，之前写c++的，每次都被环境折腾的不行，找不到的包还要自己手动编译，而且是win环境下…不会写makefile还要用cmake，这东西更新还快，每种库外部文件导入方式还不一样，可能被折磨习惯了觉得这很正常。原来现在的编程语言能做到这么厉害，不仅不用自己编译，手动导入，连库的可用性也会检测。而且rust还有媲美c++的性能，太厉害了！编译的方式也非常简单，toml的依赖方式也比任何语言的依赖方式都要简单。Rust 原生支持 UTF-8 编码的字符串，可以很容易的使用世界各国文字作为字符串内容，再也不用被msvc的字符集问题折腾了。{}作为占位符，数字、字符串、结构体都能打印。rust有很好的链式编程特性，标准库的函数熟练运用起来应该非常方便优雅。</p>
+<p>第一章变量绑定与解构。变量默认不可变 ：Rust变量默认不能修改，必须加<code>mut</code>才能变成可变变量。这个设计挺特别的，一开始不习惯但确实能避免很多意外修改的bug。变量遮蔽：可以用同名变量覆盖之前的变量，实际上是创建了新变量。和<code>mut</code>的区别在于会创建新内存空间，还能用来改变变量类型。解构赋值 ：可以从元组、结构体等复杂类型中提取值赋给变量，写法很简洁。常量 ：用<code>const</code>声明，必须指定类型，命名习惯是全大写加下划线。命名规范 ：下划线开头的变量名可以避免未使用变量的警告。</p>
+<p>整体感觉Rust的变量系统设计得很严谨，虽然开始有点不习惯，但这些特性确实能写出更安全的代码。特别是默认不可变这个设计，强迫开发者想清楚哪些变量真的需要修改。</p>
+<p>第二章基本类型。基本类型与c++没什么差别，特别的就是单元类型 <code>()</code> ，其唯一的值也是 <code>()</code>。rust编译器必须在编译期知道我们所有变量的类型，但这不意味着需要为每个变量指定类型，它可以根据变量的值和上下文中的使用方式来自动推导出变量的类型，在某些情况下，它无法推导出变量类型，需要手动去给予一个类型标注。在整数上，在release 模式构建时，Rust 不检测溢出。相反，当检测到整型溢出时，Rust 会按照补码循环溢出（<em>two’s complement wrapping</em>）的规则处理，也有一些函数用来检查溢出。在处理浮点数计算时要相当注意。NaN为数学上为定义，与之交互都会成为NaN。</p>
+<p>我注意到range for i in 1..=5这样的方式非常有意思和方便，还可以用字母。Rust 拥有相当多的数值类型. 需要熟悉这些类型所占用的字节数，这样就知道该类型允许的大小范围以及选择的类型是否能表达负数。类型转换必须是显式的. Rust 永远也不会偷偷把你的 16bit 整数转换成 32bit 整数。</p>
+<p>Rust 的函数体是由一系列语句组成，最后由一个表达式来返回值，需要区分语句和表达式，表达式总要返回值，分号结尾的是语句。</p>
+<p>当用 <code>!</code> 作函数返回类型的时候，表示该函数永不返回，这种语法往往用做会导致程序崩溃的函数。</p>
+<h2 id="3-13"><a href="#3-13" class="headerlink" title="3.13"></a>3.13</h2><p>今天学习基础第三章所有权和借用。为了解决内存安全问题，rust提出所有权概念，所有权三条规则：Rust 中每一个值都被一个变量所拥有，该变量被称为值的所有者；一个值同时只能被一个变量所拥有，或者说一个值只能拥有一个所有者；当所有者（变量）离开作用域范围时，这个值将被丢弃(drop)。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> x = <span class="number">5</span>;</span><br><span class="line"><span class="keyword">let</span> y = x;</span><br></pre></td></tr></table></figure>
+
+<p>这段代码并没有发生所有权的转移，原因很简单： 代码首先将 <code>5</code> 绑定到变量 <code>x</code>，接着<strong>拷贝</strong> <code>x</code> 的值赋给 <code>y</code>，最终 <code>x</code> 和 <code>y</code> 都等于 <code>5</code>，因为整数是 Rust 基本数据类型，是固定大小的简单值，因此这两个值都是通过<strong>自动拷贝</strong>的方式来赋值的，都被存在栈中，完全无需在堆上分配内存。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> s1 = <span class="built_in">String</span>::from(<span class="string">"hello"</span>);</span><br><span class="line"><span class="keyword">let</span> s2 = s1;</span><br></pre></td></tr></table></figure>
+
+<p>当 s1 被赋予 s2 后，Rust 认为 s1 不再有效，因此也无需在 s1 离开作用域后 drop 任何东西，这就是把所有权从 s1 转移给了 s2，s1 在被赋予 s2 后就马上失效了。其实类似于c++里的move。如果不想夺取原有的所有权可以使用clone（），rust基本类型自带clone属性。</p>
+<p>Rust通过借用(Borrowing) 获取变量的引用，称之为借用。引用分为可变引用和不可变引用，区别就是可不可变，这种限制的好处就是使 Rust 在编译期就避免数据竞争，两个或更多的指针同时访问同一数据，至少有一个指针被用来写入数据，没有同步数据访问的机制。可变引用和不可变引用不可以同时存在，可变引用可以同时存在一个，不可变引用可以同时存在多个。</p>
+<p>基础第四章<strong>复合类型</strong>。&amp;s[0..len]切片操作很方便得用到string，字节序等，0..len为range类，左闭右开，在处理字节流时要注意，汉字在utf8占三个字节。字符串字面量也是个切片。</p>
+<p>元组是由多种类型组合到一起形成的，因此它是复合类型，元组的长度是固定的，元组中元素的顺序也是固定的。可以通过以下语法创建一个元组：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> tup: (<span class="built_in">i32</span>, <span class="built_in">f64</span>, <span class="built_in">u8</span>) = (<span class="number">500</span>, <span class="number">6.4</span>, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+
+<p>变量 <code>tup</code> 被绑定了一个元组值 <code>(500, 6.4, 1)</code>，该元组的类型是 <code>(i32, f64, u8)</code>，元组是用括号将多个类型组合到一起，可以使用模式匹配或者 <code>.</code> 操作符来获取元组中的值。</p>
+<p>用模式匹配解构元组：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> (x, y, z) = tup;</span><br></pre></td></tr></table></figure>
+
+<p>struct结构体和c语言类似，访问字段用 . ,初始化实例时，每个字段都需要进行初始化，初始化时的字段顺序不需要和结构体定义时的顺序一致。结构体中具有所有权的字段转移出去后，将无法再访问该字段，但是可以正常访问其它的字段，</p>
+<p>结构体必须要有名称，但是元组结构体的字段可以没有名称，例如：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Color</span></span>(<span class="built_in">i32</span>, <span class="built_in">i32</span>, <span class="built_in">i32</span>);</span><br><span class="line"><span class="keyword">let</span> origin = Point(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+
+<p>元组结构体在你希望有一个整体名称，但是又不关心里面字段的名称时将非常有用。</p>
+<p>如果想在结构体里包含一个引用，必须声明生命周期。可以为结构体添加debug属性，实现fmt函数用来自定义打印结构体信息。</p>
+<p>枚举类比大多语言要强大，每个元素可以是结构体包含不同信息，</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">Message</span></span> &#123;</span><br><span class="line">    Quit,</span><br><span class="line">    Move &#123; x: <span class="built_in">i32</span>, y: <span class="built_in">i32</span> &#125;,</span><br><span class="line">    Write(<span class="built_in">String</span>),</span><br><span class="line">    ChangeColor(<span class="built_in">i32</span>, <span class="built_in">i32</span>, <span class="built_in">i32</span>),</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Option 枚举用于处理空值，在其它编程语言中，往往都有一个 null 关键字，当null 异常导致程序的崩溃时我们需要处理这些 null 空值。Rust 吸取了众多教训，决定抛弃 null，而改为使用 Option 枚举变量来表述这种结果。<code>Option</code> 枚举包含两个成员，一个成员表示含有值：<code>Some(T)</code>, 另一个表示没有值：<code>None</code>，定义如下：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">Option</span></span>&lt;T&gt; &#123;</span><br><span class="line">    <span class="literal">Some</span>(T),</span><br><span class="line">    <span class="literal">None</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中 <code>T</code> 是泛型参数，<code>Some(T)</code>表示该枚举成员的数据类型是 <code>T</code>，换句话说，<code>Some</code> 可以包含任何类型的数据。</p>
+<p>在 Rust 中，最常用的数组有两种，第一种是速度很快但是长度固定的 <code>array</code>，第二种是可动态增长的但是有性能损耗的 <code>Vector</code>，在本书中，我们称 <code>array</code> 为数组，<code>Vector</code> 为动态数组。数组的三要素：长度固定、元素必须有相同的类型、依次线性排列。声明方式：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">let a: [i32; 5] &#x3D; [1, 2, 3, 4, 5];</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-14"><a href="#3-14" class="headerlink" title="3.14"></a>3.14</h2><p>今天学习基础第五章<strong>流程控制</strong>和第六章<strong>模式匹配</strong>。流程控制就是for … in while loop很容易。模式匹配还是对c++er比较新颖。match的用法和switch相似，强大的点在于可以同时解构内容如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">match action &#123;</span><br><span class="line">            Action::Say(s) &#x3D;&gt; &#123;</span><br><span class="line">                println!(&quot;&#123;&#125;&quot;, s);</span><br><span class="line">            &#125;,</span><br><span class="line">            _ &#x3D;&gt; &#123;&#125;,</span><br><span class="line">       &#125;</span><br></pre></td></tr></table></figure>
+
+<p>if let 相当于单个匹配的match，同样用于获取并解构。</p>
+<p><code>matches!</code>，它可以将一个表达式跟模式进行匹配，然后返回匹配的结果 <code>true</code> or <code>false</code>。</p>
+<p>match 和 if let 都可以触发变量遮蔽，就是可以同名变量优先使用当前作用于下的，在处理时很方便。</p>
+<p>Option解构在rust经常用到，返回结果要么是Some（T），要么是None，在处理时解构处理不同情况非常强大。</p>
+<p>解构方式还有个while let ，可以循环处理解构，数组和元组也可以用对应的结构来解构，_可以用来忽略这个位置的变量，匹配的范围同样可以使用range。</p>
+<p>基础第七章<strong>方法</strong>。可以使用impl 对struct enum实现方法，方法公开需前置pub，方法的函数如若调用结构体的内容需要第一个参数位self，一般情况时&amp;self，在需要对结构体内容更改时为&amp;mut self，当然也可以不是引用，self转让所有权到方法里。在函数里没有结构体的引用时（关联函数）需要使用结构体：：来访问，否则一概使用 . 来访问。impl 内部也可以声明变量、常量等。impl 可以多次进行实现。</p>
+<p>第八章泛型与特征。在 Rust 中，泛型参数的名称可以任意起，但是出于惯例都用 <code>T</code> ，使用泛型参数，有一个先决条件，必需在使用前对其进行声明：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">largest</span></span>&lt;T&gt;(list: &amp;[T]) -&gt; T &#123;</span><br></pre></td></tr></table></figure>
+
+<p>该泛型函数的作用是从列表中找出最大的值，其中列表中的元素类型为 T。首先 <code>largest&lt;T&gt;</code> 对泛型参数 <code>T</code> 进行了声明，然后才在函数参数中进行使用该泛型参数 <code>list: &amp;[T]</code> ，函数 <code>largest</code> 有泛型类型 <code>T</code>，它有个参数 <code>list</code>，其类型是元素为 <code>T</code> 的数组切片，最后，该函数返回值的类型也是 <code>T</code>。</p>
+<p> <code>T</code> 可以是任何类型，但不是所有的类型都能进行比较，编译器建议我们给 <code>T</code> 添加一个类型限制：使用 <code>std::cmp::PartialOrd</code> 特征（Trait）对 <code>T</code> 进行限制。</p>
+<p>有时候，编译器无法推断你想要的泛型参数，这时候需要显式地来声明。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">fn create_and_print&lt;T&gt;() where T: From&lt;i32&gt; + Display &#123;</span><br><span class="line">    let a: T &#x3D; 100.into(); &#x2F;&#x2F; 创建了类型为 T 的变量 a，它的初始值由 100 转换而来</span><br><span class="line">    println!(&quot;a is: &#123;&#125;&quot;, a);</span><br><span class="line">&#125;</span><br><span class="line">fn main() &#123;</span><br><span class="line">    create_and_print::&lt;i64&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>结构体和枚举的泛型</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">enum Option&lt;T&gt; &#123;</span><br><span class="line">    Some(T),</span><br><span class="line">    None,</span><br><span class="line">&#125;</span><br><span class="line">struct Point&lt;T,U&gt; &#123;</span><br><span class="line">    x: T,</span><br><span class="line">    y: U,</span><br><span class="line">&#125;</span><br><span class="line">impl&lt;T&gt; Point&lt;T&gt; &#123;</span><br><span class="line">    fn x(&amp;self) -&gt; &amp;T &#123;</span><br><span class="line">        &amp;self.x</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>方法中使用泛型：使用泛型参数前要提前声明：<code>impl&lt;T&gt;</code>，这样 Rust 就知道 <code>Point</code> 的尖括号中的类型是泛型而不是具体类型。注意，这里的 <code>Point&lt;T&gt;</code> 不再是泛型声明，而是一个完整的结构体类型，因为我们定义的结构体就是 <code>Point&lt;T&gt;</code> 而不再是 <code>Point</code>。除了结构体中的泛型参数，还能在该结构体的方法中定义额外的泛型参数，就跟泛型函数一样：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">impl&lt;T, U&gt; Point&lt;T, U&gt; &#123;</span><br><span class="line">    fn mixup&lt;V, W&gt;(self, other: Point&lt;V, W&gt;) -&gt; Point&lt;T, W&gt; &#123;</span><br><span class="line">        Point &#123;</span><br><span class="line">            x: self.x,</span><br><span class="line">            y: other.y,</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>const泛型：<code>[i32; 3]</code> 和 <code>[i32; 2]</code> 确实是两个完全不同的类型，因此无法用同一个函数调用，const 泛型，也就是针对值的泛型可以用于处理数组长度的问题：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">display_array</span></span>&lt;T: std::fmt::<span class="built_in">Debug</span>, <span class="keyword">const</span> N: <span class="built_in">usize</span>&gt;(arr: [T; N]) &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"&#123;:?&#125;"</span>, arr);</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> arr: [<span class="built_in">i32</span>; <span class="number">3</span>] = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];</span><br><span class="line">    display_array(arr);</span><br><span class="line">    <span class="keyword">let</span> arr: [<span class="built_in">i32</span>; <span class="number">2</span>] = [<span class="number">1</span>, <span class="number">2</span>];</span><br><span class="line">    display_array(arr);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>const fn</code>，即常量函数。通常情况下，函数是在运行时被调用和执行的。然而，在某些场景下，我们希望在编译期就计算出一些值，以提高运行时的性能或满足某些编译期的约束条件。例如，定义数组的长度、计算常量值等。有了 <code>const fn</code>，我们可以在编译期执行这些函数，从而将计算结果直接嵌入到生成的代码中。</p>
+<p><strong>特征trait：</strong>如果不同的类型具有相同的行为，那么我们就可以定义一个特征，然后为这些类型实现该特征。<strong>定义特征</strong>是把一些方法组合在一起，目的是定义一个实现某些目标所必需的行为的集合。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">pub trait Summary &#123;</span><br><span class="line">    fn summarize(&amp;self) -&gt; String;</span><br><span class="line">&#125;</span><br><span class="line">pub struct Post &#123;</span><br><span class="line">    pub title: String, &#x2F;&#x2F; 标题</span><br><span class="line">    pub author: String, &#x2F;&#x2F; 作者</span><br><span class="line">    pub content: String, &#x2F;&#x2F; 内容</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">impl Summary for Post &#123;</span><br><span class="line">    fn summarize(&amp;self) -&gt; String &#123;</span><br><span class="line">        format!(&quot;文章&#123;&#125;, 作者是&#123;&#125;&quot;, self.title, self.author)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">pub struct Weibo &#123;</span><br><span class="line">    pub username: String,</span><br><span class="line">    pub content: String</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">impl Summary for Weibo &#123;</span><br><span class="line">    fn summarize(&amp;self) -&gt; String &#123;</span><br><span class="line">        format!(&quot;&#123;&#125;发表了微博&#123;&#125;&quot;, self.username, self.content)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>关于特征实现与定义的位置，有一条非常重要的原则：<strong>如果你想要为类型</strong> <code>A</code> <strong>实现特征</strong> <code>T</code><strong>，那么</strong> <code>A</code> <strong>或者</strong> <code>T</code> <strong>至少有一个是在当前作用域中定义的！</strong> 例如可以为上面的 <code>Post</code> 类型实现标准库中的 <code>Display</code> 特征，这是因为 <code>Post</code> 类型定义在当前的作用域中。同时也可以在当前包中为 <code>String</code> 类型实现 <code>Summary</code> 特征，因为 <code>Summary</code> 定义在当前作用域中.</p>
+<p>特征中定义具有<strong>默认实现</strong>的方法，这样其它类型无需再实现该方法，或者也可以选择重载该方法.</p>
+<p>使用特征作为函数参数：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">notify</span></span>(item: &amp;<span class="keyword">impl</span> Summary) &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Breaking news! &#123;&#125;"</span>, item.summarize());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>impl Summary</code>顾名思义，它的意思是 <strong>实现了<code>Summary</code>特征</strong> 的 <code>item</code> 参数。</p>
+<p>如果想要强制函数的两个参数是同一类型只能使特征约束来实现：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">notify</span></span>&lt;T: Summary&gt;(item1: &amp;T, item2: &amp;T) &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>泛型类型 <code>T</code> 说明了 <code>item1</code> 和 <code>item2</code> 必须拥有同样的类型，同时 <code>T: Summary</code> 说明了 <code>T</code> 必须实现 <code>Summary</code> 特征。</p>
+<p><strong>多重约束:</strong>除了单个约束条件，可以指定多个约束条件，</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">notify</span></span>(item: &amp;(<span class="keyword">impl</span> Summary + Display)) &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>除了上述的语法糖形式，还能使用特征约束的形式：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">notify</span></span>&lt;T: Summary + Display&gt;(item: &amp;T) &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>特征约束，可以让我们在指定类型 + 指定特征的条件下去实现方法,<strong>也可以有条件地实现特征</strong>，例如，标准库为任何实现了 <code>Display</code> 特征的类型实现了 <code>ToString</code> 特征。</p>
+<p>可以通过 <code>impl Trait</code> 来说明一个函数返回了一个类型，该类型实现了某个特征：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">returns_summarizable</span></span>() -&gt; <span class="keyword">impl</span> Summary &#123;</span><br><span class="line">    Weibo &#123;</span><br><span class="line">        。。。</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种 <code>impl Trait</code> 形式的返回值，在一种场景下非常非常有用，那就是返回的真实类型非常复杂，你不知道该怎么声明时。</p>
+<p><strong><code>#[derive(Debug)]</code></strong> ：是一种特征派生语法，被 <code>derive</code> 标记的对象会自动实现对应的默认特征代码，继承相应的功能。例如 <code>Debug</code> 特征，它有一套自动实现的默认代码，当你给一个结构体标记后，就可以使用 <code>println!(&quot;{:?}&quot;, s)</code> 的形式打印该结构体的对象。</p>
+<p>再如 <code>Copy</code> 特征，它也有一套自动实现的默认代码，当标记到一个类型上时，可以让这个类型自动实现 <code>Copy</code> 特征，进而可以调用 <code>copy</code> 方法，进行自我复制。</p>
+<p>总之，<code>derive</code> 派生出来的是 Rust 默认给我们提供的特征，在开发过程中极大的简化了自己手动实现相应特征的需求，当然，如果你有特殊的需求，还可以自己手动重载该实现</p>
+<p><strong>特征对象</strong></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">Draw</span></span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">draw</span></span>(&amp;<span class="keyword">self</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>只要组件实现了 <code>Draw</code> 特征，就可以调用 <code>draw</code> 方法来进行渲染。假设有一个 <code>Button</code> 和 <code>SelectBox</code> 组件实现了 <code>Draw</code> 特征：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Button</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> width: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="keyword">pub</span> height: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="keyword">pub</span> label: <span class="built_in">String</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> Draw <span class="keyword">for</span> Button &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">draw</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">        <span class="comment">// 绘制按钮的代码</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">SelectBox</span></span> &#123;</span><br><span class="line">    width: <span class="built_in">u32</span>,</span><br><span class="line">    height: <span class="built_in">u32</span>,</span><br><span class="line">    options: <span class="built_in">Vec</span>&lt;<span class="built_in">String</span>&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> Draw <span class="keyword">for</span> SelectBox &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">draw</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">        <span class="comment">// 绘制SelectBox的代码</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">draw1</span></span>(x: <span class="built_in">Box</span>&lt;<span class="keyword">dyn</span> Draw&gt;) &#123;</span><br><span class="line">    <span class="comment">// 由于实现了 Deref 特征，Box 智能指针会自动解引用为它所包裹的值，然后调用该值对应的类型上定义的 `draw` 方法</span></span><br><span class="line">    x.draw();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">draw2</span></span>(x: &amp;<span class="keyword">dyn</span> Draw) &#123;</span><br><span class="line">    x.draw();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>此时，还需要一个动态数组来存储这些 UI 对象：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Screen</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> components: <span class="built_in">Vec</span>&lt;?&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>特征对象**指向实现了 <code>Draw</code> 特征的类型的实例，也就是指向了 <code>Button</code> 或者 <code>SelectBox</code> 的实例，这种映射关系是存储在一张表中，可以在运行时通过特征对象找到具体调用的类型方法。</p>
+<ul>
+<li><code>draw1</code> 函数的参数是 <code>Box&lt;dyn Draw&gt;</code> 形式的特征对象，该特征对象是通过 <code>Box::new(x)</code> 的方式创建的</li>
+<li><code>draw2</code> 函数的参数是 <code>&amp;dyn Draw</code> 形式的特征对象，该特征对象是通过 <code>&amp;x</code> 的方式创建的</li>
+<li><code>dyn</code> 关键字只用在特征对象的类型声明上，在创建时无需使用 <code>dyn</code></li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Screen</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> components: <span class="built_in">Vec</span>&lt;<span class="built_in">Box</span>&lt;<span class="keyword">dyn</span> Draw&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中存储了一个动态数组，里面元素的类型是 <code>Draw</code> 特征对象：<code>Box&lt;dyn Draw&gt;</code>，任何实现了 <code>Draw</code> 特征的类型，都可以存放其中。</p>
+<p>再来为 <code>Screen</code> 定义 <code>run</code> 方法，用于将列表中的 UI 组件渲染在屏幕上：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Screen &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">run</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">        <span class="keyword">for</span> component <span class="keyword">in</span> <span class="keyword">self</span>.components.iter() &#123;</span><br><span class="line">            component.draw();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>泛型是在编译期完成处理的：编译器会为每一个泛型参数对应的具体类型生成一份代码，这种方式是<strong>静态分发</strong>，因为是在编译期完成的，对于运行期性能完全没有任何影响。与静态分发相对应的是<strong>动态分发(dynamic dispatch)</strong>，直到运行时，才能确定需要调用什么方法。</p>
+<h2 id="3-15"><a href="#3-15" class="headerlink" title="3.15"></a>3.15</h2><p>第九章<strong>集合类型</strong></p>
+<p>使用 <code>Vec::new</code> 创建动态数组</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> v: <span class="built_in">Vec</span>&lt;<span class="built_in">i32</span>&gt; = <span class="built_in">Vec</span>::new();</span><br></pre></td></tr></table></figure>
+
+<p>这里，<code>v</code> 被显式地声明了类型 <code>Vec&lt;i32&gt;</code>，这是因为 Rust 编译器无法从 <code>Vec::new()</code> 中得到任何关于类型的暗示信息，因此也无法推导出 <code>v</code> 的具体类型：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> v = <span class="built_in">Vec</span>::new();</span><br><span class="line">v.push(<span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+
+<p>此时，<code>v</code> 就无需手动声明类型，因为编译器通过 <code>v.push(1)</code>，推测出 <code>v</code> 中的元素类型是 <code>i32</code>，因此推导出 <code>v</code> 的类型是 <code>Vec&lt;i32&gt;</code>。</p>
+<blockquote>
+<p>如果预先知道要存储的元素个数，可以使用 <code>Vec::with_capacity(capacity)</code> 创建动态数组，这样可以避免因为插入大量新数据导致频繁的内存分配和拷贝，提升性能</p>
+</blockquote>
+<p>还可以使用宏 <code>vec!</code> 来创建数组，与 <code>Vec::new</code> 有所不同，前者能在创建同时给予初始化值：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> v = <span class="built_in">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];</span><br></pre></td></tr></table></figure>
+
+<p>同样，此处的 <code>v</code> 也无需标注类型，编译器只需检查它内部的元素即可自动推导出 <code>v</code> 的类型是 `Vec<i32></i32></p>
+<p>跟结构体一样，<code>Vector</code> 类型在超出作用域范围后，会被自动删除：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> v = <span class="built_in">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125; <span class="comment">// &lt;- v超出作用域并在此处被删除</span></span><br></pre></td></tr></table></figure>
+
+<p>当 <code>Vector</code> 被删除后，它内部存储的所有内容也会随之被删除。</p>
+<p><strong>同时借用多个数组元素</strong> 遇到同时借用多个数组元素的情况</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> v = <span class="built_in">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>];</span><br><span class="line"><span class="keyword">let</span> first = &amp;v[<span class="number">0</span>];</span><br><span class="line">v.push(<span class="number">6</span>);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">"The first element is: &#123;first&#125;"</span>)；</span><br></pre></td></tr></table></figure>
+
+<p>此时编译器报错。数组的大小是可变的，当旧数组的大小不够用时，Rust 会重新分配一块更大的内存空间，然后把旧数组拷贝过来。这种情况下，之前的引用显然会指向一块无效的内存。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">use std::collections::HashMap;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 创建一个HashMap，用于存储宝石种类和对应的数量</span><br><span class="line">let mut my_gems &#x3D; HashMap::new();</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 将宝石类型和对应的数量写入表中</span><br><span class="line">my_gems.insert(&quot;红宝石&quot;, 1);</span><br><span class="line">my_gems.insert(&quot;蓝宝石&quot;, 2);</span><br></pre></td></tr></table></figure>
+
+<h2 id="3-16"><a href="#3-16" class="headerlink" title="3.16"></a>3.16</h2><p>第十章生命周期。</p>
+<p><strong>借用检查：</strong>为了保证 Rust 的所有权和借用的正确性，Rust 使用了一个借用检查器(Borrow checker)来检查程序的借用正确性。</p>
+<p><strong>函数中的生命周期：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">fn longest(x: &amp;str, y: &amp;str) -&gt; &amp;str &#123;</span><br><span class="line">    if x.len() &gt; y.len() &#123;</span><br><span class="line">        x</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        y</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">--------</span><br><span class="line"> --&gt; src&#x2F;main.rs:9:33</span><br><span class="line">  |</span><br><span class="line">9 | fn longest(x: &amp;str, y: &amp;str) -&gt; &amp;str &#123;</span><br><span class="line">  |               ----     ----     ^ expected named lifetime parameter &#x2F;&#x2F; 参数需要一个生命周期</span><br><span class="line">  |</span><br></pre></td></tr></table></figure>
+
+<p>编译器无法知道该函数的返回值到底引用 <code>x</code> 还是 <code>y</code> ，<strong>因为编译器需要知道这些，来确保函数调用后的引用生命周期分析</strong>。在存在多个引用时，编译器有时会无法自动推导生命周期，此时就需要手动去标注，通过为参数标注合适的生命周期来帮助编译器进行借用检查的分析。</p>
+<p><strong>生命周期标注：</strong>生命周期的语法以 <code>&#39;</code> 开头，名称往往是一个单独的小写字母，大多数人都用 <code>&#39;a</code> 来作为生命周期的名称。 如果是引用类型的参数，那么生命周期会位于引用符号 <code>&amp;</code> 之后，并用一个空格来将生命周期和引用参数分隔开</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&amp;<span class="built_in">i32</span>        <span class="comment">// 一个引用</span></span><br><span class="line">&amp;<span class="symbol">'a</span> <span class="built_in">i32</span>     <span class="comment">// 具有显式生命周期的引用</span></span><br><span class="line">&amp;<span class="symbol">'a</span> <span class="keyword">mut</span> <span class="built_in">i32</span> <span class="comment">// 具有显式生命周期的可变引用</span></span><br></pre></td></tr></table></figure>
+
+<p>一个生命周期标注，它自身并不具有什么意义，因为生命周期的作用就是告诉编译器多个引用之间的关系。例如，有一个函数，它的第一个参数 <code>first</code> 是一个指向 <code>i32</code> 类型的引用，具有生命周期 <code>&#39;a</code>，该函数还有另一个参数 <code>second</code>，它也是指向 <code>i32</code> 类型的引用，并且同样具有生命周期 <code>&#39;a</code>。此处生命周期标注仅仅说明，<strong>这两个参数 <code>first</code> 和 <code>second</code> 至少活得和’a 一样久，至于到底活多久或者哪个活得更久，我们都无法得知</strong>：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">useless</span></span>&lt;<span class="symbol">'a</span>&gt;(first: &amp;<span class="symbol">'a</span> <span class="built_in">i32</span>, second: &amp;<span class="symbol">'a</span> <span class="built_in">i32</span>) &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>函数签名中的生命周期标注</strong></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">longest</span></span>&lt;<span class="symbol">'a</span>&gt;(x: &amp;<span class="symbol">'a</span> <span class="built_in">str</span>, y: &amp;<span class="symbol">'a</span> <span class="built_in">str</span>) -&gt; &amp;<span class="symbol">'a</span> <span class="built_in">str</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> x.len() &gt; y.len() &#123;</span><br><span class="line">        x</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        y</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>和泛型一样，使用生命周期参数，需要先声明 <code>&lt;&#39;a&gt;</code></li>
+<li><code>x</code>、<code>y</code> 和返回值至少活得和 <code>&#39;a</code> 一样久（因为返回值要么是 <code>x</code>，要么是 <code>y</code>）</li>
+</ul>
+<p>该函数签名表明对于某些生命周期 <code>&#39;a</code>，函数的两个参数都至少跟 <code>&#39;a</code> 活得一样久，同时函数的返回引用也至少跟 <code>&#39;a</code> 活得一样久。实际上，这意味着返回值的生命周期与参数生命周期中的较小值一致：虽然两个参数的生命周期都是标注了 <code>&#39;a</code>，但是实际上这两个参数的真实生命周期可能是不一样的（生命周期 <code>&#39;a</code> 不代表生命周期等于 <code>&#39;a</code>，而是大于等于 <code>&#39;a</code>）。<strong>在通过函数签名指定生命周期参数时，并没有改变传入引用或者返回引用的真实生命周期，而是告诉编译器当不满足此约束条件时，就拒绝编译通过</strong>。</p>
+<p>因此 <code>longest</code> 函数并不知道 <code>x</code> 和 <code>y</code> 具体会活多久，只要知道它们的作用域至少能持续 <code>&#39;a</code> 这么长就行。</p>
+<p>该例子证明了 <code>result</code> 的生命周期必须等于两个参数中生命周期较小的那个:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> string1 = <span class="built_in">String</span>::from(<span class="string">"long string is long"</span>);</span><br><span class="line">    <span class="keyword">let</span> result;</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">let</span> string2 = <span class="built_in">String</span>::from(<span class="string">"xyz"</span>);</span><br><span class="line">        result = longest(string1.as_str(), string2.as_str());</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"The longest string is &#123;&#125;"</span>, result);</span><br><span class="line">&#125;</span><br><span class="line">error[E0597]: `string2` does not live long enough</span><br><span class="line"> --&gt; src/main.rs:<span class="number">6</span>:<span class="number">44</span></span><br><span class="line">  |</span><br><span class="line"><span class="number">6</span> |         result = longest(string1.as_str(), string2.as_str());</span><br><span class="line">  |                                            ^^^^^^^ borrowed value does not live long enough</span><br><span class="line"><span class="number">7</span> |     &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在上述代码中，<code>result</code> 必须要活到 <code>println!</code>处，因为 <code>result</code> 的生命周期是 <code>&#39;a</code>，因此 <code>&#39;a</code> 必须持续到 <code>println!</code>。</p>
+<p><strong>结构体中的生命周期：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">struct ImportantExcerpt&lt;&#39;a&gt; &#123;</span><br><span class="line">    part: &amp;&#39;a str,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>ImportantExcerpt</code> 结构体中有一个引用类型的字段 <code>part</code>，因此需要为它标注上生命周期。结构体的生命周期标注语法跟泛型参数语法很像，需要对生命周期参数进行声明 <code>&lt;&#39;a&gt;</code>。该生命周期标注说明，<strong>结构体 <code>ImportantExcerpt</code> 所引用的字符串 <code>str</code> 生命周期需要大于等于该结构体的生命周期</strong></p>
+<p><strong>生命周期消除：</strong>尽管我们没有显式的为其标注生命周期，编译依然可以通过。其实原因不复杂，<strong>编译器为了简化用户的使用，运用了生命周期消除大法</strong>。</p>
+<p>三条消除规则：</p>
+<p>编译器使用三条消除规则来确定哪些场景不需要显式地去标注生命周期。其中第一条规则应用在输入生命周期上，第二、三条应用在输出生命周期上。若编译器发现三条规则都不适用时，就会报错，提示你需要手动标注生命周期。</p>
+<ol>
+<li><p><strong>每一个引用参数都会获得独自的生命周期</strong></p>
+<p>例如一个引用参数的函数就有一个生命周期标注: <code>fn foo&lt;&#39;a&gt;(x: &amp;&#39;a i32)</code>，两个引用参数的有两个生命周期标注:<code>fn foo&lt;&#39;a, &#39;b&gt;(x: &amp;&#39;a i32, y: &amp;&#39;b i32)</code>, 依此类推。</p>
+</li>
+<li><p><strong>若只有一个输入生命周期（函数参数中只有一个引用类型），那么该生命周期会被赋给所有的输出生命周期</strong>，也就是所有返回值的生命周期都等于该输入生命周期</p>
+<p>例如函数 <code>fn foo(x: &amp;i32) -&gt; &amp;i32</code>，<code>x</code> 参数的生命周期会被自动赋给返回值 <code>&amp;i32</code>，因此该函数等同于 <code>fn foo&lt;&#39;a&gt;(x: &amp;&#39;a i32) -&gt; &amp;&#39;a i32</code></p>
+</li>
+<li><p><strong>若存在多个输入生命周期，且其中一个是 <code>&amp;self</code> 或 <code>&amp;mut self</code>，则 <code>&amp;self</code> 的生命周期被赋给所有的输出生命周期</strong></p>
+<p>拥有 <code>&amp;self</code> 形式的参数，说明该函数是一个 <code>方法</code>，该规则让方法的使用便利度大幅提升。</p>
+</li>
+</ol>
+<h2 id="3-17"><a href="#3-17" class="headerlink" title="3.17"></a>3.17</h2><p><strong>方法中的生命周期：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">struct ImportantExcerpt&lt;&#39;a&gt; &#123;</span><br><span class="line">    part: &amp;&#39;a str,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">impl&lt;&#39;a&gt; ImportantExcerpt&lt;&#39;a&gt; &#123;</span><br><span class="line">    fn level(&amp;self) -&gt; i32 &#123;</span><br><span class="line">        3</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>impl</code> 中必须使用结构体的完整名称，包括 <code>&lt;&#39;a&gt;</code>，因为<em>生命周期标注也是结构体类型的一部分</em>！</li>
+<li>方法签名中，往往不需要标注生命周期，得益于生命周期消除的第一和第三规则</li>
+</ul>
+<p><strong>静态生命周期：</strong>生命周期 <code>&#39;static</code>，拥有该生命周期的引用可以和整个程序活得一样久。</p>
+<p>字符串字面量是被硬编码进 Rust 的二进制文件中，因此这些字符串变量全部具有 <code>&#39;static</code> 的生命周期：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> s: &amp;<span class="symbol">'static</span> <span class="built_in">str</span> = <span class="string">"就是活得久，嘿嘿"</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Rust 中的错误主要分为两类：</p>
+<ul>
+<li><strong>可恢复错误</strong>，通常用于从系统全局角度来看可以接受的错误，例如处理用户的访问、操作等错误，这些错误只会影响某个用户自身的操作进程，而不会对系统的全局稳定性产生影响</li>
+<li><strong>不可恢复错误</strong>，刚好相反，该错误通常是全局性或者系统性的错误，例如数组越界访问，系统启动时发生了影响启动流程的错误等等，这些错误的影响往往对于系统来说是致命的</li>
+</ul>
+<p>Rust 提供了 <code>panic!</code> 宏，当调用执行该宏时，<strong>程序会打印出一个错误信息，展开报错点往前的函数调用堆栈，最后退出程序</strong>。</p>
+<p>当出现 <code>panic!</code> 时，程序提供了两种方式来处理终止流程：<strong>栈展开</strong>和<strong>直接终止</strong>。</p>
+<p>其中，默认的方式就是 <code>栈展开</code>，这意味着 Rust 会回溯栈上数据和函数调用，因此也意味着更多的善后工作，好处是可以给出充分的报错信息和栈调用信息，便于事后的问题复盘。<code>直接终止</code>，顾名思义，不清理数据就直接退出程序，善后工作交与操作系统来负责。</p>
+<p>对于绝大多数用户，使用默认选择是最好的，但是当你关心最终编译出的二进制可执行文件大小时，那么可以尝试去使用直接终止的方式，例如下面的配置修改 <code>Cargo.toml</code> 文件，实现在 <a href="https://course.rs/first-try/cargo.html#手动编译和运行项目" target="_blank" rel="noopener"><code>release</code></a> 模式下遇到 <code>panic</code> 直接终止：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[profile.release]</span><br><span class="line">panic &#x3D; &#39;abort&#39;</span><br></pre></td></tr></table></figure>
+
+<p>panic后如果是 <code>main</code> 线程，则程序会终止，如果是其它子线程，该线程会终止，但是不会影响 <code>main</code> 线程。</p>
+<p>*<em><code>Result&lt;T, E&gt;</code> *</em>是一个枚举类型，定义如下：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">Result</span></span>&lt;T, E&gt; &#123;</span><br><span class="line">    <span class="literal">Ok</span>(T),</span><br><span class="line">    <span class="literal">Err</span>(E),</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>泛型参数 <code>T</code> 代表成功时存入的正确值的类型，存放方式是 <code>Ok(T)</code>，<code>E</code> 代表错误时存入的错误值，存放方式是 <code>Err(E)</code>，</p>
+<p>不想使用 <code>match</code> 去匹配 <code>Result&lt;T, E&gt;</code>以获取其中的 <code>T</code> 值，因为 <code>match</code> 的穷尽匹配特性，你总要去处理下 <code>Err</code> 分支。有个办法简化这个过程就是 <code>unwrap</code> 和 <code>expect</code>。它们的作用就是，如果返回成功，就将 <code>Ok(T)</code> 中的值取出来，如果失败，就直接 panic。<code>expect</code> 跟 <code>unwrap</code> 很像，也是遇到错误直接 <code>panic</code>, 但是会带上自定义的错误提示信息，相当于重载了错误打印的函数.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">let f &#x3D; File::open(&quot;hello.txt&quot;).unwrap();</span><br><span class="line">let f &#x3D; File::open(&quot;hello.txt&quot;).expect(&quot;Failed to open hello.txt&quot;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>错误传播：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fn read_username_from_file() -&gt; Result&lt;String, io::Error&gt;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>该函数返回一个 <code>Result&lt;String, io::Error&gt;</code> 类型，当读取用户名成功时，返回 <code>Ok(String)</code>，失败时，返回 <code>Err(io:Error)</code></li>
+<li><code>File::open</code> 和 <code>f.read_to_string</code> 返回的 <code>Result&lt;T, E&gt;</code> 中的 <code>E</code> 就是 <code>io::Error</code></li>
+</ul>
+<h2 id="3-18"><a href="#3-18" class="headerlink" title="3.18"></a>3.18</h2><ul>
+<li><strong>项目(Package)</strong>：可以用来构建、测试和分享包</li>
+<li><strong>工作空间(WorkSpace)</strong>：对于大型项目，可以进一步将多个包联合在一起，组织成工作空间</li>
+<li><strong>包(Crate)</strong>：一个由多个模块组成的树形结构，可以作为三方库进行分发，也可以生成可执行文件进行运行</li>
+<li><strong>模块(Module)</strong>：可以一个文件多个模块，也可以一个文件一个模块，模块可以被认为是真实项目中的代码组织单元</li>
+</ul>
+<p><strong>包 Crate</strong></p>
+<p>对于 Rust 而言，包是一个独立的可编译单元，它编译后会生成一个可执行文件或者一个库。</p>
+<p>一个包会将相关联的功能打包在一起，使得该功能可以很方便的在多个项目中分享。例如标准库中没有提供但是在三方库中提供的 <code>rand</code> 包，它提供了随机数生成的功能，只需要将该包通过 <code>use rand;</code> 引入到当前项目的作用域中，就可以在项目中使用 <code>rand</code> 的功能：<code>rand::XXX</code>。</p>
+<p>同一个包中不能有同名的类型，但是在不同包中就可以。例如，虽然 <code>rand</code> 包中，有一个 <code>Rng</code> 特征，可是依然可以在自己的项目中定义一个 <code>Rng</code>，前者通过 <code>rand::Rng</code> 访问，后者通过 <code>Rng</code> 访问，不会存在引用歧义。</p>
+<p><strong>项目 Package</strong></p>
+<p>由于 <code>Package</code> 就是一个项目，因此它包含有独立的 <code>Cargo.toml</code> 文件，以及因为功能性被组织在一起的一个或多个包。一个 <code>Package</code> 只能包含<strong>一个</strong>库(library)类型的包，但是可以包含<strong>多个</strong>二进制可执行类型的包。</p>
+<p><strong>库 Package</strong></p>
+<figure class="highlight console"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> cargo new my-lib --lib</span></span><br><span class="line">     Created library `my-lib` package</span><br><span class="line"><span class="meta">$</span><span class="bash"> ls my-lib</span></span><br><span class="line">Cargo.toml</span><br><span class="line">src</span><br><span class="line"><span class="meta">$</span><span class="bash"> ls my-lib/src</span></span><br><span class="line">lib.rs</span><br></pre></td></tr></table></figure>
+
+<p>如果你试图运行 <code>my-lib</code>，会报错：</p>
+<figure class="highlight console"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> cargo run</span></span><br><span class="line">error: a bin target must be available for `cargo run`</span><br></pre></td></tr></table></figure>
+
+<p>原因是库类型的 <code>Package</code> 只能作为三方库被其它项目引用，而不能独立运行，只有之前的二进制 <code>Package</code> 才可以运行。</p>
+<p>与 <code>src/main.rs</code> 一样，Cargo 知道，如果一个 <code>Package</code> 包含有 <code>src/lib.rs</code>，意味它包含有一个库类型的同名包 <code>my-lib</code>，该包的根文件是 <code>src/lib.rs</code>。</p>
+<p><strong>模块</strong></p>
+<ul>
+<li>使用 <code>mod</code> 关键字来创建新模块，后面紧跟着模块名称</li>
+<li>模块可以嵌套，这里嵌套的原因是招待客人和服务都发生在前厅，因此我们的代码模拟了真实场景</li>
+<li>模块中可以定义各种 Rust 类型，例如函数、结构体、枚举、特征等</li>
+<li>所有模块均定义在同一个文件中</li>
+</ul>
+<p>模块树为模块的嵌套结构，他们都有一个根模块 <code>crate</code>。如果模块 <code>A</code> 包含模块 <code>B</code>，那么 <code>A</code> 是 <code>B</code> 的父模块，<code>B</code> 是 <code>A</code> 的子模块。</p>
+<p>想要调用一个函数，就需要知道它的路径，在 Rust 中，这种路径有两种形式：</p>
+<ul>
+<li><strong>绝对路径</strong>，从包根开始，路径名以包名或者 <code>crate</code> 作为开头</li>
+<li><strong>相对路径</strong>，从当前模块开始，以 <code>self</code>，<code>super</code> 或当前模块的标识符作为开头</li>
+</ul>
+<p>Rust 出于安全的考虑，默认情况下，所有的类型都是私有化的，包括函数、方法、结构体、枚举、常量，是的，就连模块本身也是私有化的。<strong>父模块完全无法访问子模块中的私有项，但是子模块却可以访问父模块、父父..模块的私有项</strong>。</p>
+<p>模块可见性不代表模块内部项的可见性，模块的可见性仅仅是允许其它模块去引用它，但是想要引用它内部的项，还得继续将对应的项标记为 <code>pub</code>。</p>
+<p>当外部的模块项 <code>A</code> 被引入到当前模块中时，它的可见性自动被设置为私有的，如果你希望允许其它外部代码引用我们的模块项 <code>A</code>，那么可以对它进行再导出。使用 <code>pub use</code> 即可实现。</p>
+<p>引入第三方包中的模块，关于如何引入外部依赖：</p>
+<p>修改 <code>Cargo.toml</code> 文件，在 <code>[dependencies]</code> 区域添加一行：<code>rand = &quot;0.8.3&quot;</code></p>
+<h2 id="3-21-3-24-rustlings"><a href="#3-21-3-24-rustlings" class="headerlink" title="3.21-3.24 rustlings"></a>3.21-3.24 rustlings</h2><p>关于rustlings，系统学过rust后几乎没有难题，所以我在6号一天就完成了70多道，前两天在熟悉github classroom和rustlings的自检方式。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1102,7 +1473,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
+                <time title="Modified: 2025-06-03 12:12:55" itemprop="dateModified" datetime="2025-06-03T12:12:55+00:00">2025-06-03</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1141,119 +1512,6 @@
 <p>实现时检查参数有效性，转换传进来的flags格式，获取当前任务的地址空间即可转换给定的虚拟地址为物理地址，使用mapalloc对内存大小完成映射，注意flag要加上USER，因为是要映射到用户空间。通过fd找到文件节点后直接读入到得到的物理内存处，完成映射。</p>
 <h2 id="4-16"><a href="#4-16" class="headerlink" title="4.16"></a>4.16</h2><p>虚拟化这个题，看过了视频后，有了老师给的提示还是非常容易的。虚拟机在执行到某个位置触发了系统异常，那肯定要在traphandler里找，返汇编后，看到有非该特权级的指令执行出发了异常指令，那就将pc指针步进继续执行，然后代替处理复制操作，后面的错误访问内存也一样，代替执行赋值后设置pc继续执行内核。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>三阶段做的这些题远远不够理解arceos，所以在做完后我确定在虚拟化上下功夫，仔细研究这一块的代码。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/" class="post-title-link" itemprop="url">2025OS训练营二阶段记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-25 17:21:55" itemprop="dateCreated datePublished" datetime="2025-04-25T17:21:55+00:00">2025-04-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-03 09:25:41" itemprop="dateModified" datetime="2025-06-03T09:25:41+00:00">2025-06-03</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2025OS训练营二阶段记录"><a href="#2025OS训练营二阶段记录" class="headerlink" title="2025OS训练营二阶段记录"></a>2025OS训练营二阶段记录</h1><h2 id="3-18-3-21"><a href="#3-18-3-21" class="headerlink" title="3.18-3.21"></a>3.18-3.21</h2><p>这段时间是在开营前，我在用rcorebook学习，这几天完成了ch1-ch3的学习。</p>
-<h3 id="ch1"><a href="#ch1" class="headerlink" title="ch1"></a>ch1</h3><p><strong>环境配置</strong>：我用的是ubuntu20.04，按照教程来配置还是相当容易的，没有碰到什么问题。</p>
-<p><strong>个人基础</strong>：我是在寒假接触自制操作系统的，看的一本书叫做《操作系统真象还原》，这本书用c语言和汇编实现了一个x86的32的操作系统。书的内容很多，对于基础盲区也讲解很全，作者从MBR到Bios、bootloader再到用显存来实现print，操作系统的必要组件。所以我学起来还没那么吃力。</p>
-<p>riscv我没有接触过，有一些x86的汇编先不系统学习还是可以看得懂的，毕竟rcore没有涉及太多汇编内容。</p>
-<p>rust的编译工具安装、编译方便在开始都让我非常惊喜。内核的第一条指令涉及到一个linker.ld，这个文件就是链接脚本，通过分析内容可以很容易理解程序的内存分布，首先是固定的内存入口，其次是 .data .bss .rodata等段的排布很清晰。</p>
-<p>简单学习了下gdb调试和远程连接，反编译反汇编工具。</p>
-<p>第一次接触rust的外部链接extern “C”，使用声明函数的方式来找到链接脚本确定的内存区域起始符号。</p>
-<p>rustsbi这个东西真的很方便，当然也是riscv架构的标准。像打印字符这种函数都实现在里面，要不然需要用汇编来自己实现。对sbi进行封装后很容易就能实现write函数和print宏。</p>
-<h3 id="ch2"><a href="#ch2" class="headerlink" title="ch2"></a>ch2</h3><p>这一章是写一个批处理系统，系统在运行前就明确了所有要运行的app，这些app都按顺序执行直到最后一道，然后系统panic结束。应用的内存地址都是在运行前要手动计算确定的。riscv架构从大到小分为0，1，2，3四个特权级，还提供了ecall，eret用来切换特权级。这个批处理系统分成了用户态和内核态，ecall就是用来从用户态进入内核态，eret用来返回用户态。ecall属于riscv规定的一种异常，而操作系统属于在riscv的s模式特权级，在用户态ecall就会触发陷入机制进入s模式特权级，用sret来返回u特权级。进入s模式后会调用二进制接口，也称为系统调用。</p>
-<p>系统调用的意义在于很多操作交给用户来做非常不安全，系统稳定性难以保证，所以需要划分出内核态用户态，内核根据需求做出安全的系统调用操作。</p>
-<p>程序的入口准确来说是_start就是linker里的start符号位置，这里我们不能使用原生架构编译工具，而是使用交叉工具链，所以rust std内容都用不了，main函数也不能完成作为程序入口的作用。在rust声明外部链接符号就要在link操作的宏。</p>
-<p>创建系统调用的触发接口，使用内敛汇编调用ecall传入系统调用号和参数，在操作系统就会捕捉异常，判断类型为ecall后根据对应系统调用号即可处理系统调用，完成系统调用后返回用户态。</p>
-<p>这里的测试没有实现具体的系统调用，而是用了linux相同的系统调用好在linux环境进行测试，测试正常。</p>
-<p>rcore写了build.rs用来构建linker.ld链接脚本，app需要使用路径方式进行导入，每个app的入口地址和执行顺序挂钩。使用的测试用例是在linux系统调用环境下编译的，编译的结果是elf的，需要使用工具来将elf转换成bin二进制文件。在设计上rcore创建了UnSafeCell用来在单核上可以安全使用全局可变借用。</p>
-<p>load_app根据固定的标号入口地址来从内存里找到app的代码段，加载到APP_BASE_ADDR，这个地址是个固定值。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">批处理操作系统为了建立好应用程序的执行环境，需要在执行应用程序之前进行一些初始化工作，并监控应用程序的执行，具体体现在：</span><br><span class="line">当启动应用程序的时候，需要初始化应用程序的用户态上下文，并能切换到用户态执行应用程序；</span><br><span class="line">当应用程序发起系统调用（即发出 Trap）之后，需要到批处理操作系统中进行处理；</span><br><span class="line">当应用程序执行出错的时候，需要到批处理操作系统中杀死该应用并加载运行下一个应用；</span><br><span class="line">当应用程序执行结束的时候，需要到批处理操作系统中加载运行下一个应用（实际上也是通过系统调用 sys_exit 来实现的）。</span><br><span class="line">这些处理都涉及到特权级切换，因此需要应用程序、操作系统和硬件一起协同，完成特权级切换机制。</span><br></pre></td></tr></table></figure>
-
-<p>系统调用和异常都涉及到了切换特权级，特权级的切换最重要的就是保存上下文。因为不管是trap还是异常都是停止执行当前的程序，转去执行系统调用或者异常处理，这时候就需要保存当前应用的寄存器环境，这个就是上下文，将这些寄存器按固定顺序保存到用户栈，在ret时再逆顺序恢复寄存器。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sstatus 的 SPP 字段会被修改为 CPU 当前的特权级（U&#x2F;S）。</span><br><span class="line">sepc 会被修改为 Trap 处理完成后默认会执行的下一条指令的地址。</span><br><span class="line">scause&#x2F;stval 分别会被修改成这次 Trap 的原因以及相关的附加信息。</span><br><span class="line">CPU 会跳转到 stvec 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后从Trap 处理入口地址处开始执行。</span><br></pre></td></tr></table></figure>
-
-<p>这些是riscv用到的硬件辅助寄存器。</p>
-<p>rcore使用汇编实现了alltrap和restore，用来保存和恢复寄存器，需要注意sp寄存器，sp寄存器的值用到sscratch，这个寄存器用来交换内核栈sp值，还要注意处理当前执行的位置。</p>
-<p>traphandler中根据scause的结果，对不同的异常进行处理，包括ecall，runnext等操作。</p>
-<h3 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h3><p>这一章要创建一个多道程序处理系统，需要实现分时调用就必须要将应用都加载到内存，这也意味着也要为当前每个应用都分配独立栈空间。所以不能像上节一样都加载到base地址，需要确保应用占用的空间不会重叠。切换任务必然也要保存上下文，与系统调用不同的是，任务切换的操作保存寄存器恢复寄存器都是在用户态。rcore根据sbi实现了gettime，设定计时器后，计时器到时触发异常，traphandler捕捉到后执行任务切换操作。</p>
-<p>任务切换最重要的是switch操作，在执行之前已经将下个任务的栈顶地址保存起来，保存当前寄存器环境后，导入下个任务的寄存器环境。yeild操作为计时器中断触发切换任务的系统调用。</p>
-<h2 id="3-24-3-25"><a href="#3-24-3-25" class="headerlink" title="3.24-3.25"></a>3.24-3.25</h2><p>关于trace的系统调用实现,需要判断request来实现不同功能. 在request为0时:需要将id转换成<em>const u8 再解引用,再转换为isize返回;在request为1时:要将id转换成</em>mut u8,再将data转换成u8,复制给id转换后指针的解引用,返回0;</p>
-<p>当request为2时: 想要获取每个任务的某个系统调用次数,并且考虑到批处理系统会进行任务切换,所以在切换到其他任务时也要保存着其他刮起的人物的调用次数,所以我就在syscall/mod.rs中实现了个全局变量SYSCALL_COUNT,类型为Mutex&lt;BTreeMap&lt;usize, BTreeMap&lt;usize, usize&gt;&gt;&gt;,Mutex包裹是因为他是全局变量(rust的要求? 按理说批处理单进程用不到锁,但是我编译没过就加上了.),外层BTree key为app_id,value为内层BTree,内层BTree为(sys_id, count).这样就可以通过app_id来得到所有系统调用的次数.syscall_count方法在syscall里用来计数,insert_syscall_count为当前任务初始化记录,已有记录则返回,delete_syscall_count在进程退出时删除记录,get_syscall_count就用来在sys_trace里获取当前任务的系统调用次数.</p>
-<h2 id="3-25-3-26"><a href="#3-25-3-26" class="headerlink" title="3.25-3.26"></a>3.25-3.26</h2><p>在sys_get_time和sys_trace实现最主要的是将虚拟地址转换成物理地址,因为内核不能访问应用的虚拟地址.sys_get_time首先获取应用虚拟页表,将ts转换成虚拟地址,记录偏移,通过页表转换后可以得到对应的物理页表项,将表项加上偏移就得到了对应ts的物理地址,然后转换成mut指针,将获取的timeval复制给该地址.判断跨页是要在ts地址上加上timeval长度得到截至地址,与start%Pagesize后判断是否相等,不相等则要处理跨页,还是计算出物理地址分别在对应部分拷贝该部分的数据.</p>
-<p> sys_trace相比上次只需要处理0,1的情况,要想办法通过虚拟地址读取或写入,同样转换为物理地址就可以将其转换成指针.在获取物理页表项时要注意判断页表项的有效性 可读性 可写性.</p>
-<p> mmap就是要为应用程序申请一块动态区域,这个就要在memset上处理,本来我是准备将内存加入areas的,但是在写unmap时判断vpn来删除有些困难,就考虑重新为mmap的内存重新建立映射结构.处理时就是要几个点注意,1:判断port是否全0或者无效位有非0, 2:判断start是否页表对齐,没有对齐就返回, 3:PTEFlags不仅要加上port的标志,还需要有效位V和用户位U, 4:计算虚拟页表起始地址,然后对每个页循环遍历, 5: 判断虚拟页表有效性,有效则返回(mapped), 6: 申请物理页建立映射.</p>
-<p> unmap要判断虚拟页表无效性,然后循环遍历每个vpn在虚拟页表中被unmap,并移除mmap_set对应项.</p>
-<h2 id="3-26-3-28"><a href="#3-26-3-28" class="headerlink" title="3.26-3.28"></a>3.26-3.28</h2><p>关于spawn,相比fork就是不要复制父进程的内存布局,将传进来的字符串指针转换成string,通过这个名字获取应用elf_data,后面就对TCB进行初始化,和TCB::new一样,注意三点,父进程设置为当前进程;将该进程加入父进程的child列表;将该进程加入运行队列.</p>
-<p> 关于stride,我定义了两个常量BASE_STRIDE=91,BIG_STRIDE=99991.在TCBinner里加入两个量:pass=0,prio=1,封装updatepass:</p>
-<p>pass += (BASE_STRIDE / prio) % BIG_STRIDE</p>
-<p>留出相关接口.再到run_task调用updatepass, 在fatch里对ready_queue取出最小pass的TCB.</p>
-<h2 id="3-28-3-30"><a href="#3-28-3-30" class="headerlink" title="3.28-3.30"></a>3.28-3.30</h2><p> 关于link，与linux的ln命令类似，对文件创建链接相当于在操作系统层面增加个INode，但是磁盘里共用统一片块，那相当于拥有相同的inode编号，我们先通过原文件名称获取编号，已知所有文件都在根目录。找到编号后就可以得到块位置id和offset，在创建inode时需要。接下来修改目录项，需要先扩展目录项的存储区域，后写入目录项。返回一个新的inode。</p>
-<p> 关于unlink，通过name找到根节点后计算目录项数目，循环读取根节点每个文件对比名称，找到index后，把末尾的目录项换到index处，减小目录大小。</p>
-<p> stat就连两个项需要获取，ino就是blockid，nlink需要通过块位置来对目录里所有文件的块位置进行比较，相同计数加1.在返回时我和gettime的处理一样，将虚拟地址转换成物理地址后再转换成可变指针，将stat结构体指针放进去。</p>
-<h2 id="3-30-4-3"><a href="#3-30-4-3" class="headerlink" title="3.30-4.3"></a>3.30-4.3</h2><p>这节还挺费劲的。刚开始看了很久没发现是银行家算法，不知道如何来抽象这些资源。</p>
-<p>首先就是清楚是要以每个进程为单位来进行资源管理，所以在pcb inner里添加了死锁检测模块。模块数据一维为线程tid，二维为资源rid，模块需要实现几个功能，isunsafe就是银行家算法用来查看当前状态是否安全，tryallocate在检查unsafe同时通过tid和rid处理减小available和need，增加allocation；setneed需要在设置资源前调用，在分配失败时会保留，在分配成功会减小。release在up时增加available和减小allocation；检测开关只需要设置enabled。在创建线程和创建资源时需要更新数据结构，在添加一个线程时会为二维结构添加资源数的全为0的向量，在添加mutex时avail则push 1，sem则push 初始化值。在down时首先判断是否打开了检测，打开了就首先setneed，然后判断unsafe如果不安全则直接返回dead，安全则尝试分配（会失败），然后调用down；up时判断检测打开之后就调用release，release判断了当前分配数是否为0。</p>
 
       
     </div>
