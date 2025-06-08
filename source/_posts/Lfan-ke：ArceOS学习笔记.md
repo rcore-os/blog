@@ -19,7 +19,7 @@ description: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲�
 
 # Lfan-ke：第三阶段总结报告
 
-about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke)
+about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke), [heke1228@codeberg](https://codeberg.org/heke1228)
 
 ## 内核发展史
 
