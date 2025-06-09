@@ -151,7 +151,7 @@ ArceOS通过feature来启用不同的组件，不同层的组件影响范围不�
 
 ### 集合类型
 
-集合类型主要就是向`axstd::collections`命名/包空间注册一个Map。所以既可以利用`随机模块+现有Map`或者利用数据结构的知识`手动实现`，也可以：利用`type/as`将HashMap接口导向[HashBrown](https://docs.rs/hashbrown/0.9.1/hashbrown/#structs)/BTreeMap。
+集合类型主要就是向`axstd::collections`命名/包空间注册一个Map。所以既可以利用`随机模块+现有Map`或者利用数据结构的知识`手动实现`，也可以：利用`type/use as`将HashMap接口导向[HashBrown](https://docs.rs/hashbrown/0.9.1/hashbrown/#structs)/BTreeMap。
 
 ### 内存分配
 
