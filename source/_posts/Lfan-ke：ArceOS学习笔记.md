@@ -14,7 +14,7 @@ mermaid.js: true
 mermaid:
     enable:true
     theme:default
-description: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲来二期操作系统训练营、YSYX学习计划、DeepSeek补充、底层补完计划、部分博客与第三方内容……
+descriptions: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲来二期操作系统训练营、YSYX学习计划、DeepSeek补充、底层补完计划、部分博客与第三方内容……
 ---
 
 # Lfan-ke：第三阶段总结报告
@@ -87,6 +87,7 @@ endmodule
 // 检测到之后trap_handler触发硬件(trap)特权级切换，但是像跳板页是软件(ecall)特权级切换
 // 补充：trap - riscv将ECF(异常控制流(Exceptional Control Flow))统称为trap
 // 补充：无论是ecall还是trap，都是增删改部分csr与pc，处理结束后通常会逆增删改回到原位/+4
+// 补充：ecall-U->S -> crud: scause/sepc等等   ecall-S->M -> crud: mcause/mepc等等   trap -> crud: mcause/mepc等等
 // 可以是硬件处理，也可以是软件处理，比如编写中断处理函数并将地址刷入中断向量表
 // 主打一个硬件可以做的软件也可以做，软件可以做的硬件也可以做，软慢成本低，硬快成本高……
 ```
