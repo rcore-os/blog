@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="回顾与展望之前就是做了一系列的实验建立了unikernel的框架. 通过unikernel的形式通过增加一些组件来跨过这个边界,来实现一个宏内核. 从Unikernel到宏内核通过跨越模式边界,弄一个简单的系统调用的操作.  增加用户特权级和特权级上下文切换是变成宏内核的关键.  实验1 rust-analyzer不能正常解析代码的原因,需要在.vscode&#x2F;settings.json里加入&amp;qu">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024年开源操作系统训练营总结-winddevil&#x2F;ArceOS第四节课笔记">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/06/14/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E5%9B%9B%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="回顾与展望之前就是做了一系列的实验建立了unikernel的框架. 通过unikernel的形式通过增加一些组件来跨过这个边界,来实现一个宏内核. 从Unikernel到宏内核通过跨越模式边界,弄一个简单的系统调用的操作.  增加用户特权级和特权级上下文切换是变成宏内核的关键.  实验1 rust-analyzer不能正常解析代码的原因,需要在.vscode&#x2F;settings.json里加入&amp;qu">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/.io//asset/Pasted%20image%2020241202104723.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/.io//asset/Pasted%20image%2020241202211802.png">
+<meta property="article:published_time" content="2025-06-14T04:18:10.208Z">
+<meta property="article:modified_time" content="2025-06-14T04:18:10.208Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/.io//asset/Pasted%20image%2020241202104723.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/06/14/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E5%9B%9B%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024年开源操作系统训练营总结-winddevil/ArceOS第四节课笔记 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#回顾与展望"><span class="nav-number">1.</span> <span class="nav-text">回顾与展望</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#从Unikernel到宏内核"><span class="nav-number">2.</span> <span class="nav-text">从Unikernel到宏内核</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#实验1"><span class="nav-number">2.1.</span> <span class="nav-text">实验1</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#课后练习"><span class="nav-number">3.</span> <span class="nav-text">课后练习</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">715</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">55</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">627</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/14/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E5%9B%9B%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024年开源操作系统训练营总结-winddevil/ArceOS第四节课笔记
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-06-14 04:18:10" itemprop="dateCreated datePublished" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="回顾与展望"><a href="#回顾与展望" class="headerlink" title="回顾与展望"></a>回顾与展望</h1><p>之前就是做了一系列的实验建立了unikernel的框架.</p>
+<p>通过unikernel的形式通过增加一些组件来跨过这个边界,来实现一个宏内核.</p>
+<h1 id="从Unikernel到宏内核"><a href="#从Unikernel到宏内核" class="headerlink" title="从Unikernel到宏内核"></a>从Unikernel到宏内核</h1><p>通过跨越模式边界,弄一个简单的系统调用的操作.</p>
+<blockquote>
+<p>增加用户特权级和特权级上下文切换是变成宏内核的关键.</p>
+</blockquote>
+<h2 id="实验1"><a href="#实验1" class="headerlink" title="实验1"></a>实验1</h2><blockquote>
+<p><code>rust-analyzer</code>不能正常解析代码的原因,需要在<code>.vscode/settings.json</code>里加入<code>&quot;rust-analyzer.cargo.target&quot;: &quot;riscv64gc-unknown-none-elf&quot;</code></p>
+</blockquote>
+<p>实验命令行:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make payload</span><br><span class="line">./update_disk.sh ./payload/origin/origin</span><br><span class="line">make run A=tour/m_1_0 BLK=y</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>如果不能执行<code>payload</code>说明代码版本太老了,需要先<code>git fetch origin</code>然后再<code>git merge origin</code>到当前的分支</p>
+</blockquote>
+<blockquote>
+<p>这里注意如果<code>make payload</code>报错<code>Error</code>,那么一定是因为没有配置好<code>musl</code>的环境变量,注意看一下<code>~/.bashrc</code>,记得更新完<code>~/.bashrc</code>要进行狠狠的<code>source ~/.bashrc</code></p>
+</blockquote>
+<p>对于<code>./update_disk.sh ./payload/origin/origin</code>的操作对于我这种没操作过的人来说是非常神奇的操作.这一步实际上是把<code>disk.img</code>挂载在linux的文件系统里,然后在直接用linux的指令直接往里边拷贝应用文件的数据.</p>
+<p>然后<code>make run A=tour/m_1_0 BLK=y</code>就和上一节课的实验一样了.</p>
+<p>跑出来的结果是:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line">OpenSBI v0.9</span><br><span class="line">   ____                    _____ ____ _____</span><br><span class="line">  / __ \                  / ____|  _ \_   _|</span><br><span class="line"> | |  | |_ __   ___ _ __ | (___ | |_) || |</span><br><span class="line"> | |  | | '_ \ / _ \ '_ \ \___ \|  _ &lt; | |</span><br><span class="line"> | |__| | |_) |  __/ | | |____) | |_) || |_</span><br><span class="line">  \____/| .__/ \___|_| |_|_____/|____/_____|</span><br><span class="line">        | |</span><br><span class="line">        |_|</span><br><span class="line"></span><br><span class="line">Platform Name             : riscv-virtio,qemu</span><br><span class="line">Platform Features         : timer,mfdeleg</span><br><span class="line">Platform HART Count       : 1</span><br><span class="line">Firmware Base             : 0x80000000</span><br><span class="line">Firmware Size             : 100 KB</span><br><span class="line">Runtime SBI Version       : 0.2</span><br><span class="line"></span><br><span class="line">Domain0 Name              : root</span><br><span class="line">Domain0 Boot HART         : 0</span><br><span class="line">Domain0 HARTs             : 0*</span><br><span class="line">Domain0 Region00          : 0x0000000080000000-0x000000008001ffff ()</span><br><span class="line">Domain0 Region01          : 0x0000000000000000-0xffffffffffffffff (R,W,X)</span><br><span class="line">Domain0 Next Address      : 0x0000000080200000</span><br><span class="line">Domain0 Next Arg1         : 0x0000000087000000</span><br><span class="line">Domain0 Next Mode         : S-mode</span><br><span class="line">Domain0 SysReset          : yes</span><br><span class="line"></span><br><span class="line">Boot HART ID              : 0</span><br><span class="line">Boot HART Domain          : root</span><br><span class="line">Boot HART ISA             : rv64imafdcsu</span><br><span class="line">Boot HART Features        : scounteren,mcounteren,time</span><br><span class="line">Boot HART PMP Count       : 16</span><br><span class="line">Boot HART PMP Granularity : 4</span><br><span class="line">Boot HART PMP Address Bits: 54</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MIDELEG         : 0x0000000000000222</span><br><span class="line">Boot HART MEDELEG         : 0x000000000000b109</span><br><span class="line"></span><br><span class="line">       d8888                            .d88888b.   .d8888b.</span><br><span class="line">      d88888                           d88P" "Y88b d88P  Y88b</span><br><span class="line">     d88P888                           888     888 Y88b.</span><br><span class="line">    d88P 888 888d888  .d8888b  .d88b.  888     888  "Y888b.</span><br><span class="line">   d88P  888 888P"   d88P"    d8P  Y8b 888     888     "Y88b.</span><br><span class="line">  d88P   888 888     888      88888888 888     888       "888</span><br><span class="line"> d8888888888 888     Y88b.    Y8b.     Y88b. .d88P Y88b  d88P</span><br><span class="line">d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"</span><br><span class="line"></span><br><span class="line">arch = riscv64</span><br><span class="line">platform = riscv64-qemu-virt</span><br><span class="line">target = riscv64gc-unknown-none-elf</span><br><span class="line">smp = 1</span><br><span class="line">build_mode = release</span><br><span class="line">log_level = warn</span><br><span class="line"></span><br><span class="line">[ 21.794824 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.065035 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.359963 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.490439 0 fatfs::dir:139] Is a directory</span><br><span class="line">app: /sbin/origin</span><br><span class="line">paddr: PA:0x80642000</span><br><span class="line">Mapping user stack: VA:0x3fffff0000 -&gt; VA:0x4000000000</span><br><span class="line">New user address space: AddrSpace &#123;</span><br><span class="line">    va_range: VA:0x0..VA:0x4000000000,</span><br><span class="line">    page_table_root: PA:0x80641000,</span><br><span class="line">&#125;</span><br><span class="line">Enter user space: entry=0x1000, ustack=0x4000000000, kstack=VA:0xffffffc080697010</span><br><span class="line">handle_syscall ...</span><br><span class="line">[SYS_EXIT]: process is exiting ..</span><br><span class="line">monolithic kernel exit [Some(0)] normally!</span><br></pre></td></tr></table></figure>
+
+<p>让我们看一下<code>orgin</code>的app内容:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">_start</span></span>() -&gt; ! &#123;</span><br><span class="line">    core::arch::asm!(</span><br><span class="line">        <span class="string">"addi sp, sp, -4"</span>,</span><br><span class="line">        <span class="string">"sw a0, (sp)"</span>,</span><br><span class="line">        <span class="string">"li a7, 93"</span>,</span><br><span class="line">        <span class="string">"ecall"</span>,</span><br><span class="line">        options(noreturn)</span><br><span class="line">    )</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>很容易懂的,就是调用了第<code>93</code>号<code>syscall</code>.</p>
+<h1 id="课后练习"><a href="#课后练习" class="headerlink" title="课后练习"></a>课后练习</h1><blockquote>
+<p>主要是要理解<code>AddrSpace</code>在<code>map_alloc</code>的时候的<code>populating</code>选项.</p>
+</blockquote>
+<p>根据在<code>rCore</code>中学到的经验,去查看源码,我们的结构是这样的.</p>
+<p><img src="/blog/.io//asset/Pasted%20image%2020241202104723.png" alt="|800"></p>
+<p>就是在创建<code>MemoryArea</code>的时候要传入一个泛型<code>Backend</code>.</p>
+<p>应该就是和这边页的懒加载有关的内容.</p>
+<p>调用到最后调用的是<code>modules/axmm/src/backend/alloc.rs</code>这个文件里的<code>map_alloc</code>,因为层层抽象,这里各个参数都还原成了最开始<code>tour/m_1_0/src/main.rs</code>里的变量名称.</p>
+<p><img src="/blog/.io//asset/Pasted%20image%2020241202211802.png" alt="|800"></p>
+<p>然后关键代码是:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> populate &#123;</span><br><span class="line">    <span class="comment">// allocate all possible physical frames for populated mapping.</span></span><br><span class="line">    <span class="keyword">for</span> addr <span class="keyword">in</span> PageIter4K::new(start, start + size).unwrap() &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(frame) = alloc_frame(<span class="literal">true</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Ok</span>(tlb) = pt.map(addr, frame, PageSize::Size4K, flags) &#123;</span><br><span class="line">                tlb.ignore(); <span class="comment">// TLB flush on map is unnecessary, as there are no outdated mappings.</span></span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="literal">true</span></span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// Map to a empty entry for on-demand mapping.</span></span><br><span class="line">    <span class="keyword">let</span> flags = MappingFlags::empty();</span><br><span class="line">    pt.map_region(start, |_| <span class="number">0</span>.into(), size, flags, <span class="literal">false</span>, <span class="literal">false</span>)</span><br><span class="line">        .map(|tlb| tlb.ignore())</span><br><span class="line">        .is_ok()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里假如我们的<code>poplulate</code>是选定的<code>true</code>,那么就会立即根据<code>4k</code>一个大小的<code>frame</code>进行内存申请,然后把这个虚拟地址和刚刚申请到的<code>frame</code>在<code>page_table</code>中映射起来.</p>
+<p>但是如果我们选定<code>populate</code>为<code>false</code>,那么直接把虚拟地址和<code>0</code>这个错误的物理地址映射起来.</p>
+<p>那么这时候实际上就需要我们在访问到这个物理地址的时候,<strong>再进行物理页申请</strong>.</p>
+<p>那么在访问到这个地址的时候会发生<strong>缺页异常</strong>.</p>
+<p>这时候我们运行一下应用:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make payload</span><br><span class="line">./update_disk.sh payload/origin/origin</span><br><span class="line">make run A=tour/m_1_0/ BLK=y</span><br></pre></td></tr></table></figure>
+
+<p>这是对应的<code>log</code>:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br></pre></td><td class="code"><pre><span class="line">OpenSBI v0.9</span><br><span class="line">   ____                    _____ ____ _____</span><br><span class="line">  / __ \                  / ____|  _ \_   _|</span><br><span class="line"> | |  | |_ __   ___ _ __ | (___ | |_) || |</span><br><span class="line"> | |  | | '_ \ / _ \ '_ \ \___ \|  _ &lt; | |</span><br><span class="line"> | |__| | |_) |  __/ | | |____) | |_) || |_</span><br><span class="line">  \____/| .__/ \___|_| |_|_____/|____/_____|</span><br><span class="line">        | |</span><br><span class="line">        |_|</span><br><span class="line"></span><br><span class="line">Platform Name             : riscv-virtio,qemu</span><br><span class="line">Platform Features         : timer,mfdeleg</span><br><span class="line">Platform HART Count       : 1</span><br><span class="line">Firmware Base             : 0x80000000</span><br><span class="line">Firmware Size             : 100 KB</span><br><span class="line">Runtime SBI Version       : 0.2</span><br><span class="line"></span><br><span class="line">Domain0 Name              : root</span><br><span class="line">Domain0 Boot HART         : 0</span><br><span class="line">Domain0 HARTs             : 0*</span><br><span class="line">Domain0 Region00          : 0x0000000080000000-0x000000008001ffff ()</span><br><span class="line">Domain0 Region01          : 0x0000000000000000-0xffffffffffffffff (R,W,X)</span><br><span class="line">Domain0 Next Address      : 0x0000000080200000</span><br><span class="line">Domain0 Next Arg1         : 0x0000000087000000</span><br><span class="line">Domain0 Next Mode         : S-mode</span><br><span class="line">Domain0 SysReset          : yes</span><br><span class="line"></span><br><span class="line">Boot HART ID              : 0</span><br><span class="line">Boot HART Domain          : root</span><br><span class="line">Boot HART ISA             : rv64imafdcsu</span><br><span class="line">Boot HART Features        : scounteren,mcounteren,time</span><br><span class="line">Boot HART PMP Count       : 16</span><br><span class="line">Boot HART PMP Granularity : 4</span><br><span class="line">Boot HART PMP Address Bits: 54</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MIDELEG         : 0x0000000000000222</span><br><span class="line">Boot HART MEDELEG         : 0x000000000000b109</span><br><span class="line"></span><br><span class="line">       d8888                            .d88888b.   .d8888b.</span><br><span class="line">      d88888                           d88P" "Y88b d88P  Y88b</span><br><span class="line">     d88P888                           888     888 Y88b.</span><br><span class="line">    d88P 888 888d888  .d8888b  .d88b.  888     888  "Y888b.</span><br><span class="line">   d88P  888 888P"   d88P"    d8P  Y8b 888     888     "Y88b.</span><br><span class="line">  d88P   888 888     888      88888888 888     888       "888</span><br><span class="line"> d8888888888 888     Y88b.    Y8b.     Y88b. .d88P Y88b  d88P</span><br><span class="line">d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"</span><br><span class="line"></span><br><span class="line">arch = riscv64</span><br><span class="line">platform = riscv64-qemu-virt</span><br><span class="line">target = riscv64gc-unknown-none-elf</span><br><span class="line">smp = 1</span><br><span class="line">build_mode = release</span><br><span class="line">log_level = warn</span><br><span class="line"></span><br><span class="line">[ 21.690418 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 21.963457 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.252957 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.383790 0 fatfs::dir:139] Is a directory</span><br><span class="line">app: /sbin/origin</span><br><span class="line">paddr: PA:0x80642000</span><br><span class="line">Mapping user stack: VA:0x3fffff0000 -&gt; VA:0x4000000000</span><br><span class="line">New user address space: AddrSpace &#123;</span><br><span class="line">    va_range: VA:0x0..VA:0x4000000000,</span><br><span class="line">    page_table_root: PA:0x80641000,</span><br><span class="line">&#125;</span><br><span class="line">Enter user space: entry=0x1000, ustack=0x4000000000, kstack=VA:0xffffffc080687010</span><br><span class="line">[ 23.235085 0:4 axhal::arch::riscv::trap:24] No registered handler for trap PAGE_FAULT</span><br><span class="line">[ 23.319751 0:4 axruntime::lang_items:5] panicked at modules/axhal/src/arch/riscv/trap.rs:25:9:</span><br><span class="line">Unhandled User Page Fault @ 0x1002, fault_vaddr=VA:0x3ffffffffc (WRITE | USER):</span><br><span class="line">TrapFrame &#123;</span><br><span class="line">    regs: GeneralRegisters &#123;</span><br><span class="line">        ra: 0x0,</span><br><span class="line">        sp: 0x3ffffffffc,</span><br><span class="line">        gp: 0x0,</span><br><span class="line">        tp: 0x0,</span><br><span class="line">        t0: 0x0,</span><br><span class="line">        t1: 0x0,</span><br><span class="line">        t2: 0x0,</span><br><span class="line">        s0: 0x0,</span><br><span class="line">        s1: 0x0,</span><br><span class="line">        a0: 0x0,</span><br><span class="line">        a1: 0x0,</span><br><span class="line">        a2: 0x0,</span><br><span class="line">        a3: 0x0,</span><br><span class="line">        a4: 0x0,</span><br><span class="line">        a5: 0x0,</span><br><span class="line">        a6: 0x0,</span><br><span class="line">        a7: 0x0,</span><br><span class="line">        s2: 0x0,</span><br><span class="line">        s3: 0x0,</span><br><span class="line">        s4: 0x0,</span><br><span class="line">        s5: 0x0,</span><br><span class="line">        s6: 0x0,</span><br><span class="line">        s7: 0x0,</span><br><span class="line">        s8: 0x0,</span><br><span class="line">        s9: 0x0,</span><br><span class="line">        s10: 0x0,</span><br><span class="line">        s11: 0x0,</span><br><span class="line">        t3: 0x0,</span><br><span class="line">        t4: 0x0,</span><br><span class="line">        t5: 0x0,</span><br><span class="line">        t6: 0x0,</span><br><span class="line">    &#125;,</span><br><span class="line">    sepc: 0x1002,</span><br><span class="line">    sstatus: 0x40020,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现方法<code>tour/m_2_0</code>里的实现:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[register_trap_handler(PAGE_FAULT)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">handle_page_fault</span></span>(vaddr: VirtAddr, access_flags: MappingFlags, is_user: <span class="built_in">bool</span>) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> is_user &#123;</span><br><span class="line">        <span class="keyword">if</span> !axtask::current()</span><br><span class="line">            .task_ext()</span><br><span class="line">            .aspace</span><br><span class="line">            .lock()</span><br><span class="line">            .handle_page_fault(vaddr, access_flags)</span><br><span class="line">        &#123;</span><br><span class="line">            ax_println!(<span class="string">"&#123;&#125;: segmentation fault, exit!"</span>, axtask::current().id_name());</span><br><span class="line">            axtask::exit(-<span class="number">1</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            ax_println!(<span class="string">"&#123;&#125;: handle page fault OK!"</span>, axtask::current().id_name());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="literal">true</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里主要是调用了<code>aspace</code>也即当前任务地址空间中处理缺页故障的方法.</p>
+<p>就像我们之前在上一节分析到的<code>Backend</code>的<code>map</code>方法一样,还是调用了<code>Backend</code>的<code>remap</code>方法.</p>
+<p>就是当即分配一个<code>frame</code>,然后把当前出问题的<code>va</code>虚拟地址重新映射到<code>frame</code>.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/14/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%BA%8C%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/" rel="prev" title="2024年开源操作系统训练营总结-winddevil/ArceOS第二节课笔记">
+      <i class="fa fa-chevron-left"></i> 2024年开源操作系统训练营总结-winddevil/ArceOS第二节课笔记
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/14/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E5%85%AD%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/" rel="next" title="2024年开源操作系统训练营总结-winddevil/ArceOS第六节课笔记">
+      2024年开源操作系统训练营总结-winddevil/ArceOS第六节课笔记 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
