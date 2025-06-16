@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">715</span>
+          <span class="site-state-item-count">716</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,83 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/02/2024A-stage3-arceos-Martin1847/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/02/2024A-stage3-arceos-Martin1847/" class="post-title-link" itemprop="url">2024A-stage3-arceos-Martin1847</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-02 23:25:11" itemprop="dateCreated datePublished" datetime="2024-12-02T23:25:11+00:00">2024-12-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Arceos-总结"><a href="#Arceos-总结" class="headerlink" title="Arceos 总结"></a>Arceos 总结</h1><p>核心学习了<code>arceos</code>作为组件化设计的理念，抽象微内核、宏内核和VVM之间的共同点。</p>
+<p>基于这些比如调度<code>task</code>,内存空间<code>mmaddr</code>,文件系统<code>fs</code>的底层组件，可以方便的完成需求。</p>
+<h2 id="lab1-内存分配挑战"><a href="#lab1-内存分配挑战" class="headerlink" title="lab1 内存分配挑战"></a>lab1 内存分配挑战</h2><p>通过<code>lab1</code>内存分配器的实现，对内存加深了理解，就是个大<code>byte[]</code>,物理地址就是index。</p>
+<p>lab1核心实现就是借用操作系统的分配思想，内存空间分堆区和栈区，堆区存放不需要回收的数据（一直增长，没有内存碎片），栈区放需要回收的，包括vec中间扩容的。这部分处理掉可以达到<code>373</code>，参考实现：</p>
+<p><a href="https://github.com/martin1847/oscamp/blob/lab1/arceos/labs/lab_allocator/src/lib.rs" target="_blank" rel="noopener">https://github.com/martin1847/oscamp/blob/lab1/arceos/labs/lab_allocator/src/lib.rs</a></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 每轮最小生存对象</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>a = <span class="number">262144</span> + <span class="number">65536</span> + <span class="number">16384</span> + <span class="number">4096</span> + <span class="number">1024</span> + <span class="number">256</span> + <span class="number">64</span> </span><br><span class="line"><span class="comment"># 每轮额外需要的临时空间</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>tmp = sum([<span class="number">524288</span>, <span class="number">131072</span>, <span class="number">32768</span>, <span class="number">8192</span>, <span class="number">2048</span>, <span class="number">512</span>, <span class="number">128</span>, <span class="number">32</span>])</span><br><span class="line"><span class="number">699040</span></span><br><span class="line"><span class="comment"># [PA:0x8026f000, PA:0x88000000) free memory (READ | WRITE | FREE)</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>total = <span class="number">0x88000000</span> - <span class="number">0x8026f000</span></span><br><span class="line"><span class="number">131665920</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>(total - tmp )/a</span><br><span class="line"><span class="number">374.7221204907526</span></span><br><span class="line"><span class="comment"># 考虑每轮增加还有一部分额外内存，7 * sum[1..N]</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>(total - tmp - <span class="number">7</span> * sum(range(<span class="number">1</span>,<span class="number">373</span>)) )/a</span><br><span class="line"><span class="number">373.33259132942686</span></span><br></pre></td></tr></table></figure>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2024/12/02/2024A-stage3-arceos-Martin1847/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/02/2024%20%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%88%B4%E5%BF%97%E5%BC%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +341,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:08" itemprop="dateModified" datetime="2025-06-16T07:47:08+00:00">2025-06-16</time>
               </span>
 
           
@@ -357,7 +434,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -436,7 +513,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -507,7 +584,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -581,7 +658,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:08" itemprop="dateModified" datetime="2025-06-16T07:47:08+00:00">2025-06-16</time>
               </span>
 
           
@@ -739,7 +816,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -818,7 +895,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -997,7 +1074,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -1075,7 +1152,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -1098,83 +1175,6 @@
 <p>多伪造了一个所谓的应用态 调用了一次sret来让系统从特权态进入到用户态<br>我认为这样扩展出来的宏内核系统  就像是在嵌入式设备中常见的中枢网关  </p>
 <h2 id="我的理解-1"><a href="#我的理解-1" class="headerlink" title="我的理解"></a>我的理解</h2><p>这样扩展ArcOS的内核类型我觉得就像是课里面老师说的对于设备端使用unikernel 对于管理端使用宏内核<br>我感觉这是在构建一个分布式的场景</p>
 <p>unikernel的异构思想  就是将共同的组件作为基础<br>而将不同内核最大的特性作为独立的组件  这样就类似存在多种内核的系统<br>通过多种异构的内核 但是其中又使用了共同的模块又能有一定的统一性<br>或者说后期的维护 可以由一个团队共同维护一个场景<br>可以避免互相不清楚对方的模块导致无法定位问题所在的地方</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%A5%9A%E4%BC%9F/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%A5%9A%E4%BC%9F/" class="post-title-link" itemprop="url">2024秋冬季训练营第三阶段总结-奚伟</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-01 19:14:51" itemprop="dateCreated datePublished" datetime="2024-12-01T19:14:51+00:00">2024-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="组件化内核"><a href="#组件化内核" class="headerlink" title="组件化内核"></a>组件化内核</h1><p>组件化内核具有灵活，增量构造等优点。<br>组件化内核最启发我的是组件化可以用来快速构造应对不同场景的各种模式内核。<br>不同的功能组件，不同的内核特权级，不同的隔离要求…<br>组件化内核完全可以快速满足这些要求。</p>
-<h1 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h1><h2 id="特点"><a href="#特点" class="headerlink" title="特点"></a>特点</h2><p>单一特权级，简单高效。</p>
-<h2 id="实验"><a href="#实验" class="headerlink" title="实验"></a>实验</h2><h3 id="实验一"><a href="#实验一" class="headerlink" title="实验一"></a>实验一</h3><p>实验要点在于了解在不同层级下修改对应输出语句产生的变化，了解输出都来自于哪些层级。</p>
-<h3 id="实验二"><a href="#实验二" class="headerlink" title="实验二"></a>实验二</h3><p>该实验完成对std::hashmap的支持，通过查阅rust的std源码发现rust基于hashbrown。因此引入hashbrown作为hashmap。</p>
-<h3 id="实验三"><a href="#实验三" class="headerlink" title="实验三"></a>实验三</h3><p>本次实验完成Bump分配算法，此算法较为简单。重点在于实现对应trait。</p>
-<h3 id="练习四"><a href="#练习四" class="headerlink" title="练习四"></a>练习四</h3><p>该实验重点在于了解文件系统对应函数，调用对应函数即可。</p>
-<h1 id="Monolithic"><a href="#Monolithic" class="headerlink" title="Monolithic"></a>Monolithic</h1><h2 id="实验-1"><a href="#实验-1" class="headerlink" title="实验"></a>实验</h2><h3 id="m-1"><a href="#m-1" class="headerlink" title="m_1"></a>m_1</h3><p>注册handle_page_fualt()， 通过aspace中的handle_page_fualt()来处理异常。</p>
-<h3 id="mmap"><a href="#mmap" class="headerlink" title="mmap"></a>mmap</h3><p>该实验是通过仿照linux来完成mmap：<br>1，阅读linux中的mmap，确定各参数意义：<br>2，分配内存buf，注意点为分配的空间需要4K对齐；<br>3，读取文件内容至buf</p>
-<h1 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h1><h2 id="特点-1"><a href="#特点-1" class="headerlink" title="特点"></a>特点</h2><p>侧重于虚拟而非模拟，同时保持高效和安全</p>
-<h2 id="实验-2"><a href="#实验-2" class="headerlink" title="实验"></a>实验</h2><h3 id="h-1-0"><a href="#h-1-0" class="headerlink" title="h_1_0"></a>h_1_0</h3><p>按实验要求设置对应寄存器值，同时增加spec使guest运行下一条指令。<br>但不知为何，程序运行会经常卡死，代码未改动情况下运行结果不确定。</p>
-<h3 id="h-2-0"><a href="#h-2-0" class="headerlink" title="h_2_0"></a>h_2_0</h3><p>将pflash内容写入disk作为文件，与加载guest文件内容类似处理即可。</p>
-<h1 id="lab1"><a href="#lab1" class="headerlink" title="lab1"></a>lab1</h1><h2 id="用户程序特征"><a href="#用户程序特征" class="headerlink" title="用户程序特征"></a>用户程序特征</h2><p>该lab中的用户程序基本特征为申请n次倍增的内存，之后释放偶数次申请的内存，以此循环。</p>
-<h2 id="内存分配"><a href="#内存分配" class="headerlink" title="内存分配"></a>内存分配</h2><p>1，由于物理内存大小为128m，初始即分配全部内存给内存分配器。<br>2，由于奇偶关系，将内存切分为两个区域。<br>3，由于倍增关系，将两个区域大小配置为2:1。</p>
 
       
     </div>

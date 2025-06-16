@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">715</span>
+          <span class="site-state-item-count">716</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,95 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/2024%E7%A7%8B%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94707state/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/07/2024%E7%A7%8B%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94707state/" class="post-title-link" itemprop="url">2024秋操作系统训练营第二阶段总结——707state</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-07 23:40:45" itemprop="dateCreated datePublished" datetime="2024-11-07T23:40:45+00:00">2024-11-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>去年就已经参加一次了，但是止步第一阶段，今年能做完第二阶段已经出乎我的意料了，收获良多。</p>
+<h1 id="syscall"><a href="#syscall" class="headerlink" title="syscall"></a>syscall</h1><p>syscall是怎么发起的，系统调用时发生了哪些事情，这些都是第一次接触。</p>
+<h2 id="收获"><a href="#收获" class="headerlink" title="收获"></a>收获</h2><h2 id="spawn实现"><a href="#spawn实现" class="headerlink" title="spawn实现"></a>spawn实现</h2><p>如果不考虑其他因素，其实spawn类似于vfork+exec。</p>
+<p>假定fork采用的是直接复制的策略，那vfork就是采用的阻塞父进程执行、获得父进程地址空间的引用、子进程运行、执行完成、恢复父进程。</p>
+<h2 id="fork-调用"><a href="#fork-调用" class="headerlink" title="fork 调用"></a>fork 调用</h2><p>主要部分是调用TaskControlBlock::fork, 返回父进程的TaskControlBlock的拷贝，并分配一个新的Pid。</p>
+<h2 id="Task部分各个结构的关系"><a href="#Task部分各个结构的关系" class="headerlink" title="Task部分各个结构的关系"></a>Task部分各个结构的关系</h2><h3 id="TaskControlBlock"><a href="#TaskControlBlock" class="headerlink" title="TaskControlBlock"></a>TaskControlBlock</h3><p>TaskControlBlock 代表一个任务或进程的控制块，用于存储任务的基本信息和状态。它包含了所有不会在运行时改变的内容，如进程ID (pid) 和内核栈 (kernel_stack)。此外，它还包含一个可变的 inner 字段，该字段封装了实际的任务状态信息：</p>
+<pre><code>pid：任务的唯一标识符。
+kernel_stack：内核栈，用于保存该任务在内核态运行的栈信息。
+inner：包含该任务的动态状态信息，用于存储在运行中可能变化的内容，如内存空间、任务上下文、进程树信息等。</code></pre><h3 id="TaskControlBlockInner"><a href="#TaskControlBlockInner" class="headerlink" title="TaskControlBlockInner"></a>TaskControlBlockInner</h3><p>TaskControlBlockInner 是 TaskControlBlock 的内部状态结构体，用于存储运行期间动态变化的内容，如任务的上下文、内存管理、父子关系等。每个 TaskControlBlockInner 都包含以下字段：</p>
+<pre><code>trap_cx_ppn：存储陷入上下文（Trap Context）的物理页号，用于保存用户态的CPU上下文。
+base_size：应用程序的基本大小，用于约束任务在内存中的地址空间。
+task_cx：任务上下文，表示当前任务的 CPU 状态。
+task_status：当前任务的状态（如 Ready、Running、Zombie）。
+memory_set：用于管理该任务的地址空间。
+parent 和 children：当前任务的父子进程关系。
+exit_code：任务退出时的状态码。
+heap_bottom 和 program_brk：用于管理堆内存的范围。</code></pre><h3 id="TaskManager"><a href="#TaskManager" class="headerlink" title="TaskManager"></a>TaskManager</h3><p>负责调度所有准备好运行的Task，它维护了一个 ready_queue 队列，包含了所有准备好运行的任务的 TaskControlBlock，从中取出任务并将其交给调度器：</p>
+<p>ready_queue：一个队列，存储处于“Ready”状态的任务。</p>
+<p>add 和 fetch：add 将任务添加到 ready_queue 中，fetch 从队列中取出任务进行调度。</p>
+<h1 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h1><h2 id="目录项"><a href="#目录项" class="headerlink" title="目录项"></a>目录项</h2><p>目录项</p>
+<p>对于文件而言，它的内容在文件系统或内核看来没有任何既定的格式，只是一个字节序列。目录的内容却需要遵从一种特殊的格式，它可以看成一个目录项的序列，每个目录项都是一个二元组，包括目录下文件的文件名和索引节点编号。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// easy-fs/src/layout.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> NAME_LENGTH_LIMIT: <span class="built_in">usize</span> = <span class="number">27</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">DirEntry</span></span> &#123;</span><br><span class="line">    name: [<span class="built_in">u8</span>; NAME_LENGTH_LIMIT + <span class="number">1</span>],</span><br><span class="line">    inode_number: <span class="built_in">u32</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> DIRENT_SZ: <span class="built_in">usize</span> = <span class="number">32</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> DirEntry &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">empty</span></span>() -&gt; <span class="keyword">Self</span>;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(name: &amp;<span class="built_in">str</span>, inode_number: <span class="built_in">u32</span>) -&gt; <span class="keyword">Self</span>;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">name</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;<span class="built_in">str</span>;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">inode_number</span></span>(&amp;<span class="keyword">self</span>) -&gt; <span class="built_in">u32</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在从目录中读取目录项，或将目录项写入目录时，需要将目录项转化为缓冲区（即字节切片）的形式来符合 read_at OR write_at 接口的要求</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// easy-fs/src/layout.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> DirEntry &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">as_bytes</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;[<span class="built_in">u8</span>] &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123;</span><br><span class="line">            core::slice::from_raw_parts(</span><br><span class="line">                <span class="keyword">self</span> <span class="keyword">as</span> *<span class="keyword">const</span> _ <span class="keyword">as</span> <span class="built_in">usize</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u8</span>,</span><br><span class="line">                DIRENT_SZ,</span><br><span class="line">            )</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">as_bytes_mut</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; &amp;<span class="keyword">mut</span> [<span class="built_in">u8</span>] &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123;</span><br><span class="line">            core::slice::from_raw_parts_mut(</span><br><span class="line">                <span class="keyword">self</span> <span class="keyword">as</span> *<span class="keyword">mut</span> _ <span class="keyword">as</span> <span class="built_in">usize</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>,</span><br><span class="line">                DIRENT_SZ,</span><br><span class="line">            )</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/2024%E7%A7%8B%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E2%80%94%E2%80%94707state/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +353,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -380,7 +469,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -452,7 +541,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -523,7 +612,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -588,7 +677,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:08" itemprop="dateModified" datetime="2025-06-16T07:47:08+00:00">2025-06-16</time>
               </span>
 
           
@@ -660,7 +749,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -734,7 +823,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -805,7 +894,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -876,7 +965,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
+                <time title="Modified: 2025-06-16 07:47:09" itemprop="dateModified" datetime="2025-06-16T07:47:09+00:00">2025-06-16</time>
               </span>
 
           
@@ -902,99 +991,6 @@
 <li>通过rustlings的练习，对rust的熟悉程度有了更深入的了解。</li>
 <li>了解使用rust来实现一些数据结构和算法。</li>
 </ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/07/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营二阶段总结-NoahNieh</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-07 16:26:56" itemprop="dateCreated datePublished" datetime="2024-11-07T16:26:56+00:00">2024-11-07</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-14 04:18:10" itemprop="dateModified" datetime="2025-06-14T04:18:10+00:00">2025-06-14</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024秋冬季开源操作系统训练营</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h1><p>这个阶段主要是要完成几个实验，借助几个实验理解一个具有进程/线程管理、内存管理、文件系统、进程间通信和提供了一定同步机制的内核是如何构成并运作起来的。</p>
-<p>比较深刻的有这么几个知识点：</p>
-<ul>
-<li>链接脚本与全局符号的使用</li>
-<li><code>Rust</code>的汇编嵌入</li>
-<li>第四章中，在使用分离内核空间的时候。通过设计跳板页来解决切换页表后指令执行的问题。<a href="#跳板">跳板页</a></li>
-<li>第六章了解了文件系统，了解了块设备的概念，对文件系统的各个抽象层有了一定的了解。</li>
-<li>第七、八章了解了操作系统是如何为应用提供同步原语的</li>
-</ul>
-<h2 id="跳板"><a href="#跳板" class="headerlink" title="跳板"></a>跳板</h2><p>由于我们的内核使用了分离内核空间的设置，所以在<code>Trap</code>的时候需要切换页表。但在切换页表之后，<code>pc</code>寄存器还是忠实的在其原来的位置自加到下一条指令，如果<code>内核内存空间</code>和<code>程序内存空间</code>对这段代码的映射不是在同一个位置的话，则会表现出来程序跳转到了别的地方执行的效果。因此我们设计了一个跳板页，在虚存中映射到所有内存空间的最高页，确保在切换之后，也能正确运行下一条指令。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"># trap.S</span><br><span class="line">...</span><br><span class="line">    .section .text.trampoline</span><br><span class="line">    .globl __alltraps</span><br><span class="line">    .globl __restore</span><br><span class="line">    .align 2</span><br><span class="line">__alltraps:</span><br><span class="line">    csrrw sp, sscratch, sp</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"># linker.ld</span><br><span class="line">...</span><br><span class="line">    stext &#x3D; .;</span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text.entry)</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        strampoline &#x3D; .;</span><br><span class="line">        *(.text.trampoline);</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        *(.text .text.*)</span><br><span class="line">    &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-<p>在上面的汇编可以看到，我们给<code>trap.S</code>分配到了<code>.text.trampoline</code>段，并在链接脚本中定义了一个<code>strampline</code>符号来标记他的位置，这样我们可以在<code>Rust</code>中找到这个跳板页，映射到我们期望的位置。</p>
-<p>但将跳板也映射到别的地方带来了新的问题，原来<code>__alltraps</code>中最后跳转到<code>trap_handler</code>使用的是<code>call trap_handler</code>。我们可以通过<code>obj-dump</code>看看编译得到的指令。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># obj-dump -Dx ...</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">80201056: 73 90 02 18   csrw    satp, t0</span><br><span class="line">8020105a: 73 00 00 12   sfence.vma</span><br><span class="line">8020105e: 97 80 00 00   auipc   ra, 0x8</span><br><span class="line">80201062: e7 80 e0 0b   jalr    0xbe(ra) &lt;trap_handler&gt; # pc+0x80be</span><br><span class="line">...</span><br><span class="line">000000008020911c g     F .text  00000000000003b2 trap_handler</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-<p>可以看到，这里用的是pc相对寻址，也就是基于当前指令的偏移找到<code>trap_handler</code>所在的位置。但是现在<code>__alltraps</code>已经被我们映射到内存的最高页去了，也就是说我们实际运行代码的时候是在下面这一段内存中。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># gdb</span><br><span class="line">&gt;&gt;&gt; x &#x2F;20i $pc-10</span><br><span class="line">   0xfffffffffffff054:  ld      sp,280(sp)</span><br><span class="line">   0xfffffffffffff056:  csrw    satp,t0</span><br><span class="line">   0xfffffffffffff05a:  sfence.vma</span><br><span class="line">&#x3D;&gt; 0xfffffffffffff05e:  jr      t1 </span><br><span class="line"></span><br><span class="line">&gt;&gt;&gt; p &#x2F;x $t1</span><br><span class="line">$9 &#x3D; 0x8020911c</span><br></pre></td></tr></table></figure>
-
-<p>很明显如果这里跳转到$pc+offset$的话，并不是跳到位于正常代码段的<code>trap_handler</code>。所以我们要将这里换成寄存器跳转，将<code>trap_handler</code>的地址放到寄存器<code>t1</code>中，这样才能顺利地调用到<code>trap_handler</code>。</p>
 
       
     </div>
@@ -1110,59 +1106,6 @@
   
 
   
-      
-
-<script>
-  if (typeof MathJax === 'undefined') {
-    window.MathJax = {
-      loader: {
-        source: {
-          '[tex]/amsCd': '[tex]/amscd',
-          '[tex]/AMScd': '[tex]/amscd'
-        }
-      },
-      tex: {
-        inlineMath: {'[+]': [['$', '$']]},
-        tags: 'ams'
-      },
-      options: {
-        renderActions: {
-          findScript: [10, doc => {
-            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
-              const display = !!node.type.match(/; *mode=display/);
-              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
-              const text = document.createTextNode('');
-              node.parentNode.replaceChild(text, node);
-              math.start = {node: text, delim: '', n: 0};
-              math.end = {node: text, delim: '', n: 0};
-              doc.math.push(math);
-            });
-          }, '', false],
-          insertedScript: [200, () => {
-            document.querySelectorAll('mjx-container').forEach(node => {
-              let target = node.parentNode;
-              if (target.nodeName.toLowerCase() === 'li') {
-                target.parentNode.classList.add('has-jax');
-              }
-            });
-          }, '', false]
-        }
-      }
-    };
-    (function () {
-      var script = document.createElement('script');
-      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-      script.defer = true;
-      document.head.appendChild(script);
-    })();
-  } else {
-    MathJax.startup.document.state(0);
-    MathJax.texReset();
-    MathJax.typeset();
-  }
-</script>
-
-    
 
   
 
