@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">721</span>
+          <span class="site-state-item-count">722</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">55</span>
+        <span class="site-state-item-count">68</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">629</span>
+        <span class="site-state-item-count">630</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,135 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap8-1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/Chap8-1/" class="post-title-link" itemprop="url">rcore-handnote-8-1</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Chapter-8-1"><a href="#Chapter-8-1" class="headerlink" title="Chapter 8-1"></a>Chapter 8-1</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>As the growth of OS, dispatch resource could be divided to smaller piece for more efficient operations. Now, process can’t satisfied our demand, we want some programs could be implemented in parallel. Then, we introduce <strong>Thread</strong>.</p>
+<p>Therefore, process will be the container of threads, each threads contain its <code>id</code>, <code>state</code>, current instruction ptr, registers, stack. However, it will share data(which means same memory and addr) in the same process. So, we will develop a accompany exclusion mechanism for parallel operations by each threads.</p>
+<h3 id="Design-Data"><a href="#Design-Data" class="headerlink" title="Design Data"></a>Design Data</h3><p>Now, clarify our resource dispatch for one thread:</p>
+<p>Immutable:</p>
+<ul>
+<li>kernel stack</li>
+</ul>
+<p>Mutable:</p>
+<ul>
+<li>thread id</li>
+<li>user stack</li>
+<li>trap context</li>
+<li>trap status</li>
+<li>exit code</li>
+</ul>
+<p>Every tasks is a thread unit and contained in one process, so now, process is really a process rather a task, it can owns many tasks.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">ProcessControlBlock</span></span> &#123;</span><br><span class="line">    <span class="comment">// immutable</span></span><br><span class="line">    <span class="keyword">pub</span> pid: PidHandle,</span><br><span class="line">    <span class="comment">// mutable</span></span><br><span class="line">    inner: UPSafeCell&lt;ProcessControlBlockInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">ProcessControlBlockInner</span></span> &#123;</span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line">	<span class="keyword">pub</span> task_res_allocator: RecycleAllocator,</span><br><span class="line">    <span class="keyword">pub</span> tasks: <span class="built_in">Vec</span>&lt;<span class="built_in">Option</span>&lt;Arc&lt;TaskControlBlock&gt;&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Notice, we should separate user stack and kernel stack, we shouldn’t allocate user stack and kernel stack by same logic. Kernel stack is immutable, we only need its top place for trap context.</p>
+<p><img src="/blog/.io//assets/Lab8-1.png" alt></p>
+<p>Because every thread use the same memory set, so each user stack and its trampoline would be allocated by its thread id. We encapsulate these to <code>TaskUserRes</code> data.</p>
+<p>We can see many structure need a id allocation, we could design a general id allocator.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/id.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">RecycleAllocator</span></span> &#123;</span><br><span class="line">    current: <span class="built_in">usize</span>,</span><br><span class="line">    recycled: <span class="built_in">Vec</span>&lt;<span class="built_in">usize</span>&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> RecycleAllocator &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>() -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        RecycleAllocator &#123;</span><br><span class="line">            current: <span class="number">0</span>,</span><br><span class="line">            recycled: <span class="built_in">Vec</span>::new(),</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">alloc</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; <span class="built_in">usize</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(id) = <span class="keyword">self</span>.recycled.pop() &#123;</span><br><span class="line">            id</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">self</span>.current += <span class="number">1</span>;</span><br><span class="line">            <span class="keyword">self</span>.current - <span class="number">1</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">dealloc</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, id: <span class="built_in">usize</span>) &#123;</span><br><span class="line">        <span class="built_in">assert!</span>(id &lt; <span class="keyword">self</span>.current);</span><br><span class="line">        <span class="built_in">assert!</span>(</span><br><span class="line">            !<span class="keyword">self</span>.recycled.iter().any(|i| *i == id),</span><br><span class="line">            <span class="string">"id &#123;&#125; has been deallocated!"</span>,</span><br><span class="line">            id</span><br><span class="line">        );</span><br><span class="line">        <span class="keyword">self</span>.recycled.push(id);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h4 id="Kernel-Stack-Allocation"><a href="#Kernel-Stack-Allocation" class="headerlink" title="Kernel Stack Allocation"></a>Kernel Stack Allocation</h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/id.rs</span></span><br><span class="line"></span><br><span class="line">lazy_static! &#123;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">ref</span> KSTACK_ALLOCATOR: UPSafeCell&lt;RecycleAllocator&gt; =</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; UPSafeCell::new(RecycleAllocator::new()) &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">KernelStack</span></span>(<span class="keyword">pub</span> <span class="built_in">usize</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">/// Return (bottom, top) of a kernel stack in kernel space.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">kernel_stack_position</span></span>(kstack_id: <span class="built_in">usize</span>) -&gt; (<span class="built_in">usize</span>, <span class="built_in">usize</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> top = TRAMPOLINE - kstack_id * (KERNEL_STACK_SIZE + PAGE_SIZE);</span><br><span class="line">    <span class="keyword">let</span> bottom = top - KERNEL_STACK_SIZE;</span><br><span class="line">    (bottom, top)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">kstack_alloc</span></span>() -&gt; KernelStack &#123;</span><br><span class="line">    <span class="keyword">let</span> kstack_id = KSTACK_ALLOCATOR.exclusive_access().alloc();</span><br><span class="line">    <span class="keyword">let</span> (kstack_bottom, kstack_top) = kernel_stack_position(kstack_id);</span><br><span class="line">    KERNEL_SPACE.exclusive_access().insert_framed_area(</span><br><span class="line">        kstack_bottom.into(),</span><br><span class="line">        kstack_top.into(),</span><br><span class="line">        MapPermission::R | MapPermission::W,</span><br><span class="line">    );</span><br><span class="line">    KernelStack(kstack_id)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> <span class="built_in">Drop</span> <span class="keyword">for</span> KernelStack &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">drop</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> (kernel_stack_bottom, _) = kernel_stack_position(<span class="keyword">self</span>.<span class="number">0</span>);</span><br><span class="line">        <span class="keyword">let</span> kernel_stack_bottom_va: VirtAddr = kernel_stack_bottom.into();</span><br><span class="line">        KERNEL_SPACE</span><br><span class="line">            .exclusive_access()</span><br><span class="line">            .remove_area_with_start_vpn(kernel_stack_bottom_va.into());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>We will do the same for user stack:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/config.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> TRAMPOLINE: <span class="built_in">usize</span> = <span class="built_in">usize</span>::MAX - PAGE_SIZE + <span class="number">1</span>;</span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> TRAP_CONTEXT_BASE: <span class="built_in">usize</span> = TRAMPOLINE - PAGE_SIZE;</span><br><span class="line"></span><br><span class="line"><span class="comment">// os/src/task/id.rs</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">trap_cx_bottom_from_tid</span></span>(tid: <span class="built_in">usize</span>) -&gt; <span class="built_in">usize</span> &#123;</span><br><span class="line">    TRAP_CONTEXT_BASE - tid * PAGE_SIZE</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">ustack_bottom_from_tid</span></span>(ustack_base: <span class="built_in">usize</span>, tid: <span class="built_in">usize</span>) -&gt; <span class="built_in">usize</span> &#123;</span><br><span class="line">    ustack_base + tid * (PAGE_SIZE + USER_STACK_SIZE)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Then, <code>TaskUserRes</code> could be allocated with trap and user stack.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// impl TaskUserRes</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">alloc_user_res</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">	<span class="keyword">let</span> process = <span class="keyword">self</span>.process.upgrade().unwrap();</span><br><span class="line">	<span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">	<span class="comment">// alloc user stack</span></span><br><span class="line">	<span class="keyword">let</span> ustack_bottom = ustack_bottom_from_tid(<span class="keyword">self</span>.ustack_base, <span class="keyword">self</span>.tid);</span><br><span class="line">	<span class="keyword">let</span> ustack_top = ustack_bottom + USER_STACK_SIZE;</span><br><span class="line">	process_inner.memory_set.insert_framed_area(</span><br><span class="line">		ustack_bottom.into(),</span><br><span class="line">		ustack_top.into(),</span><br><span class="line">		MapPermission::R | MapPermission::W | MapPermission::U,</span><br><span class="line">	);</span><br><span class="line">	<span class="comment">// alloc trap_cx</span></span><br><span class="line">	<span class="keyword">let</span> trap_cx_bottom = trap_cx_bottom_from_tid(<span class="keyword">self</span>.tid);</span><br><span class="line">	<span class="keyword">let</span> trap_cx_top = trap_cx_bottom + PAGE_SIZE;</span><br><span class="line">	process_inner.memory_set.insert_framed_area(</span><br><span class="line">		trap_cx_bottom.into(),</span><br><span class="line">		trap_cx_top.into(),</span><br><span class="line">		MapPermission::R | MapPermission::W,</span><br><span class="line">	);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Now, combine all things together:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/task.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlock</span></span> &#123;</span><br><span class="line">    <span class="comment">// immutable</span></span><br><span class="line">    <span class="keyword">pub</span> process: Weak&lt;ProcessControlBlock&gt;,</span><br><span class="line">    <span class="keyword">pub</span> kstack: KernelStack,</span><br><span class="line">    <span class="comment">// mutable</span></span><br><span class="line">    inner: UPSafeCell&lt;TaskControlBlockInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlockInner</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> res: <span class="built_in">Option</span>&lt;TaskUserRes&gt;,</span><br><span class="line">    <span class="keyword">pub</span> trap_cx_ppn: PhysPageNum,</span><br><span class="line">    <span class="keyword">pub</span> task_cx: TaskContext,</span><br><span class="line">    <span class="keyword">pub</span> task_status: TaskStatus,</span><br><span class="line">    <span class="keyword">pub</span> exit_code: <span class="built_in">Option</span>&lt;<span class="built_in">i32</span>&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="Design-Data-Operation"><a href="#Design-Data-Operation" class="headerlink" title="Design Data Operation"></a>Design Data Operation</h3><p>We still get one task in operation rather process, because it’s the smallest instance unit. However, we need some interface to control process id.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">add_task</span></span>(task: Arc&lt;TaskControlBlock&gt;);</span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">remove_task</span></span>(task: Arc&lt;TaskControlBlock&gt;);</span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">fetch_task</span></span>() -&gt; <span class="built_in">Option</span>&lt;Arc&lt;TaskControlBlock&gt;&gt;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">pid2process</span></span>(pid: <span class="built_in">usize</span>) -&gt; <span class="built_in">Option</span>&lt;Arc&lt;ProcessControlBlock&gt;&gt;;</span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">insert_into_pid2process</span></span>(pid: <span class="built_in">usize</span>, process: Arc&lt;ProcessControlBlock&gt;);</span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">remove_from_pid2process</span></span>(pid: <span class="built_in">usize</span>);</span><br></pre></td></tr></table></figure>
+
+<p>Actually, many thing is same, for example:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/task/process.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> ProcessControlBlock &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new</span></span>(elf_data: &amp;[<span class="built_in">u8</span>]) -&gt; Arc&lt;<span class="keyword">Self</span>&gt; &#123;</span><br><span class="line">		<span class="comment">// ...</span></span><br><span class="line">        <span class="keyword">let</span> pid_handle = pid_alloc();</span><br><span class="line">        <span class="keyword">let</span> process = ...;</span><br><span class="line">        <span class="keyword">let</span> task = Arc::new(TaskControlBlock::new(</span><br><span class="line">            Arc::clone(&amp;process),</span><br><span class="line">            ustack_base,</span><br><span class="line">            <span class="literal">true</span>,</span><br><span class="line">        ));</span><br><span class="line">		<span class="comment">// initiation of task...</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">        process_inner.tasks.push(<span class="literal">Some</span>(Arc::clone(&amp;task)));</span><br><span class="line">        <span class="built_in">drop</span>(process_inner);</span><br><span class="line">        insert_into_pid2process(process.getpid(), Arc::clone(&amp;process));</span><br><span class="line">        <span class="comment">// add main thread to scheduler</span></span><br><span class="line">        add_task(task);</span><br><span class="line">        process</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>If we <code>fork</code> a process, we only extract the first task which is itself, so no others will be copied.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">fork</span></span>(<span class="keyword">self</span>: &amp;Arc&lt;<span class="keyword">Self</span>&gt;) -&gt; Arc&lt;<span class="keyword">Self</span>&gt; &#123;</span><br><span class="line">	<span class="keyword">let</span> child = ...;</span><br><span class="line">	parent.children.push(Arc::clone(&amp;child));</span><br><span class="line">	<span class="keyword">let</span> task = Arc::new(TaskControlBlock::new(</span><br><span class="line">		Arc::clone(&amp;child),</span><br><span class="line">		parent</span><br><span class="line">			.get_task(<span class="number">0</span>)</span><br><span class="line">			.inner_exclusive_access()</span><br><span class="line">			.res</span><br><span class="line">			.as_ref()</span><br><span class="line">			.unwrap()</span><br><span class="line">			.ustack_base(),</span><br><span class="line">		<span class="comment">// here we do not allocate trap_cx or ustack again</span></span><br><span class="line">		<span class="comment">// but mention that we allocate a new kstack here</span></span><br><span class="line">		<span class="literal">false</span>,</span><br><span class="line">	));</span><br><span class="line">	<span class="keyword">let</span> <span class="keyword">mut</span> child_inner = child.inner_exclusive_access();</span><br><span class="line">	child_inner.tasks.push(<span class="literal">Some</span>(Arc::clone(&amp;task)));</span><br><span class="line">	<span class="built_in">drop</span>(child_inner);</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="Design-System-Operation"><a href="#Design-System-Operation" class="headerlink" title="Design System Operation"></a>Design System Operation</h3><p>If we want to create a thread, as a naive designer, we only need the function entry addr, and arguments, yes! That’s it!</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/thread.rs</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_thread_create</span></span>(entry: <span class="built_in">usize</span>, arg: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> process = task.process.upgrade().unwrap();</span><br><span class="line">    <span class="comment">// create a new thread</span></span><br><span class="line">    <span class="keyword">let</span> new_task = Arc::new(TaskControlBlock::new(</span><br><span class="line">        Arc::clone(&amp;process),</span><br><span class="line">        task.inner_exclusive_access().res.as_ref().unwrap().ustack_base,</span><br><span class="line">        <span class="literal">true</span>,</span><br><span class="line">    ));</span><br><span class="line">    <span class="comment">// add new task to scheduler</span></span><br><span class="line">    add_task(Arc::clone(&amp;new_task));</span><br><span class="line">    <span class="keyword">let</span> new_task_inner = new_task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">let</span> new_task_res = new_task_inner.res.as_ref().unwrap();</span><br><span class="line">    <span class="keyword">let</span> new_task_tid = new_task_res.tid;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    <span class="comment">// add new thread to current process</span></span><br><span class="line">    <span class="keyword">let</span> tasks = &amp;<span class="keyword">mut</span> process_inner.tasks;</span><br><span class="line">    <span class="keyword">while</span> tasks.len() &lt; new_task_tid + <span class="number">1</span> &#123;</span><br><span class="line">        tasks.push(<span class="literal">None</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    tasks[new_task_tid] = <span class="literal">Some</span>(Arc::clone(&amp;new_task));</span><br><span class="line">    <span class="keyword">let</span> new_task_trap_cx = new_task_inner.get_trap_cx();</span><br><span class="line">    *new_task_trap_cx = TrapContext::app_init_context(</span><br><span class="line">        entry,</span><br><span class="line">        new_task_res.ustack_top(),</span><br><span class="line">        kernel_token(),</span><br><span class="line">        new_task.kstack.get_top(),</span><br><span class="line">        trap_handler <span class="keyword">as</span> <span class="built_in">usize</span>,</span><br><span class="line">    );</span><br><span class="line">    (*new_task_trap_cx).x[<span class="number">10</span>] = arg;</span><br><span class="line">    new_task_tid <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Now, <code>sys_exit</code> will receive a <code>exit_code</code> and recycle its resource. Notice, if <code>tid == 0</code>, the thread of process itself will make other sub threads moved to <code>init</code> process.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// pub fn exit_current_and_run_next(exit_code: i32) &#123;</span></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">let</span> <span class="keyword">mut</span> initproc_inner = INITPROC.inner_exclusive_access();</span><br><span class="line">	<span class="keyword">for</span> child <span class="keyword">in</span> process_inner.children.iter() &#123;</span><br><span class="line">		child.inner_exclusive_access().parent = <span class="literal">Some</span>(Arc::downgrade(&amp;INITPROC));</span><br><span class="line">		initproc_inner.children.push(child.clone());</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> recycle_res = <span class="built_in">Vec</span>::&lt;TaskUserRes&gt;::new();</span><br><span class="line"><span class="keyword">for</span> task <span class="keyword">in</span> process_inner.tasks.iter().filter(|t| t.is_some()) &#123;</span><br><span class="line">	<span class="keyword">let</span> task = task.as_ref().unwrap();</span><br><span class="line">	remove_inactive_task(Arc::clone(&amp;task));</span><br><span class="line">	<span class="keyword">let</span> <span class="keyword">mut</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(res) = task_inner.res.take() &#123;</span><br><span class="line">		recycle_res.push(res);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>sys_waittid</code> will check thread state and recycle if could, return <code>-2</code> if it has not exited. Why need it? Because <code>sys_exit</code> can’t recycle itself unless the thread of process, other thread can call <code>waittid</code> to remove it from tasks queue, then it will be cleared by rust!</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/thread.rs</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/// thread does not exist, return -1</span></span><br><span class="line"><span class="comment">/// thread has not exited yet, return -2</span></span><br><span class="line"><span class="comment">/// otherwise, return thread's exit code</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_waittid</span></span>(tid: <span class="built_in">usize</span>) -&gt; <span class="built_in">i32</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> task = current_task().unwrap();</span><br><span class="line">    <span class="keyword">let</span> process = task.process.upgrade().unwrap();</span><br><span class="line">    <span class="keyword">let</span> task_inner = task.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    <span class="comment">// a thread cannot wait for itself</span></span><br><span class="line">    <span class="keyword">if</span> task_inner.res.as_ref().unwrap().tid == tid &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> exit_code: <span class="built_in">Option</span>&lt;<span class="built_in">i32</span>&gt; = <span class="literal">None</span>;</span><br><span class="line">    <span class="keyword">let</span> waited_task = process_inner.tasks[tid].as_ref();</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(waited_task) = waited_task &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(waited_exit_code) = waited_task.inner_exclusive_access().exit_code &#123;</span><br><span class="line">            exit_code = <span class="literal">Some</span>(waited_exit_code);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// waited thread does not exist</span></span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(exit_code) = exit_code &#123;</span><br><span class="line">        <span class="comment">// dealloc the exited thread</span></span><br><span class="line">        process_inner.tasks[tid] = <span class="literal">None</span>;</span><br><span class="line">        exit_code</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// waited thread has not exited</span></span><br><span class="line">        -<span class="number">2</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap8-2/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +393,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -376,95 +505,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-1/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/27/day-1/" class="post-title-link" itemprop="url">arceos-handnote-1</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="Day-1"><a href="#Day-1" class="headerlink" title="Day-1"></a>Day-1</h2><h2 id="Component-Kernel"><a href="#Component-Kernel" class="headerlink" title="Component Kernel"></a>Component Kernel</h2><p>Based on experiment, we will construct kernel in increment by demand.</p>
-<ul>
-<li><strong>UniKernel</strong>: Single S-Level, App is within kernel.</li>
-</ul>
-<p>Each kernel instance can be considered as a construction based on unikernel.</p>
-<ul>
-<li><strong>MacroKernel</strong>: Manage U-Level with support on multiple apps, process management etc…</li>
-<li><strong>Hypervisor</strong>: Virtual state with restricted communication between U-level and S-level.</li>
-</ul>
-<h2 id="Aceros-Design"><a href="#Aceros-Design" class="headerlink" title="Aceros Design"></a>Aceros Design</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">    App &lt;--&gt; Runtime</span><br><span class="line">    Runtime &lt;--&gt; HAL</span><br></pre></td></tr></table></figure>
-<p>The design of Aceros is simple, first <strong>HAL</strong>(<code>axhal</code>) is the abstraction of hardware to initiation trap, stack, MMU, registers based on various architectures. Then <strong>Runtime</strong>(<code>ax*</code>) will be classified as many components to support various environments, like net, task, fs etc…</p>
-<p>Each arrow is reversible, in boot, it will be from bottom to top to initiate App. Then when App call something, it will be from top to bottom to evoke functionality.</p>
-<p>In real situation, we choose thing based on <em>features</em>. </p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">	App --&gt; axstd</span><br><span class="line">	axstd --&gt; |axfeat| aceros_api</span><br><span class="line">	aceros_api --&gt; axruntime</span><br><span class="line">	axruntime --&gt;|alloc| axalloc</span><br><span class="line">	axruntime --&gt; axhal</span><br><span class="line">	axruntime --&gt;|irq| irq</span><br><span class="line">	axruntime --&gt;|multitask| axtask</span><br></pre></td></tr></table></figure>
-
-
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -496,7 +536,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -563,6 +603,95 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/day-1/" class="post-title-link" itemprop="url">arceos-handnote-1</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Day-1"><a href="#Day-1" class="headerlink" title="Day-1"></a>Day-1</h2><h2 id="Component-Kernel"><a href="#Component-Kernel" class="headerlink" title="Component Kernel"></a>Component Kernel</h2><p>Based on experiment, we will construct kernel in increment by demand.</p>
+<ul>
+<li><strong>UniKernel</strong>: Single S-Level, App is within kernel.</li>
+</ul>
+<p>Each kernel instance can be considered as a construction based on unikernel.</p>
+<ul>
+<li><strong>MacroKernel</strong>: Manage U-Level with support on multiple apps, process management etc…</li>
+<li><strong>Hypervisor</strong>: Virtual state with restricted communication between U-level and S-level.</li>
+</ul>
+<h2 id="Aceros-Design"><a href="#Aceros-Design" class="headerlink" title="Aceros Design"></a>Aceros Design</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">    App &lt;--&gt; Runtime</span><br><span class="line">    Runtime &lt;--&gt; HAL</span><br></pre></td></tr></table></figure>
+<p>The design of Aceros is simple, first <strong>HAL</strong>(<code>axhal</code>) is the abstraction of hardware to initiation trap, stack, MMU, registers based on various architectures. Then <strong>Runtime</strong>(<code>ax*</code>) will be classified as many components to support various environments, like net, task, fs etc…</p>
+<p>Each arrow is reversible, in boot, it will be from bottom to top to initiate App. Then when App call something, it will be from top to bottom to evoke functionality.</p>
+<p>In real situation, we choose thing based on <em>features</em>. </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">	App --&gt; axstd</span><br><span class="line">	axstd --&gt; |axfeat| aceros_api</span><br><span class="line">	aceros_api --&gt; axruntime</span><br><span class="line">	axruntime --&gt;|alloc| axalloc</span><br><span class="line">	axruntime --&gt; axhal</span><br><span class="line">	axruntime --&gt;|irq| irq</span><br><span class="line">	axruntime --&gt;|multitask| axtask</span><br></pre></td></tr></table></figure>
+
+
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -594,7 +723,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -696,7 +825,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -786,7 +915,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
               </span>
 
           
@@ -853,95 +982,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/" class="post-title-link" itemprop="url">2025OS训练营三阶段记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-25 17:21:55" itemprop="dateCreated datePublished" datetime="2025-04-25T17:21:55+00:00">2025-04-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2025OS训练营三阶段记录"><a href="#2025OS训练营三阶段记录" class="headerlink" title="2025OS训练营三阶段记录"></a>2025OS训练营三阶段记录</h1><h2 id="4-7-4-8"><a href="#4-7-4-8" class="headerlink" title="4.7-4.8"></a>4.7-4.8</h2><p>这两天看了石磊老师的unikernel讲解视频，完成了彩色print和hashmap的任务。</p>
-<p>unikernel我是第一次听说，用组件化的方式来实现操作系统，可以对应用定制轻量化的运行环境，相当于操作系统与应用一体，比较适合嵌入式和轻量虚拟化场景。arceos就不像rcore那样是面向教学的了，而是更偏向于实际应用，我查看了toml，操作系统的组件几乎都是依赖导入，刚开始有些搞不清楚这些包的具体用途。</p>
-<p>彩色print的实现很简单，在格式化前加入蓝色字符标注即可实现。</p>
-<p>hashmap的实现我一开始考虑的是nostd环境是否还需要我来实现对内存分配器，但是后来仔细看过arceos里有实现默认的对内存分配。我的实现内存分配依赖的vec，用vec作为hashmap的底层数据结构，实现起来相对容易，对于通过测例来说还是足够的。</p>
-<h2 id="4-9-4-12"><a href="#4-9-4-12" class="headerlink" title="4.9-4.12"></a>4.9-4.12</h2><p>这几天在琢磨lab1的挑战题，不愧是挑战题，花了目前最久的时间。题目规范很好，只需要实现规定的部分就可以。内容是要实现一个字节内存分配器来让这个测试达到最大迭代次数。这个测试用例是重点，他是循环分配32+i到2的14次方+i的内存，这个i就是迭代次数，每次迭代会把每一轮偶数次数的分配空间给释放掉，所以每次都有一部分内存不会被释放，即这个挑战有理论最大值。用例的分配用的是vec，vec根据rust的实现每次分配在空间不够时都是要扩容当前一倍的空间的。挑战的分数是i的次数要大于170，因为170是算法tlsf的结果。我对tlsf、buddy算法的实现都手动实现测试了一遍，逐步理清了我的实现思路。</p>
-<p>每次分配的偶数情况都会被释放，那直接对偶数情况的内存分配给固定的内存池，比如32 index为0，那分配32+Max的内存池，这个max就是最大i值，中修改max来得到i最大值。对于奇数的情况我使用了最简单的线性分配方法，应为当时想的是每次技术分配的都不会释放，所以不会有间隙，其实不是。这个探索的过程我发现分配的大小没有按照我的想法分配到对应的位置，于是我就打印了每次分配的内存的大小，我发现有几个固定值96，192，386这些数字不符合每次请求的内存大小，猜测应该是对其的要求分配的。所以对这个情况进行处理，直接计数进行跳过。但是效果到64又出现问题，分析发现32涨到96，与固定值96的分配打乱了奇偶计数的顺序，所以对全局分配96的大小进行计数，同样跳过一个固定位次的96分配。同理128在涨到192时也会触发，32在涨到192又会触发。对这些情况都做处理，得到了189的分数，折腾了三天，也总算有个结果，即便我知道这不是最佳答案。</p>
-<p>其实问题在于我认为奇数的分配是没有空隙的，其实vec的分配策略，扩容的空间都是浪费了，如果要提升，就要在奇数合并块时，通过某种策略找出未使用的扩容区域，就可以真做到最大限度利用空间，达到无空隙。</p>
-<p>这个题目刚开始觉得是个算法题，但其实也让我对内存分配的理解更加的深入。</p>
-<h2 id="4-13"><a href="#4-13" class="headerlink" title="4.13"></a>4.13</h2><p>今天实现的是bump内存分配策略，同时兼顾页分配和字节分配，通过上次挑战题的考验，这道题相当简单了。而且题目要求也很低，我的实现就是对分配器维护一个左右标签记录已经分配的区域，左为字节分配器的使用位置，右为页面分配器的使用位置。字节分配采用线性分配，每次分配查看左标签内还有没有空余，没有就移动左标签扩容。释放只处理与左标签邻近的地址，将左标签剪去分配的内存大小。右标签则是每次分配页面大小，维护是扩容则减，释放则加。</p>
-<p>其实对与这道题的测试用例很松，维护好左右分配标签就可以过。</p>
-<h2 id="4-14"><a href="#4-14" class="headerlink" title="4.14"></a>4.14</h2><p>今天实现了rename，其实有个最简单的方法就是拷贝删除用来重新创建该文件。</p>
-<p>正规做法需要先改下依赖的路径为本地，再将rename实现，arceos的文件系统依赖于虚拟文件系统，根据它的结构找到mata文件即可修改文件名。</p>
-<h2 id="4-15"><a href="#4-15" class="headerlink" title="4.15"></a>4.15</h2><p>mmap操作需要先理解静态分配，其实很简单，我们平时用到的动态分配就是请求了就立即分配内存空间给用户，静态则是在请求时返回成功，再用到时访问内存会触发pagefault，这个时候再分配内存。mmap需要做到文件映射，本来文件读入内存需要先经过内核空间再到用户空间，mmap在静态分配地址后，手动映射到用户空间，再将文件直接读取到这个物理地址，实现了无拷贝操作。</p>
-<p>实现时检查参数有效性，转换传进来的flags格式，获取当前任务的地址空间即可转换给定的虚拟地址为物理地址，使用mapalloc对内存大小完成映射，注意flag要加上USER，因为是要映射到用户空间。通过fd找到文件节点后直接读入到得到的物理内存处，完成映射。</p>
-<h2 id="4-16"><a href="#4-16" class="headerlink" title="4.16"></a>4.16</h2><p>虚拟化这个题，看过了视频后，有了老师给的提示还是非常容易的。虚拟机在执行到某个位置触发了系统异常，那肯定要在traphandler里找，返汇编后，看到有非该特权级的指令执行出发了异常指令，那就将pc指针步进继续执行，然后代替处理复制操作，后面的错误访问内存也一样，代替执行赋值后设置pc继续执行内核。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>三阶段做的这些题远远不够理解arceos，所以在做完后我确定在虚拟化上下功夫，仔细研究这一块的代码。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -973,7 +1013,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1277,6 +1317,95 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/" class="post-title-link" itemprop="url">2025OS训练营三阶段记录</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-25 17:21:55" itemprop="dateCreated datePublished" datetime="2025-04-25T17:21:55+00:00">2025-04-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="2025OS训练营三阶段记录"><a href="#2025OS训练营三阶段记录" class="headerlink" title="2025OS训练营三阶段记录"></a>2025OS训练营三阶段记录</h1><h2 id="4-7-4-8"><a href="#4-7-4-8" class="headerlink" title="4.7-4.8"></a>4.7-4.8</h2><p>这两天看了石磊老师的unikernel讲解视频，完成了彩色print和hashmap的任务。</p>
+<p>unikernel我是第一次听说，用组件化的方式来实现操作系统，可以对应用定制轻量化的运行环境，相当于操作系统与应用一体，比较适合嵌入式和轻量虚拟化场景。arceos就不像rcore那样是面向教学的了，而是更偏向于实际应用，我查看了toml，操作系统的组件几乎都是依赖导入，刚开始有些搞不清楚这些包的具体用途。</p>
+<p>彩色print的实现很简单，在格式化前加入蓝色字符标注即可实现。</p>
+<p>hashmap的实现我一开始考虑的是nostd环境是否还需要我来实现对内存分配器，但是后来仔细看过arceos里有实现默认的对内存分配。我的实现内存分配依赖的vec，用vec作为hashmap的底层数据结构，实现起来相对容易，对于通过测例来说还是足够的。</p>
+<h2 id="4-9-4-12"><a href="#4-9-4-12" class="headerlink" title="4.9-4.12"></a>4.9-4.12</h2><p>这几天在琢磨lab1的挑战题，不愧是挑战题，花了目前最久的时间。题目规范很好，只需要实现规定的部分就可以。内容是要实现一个字节内存分配器来让这个测试达到最大迭代次数。这个测试用例是重点，他是循环分配32+i到2的14次方+i的内存，这个i就是迭代次数，每次迭代会把每一轮偶数次数的分配空间给释放掉，所以每次都有一部分内存不会被释放，即这个挑战有理论最大值。用例的分配用的是vec，vec根据rust的实现每次分配在空间不够时都是要扩容当前一倍的空间的。挑战的分数是i的次数要大于170，因为170是算法tlsf的结果。我对tlsf、buddy算法的实现都手动实现测试了一遍，逐步理清了我的实现思路。</p>
+<p>每次分配的偶数情况都会被释放，那直接对偶数情况的内存分配给固定的内存池，比如32 index为0，那分配32+Max的内存池，这个max就是最大i值，中修改max来得到i最大值。对于奇数的情况我使用了最简单的线性分配方法，应为当时想的是每次技术分配的都不会释放，所以不会有间隙，其实不是。这个探索的过程我发现分配的大小没有按照我的想法分配到对应的位置，于是我就打印了每次分配的内存的大小，我发现有几个固定值96，192，386这些数字不符合每次请求的内存大小，猜测应该是对其的要求分配的。所以对这个情况进行处理，直接计数进行跳过。但是效果到64又出现问题，分析发现32涨到96，与固定值96的分配打乱了奇偶计数的顺序，所以对全局分配96的大小进行计数，同样跳过一个固定位次的96分配。同理128在涨到192时也会触发，32在涨到192又会触发。对这些情况都做处理，得到了189的分数，折腾了三天，也总算有个结果，即便我知道这不是最佳答案。</p>
+<p>其实问题在于我认为奇数的分配是没有空隙的，其实vec的分配策略，扩容的空间都是浪费了，如果要提升，就要在奇数合并块时，通过某种策略找出未使用的扩容区域，就可以真做到最大限度利用空间，达到无空隙。</p>
+<p>这个题目刚开始觉得是个算法题，但其实也让我对内存分配的理解更加的深入。</p>
+<h2 id="4-13"><a href="#4-13" class="headerlink" title="4.13"></a>4.13</h2><p>今天实现的是bump内存分配策略，同时兼顾页分配和字节分配，通过上次挑战题的考验，这道题相当简单了。而且题目要求也很低，我的实现就是对分配器维护一个左右标签记录已经分配的区域，左为字节分配器的使用位置，右为页面分配器的使用位置。字节分配采用线性分配，每次分配查看左标签内还有没有空余，没有就移动左标签扩容。释放只处理与左标签邻近的地址，将左标签剪去分配的内存大小。右标签则是每次分配页面大小，维护是扩容则减，释放则加。</p>
+<p>其实对与这道题的测试用例很松，维护好左右分配标签就可以过。</p>
+<h2 id="4-14"><a href="#4-14" class="headerlink" title="4.14"></a>4.14</h2><p>今天实现了rename，其实有个最简单的方法就是拷贝删除用来重新创建该文件。</p>
+<p>正规做法需要先改下依赖的路径为本地，再将rename实现，arceos的文件系统依赖于虚拟文件系统，根据它的结构找到mata文件即可修改文件名。</p>
+<h2 id="4-15"><a href="#4-15" class="headerlink" title="4.15"></a>4.15</h2><p>mmap操作需要先理解静态分配，其实很简单，我们平时用到的动态分配就是请求了就立即分配内存空间给用户，静态则是在请求时返回成功，再用到时访问内存会触发pagefault，这个时候再分配内存。mmap需要做到文件映射，本来文件读入内存需要先经过内核空间再到用户空间，mmap在静态分配地址后，手动映射到用户空间，再将文件直接读取到这个物理地址，实现了无拷贝操作。</p>
+<p>实现时检查参数有效性，转换传进来的flags格式，获取当前任务的地址空间即可转换给定的虚拟地址为物理地址，使用mapalloc对内存大小完成映射，注意flag要加上USER，因为是要映射到用户空间。通过fd找到文件节点后直接读入到得到的物理内存处，完成映射。</p>
+<h2 id="4-16"><a href="#4-16" class="headerlink" title="4.16"></a>4.16</h2><p>虚拟化这个题，看过了视频后，有了老师给的提示还是非常容易的。虚拟机在执行到某个位置触发了系统异常，那肯定要在traphandler里找，返汇编后，看到有非该特权级的指令执行出发了异常指令，那就将pc指针步进继续执行，然后代替处理复制操作，后面的错误访问内存也一样，代替执行赋值后设置pc继续执行内核。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>三阶段做的这些题远远不够理解arceos，所以在做完后我确定在虚拟化上下功夫，仔细研究这一块的代码。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1308,7 +1437,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:15" itemprop="dateModified" datetime="2025-06-20T12:38:15+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1371,92 +1500,6 @@
 <p> stat就连两个项需要获取，ino就是blockid，nlink需要通过块位置来对目录里所有文件的块位置进行比较，相同计数加1.在返回时我和gettime的处理一样，将虚拟地址转换成物理地址后再转换成可变指针，将stat结构体指针放进去。</p>
 <h2 id="3-30-4-3"><a href="#3-30-4-3" class="headerlink" title="3.30-4.3"></a>3.30-4.3</h2><p>这节还挺费劲的。刚开始看了很久没发现是银行家算法，不知道如何来抽象这些资源。</p>
 <p>首先就是清楚是要以每个进程为单位来进行资源管理，所以在pcb inner里添加了死锁检测模块。模块数据一维为线程tid，二维为资源rid，模块需要实现几个功能，isunsafe就是银行家算法用来查看当前状态是否安全，tryallocate在检查unsafe同时通过tid和rid处理减小available和need，增加allocation；setneed需要在设置资源前调用，在分配失败时会保留，在分配成功会减小。release在up时增加available和减小allocation；检测开关只需要设置enabled。在创建线程和创建资源时需要更新数据结构，在添加一个线程时会为二维结构添加资源数的全为0的向量，在添加mutex时avail则push 1，sem则push 初始化值。在down时首先判断是否打开了检测，打开了就首先setneed，然后判断unsafe如果不安全则直接返回dead，安全则尝试分配（会失败），然后调用down；up时判断检测打开之后就调用release，release判断了当前分配数是否为0。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-mingzi47/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/25/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-mingzi47/" class="post-title-link" itemprop="url">2025春夏季开源操作系统训练营前三阶段总结-mingzi47</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-25 14:40:28" itemprop="dateCreated datePublished" datetime="2025-04-25T14:40:28+00:00">2025-04-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="Lab1"><a href="#Lab1" class="headerlink" title="Lab1"></a>Lab1</h1><h3 id="3-28"><a href="#3-28" class="headerlink" title="3.28"></a>3.28</h3><p>完成 Rust 语言练习</p>
-<h2 id="Lab2"><a href="#Lab2" class="headerlink" title="Lab2"></a>Lab2</h2><h3 id="4-7"><a href="#4-7" class="headerlink" title="4.7"></a>4.7</h3><p>risc-v知识欠缺，花费大量时间浏览 risc-v 手册。</p>
-<p>完成 Lab1</p>
-<p>学习 第四章 Rust 中的动态内存分配，地址空间， SV39 多级页面管理机制（上）。</p>
-<p>成果：</p>
-<p>初步了解risc-v多级分页机制。</p>
-<h3 id="4-10"><a href="#4-10" class="headerlink" title="4.10"></a>4.10</h3><p>完成 Lab2, 选做了 Lazy 分配策略。</p>
-<p>大部分时间花在了 Lazy 策略初始化不分配内存上，通过查看多个函数的调试输出，完善了mmap申请的虚拟页表和物理页表映射结构上的设计。</p>
-<h3 id="4-11"><a href="#4-11" class="headerlink" title="4.11"></a>4.11</h3><p>开始 Lab3：spawn, 迁移 Lab2 中的工作。</p>
-<p>spawn 功能非常简单，记得最后要添加到 manager 中。</p>
-<h3 id="4-15-总结"><a href="#4-15-总结" class="headerlink" title="4.15 总结"></a>4.15 总结</h3><p>rcore 的文档很详细，通过读文档已经能对 rcore 很清晰的了解了，之后做实验也不存在太大的困难。选做题只做了 mmap lazy 策略。</p>
-<h2 id="Lab3"><a href="#Lab3" class="headerlink" title="Lab3"></a>Lab3</h2><h3 id="4-17"><a href="#4-17" class="headerlink" title="4.17"></a>4.17</h3><p>做完第二个小测验，发现没有安装 riscv-linux-musl-gcc， ArchLinux 中这个包在 AUR 中可以找到，<a href="https://aur.archlinux.org/packages/riscv64-gnu-toolchain-musl-bin" target="_blank" rel="noopener">riscv64-gnu-toolchain-musl-bin^AUR^</a>, 也可以在 github 上找到相应的二进制文件 <a href="https://github.com/riscv-collab/riscv-gnu-toolchain/releases" target="_blank" rel="noopener">riscv-gnu-toolchain/releases</a></p>
-<h3 id="4-23"><a href="#4-23" class="headerlink" title="4.23"></a>4.23</h3><p>完成 Lab3, 选做题花费的时间多了些，主要是卡在了最后一个点上，费了一番功夫才完成了。现在回想起来感觉是因为是在晚上3，4点脑子不清醒，今天下午就顺利很多。<br>题目难度本身不大，第三阶段需要对项目的结构有一定的了解，不然会不知道要找的模块在哪里。</p>
 
       
     </div>
