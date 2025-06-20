@@ -15,6 +15,7 @@ tags:
 
 ## 第二阶段 - OS设计实现
 
+- 仓库连接: [https://github.com/LearningOS/2025s-rcore-jizhaoqin](https://github.com/LearningOS/2025s-rcore-jizhaoqin)
 - 这一阶段花了挺多时间, 因为一个完整的os内核内容和代码真的很多
 - chapter1 应用程序与基本执行环境
   - 这一届内容比较少, 主要是关于如何实现一个最小内核, 以及RustSBI使用的一些问题
@@ -48,6 +49,7 @@ tags:
 
 ## 第三阶段 - 组件化操作系统
 
+- 仓库连接: [https://github.com/LearningOS/2025s-arceos-jizhaoqin](https://github.com/LearningOS/2025s-arceos-jizhaoqin)
 - [print_with_color]:
   - 可以使用ANSI转义序列, 修改终端输出的颜色
   - 可以在用户层`println!`, `axstd`的输出宏定义处, 或者`axhal`处修改`putchar`, 影响的范围也不同
@@ -94,7 +96,7 @@ tags:
 	- 尝试注册键盘中断进行测试, 发现需要开启qemu graphic实现显示设备驱动, 而且兼容性差, 所以不搞键盘中断了, 直接搞串口中断, 目前arceos的实现都是轮询;
 	- x86_64 qemu q35 平台没查到COM1 uart的中断向量, 导致一直没能成功注册中断, 而且x86的x2apic架构比较复杂, 执行了irq映射难梳理, 最后花了很多时间也没搞明白中断向量到底是啥;
 	- 后来转向aarch64, 成功注册uart中断, 并测试表现良好符合预期;
-	- 尝试异步化改造中断处理, 查看embassy的实现, 太复杂了, 看了好久还是拆解不出来需要的部分放到arceos, 最后决定从头手写一个简单的异步执行器, 花了好大力气才搞定, 测试能工作;
+	- 尝试异步化改造中断处理, 查看embassy的实现有些复杂不好拆解, 最后决定从头手写一个简单的异步执行器, 花了好大力气才搞定, 测试能工作;
 	- 尝试把异步运行时和中断处理结合起来的时候总是有交叉依赖的问题, 最后把异步任务通知逻辑和执行逻辑分别放在`axhal`和`axruntime`, 才最终解决交叉依赖.
 	- 执行器阻塞线程不主动yield, 直到一个周期后被抢占才切换到其他线程, 而其他线程正常yield, 这使得执行器线程占用了几乎所有CPU时间
 	- 最后又更改了中断处理流程, 添加了两个缓冲区才最终把逻辑跑通
