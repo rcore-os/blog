@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">720</span>
+          <span class="site-state-item-count">721</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,149 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/Chap8-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/Chap8-2/" class="post-title-link" itemprop="url">rcore-handnote-8-2</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Chapter-8-2"><a href="#Chapter-8-2" class="headerlink" title="Chapter 8-2"></a>Chapter 8-2</h2><h3 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h3><p>We will develop exclusion mechanism previously mentioned.</p>
+<p>Beside construction, we need to abstract possible situation of data sharing. A usual native thought is a thread want to modify one thing but due to thread switch, the data is already modified and we get wrong result. So based on this, we want a operation to be <strong>Atomic</strong>, which means the operation excluding others. Now we can alleviate this restriction and generalize this.</p>
+<h3 id><a href="#" class="headerlink" title></a></h3><p>Generalization:</p>
+<ul>
+<li>Allow multiple but finite thread can join one atomic operation.</li>
+<li>Allow condition of atomic operation.</li>
+</ul>
+<p>Before such generalization, we want a way to represent atomic operation. We call the content of this operation <strong>Critical Section</strong>, and multiple threads operations in indeterminate time sequence <strong>Race Condition</strong>. So the basic problem of data sharing push us to identify multiple different operations by different threads, we can’t restrict data because the problem is on modification by threads, we need to <strong>Lock</strong> operations!</p>
+<p>So, it there’s a lock sharing by threads, each threads can declare <strong>Lock it!</strong>, and no other threads can access this thread again.</p>
+<p>Now, back to our generalization. If this lock has a bound of access number, many can access until reaching a bound. That’s also a reasonable design, we call this <strong>Semaphore</strong>; If this lock has a signal which one thread can send it to others to allow others to access it, That’s also a reasonable design, we call this <strong>Condition Variable</strong>.</p>
+<p>If the real minimal sharing thing is <strong>Lock</strong> rather than data, we can discard so called data problem, and focus on lock itself, each threads can do anything in this lock and excluding others.</p>
+<h3 id="Design"><a href="#Design" class="headerlink" title="Design"></a>Design</h3><p>No matter which kinds of lock, this is shared among threads.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">ProcessControlBlock</span></span> &#123;</span><br><span class="line">    <span class="comment">// immutable</span></span><br><span class="line">    <span class="keyword">pub</span> pid: PidHandle,</span><br><span class="line">    <span class="comment">// mutable</span></span><br><span class="line">    inner: UPSafeCell&lt;ProcessControlBlockInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">ProcessControlBlockInner</span></span> &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">pub</span> lock_list: <span class="built_in">Vec</span>&lt;<span class="built_in">Option</span>&lt;Arc&lt;Lock&gt;&gt;&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Lock</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> inner: UPSafeCell&lt;LockInner&gt;,</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">LockInner</span></span> &#123;</span><br><span class="line">	<span class="keyword">pub</span> data: ...</span><br><span class="line">    <span class="keyword">pub</span> wait_queue: VecDeque&lt;Arc&lt;TaskControlBlock&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>In such design, one lock can push one thread to  <code>wait_queue</code> to stop it, and pop front to start it. <code>data</code> is a generalization for various locks.</p>
+<p>Then, in one process, it owns many locks used in various conditions, one can easily take it as a generalization of many data(actually nothing related to real data) we want to share.</p>
+<h3 id="Basic-Lock"><a href="#Basic-Lock" class="headerlink" title="Basic Lock"></a>Basic Lock</h3><p>Now, we want to construct a basic lock allowing simple <code>lock</code>, <code>unlock</code> operation.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">Mutex</span></span>: <span class="built_in">Sync</span> + <span class="built_in">Send</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">lock</span></span>(&amp;<span class="keyword">self</span>);</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">unlock</span></span>(&amp;<span class="keyword">self</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Usually, there’s U-level, M-level, S-level implementation. First, we gonna try first one easily, knowing the heuristic design of M-level, and extend basic thought to S-level.</p>
+<hr>
+<h4 id="U-level"><a href="#U-level" class="headerlink" title="U-level"></a>U-level</h4><p>A naive approach is to declare a global boolean indicating block state. <code>lock</code> will wait if the boolean is true and try to set it to true, and <code>unlock</code> will set it to false to release.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> mutex :<span class="built_in">i32</span> = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">lock</span></span>(mutex: <span class="built_in">i32</span>) &#123;</span><br><span class="line">    <span class="keyword">while</span> (mutex);</span><br><span class="line">    mutex = <span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">unlock</span></span>(mutex: <span class="built_in">i32</span>)&#123;</span><br><span class="line">    mutex = <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>However, that’s wrong! We can’t construct lock by things we want to lock! Threads can jump in any instructions and break it! That’s means we can’t do it in U-level? We should ponder further in real situation, imagine two threads modify one thing in nearly same time, if we could set two global state in a operation that excluding each other(for example, one state set to 1 and another state set to 0), then only one operation can really be implemented and we can check this condition, allow it to get the lock.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> flag : [<span class="built_in">i32</span>;<span class="number">2</span>] = [<span class="number">0</span>,<span class="number">0</span>]; <span class="comment">// 哪个线程想拿到锁？</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> turn : <span class="built_in">i32</span> = <span class="number">0</span>;         <span class="comment">// 排号：轮到哪个线程? (线程 0 or 1?)</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">lock</span></span>() &#123;</span><br><span class="line">    flag[<span class="keyword">self</span>] = <span class="number">1</span>;             <span class="comment">// 设置自己想取锁 self: 线程 ID</span></span><br><span class="line">    turn = <span class="number">1</span> - <span class="keyword">self</span>;            <span class="comment">// 设置另外一个线程先排号</span></span><br><span class="line">    <span class="keyword">while</span> ((flag[<span class="number">1</span>-<span class="keyword">self</span>] == <span class="number">1</span>) &amp;&amp; (turn == <span class="number">1</span> - <span class="keyword">self</span>)); <span class="comment">// 忙等</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">unlock</span></span>() &#123;</span><br><span class="line">    flag[<span class="keyword">self</span>] = <span class="number">0</span>;             <span class="comment">// 设置自己放弃锁</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Now analyze the code, we find that no matter which flag is 1, or both 1, indicating certain thread want to get lock, <code>turn</code> will be a excluding state to <code>flag</code>, which means if another thread modify <code>turn</code> in same time, the turn can only be in one of the state and only one thread can get the lock.</p>
+<hr>
+<h4 id="M-level"><a href="#M-level" class="headerlink" title="M-level"></a>M-level</h4><p>Is there any predefined operation in instructions that is atomic? Then we can use it as a lock. The answer is <strong>Yes</strong>, in RISC-V, it’s:</p>
+<ul>
+<li>AMO: Atomic memory operation</li>
+<li>LR/SC: Load Reserved/Store Conditional</li>
+</ul>
+<p><strong>AMO</strong>: will read the value in memory and write new value, then store the old value to target register(s.t. <code>amoadd.w rd, rs2, (rs1)</code>). </p>
+<p><strong>LR/SC</strong>: <strong>LR</strong> will read memory and store in target register, and leave the addr of this memory, then <strong>SC</strong> could check the addr and write data to this addr, output a condition(0/1) to target register.(s.t. <code>lr.w rd, (rs1)</code>, <code>sc.w rd, rs2, (rs1)</code>)</p>
+<p>We can use it to implement a atomic function:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># RISC-V sequence for implementing a TAS  at (s1)</span><br><span class="line">li t2, 1                 # t2 &lt;-- 1</span><br><span class="line">Try: lr  t1, s1          # t1 &lt;-- mem[s1]  (load reserved)</span><br><span class="line">        bne t1, x0, Try     # if t1 !&#x3D; 0, goto Try:</span><br><span class="line">        sc  t0, s1, t2      # mem[s1] &lt;-- t2  (store conditional)</span><br><span class="line">        bne t0, x0, Try     # if t0 !&#x3D;0 (&#39;sc&#39; Instr failed), goto Try:</span><br><span class="line">Locked:</span><br><span class="line">        ...                 # critical section</span><br><span class="line">Unlock:</span><br><span class="line">        sw x0,0(s1)         # mem[s1] &lt;-- 0</span><br></pre></td></tr></table></figure>
+
+<p>Here the logic of <code>Try</code> is <code>mem[s1]</code> would be zero if it’s unlocked, and would be non-zero if it’s locked. So, <code>Try</code> will compare <code>t1</code> and <code>x0</code>, actually <code>mem[s1]</code> and <code>0</code>, if equal to zero, then try to store <code>t2</code> into <code>s1</code>, if succeed, it will compare it again for the output signal <code>t0</code> and <code>x0</code>, actually the output signal and <code>0</code>, if succeed, it will jump out otherwise repeat.In this process, if the write operation failed, <code>t0</code> would be non-zero, and repeat in <code>Try</code>.</p>
+<p>If we want to <code>Unlock</code>, we write <code>x0</code> to <code>s1</code> to set <code>mem[s1]</code> to zero. Which is the unlocked state.</p>
+<h4 id="S-level"><a href="#S-level" class="headerlink" title="S-level"></a>S-level</h4><p>Then we could take the function to rust and package it. A simple refactor is when we in repetition loop, we <code>yield</code>, and give CPU to others.</p>
+<hr>
+<p>Now, for any kinds of locks, we could apply it to our structure.</p>
+<p>First, when we create a lock, we create and push it to list or set in empty element.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/sync.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_mutex_create</span></span>(blocking: <span class="built_in">bool</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> process = current_process();</span><br><span class="line">    <span class="keyword">let</span> mutex: <span class="built_in">Option</span>&lt;Arc&lt;<span class="keyword">dyn</span> Mutex&gt;&gt; = <span class="keyword">if</span> !blocking &#123;</span><br><span class="line">        <span class="literal">Some</span>(Arc::new(MutexSpin::new()))</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="literal">Some</span>(Arc::new(MutexBlocking::new()))</span><br><span class="line">    &#125;;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(id) = process_inner</span><br><span class="line">        .mutex_list</span><br><span class="line">        .iter()</span><br><span class="line">        .enumerate()</span><br><span class="line">        .find(|(_, item)| item.is_none())</span><br><span class="line">        .map(|(id, _)| id)</span><br><span class="line">    &#123;</span><br><span class="line">        process_inner.mutex_list[id] = mutex;</span><br><span class="line">        id <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        process_inner.mutex_list.push(mutex);</span><br><span class="line">        process_inner.mutex_list.len() <span class="keyword">as</span> <span class="built_in">isize</span> - <span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>When we call <code>lock</code>, we should provide corresponding id of the lock, if it’s already locked, we push to <code>wait_queue</code>, else we lock it and goes on.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/sync.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_mutex_lock</span></span>(mutex_id: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> process = current_process();</span><br><span class="line">    <span class="keyword">let</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">let</span> mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());</span><br><span class="line">    <span class="built_in">drop</span>(process_inner);</span><br><span class="line">    <span class="built_in">drop</span>(process);</span><br><span class="line">    mutex.lock();</span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// os/src/sync/mutex.rs</span></span><br><span class="line"><span class="keyword">impl</span> Lock <span class="keyword">for</span> MutexBlocking &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">lock</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> mutex_inner = <span class="keyword">self</span>.inner.exclusive_access();</span><br><span class="line">        <span class="keyword">if</span> ... &#123;</span><br><span class="line">            mutex_inner.wait_queue.push_back(current_task().unwrap());</span><br><span class="line">			<span class="comment">// ... other operations</span></span><br><span class="line">            <span class="built_in">drop</span>(mutex_inner);</span><br><span class="line">            block_current_and_run_next();</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			<span class="comment">// ... other operations</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Same reverse operation:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// os/src/syscall/sync.rs</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">sys_mutex_unlock</span></span>(mutex_id: <span class="built_in">usize</span>) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> process = current_process();</span><br><span class="line">    <span class="keyword">let</span> process_inner = process.inner_exclusive_access();</span><br><span class="line">    <span class="keyword">let</span> mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());</span><br><span class="line">    <span class="built_in">drop</span>(process_inner);</span><br><span class="line">    <span class="built_in">drop</span>(process);</span><br><span class="line">    mutex.unlock();</span><br><span class="line">    <span class="number">0</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// os/src/sync/mutex.rs</span></span><br><span class="line"><span class="keyword">impl</span> Mutex <span class="keyword">for</span> MutexBlocking &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">unlock</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> mutex_inner = <span class="keyword">self</span>.inner.exclusive_access();</span><br><span class="line">		<span class="comment">// ... other operation</span></span><br><span class="line">		<span class="keyword">if</span> ... &#123;</span><br><span class="line">			<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(waking_task) = mutex_inner.wait_queue.pop_front() &#123;</span><br><span class="line">				add_task(waking_task);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="Semaphore"><a href="#Semaphore" class="headerlink" title="Semaphore"></a>Semaphore</h3><p>It’s simple, we only need to switch boolean to number and check the bound. So, the initiated count is the bound, if one thread access, it will minus one, and release, add one. We only need to check positive or negative.</p>
+<p>Apply our structure:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">up</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.exclusive_access();</span><br><span class="line">    inner.count += <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> inner.count &lt;= <span class="number">0</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(task) = inner.wait_queue.pop_front() &#123;</span><br><span class="line">            add_task(task);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">down</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.exclusive_access();</span><br><span class="line">    inner.count -= <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> inner.count &lt; <span class="number">0</span> &#123;</span><br><span class="line">        inner.wait_queue.push_back(current_task().unwrap());</span><br><span class="line">        <span class="built_in">drop</span>(inner);</span><br><span class="line">        block_current_and_run_next();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>If the initiated count equal to <code>1</code>, we back to <code>mutex</code>!, which indicates sole thread access!</p>
+<p>Actually, we could use it for <strong>synchronization</strong> operation, we set count to <code>0</code>, if one thread access, it will be blocked, and another thread will could release and add one to count, then the original thread finally could access. Then the second thread will always be advanced to first one.</p>
+<p>Here, the first is always advanced to second.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> SEM_SYNC: <span class="built_in">usize</span> = <span class="number">0</span>; <span class="comment">//信号量ID</span></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">first</span></span>() -&gt; ! &#123;</span><br><span class="line">    sleep(<span class="number">10</span>);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"First work and wakeup Second"</span>);</span><br><span class="line">    semaphore_up(SEM_SYNC); <span class="comment">//信号量V操作</span></span><br><span class="line">    exit(<span class="number">0</span>)</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">second</span></span>() -&gt; ! &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Second want to continue,but need to wait first"</span>);</span><br><span class="line">    semaphore_down(SEM_SYNC); <span class="comment">//信号量P操作</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Second can work now"</span>);</span><br><span class="line">    exit(<span class="number">0</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Conditional-Variable"><a href="#Conditional-Variable" class="headerlink" title="Conditional Variable"></a>Conditional Variable</h3><p>If we want one thread owns the ability of release lock for others, we need the <code>CondVar</code>. We have to dispatch operation in <code>wait_queue</code>, if one thread <code>signal</code> others, it will pop out a thread, which means trigger it <strong>You are free!</strong>. And if one thread <code>wait</code>, it will push itself to queue to <strong>wait</strong>, The unlock and lock is important because in wait operation, it allow other thread to modify <strong>condition</strong>, but it should be after of the push operation, in case that the signal is before the push, then we can never receive the signal again! We won’t encapsulate condition check to <code>CondVar</code> because it should leave to user to design it, we only leave out interface for user.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">signal</span></span>(&amp;<span class="keyword">self</span>) &#123;</span><br><span class="line">	<span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.exclusive_access();</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(task) = inner.wait_queue.pop_front() &#123;</span><br><span class="line">		add_task(task);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">wait</span></span>(&amp;<span class="keyword">self</span>, mutex: Arc&lt;<span class="keyword">dyn</span> Mutex&gt;) &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.exclusive_access();</span><br><span class="line">    inner.wait_queue.push_back(current_task().unwrap());</span><br><span class="line">    <span class="built_in">drop</span>(inner);</span><br><span class="line">    mutex.unlock();                 </span><br><span class="line">    block_current_and_run_next();</span><br><span class="line">    mutex.lock();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>However, if condition check is leave out to user, we can’t ensure the condition be violated due to data sharing, so usually we need to append <code>mutex</code> lock for this section.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> A: <span class="built_in">usize</span> = <span class="number">0</span>;   <span class="comment">//全局变量</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> CONDVAR_ID: <span class="built_in">usize</span> = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">const</span> MUTEX_ID: <span class="built_in">usize</span> = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">first</span></span>() -&gt; ! &#123;</span><br><span class="line">    sleep(<span class="number">10</span>);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"First work, Change A --&gt; 1 and wakeup Second"</span>);</span><br><span class="line">    mutex_lock(MUTEX_ID);</span><br><span class="line">    A=<span class="number">1</span>;</span><br><span class="line">    condvar_signal(CONDVAR_ID);</span><br><span class="line">    mutex_unlock(MUTEX_ID);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">second</span></span>() -&gt; ! &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Second want to continue,but need to wait A=1"</span>);</span><br><span class="line">    mutex_lock(MUTEX_ID);</span><br><span class="line">    <span class="keyword">while</span> A==<span class="number">0</span> &#123;</span><br><span class="line">        condvar_wait(CONDVAR_ID, MUTEX_ID);</span><br><span class="line">    &#125;</span><br><span class="line">    mutex_unlock(MUTEX_ID);</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>We can see that if <code>A=1</code>, second won’t <code>wait</code> repeatly, and goes out.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-1/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +407,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -322,6 +465,104 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/day-2/" class="post-title-link" itemprop="url">arceos-handnote-2</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Day-2"><a href="#Day-2" class="headerlink" title="Day-2"></a>Day-2</h2><h2 id="Paging"><a href="#Paging" class="headerlink" title="Paging"></a>Paging</h2><p>We delve into paging.</p>
+<h3 id="Example"><a href="#Example" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Physical address for pflash#1</span></span><br><span class="line"><span class="keyword">const</span> PFLASH_START: <span class="built_in">usize</span> = <span class="number">0x2200_0000</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">    <span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">    <span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Try to access dev region [&#123;:#X&#125;], got &#123;:#X&#125;"</span>, va, *ptr);</span><br><span class="line">        <span class="keyword">let</span> magic = mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr);</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;&#125;"</span>, <span class="built_in">str</span>::from_utf8(&amp;magic).unwrap());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>PFlash</strong> is the simulation of flash memory of qemu. When qemu boot, it will automatically load file to fixed <strong>MMIO</strong>, and can be directly accessed.</p>
+<p><strong>Paging</strong>: <code>feature = [&quot;paging&quot;]</code> is the way to evoke virtual memory management tu support <code>MMIO</code>. Located in <code>axruntime</code>.</p>
+<p>The workflow would be:</p>
+<ul>
+<li>qemu fdt: from <code>0x0c00_0000</code> to <code>0x3000_0000</code>. Construct the space of device.</li>
+<li>SBI: from <code>0x8000_0000</code> to <code>0x8020_0000</code>. RISC-V <strong>Supervisor Binary Interface</strong>, it construct a interface for programming language to manipulate device level things.</li>
+<li>Kernel Image: from <code>0x8020_0000</code>. <code>_skernel</code> contains S-level things like static data, code etc… <code>_ekernel</code> is user thing.</li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[link_section = <span class="meta-string">".data.boot_page_table"</span>]</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> BOOT_PT_SV39: [<span class="built_in">u64</span>; <span class="number">512</span>] = [<span class="number">0</span>; <span class="number">512</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_boot_page_table</span></span>() &#123;</span><br><span class="line">    <span class="comment">// 0x8000_0000..0xc000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">2</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">    <span class="comment">// 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">	<span class="comment">// shift 10 bits to store flags</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">0x102</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_mmu</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> page_table_root = BOOT_PT_SV39.as_ptr() <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    satp::set(satp::Mode::Sv39, <span class="number">0</span>, page_table_root &gt;&gt; <span class="number">12</span>);</span><br><span class="line">    riscv::asm::sfence_vma_all();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Each entry of page table will map 1G(<code>0x4000_0000</code>) memory. From <code>0x8000_0000</code> to <code>0xc0000_0000</code> at <code>pgd_idx = 2</code> to <code>0xffff_ffc0_8000_0000</code> to <code>0xffff_ffc0_c000_0000</code> at <code>pgd_idx = 102</code>. This will map to a bigger range.</p>
+<h2 id="Task"><a href="#Task" class="headerlink" title="Task"></a>Task</h2><h3 id="Example-1"><a href="#Example-1" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> worker = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">	<span class="built_in">println!</span>(<span class="string">"Spawned-thread ..."</span>);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">	<span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">	<span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">	<span class="keyword">let</span> magic = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">		mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr)</span><br><span class="line">	&#125;;</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Ok</span>(s) = <span class="built_in">str</span>::from_utf8(&amp;magic) &#123;</span><br><span class="line">		<span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;s&#125;"</span>);</span><br><span class="line">		<span class="number">0</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		-<span class="number">1</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>Each task will be in concurrency and dispatched by strategy. If it’s blocked, it will be moved to <code>wait_queue</code> to wait. If it’s ready, it will be moved to <code>run_queue</code> which is scheduler to be dispatched.</p>
+<h3 id="Message-Communication"><a href="#Message-Communication" class="headerlink" title="Message Communication"></a>Message Communication</h3><h3 id="Example-2"><a href="#Example-2" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> q1 = Arc::new(SpinNoIrq::new(VecDeque::new()));</span><br><span class="line"><span class="keyword">let</span> q2 = q1.clone();</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker1 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ..."</span>);</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..=LOOP_NUM &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"worker1 [&#123;i&#125;]"</span>);</span><br><span class="line">        q1.lock().push_back(i);</span><br><span class="line">        <span class="comment">// <span class="doctag">NOTE:</span> If worker1 doesn't yield, others have</span></span><br><span class="line">        <span class="comment">// no chance to run until it exits!</span></span><br><span class="line">        thread::yield_now();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ok!"</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker2 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ..."</span>);</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(num) = q2.lock().pop_front() &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2 [&#123;num&#125;]"</span>);</span><br><span class="line">            <span class="keyword">if</span> num == LOOP_NUM &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2: nothing to do!"</span>);</span><br><span class="line">            <span class="comment">// <span class="doctag">TODO:</span> it should sleep and wait for notify!</span></span><br><span class="line">            thread::yield_now();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ok!"</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>Cooperative Scheduling</strong>: Each tasks kindly yield themselves or exit otherwise it will block everyone because the power of CPU occupation is ownned by each tasks.</p>
+<p><strong>Preemptive Scheduling</strong>: Each tasks will be automatically suspended by external condition: No lock, no device access; inner condition: run out of current time slice. We can use a <code>disable_count</code> to record this, even for multiple condition restriction, we can sum them up.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">axhal::irq::register_handler(TIMER_IRQ_NUM, || &#123;</span><br><span class="line">    update_timer();</span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"multitask"</span>)]</span></span><br><span class="line">    axtask::on_timer_tick();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Enable IRQs before starting app</span></span><br><span class="line">axhal::arch::enable_irqs()</span><br></pre></td></tr></table></figure>
+
+<p><code>on_timer_tick</code> will be trigger in time slice. When time ticker ticks, <code>run_queue</code> will check and suspend task if possible.</p>
+<p>We can make it more dynamic. Which means each task has priority and during the implementation of cpu, each task has a <code>vruntime</code> to be dynamically adjusted by <code>init_vruntime + (delta/weight(nice))</code> where <code>delta</code> and <code>nice</code> are dynamic adjustment number. <code>delta</code> will be incremented by <code>timer</code>, <code>weight(nice)</code> is actually the priority of the task. We ensure that task with lowest <code>vruntime</code> will be placed at top.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -353,7 +594,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -455,7 +696,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -514,104 +755,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/27/day-2/" class="post-title-link" itemprop="url">arceos-handnote-2</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="Day-2"><a href="#Day-2" class="headerlink" title="Day-2"></a>Day-2</h2><h2 id="Paging"><a href="#Paging" class="headerlink" title="Paging"></a>Paging</h2><p>We delve into paging.</p>
-<h3 id="Example"><a href="#Example" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Physical address for pflash#1</span></span><br><span class="line"><span class="keyword">const</span> PFLASH_START: <span class="built_in">usize</span> = <span class="number">0x2200_0000</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">    <span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">    <span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Try to access dev region [&#123;:#X&#125;], got &#123;:#X&#125;"</span>, va, *ptr);</span><br><span class="line">        <span class="keyword">let</span> magic = mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr);</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;&#125;"</span>, <span class="built_in">str</span>::from_utf8(&amp;magic).unwrap());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><strong>PFlash</strong> is the simulation of flash memory of qemu. When qemu boot, it will automatically load file to fixed <strong>MMIO</strong>, and can be directly accessed.</p>
-<p><strong>Paging</strong>: <code>feature = [&quot;paging&quot;]</code> is the way to evoke virtual memory management tu support <code>MMIO</code>. Located in <code>axruntime</code>.</p>
-<p>The workflow would be:</p>
-<ul>
-<li>qemu fdt: from <code>0x0c00_0000</code> to <code>0x3000_0000</code>. Construct the space of device.</li>
-<li>SBI: from <code>0x8000_0000</code> to <code>0x8020_0000</code>. RISC-V <strong>Supervisor Binary Interface</strong>, it construct a interface for programming language to manipulate device level things.</li>
-<li>Kernel Image: from <code>0x8020_0000</code>. <code>_skernel</code> contains S-level things like static data, code etc… <code>_ekernel</code> is user thing.</li>
-</ul>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[link_section = <span class="meta-string">".data.boot_page_table"</span>]</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> BOOT_PT_SV39: [<span class="built_in">u64</span>; <span class="number">512</span>] = [<span class="number">0</span>; <span class="number">512</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_boot_page_table</span></span>() &#123;</span><br><span class="line">    <span class="comment">// 0x8000_0000..0xc000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">2</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">    <span class="comment">// 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">	<span class="comment">// shift 10 bits to store flags</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">0x102</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_mmu</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> page_table_root = BOOT_PT_SV39.as_ptr() <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    satp::set(satp::Mode::Sv39, <span class="number">0</span>, page_table_root &gt;&gt; <span class="number">12</span>);</span><br><span class="line">    riscv::asm::sfence_vma_all();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Each entry of page table will map 1G(<code>0x4000_0000</code>) memory. From <code>0x8000_0000</code> to <code>0xc0000_0000</code> at <code>pgd_idx = 2</code> to <code>0xffff_ffc0_8000_0000</code> to <code>0xffff_ffc0_c000_0000</code> at <code>pgd_idx = 102</code>. This will map to a bigger range.</p>
-<h2 id="Task"><a href="#Task" class="headerlink" title="Task"></a>Task</h2><h3 id="Example-1"><a href="#Example-1" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> worker = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">	<span class="built_in">println!</span>(<span class="string">"Spawned-thread ..."</span>);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">	<span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">	<span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">	<span class="keyword">let</span> magic = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">		mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr)</span><br><span class="line">	&#125;;</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Ok</span>(s) = <span class="built_in">str</span>::from_utf8(&amp;magic) &#123;</span><br><span class="line">		<span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;s&#125;"</span>);</span><br><span class="line">		<span class="number">0</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		-<span class="number">1</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<p>Each task will be in concurrency and dispatched by strategy. If it’s blocked, it will be moved to <code>wait_queue</code> to wait. If it’s ready, it will be moved to <code>run_queue</code> which is scheduler to be dispatched.</p>
-<h3 id="Message-Communication"><a href="#Message-Communication" class="headerlink" title="Message Communication"></a>Message Communication</h3><h3 id="Example-2"><a href="#Example-2" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> q1 = Arc::new(SpinNoIrq::new(VecDeque::new()));</span><br><span class="line"><span class="keyword">let</span> q2 = q1.clone();</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker1 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ..."</span>);</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..=LOOP_NUM &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"worker1 [&#123;i&#125;]"</span>);</span><br><span class="line">        q1.lock().push_back(i);</span><br><span class="line">        <span class="comment">// <span class="doctag">NOTE:</span> If worker1 doesn't yield, others have</span></span><br><span class="line">        <span class="comment">// no chance to run until it exits!</span></span><br><span class="line">        thread::yield_now();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ok!"</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker2 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ..."</span>);</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(num) = q2.lock().pop_front() &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2 [&#123;num&#125;]"</span>);</span><br><span class="line">            <span class="keyword">if</span> num == LOOP_NUM &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2: nothing to do!"</span>);</span><br><span class="line">            <span class="comment">// <span class="doctag">TODO:</span> it should sleep and wait for notify!</span></span><br><span class="line">            thread::yield_now();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ok!"</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<p><strong>Cooperative Scheduling</strong>: Each tasks kindly yield themselves or exit otherwise it will block everyone because the power of CPU occupation is ownned by each tasks.</p>
-<p><strong>Preemptive Scheduling</strong>: Each tasks will be automatically suspended by external condition: No lock, no device access; inner condition: run out of current time slice. We can use a <code>disable_count</code> to record this, even for multiple condition restriction, we can sum them up.</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">axhal::irq::register_handler(TIMER_IRQ_NUM, || &#123;</span><br><span class="line">    update_timer();</span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"multitask"</span>)]</span></span><br><span class="line">    axtask::on_timer_tick();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Enable IRQs before starting app</span></span><br><span class="line">axhal::arch::enable_irqs()</span><br></pre></td></tr></table></figure>
-
-<p><code>on_timer_tick</code> will be trigger in time slice. When time ticker ticks, <code>run_queue</code> will check and suspend task if possible.</p>
-<p>We can make it more dynamic. Which means each task has priority and during the implementation of cpu, each task has a <code>vruntime</code> to be dynamically adjusted by <code>init_vruntime + (delta/weight(nice))</code> where <code>delta</code> and <code>nice</code> are dynamic adjustment number. <code>delta</code> will be incremented by <code>timer</code>, <code>weight(nice)</code> is actually the priority of the task. We ensure that task with lowest <code>vruntime</code> will be placed at top.</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A53%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%98%8E%E6%89%AC/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -643,7 +786,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
 
           
@@ -741,7 +884,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -830,7 +973,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1165,7 +1308,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1278,7 +1421,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 12:38:02" itemprop="dateModified" datetime="2025-06-20T12:38:02+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1329,105 +1472,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/24/oscamp-summary/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/24/oscamp-summary/" class="post-title-link" itemprop="url">oscamp_summary</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-24 21:23:15" itemprop="dateCreated datePublished" datetime="2025-04-24T21:23:15+00:00">2025-04-24</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 09:22:03" itemprop="dateModified" datetime="2025-06-20T09:22:03+00:00">2025-06-20</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h4 id="rustling"><a href="#rustling" class="headerlink" title="rustling"></a>rustling</h4><p>大部分练习没什么印象，都是很基础的练习。</p>
-<p>唯一印象深刻的是对<code>#[cfg(feature)]</code>的考察，cargo在编译时会根据feature来选择编译字段、函数、源代码，私认为这是个很有用的特性。在编译大型项目时，就可以塞入很多功能，让用户能够选择feature来控制项目的编译。</p>
-<h4 id="rcore"><a href="#rcore" class="headerlink" title="rcore"></a>rcore</h4><p>之前做过<code>mit 6.1810</code> 操作系统实验课，是基于<code>riscv</code>的用<code>c</code>编写的操作系统。这次写<code>rcore</code>主要是体验两者在实验流程的设计差异，以及<code>c</code>和<code>rust</code>在编写内核上的特性与差异。</p>
-<p>我个人觉得<code>rcore</code>内容上更丰厚更复杂，但是实验设计上有点太简单了，或者说为学生实现了太多。我觉得可以丰富实验内容，让学生体会到内核的调用流程，以及<code>rust</code>语言实现内核的优点。</p>
-<ol>
-<li><p>在<code>syscall</code>实验中，可以增加几个系统调用函数，并让学生完成从用户态增加函数，到内核态具体实现</p>
-</li>
-<li><p>在<code>syscall</code>实验中，内核接收<code>syscall_id</code>，通过match分发到对应的函数。我个人觉得这里应该提供两个数组引导学生去填写新增的系统调用函数：</p>
-<ol>
-<li><code>index -&gt; syscall_id</code>: <code>SYSCALL_MAP = [SYS_GETTIME, SYS_READ, SYS_WRITE, .. ]</code></li>
-<li><code>index -&gt; syscall_func</code>: <code>SYSCALL_FUNC = [sys_gettime, sys_read, sys_write, ..]</code></li>
-</ol>
-<p>这样，很自然的就能想到<code>trace</code>系统调用应该怎么实现。我觉得<code>syscall_id</code>设置成<code>64,93,124,...</code>应该有<code>rcore</code>设计上的考量，教学项目是不是可以设置从0开始的连续自然数呢？</p>
-</li>
-<li><p>在<code>virtual memory</code>中，实验设计书上没有仔细讲从虚拟地址的39位怎么映射到物理地址的，而代码更是直接帮学生实现好了地址转换、地址映射、地址查找。我个人觉得这里可以划分几个实验让学生实现</p>
-</li>
-<li><p>在<code>virtual memory</code>中，增加一个中断实验，内核处理<code>page_fault</code>，进而进一步考察<code>copy on write</code>页表缺页的实验</p>
-</li>
-<li><p>接上一条，增加<code>trap</code>的处理实验</p>
-</li>
-<li><p>增加考察汇编代码的简单编写，比如在代码中插入汇编代码、在<code>.S</code>中编写汇编代码。并让学生体会为什么这么做：手动控制寄存器。在这个过程中，自然的就了解了编写的函数本质就是汇编代码中的符号，再通过汇编链接到一起</p>
-</li>
-<li><p>测试可以更丰富，有些测试过于简单了</p>
-</li>
-<li><p>用户端的<code>shell</code>代码应该捕获<code>ctrl z, ctrl d, ctrl c</code>之类的字符或者添加<code>exit, quit</code>来让用户退出</p>
-</li>
-</ol>
-<p>在这次实验中，我深刻体会到了<code>rust</code>在<code>trait</code>抽象的强大之处，在<code>virtual memory</code>实验中，<code>VirtAddr</code>和<code>PhyAddr</code>的<code>struct</code>对相关<code>trait</code>的实现可以很方便让用户操作地址还不会混淆。</p>
-<h4 id="arceos"><a href="#arceos" class="headerlink" title="arceos"></a>arceos</h4><p>非常的复杂，内容也非常的多。我一直认为大型项目的价值在于项目的架构以及各个api的语义设计。</p>
-<p>通过查看调用链了解到了是<code>user -&gt; axstd -&gt; api -&gt; modules/xxx</code>。我觉得这个项目最有意思的地方在于组件化操作系统，通过<code>feature</code>来选择编译<code>Unikernel</code>、宏内核、虚拟机。如果组件化内核编译出的各种类型内核性能与原生内核差距不大的话，感觉会是很方便的内核开发方式。<br>郑友捷老师讲的组件化内核让我收益很多，我准备后续学习一下cargo的功能来了解这个项目是怎么组织不同功能的组件的。<br>我自己一直有个疑惑，编写内核的时候要不要用alloc::collections中的数据结构，以及为了内核稳定性是不是应该只用官方库和自己编写的库而少用第三方库。</p>
-<p>这个项目也让我逐渐意识到一个事实：编译器提供c语言库，其他高级语言通过调用c语言库(汇编)来与硬件/操作系统交互。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/11/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/blog/page/13/">13</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/72/">72</a><a class="extend next" rel="next" href="/blog/page/13/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/11/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/blog/page/13/">13</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/73/">73</a><a class="extend next" rel="next" href="/blog/page/13/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
