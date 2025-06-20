@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">718</span>
+          <span class="site-state-item-count">719</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,7 +233,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-4/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-2/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -247,7 +247,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/04/27/day-4/" class="post-title-link" itemprop="url">arceos-handnote-4</a>
+            <a href="/blog/2025/04/27/day-2/" class="post-title-link" itemprop="url">arceos-handnote-2</a>
         </h2>
 
         <div class="post-meta">
@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -287,23 +287,31 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h2 id="Day-4"><a href="#Day-4" class="headerlink" title="Day-4"></a>Day-4</h2><h3 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h3><p>A physical computer system can build multiple virtual computer system with its own virtual resources. Just like apps in U-level, each virtual system will consider themselves uniquely occupies these resources.</p>
-<p><strong>Emulator</strong> like a interpretor to stimulate a virtual system while in loose demand of efficiency.</p>
-<p><strong>Hypervisor</strong> will execute most instructions directly as a isomorphism of the stimulated virtual system to gain a huge efficiency.</p>
-<p><strong>*I</strong> type<em>: Each virtual OS is equal on hardware.<br><strong>*II</strong> type</em>: Virtual OS is on host OS. </p>
-<p>Each instance as <strong>Guest(OS Image)</strong> be loaded on our host os kernel.</p>
-<h3 id="Design"><a href="#Design" class="headerlink" title="Design"></a>Design</h3><p>Only focus on hypervisor(I type).</p>
-<p>Levels are extended, because we need to separate host and guest, so U-Level become U, VU-Level. So does the kernel level because we need to separate host, the hypervisor and guest, the virtual OS. So S-Level become HS, VS-Level.</p>
-<h4 id="Communication"><a href="#Communication" class="headerlink" title="Communication"></a>Communication</h4><p>Instructions will be implemented in communication of <code>HS</code> and <code>VS</code>, when there’s a <code>sbi-call</code>, <code>VS</code> will communicate <code>HS</code> to implement.</p>
-<p>In <code>hstatus</code> of RISC-V, design the virtualization mode:</p>
-<p><code>SPV</code>: the source of <code>HS</code> or <code>VS</code>, which determines the <code>sret</code> to <code>VU</code> or <code>U</code>.<br><code>SPVP</code>: the permission of modification of memory that <code>HS</code> to <code>V</code>.</p>
-<p>We need to store guest context and host context, then switch between <code>ret(VM-Exit)</code> and <code>sret</code>. We implement this by <code>run_guest</code> and <code>guest_exit</code> which both is the other’s reverse.</p>
-<hr>
-<p>Timer will be injected to <code>sbi-call</code> by setting a virtual clock in <code>VS</code>, when <code>set timer</code>, we clear timer of guest and set timer of host; when <code>interrupt</code>, we set clear timer of host and set timer of guest waiting for next request of timer.</p>
-<hr>
-<p>Memory will be separated based on guest and host too. <code>GVA</code> will be a map of <code>GPA</code> as guest memory. However, <code>HPA</code> take responsibility of handle <code>GPA</code> as the virtualization process.</p>
-<hr>
-<p>Dev will record each start <code>vaddr</code> and when <code>VM-Exit</code> of <code>PageFault</code>, it will find<code>vmdevs.find(addr)</code> and call <code>handle_mmio</code> for corresponding request.</p>
+          <h2 id="Day-2"><a href="#Day-2" class="headerlink" title="Day-2"></a>Day-2</h2><h2 id="Paging"><a href="#Paging" class="headerlink" title="Paging"></a>Paging</h2><p>We delve into paging.</p>
+<h3 id="Example"><a href="#Example" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Physical address for pflash#1</span></span><br><span class="line"><span class="keyword">const</span> PFLASH_START: <span class="built_in">usize</span> = <span class="number">0x2200_0000</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">    <span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">    <span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Try to access dev region [&#123;:#X&#125;], got &#123;:#X&#125;"</span>, va, *ptr);</span><br><span class="line">        <span class="keyword">let</span> magic = mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr);</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;&#125;"</span>, <span class="built_in">str</span>::from_utf8(&amp;magic).unwrap());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>PFlash</strong> is the simulation of flash memory of qemu. When qemu boot, it will automatically load file to fixed <strong>MMIO</strong>, and can be directly accessed.</p>
+<p><strong>Paging</strong>: <code>feature = [&quot;paging&quot;]</code> is the way to evoke virtual memory management tu support <code>MMIO</code>. Located in <code>axruntime</code>.</p>
+<p>The workflow would be:</p>
+<ul>
+<li>qemu fdt: from <code>0x0c00_0000</code> to <code>0x3000_0000</code>. Construct the space of device.</li>
+<li>SBI: from <code>0x8000_0000</code> to <code>0x8020_0000</code>. RISC-V <strong>Supervisor Binary Interface</strong>, it construct a interface for programming language to manipulate device level things.</li>
+<li>Kernel Image: from <code>0x8020_0000</code>. <code>_skernel</code> contains S-level things like static data, code etc… <code>_ekernel</code> is user thing.</li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[link_section = <span class="meta-string">".data.boot_page_table"</span>]</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">mut</span> BOOT_PT_SV39: [<span class="built_in">u64</span>; <span class="number">512</span>] = [<span class="number">0</span>; <span class="number">512</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_boot_page_table</span></span>() &#123;</span><br><span class="line">    <span class="comment">// 0x8000_0000..0xc000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">2</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">    <span class="comment">// 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000, VRWX_GAD, 1G block</span></span><br><span class="line">	<span class="comment">// shift 10 bits to store flags</span></span><br><span class="line">    BOOT_PT_SV39[<span class="number">0x102</span>] = (<span class="number">0x80000</span> &lt;&lt; <span class="number">10</span>) | <span class="number">0xef</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">init_mmu</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> page_table_root = BOOT_PT_SV39.as_ptr() <span class="keyword">as</span> <span class="built_in">usize</span>;</span><br><span class="line">    satp::set(satp::Mode::Sv39, <span class="number">0</span>, page_table_root &gt;&gt; <span class="number">12</span>);</span><br><span class="line">    riscv::asm::sfence_vma_all();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Each entry of page table will map 1G(<code>0x4000_0000</code>) memory. From <code>0x8000_0000</code> to <code>0xc0000_0000</code> at <code>pgd_idx = 2</code> to <code>0xffff_ffc0_8000_0000</code> to <code>0xffff_ffc0_c000_0000</code> at <code>pgd_idx = 102</code>. This will map to a bigger range.</p>
+<h2 id="Task"><a href="#Task" class="headerlink" title="Task"></a>Task</h2><h3 id="Example-1"><a href="#Example-1" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> worker = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">	<span class="built_in">println!</span>(<span class="string">"Spawned-thread ..."</span>);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Makesure that we can access pflash region.</span></span><br><span class="line">	<span class="keyword">let</span> va = phys_to_virt(PFLASH_START.into()).as_usize();</span><br><span class="line">	<span class="keyword">let</span> ptr = va <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>;</span><br><span class="line">	<span class="keyword">let</span> magic = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">		mem::transmute::&lt;<span class="built_in">u32</span>, [<span class="built_in">u8</span>; <span class="number">4</span>]&gt;(*ptr)</span><br><span class="line">	&#125;;</span><br><span class="line">	<span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Ok</span>(s) = <span class="built_in">str</span>::from_utf8(&amp;magic) &#123;</span><br><span class="line">		<span class="built_in">println!</span>(<span class="string">"Got pflash magic: &#123;s&#125;"</span>);</span><br><span class="line">		<span class="number">0</span></span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		-<span class="number">1</span></span><br><span class="line">	&#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p>Each task will be in concurrency and dispatched by strategy. If it’s blocked, it will be moved to <code>wait_queue</code> to wait. If it’s ready, it will be moved to <code>run_queue</code> which is scheduler to be dispatched.</p>
+<h3 id="Message-Communication"><a href="#Message-Communication" class="headerlink" title="Message Communication"></a>Message Communication</h3><h3 id="Example-2"><a href="#Example-2" class="headerlink" title="Example"></a>Example</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> q1 = Arc::new(SpinNoIrq::new(VecDeque::new()));</span><br><span class="line"><span class="keyword">let</span> q2 = q1.clone();</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker1 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ..."</span>);</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..=LOOP_NUM &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">"worker1 [&#123;i&#125;]"</span>);</span><br><span class="line">        q1.lock().push_back(i);</span><br><span class="line">        <span class="comment">// <span class="doctag">NOTE:</span> If worker1 doesn't yield, others have</span></span><br><span class="line">        <span class="comment">// no chance to run until it exits!</span></span><br><span class="line">        thread::yield_now();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker1 ok!"</span>);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker2 = thread::spawn(<span class="keyword">move</span> || &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ..."</span>);</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(num) = q2.lock().pop_front() &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2 [&#123;num&#125;]"</span>);</span><br><span class="line">            <span class="keyword">if</span> num == LOOP_NUM &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="built_in">println!</span>(<span class="string">"worker2: nothing to do!"</span>);</span><br><span class="line">            <span class="comment">// <span class="doctag">TODO:</span> it should sleep and wait for notify!</span></span><br><span class="line">            thread::yield_now();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"worker2 ok!"</span>);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>Cooperative Scheduling</strong>: Each tasks kindly yield themselves or exit otherwise it will block everyone because the power of CPU occupation is ownned by each tasks.</p>
+<p><strong>Preemptive Scheduling</strong>: Each tasks will be automatically suspended by external condition: No lock, no device access; inner condition: run out of current time slice. We can use a <code>disable_count</code> to record this, even for multiple condition restriction, we can sum them up.</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">axhal::irq::register_handler(TIMER_IRQ_NUM, || &#123;</span><br><span class="line">    update_timer();</span><br><span class="line">    <span class="meta">#[cfg(feature = <span class="meta-string">"multitask"</span>)]</span></span><br><span class="line">    axtask::on_timer_tick();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Enable IRQs before starting app</span></span><br><span class="line">axhal::arch::enable_irqs()</span><br></pre></td></tr></table></figure>
+
+<p><code>on_timer_tick</code> will be trigger in time slice. When time ticker ticks, <code>run_queue</code> will check and suspend task if possible.</p>
+<p>We can make it more dynamic. Which means each task has priority and during the implementation of cpu, each task has a <code>vruntime</code> to be dynamically adjusted by <code>init_vruntime + (delta/weight(nice))</code> where <code>delta</code> and <code>nice</code> are dynamic adjustment number. <code>delta</code> will be incremented by <code>timer</code>, <code>weight(nice)</code> is actually the priority of the task. We ensure that task with lowest <code>vruntime</code> will be placed at top.</p>
 
       
     </div>
@@ -354,7 +362,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -425,6 +433,96 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/27/day-4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/27/day-4/" class="post-title-link" itemprop="url">arceos-handnote-4</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-27 09:40:28" itemprop="dateCreated datePublished" datetime="2025-04-27T09:40:28+00:00">2025-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="Day-4"><a href="#Day-4" class="headerlink" title="Day-4"></a>Day-4</h2><h3 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h3><p>A physical computer system can build multiple virtual computer system with its own virtual resources. Just like apps in U-level, each virtual system will consider themselves uniquely occupies these resources.</p>
+<p><strong>Emulator</strong> like a interpretor to stimulate a virtual system while in loose demand of efficiency.</p>
+<p><strong>Hypervisor</strong> will execute most instructions directly as a isomorphism of the stimulated virtual system to gain a huge efficiency.</p>
+<p><strong>*I</strong> type<em>: Each virtual OS is equal on hardware.<br><strong>*II</strong> type</em>: Virtual OS is on host OS. </p>
+<p>Each instance as <strong>Guest(OS Image)</strong> be loaded on our host os kernel.</p>
+<h3 id="Design"><a href="#Design" class="headerlink" title="Design"></a>Design</h3><p>Only focus on hypervisor(I type).</p>
+<p>Levels are extended, because we need to separate host and guest, so U-Level become U, VU-Level. So does the kernel level because we need to separate host, the hypervisor and guest, the virtual OS. So S-Level become HS, VS-Level.</p>
+<h4 id="Communication"><a href="#Communication" class="headerlink" title="Communication"></a>Communication</h4><p>Instructions will be implemented in communication of <code>HS</code> and <code>VS</code>, when there’s a <code>sbi-call</code>, <code>VS</code> will communicate <code>HS</code> to implement.</p>
+<p>In <code>hstatus</code> of RISC-V, design the virtualization mode:</p>
+<p><code>SPV</code>: the source of <code>HS</code> or <code>VS</code>, which determines the <code>sret</code> to <code>VU</code> or <code>U</code>.<br><code>SPVP</code>: the permission of modification of memory that <code>HS</code> to <code>V</code>.</p>
+<p>We need to store guest context and host context, then switch between <code>ret(VM-Exit)</code> and <code>sret</code>. We implement this by <code>run_guest</code> and <code>guest_exit</code> which both is the other’s reverse.</p>
+<hr>
+<p>Timer will be injected to <code>sbi-call</code> by setting a virtual clock in <code>VS</code>, when <code>set timer</code>, we clear timer of guest and set timer of host; when <code>interrupt</code>, we set clear timer of host and set timer of guest waiting for next request of timer.</p>
+<hr>
+<p>Memory will be separated based on guest and host too. <code>GVA</code> will be a map of <code>GPA</code> as guest memory. However, <code>HPA</code> take responsibility of handle <code>GPA</code> as the virtualization process.</p>
+<hr>
+<p>Dev will record each start <code>vaddr</code> and when <code>VM-Exit</code> of <code>PageFault</code>, it will find<code>vmdevs.find(addr)</code> and call <code>handle_mmio</code> for corresponding request.</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A53%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%98%8E%E6%89%AC/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -456,7 +554,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
 
           
@@ -554,7 +652,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -612,6 +710,119 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/" class="post-title-link" itemprop="url">2025OS训练营二阶段记录</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-25 17:21:55" itemprop="dateCreated datePublished" datetime="2025-04-25T17:21:55+00:00">2025-04-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="2025OS训练营二阶段记录"><a href="#2025OS训练营二阶段记录" class="headerlink" title="2025OS训练营二阶段记录"></a>2025OS训练营二阶段记录</h1><h2 id="3-18-3-21"><a href="#3-18-3-21" class="headerlink" title="3.18-3.21"></a>3.18-3.21</h2><p>这段时间是在开营前，我在用rcorebook学习，这几天完成了ch1-ch3的学习。</p>
+<h3 id="ch1"><a href="#ch1" class="headerlink" title="ch1"></a>ch1</h3><p><strong>环境配置</strong>：我用的是ubuntu20.04，按照教程来配置还是相当容易的，没有碰到什么问题。</p>
+<p><strong>个人基础</strong>：我是在寒假接触自制操作系统的，看的一本书叫做《操作系统真象还原》，这本书用c语言和汇编实现了一个x86的32的操作系统。书的内容很多，对于基础盲区也讲解很全，作者从MBR到Bios、bootloader再到用显存来实现print，操作系统的必要组件。所以我学起来还没那么吃力。</p>
+<p>riscv我没有接触过，有一些x86的汇编先不系统学习还是可以看得懂的，毕竟rcore没有涉及太多汇编内容。</p>
+<p>rust的编译工具安装、编译方便在开始都让我非常惊喜。内核的第一条指令涉及到一个linker.ld，这个文件就是链接脚本，通过分析内容可以很容易理解程序的内存分布，首先是固定的内存入口，其次是 .data .bss .rodata等段的排布很清晰。</p>
+<p>简单学习了下gdb调试和远程连接，反编译反汇编工具。</p>
+<p>第一次接触rust的外部链接extern “C”，使用声明函数的方式来找到链接脚本确定的内存区域起始符号。</p>
+<p>rustsbi这个东西真的很方便，当然也是riscv架构的标准。像打印字符这种函数都实现在里面，要不然需要用汇编来自己实现。对sbi进行封装后很容易就能实现write函数和print宏。</p>
+<h3 id="ch2"><a href="#ch2" class="headerlink" title="ch2"></a>ch2</h3><p>这一章是写一个批处理系统，系统在运行前就明确了所有要运行的app，这些app都按顺序执行直到最后一道，然后系统panic结束。应用的内存地址都是在运行前要手动计算确定的。riscv架构从大到小分为0，1，2，3四个特权级，还提供了ecall，eret用来切换特权级。这个批处理系统分成了用户态和内核态，ecall就是用来从用户态进入内核态，eret用来返回用户态。ecall属于riscv规定的一种异常，而操作系统属于在riscv的s模式特权级，在用户态ecall就会触发陷入机制进入s模式特权级，用sret来返回u特权级。进入s模式后会调用二进制接口，也称为系统调用。</p>
+<p>系统调用的意义在于很多操作交给用户来做非常不安全，系统稳定性难以保证，所以需要划分出内核态用户态，内核根据需求做出安全的系统调用操作。</p>
+<p>程序的入口准确来说是_start就是linker里的start符号位置，这里我们不能使用原生架构编译工具，而是使用交叉工具链，所以rust std内容都用不了，main函数也不能完成作为程序入口的作用。在rust声明外部链接符号就要在link操作的宏。</p>
+<p>创建系统调用的触发接口，使用内敛汇编调用ecall传入系统调用号和参数，在操作系统就会捕捉异常，判断类型为ecall后根据对应系统调用号即可处理系统调用，完成系统调用后返回用户态。</p>
+<p>这里的测试没有实现具体的系统调用，而是用了linux相同的系统调用好在linux环境进行测试，测试正常。</p>
+<p>rcore写了build.rs用来构建linker.ld链接脚本，app需要使用路径方式进行导入，每个app的入口地址和执行顺序挂钩。使用的测试用例是在linux系统调用环境下编译的，编译的结果是elf的，需要使用工具来将elf转换成bin二进制文件。在设计上rcore创建了UnSafeCell用来在单核上可以安全使用全局可变借用。</p>
+<p>load_app根据固定的标号入口地址来从内存里找到app的代码段，加载到APP_BASE_ADDR，这个地址是个固定值。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">批处理操作系统为了建立好应用程序的执行环境，需要在执行应用程序之前进行一些初始化工作，并监控应用程序的执行，具体体现在：</span><br><span class="line">当启动应用程序的时候，需要初始化应用程序的用户态上下文，并能切换到用户态执行应用程序；</span><br><span class="line">当应用程序发起系统调用（即发出 Trap）之后，需要到批处理操作系统中进行处理；</span><br><span class="line">当应用程序执行出错的时候，需要到批处理操作系统中杀死该应用并加载运行下一个应用；</span><br><span class="line">当应用程序执行结束的时候，需要到批处理操作系统中加载运行下一个应用（实际上也是通过系统调用 sys_exit 来实现的）。</span><br><span class="line">这些处理都涉及到特权级切换，因此需要应用程序、操作系统和硬件一起协同，完成特权级切换机制。</span><br></pre></td></tr></table></figure>
+
+<p>系统调用和异常都涉及到了切换特权级，特权级的切换最重要的就是保存上下文。因为不管是trap还是异常都是停止执行当前的程序，转去执行系统调用或者异常处理，这时候就需要保存当前应用的寄存器环境，这个就是上下文，将这些寄存器按固定顺序保存到用户栈，在ret时再逆顺序恢复寄存器。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sstatus 的 SPP 字段会被修改为 CPU 当前的特权级（U&#x2F;S）。</span><br><span class="line">sepc 会被修改为 Trap 处理完成后默认会执行的下一条指令的地址。</span><br><span class="line">scause&#x2F;stval 分别会被修改成这次 Trap 的原因以及相关的附加信息。</span><br><span class="line">CPU 会跳转到 stvec 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后从Trap 处理入口地址处开始执行。</span><br></pre></td></tr></table></figure>
+
+<p>这些是riscv用到的硬件辅助寄存器。</p>
+<p>rcore使用汇编实现了alltrap和restore，用来保存和恢复寄存器，需要注意sp寄存器，sp寄存器的值用到sscratch，这个寄存器用来交换内核栈sp值，还要注意处理当前执行的位置。</p>
+<p>traphandler中根据scause的结果，对不同的异常进行处理，包括ecall，runnext等操作。</p>
+<h3 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h3><p>这一章要创建一个多道程序处理系统，需要实现分时调用就必须要将应用都加载到内存，这也意味着也要为当前每个应用都分配独立栈空间。所以不能像上节一样都加载到base地址，需要确保应用占用的空间不会重叠。切换任务必然也要保存上下文，与系统调用不同的是，任务切换的操作保存寄存器恢复寄存器都是在用户态。rcore根据sbi实现了gettime，设定计时器后，计时器到时触发异常，traphandler捕捉到后执行任务切换操作。</p>
+<p>任务切换最重要的是switch操作，在执行之前已经将下个任务的栈顶地址保存起来，保存当前寄存器环境后，导入下个任务的寄存器环境。yeild操作为计时器中断触发切换任务的系统调用。</p>
+<h2 id="3-24-3-25"><a href="#3-24-3-25" class="headerlink" title="3.24-3.25"></a>3.24-3.25</h2><p>关于trace的系统调用实现,需要判断request来实现不同功能. 在request为0时:需要将id转换成<em>const u8 再解引用,再转换为isize返回;在request为1时:要将id转换成</em>mut u8,再将data转换成u8,复制给id转换后指针的解引用,返回0;</p>
+<p>当request为2时: 想要获取每个任务的某个系统调用次数,并且考虑到批处理系统会进行任务切换,所以在切换到其他任务时也要保存着其他刮起的人物的调用次数,所以我就在syscall/mod.rs中实现了个全局变量SYSCALL_COUNT,类型为Mutex&lt;BTreeMap&lt;usize, BTreeMap&lt;usize, usize&gt;&gt;&gt;,Mutex包裹是因为他是全局变量(rust的要求? 按理说批处理单进程用不到锁,但是我编译没过就加上了.),外层BTree key为app_id,value为内层BTree,内层BTree为(sys_id, count).这样就可以通过app_id来得到所有系统调用的次数.syscall_count方法在syscall里用来计数,insert_syscall_count为当前任务初始化记录,已有记录则返回,delete_syscall_count在进程退出时删除记录,get_syscall_count就用来在sys_trace里获取当前任务的系统调用次数.</p>
+<h2 id="3-25-3-26"><a href="#3-25-3-26" class="headerlink" title="3.25-3.26"></a>3.25-3.26</h2><p>在sys_get_time和sys_trace实现最主要的是将虚拟地址转换成物理地址,因为内核不能访问应用的虚拟地址.sys_get_time首先获取应用虚拟页表,将ts转换成虚拟地址,记录偏移,通过页表转换后可以得到对应的物理页表项,将表项加上偏移就得到了对应ts的物理地址,然后转换成mut指针,将获取的timeval复制给该地址.判断跨页是要在ts地址上加上timeval长度得到截至地址,与start%Pagesize后判断是否相等,不相等则要处理跨页,还是计算出物理地址分别在对应部分拷贝该部分的数据.</p>
+<p> sys_trace相比上次只需要处理0,1的情况,要想办法通过虚拟地址读取或写入,同样转换为物理地址就可以将其转换成指针.在获取物理页表项时要注意判断页表项的有效性 可读性 可写性.</p>
+<p> mmap就是要为应用程序申请一块动态区域,这个就要在memset上处理,本来我是准备将内存加入areas的,但是在写unmap时判断vpn来删除有些困难,就考虑重新为mmap的内存重新建立映射结构.处理时就是要几个点注意,1:判断port是否全0或者无效位有非0, 2:判断start是否页表对齐,没有对齐就返回, 3:PTEFlags不仅要加上port的标志,还需要有效位V和用户位U, 4:计算虚拟页表起始地址,然后对每个页循环遍历, 5: 判断虚拟页表有效性,有效则返回(mapped), 6: 申请物理页建立映射.</p>
+<p> unmap要判断虚拟页表无效性,然后循环遍历每个vpn在虚拟页表中被unmap,并移除mmap_set对应项.</p>
+<h2 id="3-26-3-28"><a href="#3-26-3-28" class="headerlink" title="3.26-3.28"></a>3.26-3.28</h2><p>关于spawn,相比fork就是不要复制父进程的内存布局,将传进来的字符串指针转换成string,通过这个名字获取应用elf_data,后面就对TCB进行初始化,和TCB::new一样,注意三点,父进程设置为当前进程;将该进程加入父进程的child列表;将该进程加入运行队列.</p>
+<p> 关于stride,我定义了两个常量BASE_STRIDE=91,BIG_STRIDE=99991.在TCBinner里加入两个量:pass=0,prio=1,封装updatepass:</p>
+<p>pass += (BASE_STRIDE / prio) % BIG_STRIDE</p>
+<p>留出相关接口.再到run_task调用updatepass, 在fatch里对ready_queue取出最小pass的TCB.</p>
+<h2 id="3-28-3-30"><a href="#3-28-3-30" class="headerlink" title="3.28-3.30"></a>3.28-3.30</h2><p> 关于link，与linux的ln命令类似，对文件创建链接相当于在操作系统层面增加个INode，但是磁盘里共用统一片块，那相当于拥有相同的inode编号，我们先通过原文件名称获取编号，已知所有文件都在根目录。找到编号后就可以得到块位置id和offset，在创建inode时需要。接下来修改目录项，需要先扩展目录项的存储区域，后写入目录项。返回一个新的inode。</p>
+<p> 关于unlink，通过name找到根节点后计算目录项数目，循环读取根节点每个文件对比名称，找到index后，把末尾的目录项换到index处，减小目录大小。</p>
+<p> stat就连两个项需要获取，ino就是blockid，nlink需要通过块位置来对目录里所有文件的块位置进行比较，相同计数加1.在返回时我和gettime的处理一样，将虚拟地址转换成物理地址后再转换成可变指针，将stat结构体指针放进去。</p>
+<h2 id="3-30-4-3"><a href="#3-30-4-3" class="headerlink" title="3.30-4.3"></a>3.30-4.3</h2><p>这节还挺费劲的。刚开始看了很久没发现是银行家算法，不知道如何来抽象这些资源。</p>
+<p>首先就是清楚是要以每个进程为单位来进行资源管理，所以在pcb inner里添加了死锁检测模块。模块数据一维为线程tid，二维为资源rid，模块需要实现几个功能，isunsafe就是银行家算法用来查看当前状态是否安全，tryallocate在检查unsafe同时通过tid和rid处理减小available和need，增加allocation；setneed需要在设置资源前调用，在分配失败时会保留，在分配成功会减小。release在up时增加available和减小allocation；检测开关只需要设置enabled。在创建线程和创建资源时需要更新数据结构，在添加一个线程时会为二维结构添加资源数的全为0的向量，在添加mutex时avail则push 1，sem则push 初始化值。在down时首先判断是否打开了检测，打开了就首先setneed，然后判断unsafe如果不安全则直接返回dead，安全则尝试分配（会失败），然后调用down；up时判断检测打开之后就调用release，release判断了当前分配数是否为0。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -643,7 +854,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -947,119 +1158,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/25/2025OS%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%B0%E5%BD%95-%E5%88%98%E7%A7%91%E8%BF%AA/" class="post-title-link" itemprop="url">2025OS训练营二阶段记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-25 17:21:55" itemprop="dateCreated datePublished" datetime="2025-04-25T17:21:55+00:00">2025-04-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/catogory/" itemprop="url" rel="index"><span itemprop="name"><catogory></span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2025OS训练营二阶段记录"><a href="#2025OS训练营二阶段记录" class="headerlink" title="2025OS训练营二阶段记录"></a>2025OS训练营二阶段记录</h1><h2 id="3-18-3-21"><a href="#3-18-3-21" class="headerlink" title="3.18-3.21"></a>3.18-3.21</h2><p>这段时间是在开营前，我在用rcorebook学习，这几天完成了ch1-ch3的学习。</p>
-<h3 id="ch1"><a href="#ch1" class="headerlink" title="ch1"></a>ch1</h3><p><strong>环境配置</strong>：我用的是ubuntu20.04，按照教程来配置还是相当容易的，没有碰到什么问题。</p>
-<p><strong>个人基础</strong>：我是在寒假接触自制操作系统的，看的一本书叫做《操作系统真象还原》，这本书用c语言和汇编实现了一个x86的32的操作系统。书的内容很多，对于基础盲区也讲解很全，作者从MBR到Bios、bootloader再到用显存来实现print，操作系统的必要组件。所以我学起来还没那么吃力。</p>
-<p>riscv我没有接触过，有一些x86的汇编先不系统学习还是可以看得懂的，毕竟rcore没有涉及太多汇编内容。</p>
-<p>rust的编译工具安装、编译方便在开始都让我非常惊喜。内核的第一条指令涉及到一个linker.ld，这个文件就是链接脚本，通过分析内容可以很容易理解程序的内存分布，首先是固定的内存入口，其次是 .data .bss .rodata等段的排布很清晰。</p>
-<p>简单学习了下gdb调试和远程连接，反编译反汇编工具。</p>
-<p>第一次接触rust的外部链接extern “C”，使用声明函数的方式来找到链接脚本确定的内存区域起始符号。</p>
-<p>rustsbi这个东西真的很方便，当然也是riscv架构的标准。像打印字符这种函数都实现在里面，要不然需要用汇编来自己实现。对sbi进行封装后很容易就能实现write函数和print宏。</p>
-<h3 id="ch2"><a href="#ch2" class="headerlink" title="ch2"></a>ch2</h3><p>这一章是写一个批处理系统，系统在运行前就明确了所有要运行的app，这些app都按顺序执行直到最后一道，然后系统panic结束。应用的内存地址都是在运行前要手动计算确定的。riscv架构从大到小分为0，1，2，3四个特权级，还提供了ecall，eret用来切换特权级。这个批处理系统分成了用户态和内核态，ecall就是用来从用户态进入内核态，eret用来返回用户态。ecall属于riscv规定的一种异常，而操作系统属于在riscv的s模式特权级，在用户态ecall就会触发陷入机制进入s模式特权级，用sret来返回u特权级。进入s模式后会调用二进制接口，也称为系统调用。</p>
-<p>系统调用的意义在于很多操作交给用户来做非常不安全，系统稳定性难以保证，所以需要划分出内核态用户态，内核根据需求做出安全的系统调用操作。</p>
-<p>程序的入口准确来说是_start就是linker里的start符号位置，这里我们不能使用原生架构编译工具，而是使用交叉工具链，所以rust std内容都用不了，main函数也不能完成作为程序入口的作用。在rust声明外部链接符号就要在link操作的宏。</p>
-<p>创建系统调用的触发接口，使用内敛汇编调用ecall传入系统调用号和参数，在操作系统就会捕捉异常，判断类型为ecall后根据对应系统调用号即可处理系统调用，完成系统调用后返回用户态。</p>
-<p>这里的测试没有实现具体的系统调用，而是用了linux相同的系统调用好在linux环境进行测试，测试正常。</p>
-<p>rcore写了build.rs用来构建linker.ld链接脚本，app需要使用路径方式进行导入，每个app的入口地址和执行顺序挂钩。使用的测试用例是在linux系统调用环境下编译的，编译的结果是elf的，需要使用工具来将elf转换成bin二进制文件。在设计上rcore创建了UnSafeCell用来在单核上可以安全使用全局可变借用。</p>
-<p>load_app根据固定的标号入口地址来从内存里找到app的代码段，加载到APP_BASE_ADDR，这个地址是个固定值。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">批处理操作系统为了建立好应用程序的执行环境，需要在执行应用程序之前进行一些初始化工作，并监控应用程序的执行，具体体现在：</span><br><span class="line">当启动应用程序的时候，需要初始化应用程序的用户态上下文，并能切换到用户态执行应用程序；</span><br><span class="line">当应用程序发起系统调用（即发出 Trap）之后，需要到批处理操作系统中进行处理；</span><br><span class="line">当应用程序执行出错的时候，需要到批处理操作系统中杀死该应用并加载运行下一个应用；</span><br><span class="line">当应用程序执行结束的时候，需要到批处理操作系统中加载运行下一个应用（实际上也是通过系统调用 sys_exit 来实现的）。</span><br><span class="line">这些处理都涉及到特权级切换，因此需要应用程序、操作系统和硬件一起协同，完成特权级切换机制。</span><br></pre></td></tr></table></figure>
-
-<p>系统调用和异常都涉及到了切换特权级，特权级的切换最重要的就是保存上下文。因为不管是trap还是异常都是停止执行当前的程序，转去执行系统调用或者异常处理，这时候就需要保存当前应用的寄存器环境，这个就是上下文，将这些寄存器按固定顺序保存到用户栈，在ret时再逆顺序恢复寄存器。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sstatus 的 SPP 字段会被修改为 CPU 当前的特权级（U&#x2F;S）。</span><br><span class="line">sepc 会被修改为 Trap 处理完成后默认会执行的下一条指令的地址。</span><br><span class="line">scause&#x2F;stval 分别会被修改成这次 Trap 的原因以及相关的附加信息。</span><br><span class="line">CPU 会跳转到 stvec 所设置的 Trap 处理入口地址，并将当前特权级设置为 S ，然后从Trap 处理入口地址处开始执行。</span><br></pre></td></tr></table></figure>
-
-<p>这些是riscv用到的硬件辅助寄存器。</p>
-<p>rcore使用汇编实现了alltrap和restore，用来保存和恢复寄存器，需要注意sp寄存器，sp寄存器的值用到sscratch，这个寄存器用来交换内核栈sp值，还要注意处理当前执行的位置。</p>
-<p>traphandler中根据scause的结果，对不同的异常进行处理，包括ecall，runnext等操作。</p>
-<h3 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h3><p>这一章要创建一个多道程序处理系统，需要实现分时调用就必须要将应用都加载到内存，这也意味着也要为当前每个应用都分配独立栈空间。所以不能像上节一样都加载到base地址，需要确保应用占用的空间不会重叠。切换任务必然也要保存上下文，与系统调用不同的是，任务切换的操作保存寄存器恢复寄存器都是在用户态。rcore根据sbi实现了gettime，设定计时器后，计时器到时触发异常，traphandler捕捉到后执行任务切换操作。</p>
-<p>任务切换最重要的是switch操作，在执行之前已经将下个任务的栈顶地址保存起来，保存当前寄存器环境后，导入下个任务的寄存器环境。yeild操作为计时器中断触发切换任务的系统调用。</p>
-<h2 id="3-24-3-25"><a href="#3-24-3-25" class="headerlink" title="3.24-3.25"></a>3.24-3.25</h2><p>关于trace的系统调用实现,需要判断request来实现不同功能. 在request为0时:需要将id转换成<em>const u8 再解引用,再转换为isize返回;在request为1时:要将id转换成</em>mut u8,再将data转换成u8,复制给id转换后指针的解引用,返回0;</p>
-<p>当request为2时: 想要获取每个任务的某个系统调用次数,并且考虑到批处理系统会进行任务切换,所以在切换到其他任务时也要保存着其他刮起的人物的调用次数,所以我就在syscall/mod.rs中实现了个全局变量SYSCALL_COUNT,类型为Mutex&lt;BTreeMap&lt;usize, BTreeMap&lt;usize, usize&gt;&gt;&gt;,Mutex包裹是因为他是全局变量(rust的要求? 按理说批处理单进程用不到锁,但是我编译没过就加上了.),外层BTree key为app_id,value为内层BTree,内层BTree为(sys_id, count).这样就可以通过app_id来得到所有系统调用的次数.syscall_count方法在syscall里用来计数,insert_syscall_count为当前任务初始化记录,已有记录则返回,delete_syscall_count在进程退出时删除记录,get_syscall_count就用来在sys_trace里获取当前任务的系统调用次数.</p>
-<h2 id="3-25-3-26"><a href="#3-25-3-26" class="headerlink" title="3.25-3.26"></a>3.25-3.26</h2><p>在sys_get_time和sys_trace实现最主要的是将虚拟地址转换成物理地址,因为内核不能访问应用的虚拟地址.sys_get_time首先获取应用虚拟页表,将ts转换成虚拟地址,记录偏移,通过页表转换后可以得到对应的物理页表项,将表项加上偏移就得到了对应ts的物理地址,然后转换成mut指针,将获取的timeval复制给该地址.判断跨页是要在ts地址上加上timeval长度得到截至地址,与start%Pagesize后判断是否相等,不相等则要处理跨页,还是计算出物理地址分别在对应部分拷贝该部分的数据.</p>
-<p> sys_trace相比上次只需要处理0,1的情况,要想办法通过虚拟地址读取或写入,同样转换为物理地址就可以将其转换成指针.在获取物理页表项时要注意判断页表项的有效性 可读性 可写性.</p>
-<p> mmap就是要为应用程序申请一块动态区域,这个就要在memset上处理,本来我是准备将内存加入areas的,但是在写unmap时判断vpn来删除有些困难,就考虑重新为mmap的内存重新建立映射结构.处理时就是要几个点注意,1:判断port是否全0或者无效位有非0, 2:判断start是否页表对齐,没有对齐就返回, 3:PTEFlags不仅要加上port的标志,还需要有效位V和用户位U, 4:计算虚拟页表起始地址,然后对每个页循环遍历, 5: 判断虚拟页表有效性,有效则返回(mapped), 6: 申请物理页建立映射.</p>
-<p> unmap要判断虚拟页表无效性,然后循环遍历每个vpn在虚拟页表中被unmap,并移除mmap_set对应项.</p>
-<h2 id="3-26-3-28"><a href="#3-26-3-28" class="headerlink" title="3.26-3.28"></a>3.26-3.28</h2><p>关于spawn,相比fork就是不要复制父进程的内存布局,将传进来的字符串指针转换成string,通过这个名字获取应用elf_data,后面就对TCB进行初始化,和TCB::new一样,注意三点,父进程设置为当前进程;将该进程加入父进程的child列表;将该进程加入运行队列.</p>
-<p> 关于stride,我定义了两个常量BASE_STRIDE=91,BIG_STRIDE=99991.在TCBinner里加入两个量:pass=0,prio=1,封装updatepass:</p>
-<p>pass += (BASE_STRIDE / prio) % BIG_STRIDE</p>
-<p>留出相关接口.再到run_task调用updatepass, 在fatch里对ready_queue取出最小pass的TCB.</p>
-<h2 id="3-28-3-30"><a href="#3-28-3-30" class="headerlink" title="3.28-3.30"></a>3.28-3.30</h2><p> 关于link，与linux的ln命令类似，对文件创建链接相当于在操作系统层面增加个INode，但是磁盘里共用统一片块，那相当于拥有相同的inode编号，我们先通过原文件名称获取编号，已知所有文件都在根目录。找到编号后就可以得到块位置id和offset，在创建inode时需要。接下来修改目录项，需要先扩展目录项的存储区域，后写入目录项。返回一个新的inode。</p>
-<p> 关于unlink，通过name找到根节点后计算目录项数目，循环读取根节点每个文件对比名称，找到index后，把末尾的目录项换到index处，减小目录大小。</p>
-<p> stat就连两个项需要获取，ino就是blockid，nlink需要通过块位置来对目录里所有文件的块位置进行比较，相同计数加1.在返回时我和gettime的处理一样，将虚拟地址转换成物理地址后再转换成可变指针，将stat结构体指针放进去。</p>
-<h2 id="3-30-4-3"><a href="#3-30-4-3" class="headerlink" title="3.30-4.3"></a>3.30-4.3</h2><p>这节还挺费劲的。刚开始看了很久没发现是银行家算法，不知道如何来抽象这些资源。</p>
-<p>首先就是清楚是要以每个进程为单位来进行资源管理，所以在pcb inner里添加了死锁检测模块。模块数据一维为线程tid，二维为资源rid，模块需要实现几个功能，isunsafe就是银行家算法用来查看当前状态是否安全，tryallocate在检查unsafe同时通过tid和rid处理减小available和need，增加allocation；setneed需要在设置资源前调用，在分配失败时会保留，在分配成功会减小。release在up时增加available和减小allocation；检测开关只需要设置enabled。在创建线程和创建资源时需要更新数据结构，在添加一个线程时会为二维结构添加资源数的全为0的向量，在添加mutex时avail则push 1，sem则push 初始化值。在down时首先判断是否打开了检测，打开了就首先setneed，然后判断unsafe如果不安全则直接返回dead，安全则尝试分配（会失败），然后调用down；up时判断检测打开之后就调用release，release判断了当前分配数是否为0。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/25/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-mingzi47/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1091,7 +1189,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1177,7 +1275,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
 
           
@@ -1272,7 +1370,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-20 06:14:49" itemprop="dateModified" datetime="2025-06-20T06:14:49+00:00">2025-06-20</time>
               </span>
 
           
@@ -1324,138 +1422,6 @@
 <p>利用<code>task_ext</code>的<code>aspace</code>提供的接口就可以完成。通过<code>find_free_area</code>找到空闲的区域并通过<code>map_alloc</code>分配，然后将给定fd的数据读进来就可以通过了。需要注意一些接口有检查传入参数是否有对齐。</p>
 <h3 id="simple-hv"><a href="#simple-hv" class="headerlink" title="simple_hv"></a>simple_hv</h3><p>按照提示将<code>a0``a1</code>寄存器设置好，并将pc寄存器偏移以跳过当前指令即可。</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>阶段三的任务总体来说比阶段二的时候来得要更简单，感觉主要还是了解<code>arceos</code>的架构以及<code>Unikernel</code>、<code>Monolithic Kernel</code>、<code>Hypervisor</code>的不同。并体会在不同的内核需求中，<code>arceos</code>是如何将不同的组件组合起来以达成需求的。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/24/451846939-rcore-2025-reports/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/24/451846939-rcore-2025-reports/" class="post-title-link" itemprop="url">451846939-rcore-2025-reports</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-24 11:15:18" itemprop="dateCreated datePublished" datetime="2025-04-24T11:15:18+00:00">2025-04-24</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 06:13:38" itemprop="dateModified" datetime="2025-06-20T06:13:38+00:00">2025-06-20</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="一阶段"><a href="#一阶段" class="headerlink" title="一阶段"></a>一阶段</h2><p>用rust其实也有快5年了所以一阶段不是什么特别难的事，因为23年已经做过一次，这次增加了一些数据结构的实现，其实不是特别难，整体数据结构实现对于之前刷过leetcode的人都会比较熟，所以轻松就过了。</p>
-<h2 id="二阶段"><a href="#二阶段" class="headerlink" title="二阶段"></a>二阶段</h2><p>其实23年最早刷过一遍所以这个比较简单，沿用23年的一些总结，这次lab1和23年的lab1有一些不同，不过核心是不变的</p>
-<ol>
-<li><p>lab1</p>
-<p>其实是一个很简单的lab，系统调用的次数统计<br>问答题是很好的问题，也帮助我回忆和加深了risc-v的寄存器的作用，包括trap的流程，这个很重要，直接以代码展现出来，没学rcore的时候平时听到系统调用，其实是很抽象的，并不知道系统调用是怎么从用户态切换到内核态的，而rcore非常精彩的给我解答了这个问题，并且以代码展现，不再抽象。只能说感谢开源！</p>
-</li>
-<li><p>lab2</p>
-<p>mmap 和 munmap 匿名映射，对我来说其实也不难，不过反而是问答题让我再次加深了SV39的结构，页表，页表项等等这些其实理解很抽象，包括用户态是怎么用到MMU的，MMU和操作系统存储的页表这些是怎么结合的，在这一张再结合linux的一些代码就理解了。其实是riscv 使用 SATP 寄存器来保存 MMU 映射表的根地址</p>
-</li>
-<li><p>lab3</p>
-<p>spawn和stride 调度算法，这个其实也不算特别复杂，在给予fork和exec代码中只需要理解    spawn和他们的区别，就很容易写出来，而stride调度算法用一个小顶堆实现即可。因为之前看了linux的task_struct的实现，所以比较轻松就能理解。</p>
-</li>
-<li><p>lab4</p>
-<p>这个要求实现<strong>linkat</strong>和<strong>unlinkat</strong> 这个加深了我对硬连接的理解，并且文件系统的这章让我对linux的vfs也更加理解。整体来说明显会感受到磁盘读取和内存有异曲同工之妙。</p>
-</li>
-<li><p>lab5</p>
-<p>死锁检测，这个就非常考察细心了，主要就是资源的分配、分出、释放，需要格外注意，否则都无法通过，顺带这里也有一个坑，就是检测用了sleep，sleep用的是get_time，所以要实现这个api不然程序就会卡在那</p>
-</li>
-</ol>
-<h2 id="三阶段"><a href="#三阶段" class="headerlink" title="三阶段"></a>三阶段</h2><p>这次是新增的一个阶段，主要是为了让大家先熟悉arceos，在熟悉rcore以后其实再看arceos是比较轻松的，组件化操作系统的思想是一个很好的思想，同时也比较考验抽象能力如果做到高性能高抽象的同时又可以随意的扩展操作系统的个个组件，使用一个create引入开箱即用，个人认为是一个未来需要的方向。随着整体社会需求的发展大家对底层性能的要求越来越苛刻定制化需求也越来越多，对于操作系统也是百花齐放，同时在写一个新的操作系统的时候也总是需要重复造轮子，这个工作量其实也不算小，所以个人认为组件化操作系统在当前是一个很好的想法，高质量的组件化操作系统可以帮助个人和初创企业降低开发操作系统的难度还可以获得定制操作系统的优势来满足一些特殊的场景需要。</p>
-<ol>
-<li><p>print_color<br>这个其实很简单，因为不想修改println的宏所以这里新增了一个print_color的宏来实现对颜色的打印，并再用log来包装print_color宏实现不同等级打印不同颜色的日志</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[macro_export]</span></span><br><span class="line"><span class="built_in">macro_rules!</span> print_color &#123;</span><br><span class="line">    ($color:expr, $($arg:tt)*) =&gt; &#123;&#123;</span><br><span class="line">        <span class="keyword">use</span> axstd::io::Write;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> out = $crate::io::stdout().lock();</span><br><span class="line">        <span class="keyword">let</span> _ = <span class="built_in">write!</span>(out, <span class="string">"\x1B[&#123;&#125;m"</span>, $color); </span><br><span class="line">        <span class="keyword">let</span> _ = <span class="built_in">write!</span>(out, $($arg)*);           </span><br><span class="line">        <span class="keyword">let</span> _ = <span class="built_in">write!</span>(out, <span class="string">"\x1B[0m"</span>);          </span><br><span class="line">    &#125;&#125;;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">enum</span> <span class="title">LogLevel</span></span> &#123;</span><br><span class="line">    Error,</span><br><span class="line">    Warn,</span><br><span class="line">    Info,</span><br><span class="line">    <span class="built_in">Debug</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[macro_export]</span></span><br><span class="line"><span class="built_in">macro_rules!</span> log &#123;</span><br><span class="line">    (error, $($arg:tt)*) =&gt; &#123;</span><br><span class="line">        $crate::print_color!(<span class="string">"31"</span>, <span class="built_in">concat!</span>(<span class="string">"[error] "</span>, $($arg)*, <span class="string">"\n"</span>));</span><br><span class="line">    &#125;;</span><br><span class="line">    (warn, $($arg:tt)*) =&gt; &#123;</span><br><span class="line">        $crate::print_color!(<span class="string">"33"</span>, <span class="built_in">concat!</span>(<span class="string">"[warn] "</span>, $($arg)*, <span class="string">"\n"</span>));</span><br><span class="line">    &#125;;</span><br><span class="line">    (info, $($arg:tt)*) =&gt; &#123;</span><br><span class="line">        $crate::print_color!(<span class="string">"32"</span>, <span class="built_in">concat!</span>(<span class="string">"[info] "</span>, $($arg)*, <span class="string">"\n"</span>));</span><br><span class="line">    &#125;;</span><br><span class="line">    (debug, $($arg:tt)*) =&gt; &#123;</span><br><span class="line">        $crate::print_color!(<span class="string">"34"</span>, <span class="built_in">concat!</span>(<span class="string">"[debug] "</span>, $($arg)*, <span class="string">"\n"</span>));</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
-</li>
-</ol>
-<ol>
-<li><p>hashmap<br>这个其实可以参考rust的std的rust实现，然后改一下就可以了，当然也可以从0自己实现一个最后别忘了这样才能使用std::map</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">mod</span> map;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"alloc"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">mod</span> collections &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">use</span> crate::map::HashMap;</span><br><span class="line">    <span class="keyword">pub</span> <span class="keyword">use</span> alloc::collections::*;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
-</li>
-</ol>
-<ol>
-<li><p>bump_alloc<br>这个主要需要了解什么是bump算法，在实现ByteAllocator和PageAllocator的时候需要注意b_pos和p_pos的验证，还有要注意对齐,还要理解一下align_pow2</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">alloc</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, layout: Layout) -&gt; AllocResult&lt;NonNull&lt;<span class="built_in">u8</span>&gt;&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> align = layout.align();</span><br><span class="line">    <span class="keyword">let</span> size = layout.size();</span><br><span class="line">    <span class="keyword">let</span> aligned = (<span class="keyword">self</span>.b_pos + align - <span class="number">1</span>) &amp; !(align - <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">let</span> new_b_pos = aligned + size;</span><br><span class="line">   </span><br><span class="line">    <span class="keyword">if</span> new_b_pos &gt; <span class="keyword">self</span>.p_pos &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">Err</span>(AllocError::NoMemory);</span><br><span class="line">    &#125;</span><br><span class="line">   </span><br><span class="line">    <span class="keyword">self</span>.b_pos = new_b_pos;</span><br><span class="line">    <span class="keyword">self</span>.byte_alloc_count += <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">self</span>.byte_alloc_total += size;</span><br><span class="line">    <span class="literal">Ok</span>(NonNull::new(aligned <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>).unwrap())</span><br><span class="line">&#125;</span><br><span class="line">   </span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">alloc</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, layout: Layout) -&gt; AllocResult&lt;NonNull&lt;<span class="built_in">u8</span>&gt;&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> align = layout.align();</span><br><span class="line">    <span class="keyword">let</span> size = layout.size();</span><br><span class="line">    <span class="keyword">let</span> aligned = (<span class="keyword">self</span>.b_pos + align - <span class="number">1</span>) &amp; !(align - <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">let</span> new_b_pos = aligned + size;</span><br><span class="line">   </span><br><span class="line">    <span class="keyword">if</span> new_b_pos &gt; <span class="keyword">self</span>.p_pos &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">Err</span>(AllocError::NoMemory);</span><br><span class="line">    &#125;</span><br><span class="line">   </span><br><span class="line">    <span class="keyword">self</span>.b_pos = new_b_pos;</span><br><span class="line">    <span class="keyword">self</span>.byte_alloc_count += <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">self</span>.byte_alloc_total += size;</span><br><span class="line">    <span class="literal">Ok</span>(NonNull::new(aligned <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>).unwrap())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-
-
-</li>
-</ol>
-<ol>
-<li><p>rename<br>这个需要修改一下axfs_ramfs组件大致思路是 获取当前节点（即当前目录)-&gt; 查找要重命名的原始节点 old_node-&gt;拆解 new 路径，获得新文件名新父目录路径-&gt;获取根节点，并从中查找新父目录-&gt;从原目录中移除旧路径-&gt;将 old_node 插入新父目录，使用新文件名</p>
-</li>
-<li><p>mmap file<br>这个修改较多，在Backend新增了一个FileBacked</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// File-backed mapping backend (lazy load).</span></span><br><span class="line">FileBacked &#123;</span><br><span class="line">    reader: ::alloc::sync::Arc&lt;<span class="keyword">dyn</span> crate::MmapReadFn&gt;,</span><br><span class="line">    file_offset: <span class="built_in">usize</span>,</span><br><span class="line">    area_start: VirtAddr,</span><br><span class="line">&#125;,</span><br></pre></td></tr></table></figure>
-
-<p>在page_fault的时候进行实际内存申请</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">Self::FileBacked &#123;</span><br><span class="line">                reader,</span><br><span class="line">                file_offset,</span><br><span class="line">                area_start,</span><br><span class="line">            &#125; =&gt; &#123;</span><br><span class="line">                <span class="keyword">let</span> va = vaddr.align_down(PAGE_SIZE_4K);</span><br><span class="line">                <span class="keyword">let</span> offset = file_offset + (va.as_usize() - area_start.as_usize());</span><br><span class="line"></span><br><span class="line">                <span class="keyword">let</span> vaddr = <span class="keyword">match</span> global_allocator().alloc_pages(<span class="number">1</span>, PAGE_SIZE_4K) &#123;</span><br><span class="line">                    <span class="literal">Ok</span>(vaddr) =&gt; vaddr,</span><br><span class="line">                    <span class="literal">Err</span>(_) =&gt; <span class="keyword">return</span> <span class="literal">false</span>,</span><br><span class="line">                &#125;;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">let</span> paddr = virt_to_phys(VirtAddr::from(vaddr));</span><br><span class="line">                <span class="keyword">let</span> buf = <span class="keyword">unsafe</span> &#123;</span><br><span class="line">                    core::slice::from_raw_parts_mut(axhal::mem::phys_to_virt(paddr).as_mut_ptr(), PAGE_SIZE_4K)</span><br><span class="line">                &#125;;</span><br><span class="line">                <span class="keyword">if</span> !(reader)(offset, buf) &#123;</span><br><span class="line">                    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                page_table</span><br><span class="line">                    .map_region(</span><br><span class="line">                        va,</span><br><span class="line">                        |_| paddr,</span><br><span class="line">                        PAGE_SIZE_4K,</span><br><span class="line">                        orig_flags,</span><br><span class="line">                        <span class="literal">false</span>,</span><br><span class="line">                        <span class="literal">false</span>,</span><br><span class="line">                    )</span><br><span class="line">                    .map(|tlb| tlb.ignore())</span><br><span class="line">                    .is_ok()</span><br><span class="line">            &#125;</span><br></pre></td></tr></table></figure>
-
-<p>mmap</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_mmap</span></span>(</span><br><span class="line">    addr: *<span class="keyword">mut</span> <span class="built_in">usize</span>,</span><br><span class="line">    length: <span class="built_in">usize</span>,</span><br><span class="line">    prot: <span class="built_in">i32</span>,</span><br><span class="line">    flags: <span class="built_in">i32</span>,</span><br><span class="line">    fd: <span class="built_in">i32</span>,</span><br><span class="line">    offset: <span class="built_in">isize</span>,</span><br><span class="line">) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">let</span> binding = current();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> aspace = binding.task_ext().aspace.lock();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> vaddr = <span class="keyword">match</span> aspace.find_free_area(</span><br><span class="line">        VirtAddr::from(addr <span class="keyword">as</span> <span class="built_in">usize</span>),</span><br><span class="line">        length,</span><br><span class="line">        VirtAddrRange::from_start_size(aspace.base(), aspace.size()),</span><br><span class="line">    ) &#123;</span><br><span class="line">        <span class="literal">Some</span>(base) =&gt; base,</span><br><span class="line">        <span class="literal">None</span> =&gt; <span class="keyword">return</span> -<span class="number">1</span>,</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> prot_flags = MmapProt::from_bits_truncate(prot);</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> map_flags = MappingFlags::USER;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> prot_flags.contains(MmapProt::PROT_READ) &#123;</span><br><span class="line">        map_flags |= MappingFlags::READ;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> prot_flags.contains(MmapProt::PROT_WRITE) &#123;</span><br><span class="line">        map_flags |= MappingFlags::WRITE;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> prot_flags.contains(MmapProt::PROT_EXEC) &#123;</span><br><span class="line">        map_flags |= MappingFlags::EXECUTE;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> aligned_len = (length + PAGE_SIZE_4K - <span class="number">1</span>) &amp; !(PAGE_SIZE_4K - <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">let</span> hint = <span class="keyword">if</span> addr.is_null() &#123;</span><br><span class="line">        aspace.base()</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        VirtAddr::from(addr <span class="keyword">as</span> <span class="built_in">usize</span>)</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> file_obj = <span class="keyword">match</span> get_file_like(fd) &#123;</span><br><span class="line">        <span class="literal">Ok</span>(f) =&gt; f,</span><br><span class="line">        <span class="literal">Err</span>(_) =&gt; <span class="keyword">return</span> -<span class="number">1</span>,</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> reader = alloc::sync::Arc::new(<span class="keyword">move</span> |_offset: <span class="built_in">usize</span>, buf: &amp;<span class="keyword">mut</span> [<span class="built_in">u8</span>]| &#123;</span><br><span class="line">        file_obj.read(buf).is_ok()</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Err</span>(e) = aspace.mmap_file(vaddr, aligned_len, map_flags, offset <span class="keyword">as</span> <span class="built_in">usize</span>, reader) &#123;</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    vaddr.as_usize() <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>simple_hv<br>这个其实蛮有意思的可以体验到guest操作自己没有权限的指令时候的一个流程以及体验的到page_fault的流程，第一个需要自己在VM中模拟 CSR 访问</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ctx.guest_regs.gprs.set_reg(A1, <span class="number">0x1234</span>);</span><br><span class="line">ctx.guest_regs.sepc += <span class="number">4</span>;</span><br><span class="line"><span class="keyword">return</span> <span class="literal">false</span>;</span><br></pre></td></tr></table></figure>
-
-<p>第二个可以直接写成成对应的值</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ctx.guest_regs.gprs.set_reg(A0, <span class="number">0x6688</span>);</span><br><span class="line">ctx.guest_regs.sepc += <span class="number">4</span>;</span><br><span class="line"><span class="keyword">return</span> <span class="literal">false</span>;</span><br></pre></td></tr></table></figure>
-
-
-
-</li>
-</ol>
-<p>这个是对Hypervisor很好的一个体验也有了一个初步的认识，包括整个项目中的实验设计是非常好的，每一个新的功能都有一个简单的实验来上手体验，而且正是因为有了arceos也免去了很多最开始操作系统要处理的事情，直接进入体验Hypervisor代码量非常少，实验在risc-v指令集下，整个Hypervisor的体验很丝滑，代码结构很好，可以立马就对VM_ENTRY和VM_EXIT这个有点抽象的概念进行了具象</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>新增的三阶段arceos是非常棒的，整体实验设计也很不错，在有了rcore的基础以后再看arceos是不困难的，一步一步的迈向抽象度更高的操作系统，大家在arceos里已经做了非常多的事情了，使得我们可以如此简单的启动一个os，并且体验到最小化的一个Hypervisor以及宏内核，也再次加深了对操作系统的理解，以及发现软硬协同的重要性。</p>
 
       
     </div>
