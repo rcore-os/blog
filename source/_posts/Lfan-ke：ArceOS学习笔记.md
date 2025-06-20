@@ -14,12 +14,12 @@ mermaid.js: true
 mermaid:
     enable:true
     theme:default
-description: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲来二期操作系统训练营、YSYX学习计划、DeepSeek补充、底层补完计划、部分博客与第三方内容……
+descriptions: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲来二期操作系统训练营、YSYX学习计划、DeepSeek补充、底层补完计划、部分博客与第三方内容……
 ---
 
 # Lfan-ke：第三阶段总结报告
 
-about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke)
+about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke), [heke1228@codeberg](https://codeberg.org/heke1228)
 
 ## 内核发展史
 
@@ -33,7 +33,7 @@ about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://
 
 CPU对软件提供的接口：ISA - Instruction Set Architecture - 指令集架构 ：：： RV64、x86、mips、[LoongArch](https://www.loongson.cn/system/loongarch)等等。软硬件的分界线以及交互规范标准。
 
-[RISC-V](https://riscv.org/)指令集 = 基础指令集 + 标准扩展指令集 + 用户自定义扩展指令集，比如RV32IM就是RV32的拥有整数以及乘除法指令的配置。RV64GC的G是一个省略书写，实际GC = IMAFD + C。RV32E是一个16个寄存器的嵌入式精简指令集。在gcc编译时使用[march](https://gcc.gnu.org/onlinedocs/gcc/RISC-V-Options.html)指定。在未支持的扩展，比如RV64I中书写乘法，则会以软件替代的形式出现，比如使用循环和移位的函数[\_\_mulsi3](https://gcc.gnu.org/onlinedocs/gcc-3.4.0/gccint/Integer-library-routines.html)来替代（当然，如果target=RVxIM但是运行在RVxI，M系指令也会通过trap的形式硬件兜底执行，但是效率低，其他扩展类似）。2020年，RISC-V发展的优先级从体系结构驱动切换为[软件](https://open-src-soc.org/2022-05/media/slides/RISC-V-International-Day-2022-05-05-11h05-Calista-Redmond.pdf)驱动。
+[RISC-V](https://riscv.org/)指令集 = 基础指令集 + 标准扩展指令集 + 用户自定义扩展指令集，比如RV32IM就是RV32的拥有整数以及乘除法指令的配置。RV64GC的G是一个省略书写，实际GC = IMAFD + C。RV32E是一个16个寄存器的嵌入式精简指令集。在gcc编译时使用[march](https://gcc.gnu.org/onlinedocs/gcc/RISC-V-Options.html)指定。使用mabi指定应用程序二进制接口对应类型的字长，比如ilp指的是int/long/usize_t(void*ptr)为32位，lp64f指的是int32位，long/usize_t为64位，支持单精度浮点采用浮点寄存器传递，但是双精度浮点仍然采用栈传递（即硬件指令集得支持F/D扩展，不然你硬件只有整数寄存器，没有对应精度的浮点寄存器）。在未支持的扩展，比如RV64I中书写乘法，则会以软件替代的形式出现，比如使用循环和移位的函数[\_\_mulsi3](https://gcc.gnu.org/onlinedocs/gcc-3.4.0/gccint/Integer-library-routines.html)来替代（当然，如果target=RVxIM但是运行在RVxI，M系指令也会通过trap的形式硬件兜底执行，但是效率低，其他扩展类似）。2020年，RISC-V发展的优先级从体系结构驱动切换为[软件](https://open-src-soc.org/2022-05/media/slides/RISC-V-International-Day-2022-05-05-11h05-Calista-Redmond.pdf)驱动。
 
 ```shell
 riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -o program.elf program.c
@@ -87,6 +87,7 @@ endmodule
 // 检测到之后trap_handler触发硬件(trap)特权级切换，但是像跳板页是软件(ecall)特权级切换
 // 补充：trap - riscv将ECF(异常控制流(Exceptional Control Flow))统称为trap
 // 补充：无论是ecall还是trap，都是增删改部分csr与pc，处理结束后通常会逆增删改回到原位/+4
+// 补充：ecall-U->S -> crud: scause/sepc等等   ecall-S->M -> crud: mcause/mepc等等   trap -> crud: mcause/mepc等等
 // 可以是硬件处理，也可以是软件处理，比如编写中断处理函数并将地址刷入中断向量表
 // 主打一个硬件可以做的软件也可以做，软件可以做的硬件也可以做，软慢成本低，硬快成本高……
 ```
@@ -151,7 +152,7 @@ ArceOS通过feature来启用不同的组件，不同层的组件影响范围不�
 
 ### 集合类型
 
-集合类型主要就是向`axstd::collections`命名/包空间注册一个Map。所以既可以利用`随机模块+现有Map`或者利用数据结构的知识`手动实现`，也可以：利用`type/as`将HashMap接口导向[HashBrown](https://docs.rs/hashbrown/0.9.1/hashbrown/#structs)/BTreeMap。
+集合类型主要就是向`axstd::collections`命名/包空间注册一个Map。所以既可以利用`随机模块+现有Map`或者利用数据结构的知识`手动实现`，也可以：利用`type/use as`将HashMap接口导向[HashBrown](https://docs.rs/hashbrown/0.9.1/hashbrown/#structs)/BTreeMap。
 
 ### 内存分配
 
@@ -188,11 +189,13 @@ mmap函数可以将：驱动、文件、内存……映射，并返回对应的�
 
 ### 简易虚拟化
 
-这次训练营最有收获的点就是参与训练营捋顺了硬件与操作系统之间的关系（除了驱动，不能直接从驱动理解操作系统行为是一个硬伤，下去自己找相关资料继续学习吧！这也是自己软硬件连通的最后屏障了），且接触了RV的H扩展，进行了简易的虚拟化实验。理解了Guest与Host之间的切换逻辑。结合其他训练营相关的内容，或许真的在不久的将来自己编写一个`MiniVMWare`。
+这次训练营最有收获的点就是参与训练营捋顺了硬件与操作系统之间的关系（除了驱动，不能直接从驱动理解操作系统行为是一个硬伤，下去自己找相关资料继续学习吧！这也是自己软硬件连通的最后屏障了），且接触了RV的H扩展，进行了简易的虚拟化实验。理解了Guest与Host之间的切换逻辑。结合其他训练营相关的内容，或许真的在不久的将来自己编写一个`MiniVMWare`。<!-- 彩蛋：笑死，中科院软研所的实习任务，我还真的是`言出法随`啊~ -->
+
+<!-- 不会吧，不会吧？这年头还真的有开源码视角看笔记的？既然有缘看到，那就添加`QQ/WX`一起讨论吧！号码作为彩蛋分布在随机地方！ -->
 
 以前以为虚拟化都是清一色的软件模拟，旅途到达这里才知道，虚拟化有：
 
-- 指令集虚拟化 - 软件翻译指令，比如QEMU/NEMU
+- 指令集虚拟化 - 软件翻译指令，比如QE<!-- wx:heke1228 -->MU/NEMU
 - 资源虚拟化 - 比如虚拟内存、网络共享空间、虚拟网卡
 - 程序库虚拟化 - axstd/arceos_posix_api/arceos_rust_api/axlibc/musl libc...
 - 编程语言虚拟化 - Java虚拟机JVM、.NET框架
@@ -220,6 +223,8 @@ sequenceDiagram
     CPU->>M-mode: 执行陷阱处理程序
     M-mode->>CPU: mret 返回
 ```
+
+<!-- 3222087513 -->
 
 ```mermaid
 %% 软件中断
