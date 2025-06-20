@@ -29,7 +29,7 @@ aliases:
   - 第四阶段总结报告
 ---
 
-# Lfan-ke：第四阶段总结报告
+# 第四阶段总结报告
 
 about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke), [heke1228@codeberg](https://codeberg.org/heke1228)
 
