@@ -1,10 +1,10 @@
 ---
 title: 2025春夏季开源操作系统训练营第三阶段总结报告
-date: 2025-05-05 20:31:32
+date: 2025-05-19 17:31:32
 categories: [开源操作系统训练营]
 tags:
   - author: loichyan
-  - repo: https://github.com/LearningOS/2025s-rcore-loichyan
+  - repo: https://github.com/LearningOS/2025s-arceos-loichyan
 ---
 
 ## 第二阶段总结
@@ -52,6 +52,7 @@ tags:
 
 以上便是第三阶段的主要收获，接下来需要进一步研究 IRQ 机制与 Rust 异步的集成，以及 io_uring 模型的实现和应用，最终达成对 ArceOS 内核的异步化改造．
 
+<!-- dprint-ignore-start -->
 [^1]: <https://osdev.wiki/wiki/Thread>
 [^2]: <https://rust-lang.github.io/async-book/04_pinning/01_chapter.html>
 [^3]: <https://rcore-os.cn/rCore-Tutorial-Book-v3/chapter9/2device-driver-3.html>
