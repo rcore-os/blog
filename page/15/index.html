@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">722</span>
+          <span class="site-state-item-count">723</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,107 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/22/%E5%B0%9A%E4%B9%A6%E7%9A%84rcore%E9%98%B6%E6%AE%B54%E5%B0%8F%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/22/%E5%B0%9A%E4%B9%A6%E7%9A%84rcore%E9%98%B6%E6%AE%B54%E5%B0%8F%E7%BB%93/" class="post-title-link" itemprop="url">尚书的rcore阶段4学习笔记</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-22 12:30:56" itemprop="dateCreated datePublished" datetime="2024-12-22T12:30:56+00:00">2024-12-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在阶段4我进入了项目四：基于协程异步机制的操作系统，由于之前缺乏对相关知识的了解，前期花了大量时间来阅读源码和理解，最后才实现了在OS中boot了一个简单的的异步executor。</p>
+<h2 id="async-keyword"><a href="#async-keyword" class="headerlink" title="async keyword"></a>async keyword</h2><p>在 Rust 中,使用 async 关键字修饰的函数会返回一个实现了 Future trait 的匿名类型</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">Future</span></span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Output</span></span>;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context) -&gt; Poll&lt;Self::Output&gt;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>例如</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">my_async_function</span></span>() -&gt; <span class="built_in">u32</span> &#123;</span><br><span class="line">    <span class="number">42</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译器会将其转换为类似以下的代码:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">my_async_function</span></span>() -&gt; <span class="keyword">impl</span> Future&lt;Output = <span class="built_in">u32</span>&gt; &#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">MyAsyncFunction</span></span> &#123;</span><br><span class="line">        <span class="comment">// 异步函数的状态</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">impl</span> Future <span class="keyword">for</span> MyAsyncFunction &#123;</span><br><span class="line">        <span class="class"><span class="keyword">type</span> <span class="title">Output</span></span> = <span class="built_in">u32</span>;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;) -&gt; Poll&lt;Self::Output&gt; &#123;</span><br><span class="line">            <span class="comment">// 异步函数的执行逻辑</span></span><br><span class="line">            Poll::Ready(<span class="number">42</span>)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    MyAsyncFunction &#123;</span><br><span class="line">        <span class="comment">// 初始化异步函数的状态</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种设计允许编译器生成最优化的异步执行代码,同时提供了灵活性和类型安全性。</p>
+<p>当然，对于rust的异步编程还有许多深入的概念，例如关于自引用的 Pin&lt;&gt; , 关于优化轮询的 Waker 等。</p>
+<h2 id="why-async-OS"><a href="#why-async-OS" class="headerlink" title="why async-OS"></a>why async-OS</h2><p>所以为什么要实现一个基于协程异步机制的操作系统呢？答案当然是为了并发的性能。内核可以通过轻量的内核线程和优化的异步调度执行来提升对系统调用的批处理速度。</p>
+<p>参考<a href="https://github.com/AsyncModules/async-os/blob/main/modules/trampoline/async_syscall.md" target="_blank" rel="noopener">async-module</a>关于系统调用的优化，存在两种方向：</p>
+<ol>
+<li>减少由于系统调用导致的特权级以及上下文切换开销</li>
+<li>异步批处理</li>
+</ol>
+<p>在高并发场景下，使用类似dpdk/spdk等通过用户态轮询完全绕过内核是可行的，但是如果仍然使用系统调用，那么当应用通过系统调用同步地进入内核态时，内核就可以对这些系统调用进行异步批处理，从而提升性能。<br>并且异步调度的 poll / wake 机制更适合设备驱动的工作状态。</p>
+<h2 id="design"><a href="#design" class="headerlink" title="design"></a>design</h2><p>考虑一种简单的情形，在OS初始化阶段，把栈初始化之后，直接开始运行全局的executor，负责对内核中的异步协程进行调度。这样，我们所有的系统调用都可以写成async的形式。</p>
+<p>那么，当用户程序需要调用系统调用时，会先同步的进入内核态并设置scause寄存器的值来指定系统调用号，然后调用syscall之后await，在系统调用执行完之后再切换回用户态。所以这里的syscall api实现了一个异步和同步切换的过程。<br>当然另一种思路是，通过内核向用户态发送通知或者共享内存等方式，实现完全的异步系统调用，这里不再讨论。</p>
+<h2 id="implement"><a href="#implement" class="headerlink" title="implement"></a>implement</h2><p>所以，我们在内核态需要建立自己的异步运行时，在抽象上的第一个问题是，Rust 欠缺对 async-trait 的支持。</p>
+<p>例如</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">Mutex</span></span> &#123;</span><br><span class="line">    <span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">wait</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>) -&gt; FutexWait;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Rust 编译器默认不支持 async trait function。编译器提示说使用 async-trait 这个 crate。可惜的是，这个 crate 不是零开销的, 会将返回值改写成 Box<dyn future> 的形式。</dyn></p>
+<p>还是继续考虑对futex的实现。我们既然想让对互斥锁的wait支持异步，那么就先实现一个 Future。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Future <span class="keyword">for</span> FutexWait &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Output</span></span> = ();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">mut</span> <span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;) -&gt; Poll&lt;Self::Output&gt; &#123;</span><br><span class="line">        <span class="keyword">let</span> this = &amp;<span class="keyword">mut</span> *<span class="keyword">self</span>;</span><br><span class="line">        <span class="keyword">loop</span> &#123;</span><br><span class="line">            <span class="keyword">match</span> this.queue.poll(&amp;<span class="keyword">mut</span> this.id, cx.waker()) &#123;</span><br><span class="line">                <span class="literal">Ok</span>(poll) =&gt; <span class="keyword">break</span> poll,</span><br><span class="line">                <span class="literal">Err</span>(queue) =&gt; this.queue = queue,</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果可以从互斥锁队列queue中拿到结果，那么就返回poll， 否则就对等待队列进行更新并继续循环。</p>
+<p>接下来考虑进程的执行单元task，Task 结构体包含了任务的各种属性,如可执行文件、父任务、子任务、任务 ID、时间信息、信号相关的字段等。如果我们想要把task交给executor执行，就需要为task的返回值实现 Future 。</p>
+<p>也就是说，我们把task的返回值当成 Output 以实现一个 TaskFut:Future 的结构体 ， 接着将这个 task 封装成一个异步的 loop 传入 executor 中。 在 loop 中 ，我们通过 trap 切换回用户空间 ， 并且捕获用户空间的中断和异常 ， 在切换回内核空间之后继续处理。</p>
+<h2 id="try"><a href="#try" class="headerlink" title="try"></a>try</h2><p>接着，在老师的指导下，我进行了将二阶段 rCore-tutorial 操作系统实现异步的尝试。</p>
+<p>在 rust 的入口处，我们使用mm::init()来使用HEAP_ALLOCATOR来初始化堆内存，接下来我们就可以直接在堆内存上建立executor</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[no_mangle]</span></span><br><span class="line"><span class="comment">/// the rust entry-point of os</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">rust_main</span></span>() -&gt; ! &#123;</span><br><span class="line">    clear_bss();</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"[kernel] Hello, world!"</span>);</span><br><span class="line">    logging::init();</span><br><span class="line">    mm::init();</span><br><span class="line">    mm::remap_test();</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> rt = RUNTIME.execlusive_access();</span><br><span class="line">    rt.spawn(task1)</span><br><span class="line">    rt.run()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">task1</span></span>() &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"[kernel] task1: hello async world!"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这样就是最简单的内核态的async执行测试。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/22/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E5%BC%A0%E6%9E%97%E4%BC%9F/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +365,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
 
           
@@ -337,7 +438,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
 
           
@@ -645,7 +746,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
 
           
@@ -715,7 +816,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -815,7 +916,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
 
           
@@ -902,7 +1003,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
 
           
@@ -1053,7 +1154,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
 
           
@@ -1141,7 +1242,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1270,7 +1371,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
+                <time title="Modified: 2025-06-21 06:53:32" itemprop="dateModified" datetime="2025-06-21T06:53:32+00:00">2025-06-21</time>
               </span>
 
           
@@ -1288,82 +1389,6 @@
 <h3 id="实现成果"><a href="#实现成果" class="headerlink" title="实现成果"></a>实现成果</h3><p>目前已经完成绝大部分系统调用的实现，最花费时间的是任务clone的相关系统调用，将arceos的多任务切换（时钟中断抢占机制），地址空间（与rcore的地址空间排布不同，复制内核的地址空间）等相关的知识进行研究之后，才将clone的简单功能fork实现，之后关于任务相关的系统调用就很顺利了。</p>
 <p>接下来，对arceos的文件系统进行研究，研究了线程间资源独立的新机制namespace，使用了一个很好的方法，实现了unikernel资源全局共享，使用宏内核扩展后，资源线程间独立或共享的机制。实现文件系统相关的api主要也就是调用axfs提供的api进行实现，需要解决的是axfs不支持open目录，但是openat这个系统调用需要打开目录，所以需要解决这个问题。</p>
 <h3 id="感悟"><a href="#感悟" class="headerlink" title="感悟"></a>感悟</h3><p>通过四阶段的学习，学习了组件化操作系统实现宏内核的思想和方法，经历过这三个月的学习，从不会rust和操作系统的小白，慢慢一步一步做，从学习rust，到完成rcore，再到学习arceos，逐步学习操作系统多任务、地址空间、文件系统等等，更加理解了riscv特权级结构，sv39页表结构等risv体系结构知识，总结这三个月，收获非常大，在这里也希望开源操作系统训练营可以越办越好，更多的人可以在这里学到知识，收获成长。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/" class="post-title-link" itemprop="url">2024秋冬开源操作系统训练营第四阶段总结-张宇驰</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-21 03:58:24" itemprop="dateCreated datePublished" datetime="2024-12-21T03:58:24+00:00">2024-12-21</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-20 12:38:24" itemprop="dateModified" datetime="2025-06-20T12:38:24+00:00">2025-06-20</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="2024秋冬开源操作系统训练营第四阶段总结-张宇驰"><a href="#2024秋冬开源操作系统训练营第四阶段总结-张宇驰" class="headerlink" title="2024秋冬开源操作系统训练营第四阶段总结-张宇驰"></a>2024秋冬开源操作系统训练营第四阶段总结-张宇驰</h1><h2 id="学习内容"><a href="#学习内容" class="headerlink" title="学习内容"></a>学习内容</h2><p>这个阶段，我选择了unikernel方向一的任务，为arceos实现linux的app移植，其中我进行了如下方向的探索：</p>
-<ol>
-<li>跟安同学讨论了基于对Ecall进行截断的思路，并自己尝试截断Ecall并导向自己提供的函数，在最小幅度的情况下实现。最后也是其他东西都有了，但是没有做明白怎么截断。</li>
-<li>同样是在群里，和安同学讨论在SBI中进行转发的设想，不过后来没琢磨明白怎么处理这些新的调用号而困惑，最后也仅仅停留在理论层面上。</li>
-<li>最终的选择：自己实现Mocklibc，验证了用自己的函数替换musl中的系统调用的思路，也就是获得abitable，然后在对应的地方直接进行跳转。交流会的时候看到了另一个同学针对动态链接的实现思路，尝试修改代码后发现支持动态链接还是好做的，但是由于时间原因在交这份报告之前还没有跑起来。</li>
-</ol>
-<h2 id="学习收获"><a href="#学习收获" class="headerlink" title="学习收获"></a>学习收获</h2><p>这个任务对我来说属实难度比较大，总结一下有两点没有做好：</p>
-<ol>
-<li>时间管理。在学校安排中，我们进行了为期两周的实习，其实空余时间挺多的，但是自己没有利用起来（也跟中间还有个考试有关），然后往后做的时间少而且累。</li>
-<li>探索能力。在面对二、三周的复杂项目时，我没有很好的确定到自己的方向，在一定程度上延误了时间。（不过就是探索了很多有意思的东西了）</li>
-</ol>
-<h2 id="下一步计划"><a href="#下一步计划" class="headerlink" title="下一步计划"></a>下一步计划</h2><p>往后顺着PPT上的东西继续探索吧，我不是特别在意一定要在训练营之中去做什么事儿。出于对这个项目的兴趣，我打算保持跟这里的交流，往后继续探索，验证一下自己的想法。然后看看寒假有没有机会去实习，吧这个项目完善完善，而且家里也没人，假期回家的意义也不大。</p>
 
       
     </div>
