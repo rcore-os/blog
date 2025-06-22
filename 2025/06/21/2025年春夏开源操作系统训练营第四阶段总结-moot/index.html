@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="序言过去一个月，由于我对 ArceOS 的架构理解较少，为了快速掌握 ArceOS 的架构，Unikernel 和 宏内核，我的主要目标改进 oscamp，为其完善对 x86_64 的支持。同时还做了对内核组件 x86_rtc 说明文档和测试的完善。最直接的收获有两点：  Unikernel 思想 —— “用户态就是内核的一部分” 的最小可信边界，让我重新审视传统多进程操作系统里“内核&#x2F;用户”硬隔">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2025年春夏开源操作系统训练营前三阶段总结-moot">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/06/21/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-moot/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="序言过去一个月，由于我对 ArceOS 的架构理解较少，为了快速掌握 ArceOS 的架构，Unikernel 和 宏内核，我的主要目标改进 oscamp，为其完善对 x86_64 的支持。同时还做了对内核组件 x86_rtc 说明文档和测试的完善。最直接的收获有两点：  Unikernel 思想 —— “用户态就是内核的一部分” 的最小可信边界，让我重新审视传统多进程操作系统里“内核&#x2F;用户”硬隔">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-06-21T00:00:00.000Z">
+<meta property="article:modified_time" content="2025-06-22T08:29:26.097Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:MTttth">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;MTttth&#x2F;oscamp.git">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/06/21/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-moot/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2025年春夏开源操作系统训练营前三阶段总结-moot | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#序言"><span class="nav-number">1.</span> <span class="nav-text">序言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#工作记录"><span class="nav-number">2.</span> <span class="nav-text">工作记录</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#第一周"><span class="nav-number">2.1.</span> <span class="nav-text">第一周</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第二、三周"><span class="nav-number">2.2.</span> <span class="nav-text">第二、三周</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第四周"><span class="nav-number">2.3.</span> <span class="nav-text">第四周</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#未来展望"><span class="nav-number">3.</span> <span class="nav-text">未来展望</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">726</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">69</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">633</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/21/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-moot/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2025年春夏开源操作系统训练营前三阶段总结-moot
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-06-21 00:00:00" itemprop="dateCreated datePublished" datetime="2025-06-21T00:00:00+00:00">2025-06-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/ArceOS/" itemprop="url" rel="index"><span itemprop="name">ArceOS</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/ArceOS/x86/" itemprop="url" rel="index"><span itemprop="name">x86</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h2><p>过去一个月，由于我对 ArceOS 的架构理解较少，为了快速掌握 ArceOS 的架构，<strong><em>Unikernel</em></strong> 和 <strong><em>宏内核</em></strong>，我的主要目标改进 <strong><em>oscamp</em></strong>，为其完善对 <strong><em>x86_64</em></strong> 的支持。同时还做了对内核组件 <strong><em>x86_rtc</em></strong> 说明文档和测试的完善。<br>最直接的收获有两点：</p>
+<ul>
+<li><strong>Unikernel 思想</strong> —— “用户态就是内核的一部分” 的最小可信边界，让我重新审视传统多进程操作系统里“内核/用户”硬隔离的成本。</li>
+<li><strong>宏内核工程学</strong> —— 模块划分、内核线程、系统调用网关、设备驱动归一化，这些都在 Starry/ArceOS 的设计里有了“先行者版本”。</li>
+</ul>
+<hr>
+<h2 id="工作记录"><a href="#工作记录" class="headerlink" title="工作记录"></a>工作记录</h2><h3 id="第一周"><a href="#第一周" class="headerlink" title="第一周"></a>第一周</h3><p>为了快速掌握 ArceOS 的架构，<strong><em>Unikernel</em></strong> 和 <strong><em>宏内核</em></strong>，我选择了改进 <strong><em>oscamp</em></strong>，为其完善对 <strong><em>x86_64</em></strong> 的支持这一项工作。并开始了对 <strong><em>x86_64</em></strong> 的学习。</p>
+<h3 id="第二、三周"><a href="#第二、三周" class="headerlink" title="第二、三周"></a>第二、三周</h3><p>主要是做代码工作，以下是一些总结<br>RISC‑V 是通过 <code>scause</code> + <code>stval</code>；x86‑64 要区分 <strong>Exception Class</strong>（#PF/#UD）与 <strong>IRQ Vector</strong>，且栈布局不一样。<br>对 <strong><em>x86_64</em></strong> 的支持这一项工作需要完成以下的功能实现：</p>
+<ol>
+<li>改进 <strong><em>context.rs</em></strong>，保存相关的寄存器，并完善 <strong><em>context_switch</em></strong> 和 <strong><em>enter_uspace</em></strong>。<ul>
+<li>保存/恢复的寄存器集对齐 <strong>SysV x86‑64</strong> 调用约定：<code>RBX RBP R12‑R15</code> + <code>CR3</code> + <code>RFLAGS</code>；<code>FPU/AVX</code> 延后到 lazy fp 任务。</li>
+<li><code>context_switch(old, new)</code> = 保存旧任务栈顶 → 恢复新任务栈顶 → <em><code>iretq</code></em>；为支持 <code>SMP</code>，加了 <code>core::arch::asm!(&quot;swapgs&quot;)</code> 保证每 CPU 的 GS 基址切换。</li>
+<li>进入用户态 (<code>enter_uspace</code>)：手动构造 <em><code>iretq</code></em> 帧：<code>SS|RSP|RFLAGS|CS|RIP</code>，再写 <code>CR3 = user_pml4</code>; 关中断→加载帧→开中断→ <em><code>iretq</code></em>。</li>
+</ul>
+</li>
+<li>改进 <strong><em>trap.S</em></strong><ul>
+<li><strong>IDT 256 项</strong>：<code>0x20</code> 时钟、<code>0x80</code> 软中断、<code>0x0E</code> #PF……全部指向统一的 <code>trap_entry</code>；硬中断通过 APIC 自动切到 <strong>IST[0] emergency stack</strong> 防止内核栈溢出。</li>
+<li><code>trap.rs</code> 根据向量号派发到 <code>handle_page_fault / handle_irq / handle_syscall</code>。</li>
+</ul>
+</li>
+<li>改进 <strong><em>syscall.rs</em></strong> 和 <strong><em>syscall.S</em></strong><ul>
+<li>选 <code>SYSCALL/SYSRET</code> 而非 <code>INT 0x80</code>；入口先 <code>swapgs</code> 用 GS 保存/恢复用户栈。</li>
+<li>按 SysV ABI <code>RAX</code>=nr，<code>RDI RSI RDX R10 R8 R9</code> 传六参 —— 在汇编里把寄存器序列化到栈，统一传给 <code>x86_syscall_handler()</code>。</li>
+<li>退出路径：恢复通用寄存器 → <code>swapgs</code> → <code>sysretq</code></li>
+</ul>
+</li>
+</ol>
+<h3 id="第四周"><a href="#第四周" class="headerlink" title="第四周"></a>第四周</h3><p>对内核组件 <strong><em>x86_rtc</em></strong> 说明文档和测试的完善。<br><a href="https://github.com/MTttth/x86_rtc.git" target="_blank" rel="noopener">repo</a></p>
+<h2 id="未来展望"><a href="#未来展望" class="headerlink" title="未来展望"></a>未来展望</h2><ul>
+<li><strong>Transparent HugePages</strong>：复用前期完成的巨页 API，引入 <code>khugepaged</code> 合并线程。</li>
+<li><strong>vDSO</strong>：把高频 <code>clock_gettime</code> 胶水放到用户态，加速 Sys‑API。</li>
+</ul>
+<hr>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-MTttth/" rel="tag"># author:MTttth</a>
+              <a href="/blog/tags/repo-https-github-com-MTttth-oscamp-git/" rel="tag"># repo:https://github.com/MTttth/oscamp.git</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/20/Lfan-ke%EF%BC%9A%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" rel="prev" title="GPU GPGPU GPGPGPU！">
+      <i class="fa fa-chevron-left"></i> GPU GPGPU GPGPGPU！
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/21/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%94%B9%E8%BF%9BStarry%E6%96%87%E6%A1%A3/" rel="next" title="开源操作系统训练营第四阶段总结-改进Starry文档">
+      开源操作系统训练营第四阶段总结-改进Starry文档 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
