@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">726</span>
+          <span class="site-state-item-count">727</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,157 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-hbuxiaofei/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第四阶段总结-hbuxiaofei</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-21 22:00:35" itemprop="dateCreated datePublished" datetime="2024-12-21T22:00:35+00:00">2024-12-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="x86-架构-hypervisor-SeaBIOS-引导与-Linux-启动实现"><a href="#x86-架构-hypervisor-SeaBIOS-引导与-Linux-启动实现" class="headerlink" title="x86 架构 hypervisor SeaBIOS 引导与 Linux 启动实现"></a>x86 架构 hypervisor SeaBIOS 引导与 Linux 启动实现</h2><h3 id="1-seabios-工作流程"><a href="#1-seabios-工作流程" class="headerlink" title="1. seabios 工作流程"></a>1. seabios 工作流程</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">(1) POST( Power On Self Test)：上电自检，BIOS 对计算机硬件（CPU、主板、内存等）的检测。</span><br><span class="line">(2) POST 之后的初始化与启动相关硬件（磁盘、键盘控制器等）。</span><br><span class="line">(3) 为 OS 创建一些参数，如 ACPI、E820 表等。</span><br><span class="line">(4) 选择引导设备，从设备中加载 BootLoader，进而启动操作系统。</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-qemu-加载seabios过程"><a href="#2-qemu-加载seabios过程" class="headerlink" title="2. qemu 加载seabios过程"></a>2. qemu 加载seabios过程</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">(1) qemu加载 seabios 在地址的 4G 最顶端的 LOW_MMIO 区，以及低 1M 区域各有一份。</span><br><span class="line">(2) cpu 的第一条取指地址为 0xFFFFFFF0，该地址指向贴近 4G 的 BIOS 的最后 16 个字节，这也是 BIOS 的第一条指令。</span><br><span class="line">(3) BIOS 最后 16 个字节处，是一个长跳转指令，目的就是换到低 1M 段空间去执行 entry_post ( ORG 0xe05b )</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-kbuild-使用方法"><a href="#3-kbuild-使用方法" class="headerlink" title="3. kbuild 使用方法"></a>3. kbuild 使用方法</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">参考: https:&#x2F;&#x2F;github.com&#x2F;Starry-OS&#x2F;Starry</span><br><span class="line"></span><br><span class="line"># To download the tool</span><br><span class="line">$ cargo install kbuild</span><br><span class="line">$ mkdir crates</span><br><span class="line">$ kbuild patch add axstarry</span><br><span class="line">$ kbuild patch remove axstarry</span><br><span class="line">$ kbuild patch list</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-seabios-编译方法"><a href="#4-seabios-编译方法" class="headerlink" title="4. seabios 编译方法"></a>4. seabios 编译方法</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">cat &gt; .config &lt;&lt; EOF</span><br><span class="line"># for qemu machine types 2.0 + newer</span><br><span class="line">CONFIG_QEMU&#x3D;y</span><br><span class="line">CONFIG_ROM_SIZE&#x3D;256</span><br><span class="line">CONFIG_ATA_DMA&#x3D;n</span><br><span class="line"></span><br><span class="line">CONFIG_XEN&#x3D;n</span><br><span class="line"></span><br><span class="line">CONFIG_DEBUG_LEVEL&#x3D;9</span><br><span class="line">CONFIG_DEBUG_SERIAL&#x3D;y</span><br><span class="line">EOF</span><br><span class="line">echo &quot;CONFIG_DEBUG_LEVEL&#x3D;9&quot; &gt;&gt; .config</span><br><span class="line"></span><br><span class="line">make PYTHON&#x3D;python3 oldnoconfig</span><br><span class="line">make</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-seabios-反汇编"><a href="#5-seabios-反汇编" class="headerlink" title="5. seabios 反汇编"></a>5. seabios 反汇编</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">objdump -D -b binary -m i8086 bios.bin</span><br><span class="line">objdump -D -b binary -m i8086 romlayout.o</span><br><span class="line"></span><br><span class="line">-M intel : 指定intel格式</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-kvm-中所有-port-IO"><a href="#6-kvm-中所有-port-IO" class="headerlink" title="6. kvm 中所有 port IO"></a>6. kvm 中所有 port IO</h3><p>所谓端口Port IO, x86上使用in out指令进行访问, 和内存的地址空间完全隔离.(ARM上没有PIO) Guest以Linux为例: <code>cat /proc/ioports</code>查看当前OS的所有的ioports :</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">  0000-0cf7 : PCI Bus 0000:00</span><br><span class="line">  0000-001f : dma1</span><br><span class="line">  0020-0021 : pic1</span><br><span class="line">  0040-0043 : timer0</span><br><span class="line">  0050-0053 : timer1</span><br><span class="line">  0060-0060 : keyboard</span><br><span class="line">  0064-0064 : keyboard</span><br><span class="line">  0070-0077 : rtc0</span><br><span class="line">  0080-008f : dma page reg</span><br><span class="line">  00a0-00a1 : pic2</span><br><span class="line">  00c0-00df : dma2</span><br><span class="line">  00f0-00ff : fpu</span><br><span class="line">  03c0-03df : vga+</span><br><span class="line">  03f8-03ff : serial</span><br><span class="line">  0510-051b : QEMU0002:00</span><br><span class="line">    0510-051b : fw_cfg_io</span><br><span class="line">  0600-067f : 0000:00:1f.0</span><br><span class="line">    0600-0603 : ACPI PM1a_EVT_BLK</span><br><span class="line">    0604-0605 : ACPI PM1a_CNT_BLK</span><br><span class="line">    0608-060b : ACPI PM_TMR</span><br><span class="line">    0620-062f : ACPI GPE0_BLK</span><br><span class="line">    0630-0633 : iTCO_wdt.0.auto</span><br><span class="line">      0630-0633 : iTCO_wdt</span><br><span class="line">    0660-067f : iTCO_wdt.0.auto</span><br><span class="line">      0660-067f : iTCO_wdt</span><br><span class="line">  0700-073f : 0000:00:1f.3</span><br><span class="line">    0700-073f : i801_smbus</span><br><span class="line">0cf8-0cff : PCI conf1</span><br><span class="line">0d00-ffff : PCI Bus 0000:00</span><br><span class="line">  1000-1fff : PCI Bus 0000:01</span><br><span class="line">  2000-2fff : PCI Bus 0000:02</span><br><span class="line">  3000-3fff : PCI Bus 0000:03</span><br><span class="line">  4000-4fff : PCI Bus 0000:04</span><br><span class="line">  5000-5fff : PCI Bus 0000:05</span><br><span class="line">  6000-6fff : PCI Bus 0000:06</span><br><span class="line">  7000-7fff : PCI Bus 0000:07</span><br><span class="line">  c040-c05f : 0000:00:1f.2</span><br><span class="line">    c040-c05f : ahci</span><br></pre></td></tr></table></figure>
+
+<h3 id="7-项目实现总结"><a href="#7-项目实现总结" class="headerlink" title="7. 项目实现总结"></a>7. 项目实现总结</h3><p>项目刚开始, 我把seabios当作 kernel，写了个简单的 bios 来引导 seabios ，seabios成功运行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">.section .text</span><br><span class="line">.code16</span><br><span class="line">.global entry16</span><br><span class="line">entry16:</span><br><span class="line">    cli</span><br><span class="line">    cld</span><br><span class="line"></span><br><span class="line">        xor     ax, ax</span><br><span class="line">        mov     ds, ax</span><br><span class="line">        mov     es, ax</span><br><span class="line"></span><br><span class="line">        ljmp    0xf000, 0xe05b</span><br></pre></td></tr></table></figure>
+
+<p>后面通过学习vmcs的使用方法，增加了CS寄存器的设置后，seabios 可以自启动成功。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">VmcsGuestNW::RIP.write(entry.as_usize() &amp; <span class="number">0xffff</span>)?;</span><br><span class="line">VmcsGuest16::CS_SELECTOR.write(((entry.as_usize() &gt;&gt; <span class="number">4</span>) &amp; <span class="number">0xf000</span>) <span class="keyword">as</span> <span class="built_in">u16</span>)?;</span><br><span class="line"><span class="comment">// On Intel requires 'base' to be 'selector * 16' in real mode.</span></span><br><span class="line">VmcsGuestNW::CS_BASE.write(entry.as_usize() &amp; <span class="number">0xf0000</span>)?;</span><br></pre></td></tr></table></figure>
+<p>对应的linux.tmol修改为</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">cpu_num</span> = <span class="number">1</span></span><br><span class="line"><span class="attr">phys_cpu_sets</span> = [<span class="number">1</span>]</span><br><span class="line"><span class="attr">entry_point</span> = <span class="number">0</span>xf_e05b</span><br><span class="line"><span class="attr">bios_path</span> = <span class="string">"bios-256k.bin"</span></span><br><span class="line"><span class="attr">bios_load_addr</span> = <span class="number">0</span>xc_0000</span><br><span class="line"><span class="attr">kernel_path</span> = <span class="string">"arceos-x86_64.bin"</span></span><br><span class="line"><span class="attr">kernel_load_addr</span> = <span class="number">0</span>x<span class="number">100_0000</span></span><br><span class="line"><span class="comment"># ramdisk_path = ""</span></span><br><span class="line"><span class="comment"># ramdisk_load_addr = 0</span></span><br><span class="line"><span class="comment"># disk_path = "disk.img"</span></span><br><span class="line"><span class="comment"># Memory regions with format (`base_paddr`, `size`, `flags`).</span></span><br><span class="line"><span class="attr">memory_regions</span> = [</span><br><span class="line">    [<span class="number">0</span>x<span class="number">0000_0000</span>, <span class="number">0</span>x<span class="number">1_0000</span>, <span class="number">0</span>x13],    <span class="comment"># IO Port		64K	0b10011</span></span><br><span class="line">    [<span class="number">0</span>x<span class="number">0001_0000</span>, <span class="number">0</span>x<span class="number">400_0000</span>, <span class="number">0</span>x7],   <span class="comment"># Low RAM		64M	0b111</span></span><br><span class="line">    [<span class="number">0</span>xfec<span class="number">0_0000</span>, <span class="number">0</span>x1000, <span class="number">0</span>x17],      <span class="comment"># IO APIC		4K	0b10111</span></span><br><span class="line">    [<span class="number">0</span>xfee<span class="number">0_0000</span>, <span class="number">0</span>x1000, <span class="number">0</span>x17],      <span class="comment"># Local APIC	4K	0b10111</span></span><br><span class="line">    [<span class="number">0</span>xfed<span class="number">0_0000</span>, <span class="number">0</span>x1000, <span class="number">0</span>x17],      <span class="comment"># HPET 		4K  0b10111</span></span><br><span class="line">]</span><br><span class="line"><span class="comment"># Emu_devices</span></span><br><span class="line"><span class="comment"># Name Base-Ipa Ipa_len Alloc-Irq Emu-Type EmuConfig</span></span><br><span class="line"><span class="attr">emu_devices</span> = [</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>Seabios 加载内核流程，seabios加载内核是通过 fw_cfg 的 file 接口，读取 multiboo.bin 当作 rom 来加载的，这个 multiboo.bin是linux内核封装过的带有 0x55aa 标记的可以引导的 rom，seabios读取到 rom后，加载到内存中然后执行。整理需要实现内容如下(“对号” 为截至此笔记已完成的):</p>
+<ul>
+<li><input checked disabled type="checkbox"> <ol>
+<li>seabios第一条指令地址为: 0xf000:0xe05b, 支持设置primary vcpu第一条指令地址 entry_point.</li>
+</ol>
+</li>
+</ul>
+<pre><code><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1. 目前实模式下还不支设置超过0xffff的地址</span><br><span class="line">2. 考虑设置代码段 CS 寄存器</span><br></pre></td></tr></table></figure></code></pre><ul>
+<li><input checked disabled type="checkbox"> <ol start="2">
+<li><p>设置虚拟化需要截获的io端口</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">有些端口需要进行截获, 否则会透传到宿主机, 获取宿主机的信息, 例如pci信息, 内存大小信息等</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+</li>
+<li><input disabled type="checkbox"> <ol start="3">
+<li><p>dma 实现支持</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">很多数据的传输需要通过 dma 传输</span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ol>
+</li>
+</ul>
+<ul>
+<li><input disabled type="checkbox"> <ol start="4">
+<li>实现fw_cfg设备模拟</li>
+</ol>
+</li>
+</ul>
+<pre><code>- [x] fw_cfg 实现 pio, 设备地址 [0x510, 0x511]
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">告诉seabios, 虚拟化环境为 “QEMU”</span><br></pre></td></tr></table></figure>
+
+- [ ] fw_cfg 实现 dma, 设备地址 [0x514]
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">用于传输数据, 例如内核data数据等</span><br></pre></td></tr></table></figure></code></pre><ul>
+<li><input checked disabled type="checkbox"> <ol start="5">
+<li>实现rtc设备模拟, 设备地址 [0x70, 0x71]</li>
+</ol>
+</li>
+</ul>
+<pre><code><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">在虚拟化环境中, seabios 通过 rtc 几个保留的寄存器获取内存大小信息</span><br></pre></td></tr></table></figure></code></pre><ul>
+<li><input disabled type="checkbox"> <ol start="6">
+<li><p>multiboot 实现</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">seabios通过内核启动是通过multiboot协议启动的, 需要将内核文件进行重新封装</span><br></pre></td></tr></table></figure>
+
+
+</li>
+</ol>
+</li>
+</ul>
+<ul>
+<li><input disabled type="checkbox"> 其他 …</li>
+</ul>
+<p><strong>修改链接如下:</strong></p>
+<p><a href="https://github.com/hbuxiaofei/arceos-umhv/tree/support-seabios" target="_blank" rel="noopener">https://github.com/hbuxiaofei/arceos-umhv/tree/support-seabios</a></p>
+<p><a href="https://github.com/hbuxiaofei/axvcpu/tree/support-seabios" target="_blank" rel="noopener">https://github.com/hbuxiaofei/axvcpu/tree/support-seabios</a></p>
+<p><a href="https://github.com/hbuxiaofei/x86_vcpu/tree/support-seabios" target="_blank" rel="noopener">https://github.com/hbuxiaofei/x86_vcpu/tree/support-seabios</a></p>
+<p><a href="https://github.com/hbuxiaofei/axvm/tree/support-seabios" target="_blank" rel="noopener">https://github.com/hbuxiaofei/axvm/tree/support-seabios</a></p>
+<p><a href="https://github.com/hbuxiaofei/axdevice/tree/support-seabios" target="_blank" rel="noopener">https://github.com/hbuxiaofei/axdevice/tree/support-seabios</a></p>
+<p><strong>运行日志：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br></pre></td><td class="code"><pre><span class="line">[  0.307806 0:2 axvm::vm:230] Booting VM[1]</span><br><span class="line">[  0.308076 0:2 arceos_vmm::vmm:40] VM[1] boot success</span><br><span class="line">[  0.308390 0:2 axtask::run_queue:393] task block: Task(2, &quot;main&quot;)</span><br><span class="line">[  0.308757 0:3 axtask::task:471] task drop: Task(4, &quot;&quot;)</span><br><span class="line">[  0.309079 0:3 axtask::run_queue:393] task block: Task(3, &quot;gc&quot;)</span><br><span class="line">[  0.309436 0:5 arceos_vmm::vmm::vcpus:240] VM[1] Vcpu[0] waiting for running</span><br><span class="line">[  0.309852 0:5 arceos_vmm::vmm::vcpus:243] VM[1] Vcpu[0] running...</span><br><span class="line">[  0.310227 0:5 x86_vcpu::vmx::vcpu:118] VmxVcpu bind to current processor vmcs @ PA:0x5b2000</span><br><span class="line">[  0.310751 0:5 axvm::vm:258] &gt;&gt;&gt;&gt;&gt; exit_reason  IoWrite &#123;</span><br><span class="line">    port: 0x70,</span><br><span class="line">    width: Byte,</span><br><span class="line">    data: 0x8f,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">[  0.311332 0:5 axvm::vm:289] IoWrite: 0x70 Byte 0x8f</span><br><span class="line">[  0.311646 0:5 axdevice::device:96] emu: GPA:0x70..GPA:0x72 handler write port:GPA:0x70 width:1 val:0x8f</span><br><span class="line">[  0.312180 0:5 axdevice::rtc:54] Rtc select 0xf</span><br><span class="line"></span><br><span class="line">[  0.312482 0:5 axvm::vm:258] &gt;&gt;&gt;&gt;&gt; exit_reason  IoRead &#123;</span><br><span class="line">    port: 0x71,</span><br><span class="line">    width: Byte,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">[  0.312984 0:5 axvm::vm:278] IoRead: 0x71 Byte</span><br><span class="line">[  0.313268 0:5 axdevice::device:79] emu: GPA:0x70..GPA:0x72 handler read port:GPA:0x71 width:1</span><br><span class="line">[  0.313758 0:5 axdevice::rtc:81] Rtc read addr: GPA:0x71 GPA:0x71</span><br><span class="line"></span><br><span class="line">[  0.314130 0:5 axdevice::rtc:62] Rtc get index: 0xf</span><br><span class="line"></span><br><span class="line">[  0.314454 0:5 axvm::vm:258] &gt;&gt;&gt;&gt;&gt; exit_reason  Nothing</span><br><span class="line"></span><br><span class="line">[  0.314787 0:5 x86_vcpu::vmx::vcpu:131] VmxVcpu unbind from current processor vmcs @ PA:0x5b2000</span><br><span class="line">[  0.315285 0:5 x86_vcpu::vmx::vcpu:118] VmxVcpu bind to current processor vmcs @ PA:0x5b2000</span><br><span class="line">SeaBIOS (version 1.16.0-20241104_115553-centos83-dev)</span><br><span class="line">BUILD: gcc: (GCC) 8.5.0 20210514 (Red Hat 8.5.0-4) binutils: version 2.30-108.el8_5.1</span><br><span class="line">enabling shadow ram</span><br><span class="line">[  0.316631 0:5 axvm::vm:258] &gt;&gt;&gt;&gt;&gt; exit_reason  IoWrite &#123;</span><br><span class="line">    port: 0xcf8,</span><br><span class="line">    width: Dword,</span><br><span class="line">    data: 0x80000000,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">[  0.317243 0:5 axvm::vm:289] IoWrite: 0xcf8 Dword 0x80000000</span><br><span class="line">[  0.317586 0:5 axdevice::device:96] emu: GPA:0xcf8..GPA:0xd00 handler write port:GPA:0xcf8 width:4 val:0x80000000</span><br><span class="line">[  0.318159 0:5 axdevice::pci:210] &gt;&gt;&gt; axdevice pci write GPA:0xcf8 0x80000000...</span><br><span class="line"></span><br><span class="line">[  0.318592 0:5 axdevice::pci:87] &gt;&gt;&gt; set address 0x0 : device:0x0 : 0x0 : 0x0</span><br><span class="line"></span><br><span class="line">[  0.319020 0:5 axvm::vm:258] &gt;&gt;&gt;&gt;&gt; exit_reason  IoRead &#123;</span><br><span class="line">    port: 0xcfc,</span><br><span class="line">    width: Word,</span><br><span class="line">&#125;</span><br><span class="line">read QEMU_CFG_SIGNATURE 85(U)</span><br><span class="line">Found QEMU fw_cfg</span><br><span class="line">&gt;&gt;&gt; qemu_cfg_read_entry start ...</span><br><span class="line">&gt;&gt;&gt; cfg read qemu_cfg_read over</span><br><span class="line">&gt;&gt;&gt; qemu_cfg_read_entry over ...</span><br><span class="line">QEMU fw_cfg: 956659(0xe98f3) 0x2</span><br><span class="line">QEMU fw_cfg DMA interface supported</span><br><span class="line">&gt;&gt;&gt; qemu_early_e820 call qemu_cfg_read_entry, port:0x19</span><br><span class="line">&gt;&gt;&gt; qemu_cfg_read_entry start ...</span><br><span class="line">&gt;&gt;&gt; cfg read qemu_cfg_dma_transfer 0x6f80 4</span><br><span class="line">&gt;&gt;&gt; dma outl: 0x518 0x806f000000000000</span><br><span class="line">[  0.508528 0:5 axvm::vm:258] &gt;&gt;&gt;&gt;&gt; exit_reason  IoWrite &#123;</span><br><span class="line">    port: 0x518,</span><br><span class="line">    width: Dword,</span><br><span class="line">    data: 0x206f0000,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">[  0.509263 0:5 axvm::vm:289] IoWrite: 0x518 Dword 0x206f0000</span><br><span class="line">[  0.509671 0:5 axdevice::device:96] emu: GPA:0x510..GPA:0x522 handler write port:GPA:0x518 width:4 val:0x206f0000</span><br><span class="line">[  0.510356 0:5 axdevice::fwcfg:238] &gt;&gt;&gt; do_write GPA:0x518 4 0x206f0000</span><br><span class="line"></span><br><span class="line">[  0.510837 0:5 axdevice::fwcfg:226] dma_write: GPA:0x518 0x206f0000</span><br><span class="line"></span><br><span class="line">&gt;&gt;&gt; dma outl over: 0x518 0x806f000000000000</span><br><span class="line">QEMU: Terminated</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p><strong>参考文档:</strong></p>
+<p><a href="https://www.cnblogs.com/gnuemacs/p/14287120.html" target="_blank" rel="noopener">SeaBIOS实现简单分析</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/678576761" target="_blank" rel="noopener">浅度剖析 SeaBIOS 之 QEMU 初始化</a></p>
+<p>&lt;&lt;Qemu/kvm源码解析与应用&gt;&gt; - 李强</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/greatbridf-2024%E7%A7%8B%E5%86%AC%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%89%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +415,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
 
           
@@ -352,7 +503,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:25" itemprop="dateModified" datetime="2025-06-22T08:29:25+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -481,7 +632,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
 
           
@@ -549,7 +700,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
 
           
@@ -625,7 +776,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
 
           
@@ -702,7 +853,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -799,7 +950,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:25" itemprop="dateModified" datetime="2025-06-22T08:29:25+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
 
           
@@ -873,7 +1024,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
 
           
@@ -957,7 +1108,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -999,81 +1150,6 @@
 <p>虽然没有通过最初的设想去适配到任何一个系统里去（直接移植还是太不松耦合了），但是我也花了很多时间去尝试适配，其中阶段二的项目仓库是最接近完成的一个，结果编译错误了，经过测试发现把 <code>futex::syscall::sys_futex</code> 函数调用去掉就可以通过编译，一时间不知道从何改起。转到 <code>arceos</code> 适配的时候，在被迫阅读了大量源码之后，发现提供的宏内核示例压根没有创建线程的系统调用，自己写了半天并没有写出来，所以又放弃了。</p>
 <p>虽然写的挺差的，而且最近也到学校的期末周了，确实有没有太多时间写这个项目了，但是通过这次 posix 接口的编写，我还是学会了不少东西。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>从训练营开始到现在也过去 12 周了，看着自己从对操作系统毫无概念一步步到现在还是很感慨的。感谢老师的辛勤付出，感谢训练营能给我一个这样的平台。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/17/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-BingXuanOwO/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/17/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-BingXuanOwO/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营第三阶段总结-BingXuanOwO</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-17 19:40:21" itemprop="dateCreated datePublished" datetime="2024-12-17T19:40:21+00:00">2024-12-17</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-06-22 08:29:26" itemprop="dateModified" datetime="2025-06-22T08:29:26+00:00">2025-06-22</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>好的，这里是冰轩。</p>
-<h2 id="奇怪的-Hashmap-implementation"><a href="#奇怪的-Hashmap-implementation" class="headerlink" title="奇怪的 Hashmap implementation"></a>奇怪的 Hashmap implementation</h2><p>在 Hashmap exercise 中，由于我一开始并未有实现此类数据类型的经验，参考 rust std 原有的库又有较大的心智负担，我最终选择参考《算法导论》一书中的对应部分来实现。</p>
-<p>在 Hash 生成部分，由于我未能成功调用 rust 原有的 Hash 算法，并且我希望 Hash 算法能够相较简单，我选择了实现书中的乘法散列法算法。而至于 Hashmap 本身的实现就较为简单，其内部含有一个元素量为 Hash 最大值 + 1 的 <code>List&lt;Vec&gt;</code>，每个 Vec 存储一个包含了 Key 和元素的元组，每次添加时在 <code>List[hash_of_key]</code> 处推入元组，查找时从 <code>List[hash_of_key]</code> 处查找是否含有对应 key 完全相同的项。</p>
-<p>虽然一开始因为 List 给的过大导致栈爆了，不过幸好，缩小以后，测例便成功过了。</p>
-<h2 id="带有遗憾的简易-Hypervisor"><a href="#带有遗憾的简易-Hypervisor" class="headerlink" title="带有遗憾的简易 Hypervisor"></a>带有遗憾的简易 Hypervisor</h2><p>在根据根据课程逐渐熟悉框架代码以及根据课程真正了解一个 Hypervisor 的原理之后，剩下的就好说了。对两次指令的异常进行处理，然后返回正常的值，lab 就完成了…对吧？</p>
-<p>然而我预计错了这个 lab 需要的实现方案。</p>
-<p>这部分的实现首先需要处理一个读取 <code>mhartid</code> 的 <code>csrr</code> 指令。我一开始曾希望直接解析指令后执行对应操作，来实现 expected behavior，并确保这部分代码的鲁棒性。然而，我却想得复杂了，因为直到我开始考虑 <code>mhartid</code> 寄存器值的来源，以及发现其期望值为 0x6688，像是随便返回了一个数字，所以，我意识到，这题的实现很可能并不该如此复杂。最终，这部分我选择保留一部分之前解析并判断 Instruction 的代码，以及通过将 sepc 增加 4，并直接设置 A1 至 0x6688 的方式，直接针对结果实现。后续的 LoadGuestPageFault 我也如此实现。测试用例很轻松地过了，不出意外这个 lab 应该没太大问题了。</p>
-<p>然而，意外还是出现了。第二天一早，我惊讶地发现它会在执行 Guest 指令时卡死。通过 LOG=trace，我发现它是在进行磁盘 io 的时候卡死。这牵扯到的问题实在太大，要进行大量的调试，更糟糕的是，这个问题触发很随机。然而，我没能在挂着调试器的情况下再见到过一次这个问题。最后，我还是放弃了解决这个问题。</p>
-<h2 id="简单快速的-h-2-0"><a href="#简单快速的-h-2-0" class="headerlink" title="简单快速的 h_2_0"></a>简单快速的 h_2_0</h2><p>这个 exercise 原有的 HV 框架已经给出了函数 <code>load_vm_image</code>，可以用于从磁盘读取文件并放置至地址空间，并且基本可以用于读取任何二进制文件，使得此 exercise 变得较为简单。</p>
-<p>这个函数使得实现十分直接，我写出了一个简单的 <code>write_pflash_img.sh</code> ，用于生成带有 <code>pfld</code> Magic Number 的文件并放进磁盘镜像中。随后，注释掉原有直通模式代码，并取消注释模拟模式代码。最后，在每次缺页时，利用 <code>load_vm_image</code> 函数加载文件，并放到对应缺页的位置，这部分也就基本解决了。</p>
-<p>与之前的简易 Hypervisor 不同，得益于对框架功能的有效复用，以及较为直接的实现，这次的实现并没有遇到随机卡死或调试困难的故障，测试用例也可以顺利通过。</p>
 
       
     </div>

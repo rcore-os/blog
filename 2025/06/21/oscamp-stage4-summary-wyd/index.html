@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="序言非常高兴能参加今年的操作系统训练营，经过这四个阶段的学习，对操作系统的理解逐渐加深。在此过程中，对陈渝老师和郑友捷老师的耐心指导表示衷心感谢。 在第四阶段的学习中，我主要做了以下工作：  starry-next支持新特性：大页分配 后端映射实现 修改后端数据结构，为Linear和Alloc这两种映射方式增加对齐参数align，该参数的类型为PageSize。根据对齐方式，分配相应的内存块。 修">
+<meta property="og:type" content="article">
+<meta property="og:title" content="oscamp_stage4_summary_wyd">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/06/21/oscamp-stage4-summary-wyd/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="序言非常高兴能参加今年的操作系统训练营，经过这四个阶段的学习，对操作系统的理解逐渐加深。在此过程中，对陈渝老师和郑友捷老师的耐心指导表示衷心感谢。 在第四阶段的学习中，我主要做了以下工作：  starry-next支持新特性：大页分配 后端映射实现 修改后端数据结构，为Linear和Alloc这两种映射方式增加对齐参数align，该参数的类型为PageSize。根据对齐方式，分配相应的内存块。 修">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/.io//image-20250621162956014.png">
+<meta property="article:published_time" content="2025-06-21T16:58:10.000Z">
+<meta property="article:modified_time" content="2025-06-22T08:31:18.698Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/.io//image-20250621162956014.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/06/21/oscamp-stage4-summary-wyd/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>oscamp_stage4_summary_wyd | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#序言"><span class="nav-number">1.</span> <span class="nav-text">序言</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#starry-next支持新特性：大页分配"><span class="nav-number">1.1.</span> <span class="nav-text">starry-next支持新特性：大页分配</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#后端映射实现"><span class="nav-number">1.1.1.</span> <span class="nav-text">后端映射实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存扩展"><span class="nav-number">1.1.2.</span> <span class="nav-text">内存扩展</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#分析和改进axalloc"><span class="nav-number">1.2.</span> <span class="nav-text">分析和改进axalloc</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">727</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">69</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">633</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/21/oscamp-stage4-summary-wyd/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          oscamp_stage4_summary_wyd
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-06-21 16:58:10" itemprop="dateCreated datePublished" datetime="2025-06-21T16:58:10+00:00">2025-06-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-06-22 08:31:18" itemprop="dateModified" datetime="2025-06-22T08:31:18+00:00">2025-06-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h1><p>非常高兴能参加今年的操作系统训练营，经过这四个阶段的学习，对操作系统的理解逐渐加深。在此过程中，对陈渝老师和郑友捷老师的耐心指导表示衷心感谢。</p>
+<p>在第四阶段的学习中，我主要做了以下工作：</p>
+<ol>
+<li><h2 id="starry-next支持新特性：大页分配"><a href="#starry-next支持新特性：大页分配" class="headerlink" title="starry-next支持新特性：大页分配"></a>starry-next支持新特性：大页分配</h2><ol>
+<li><h3 id="后端映射实现"><a href="#后端映射实现" class="headerlink" title="后端映射实现"></a>后端映射实现</h3><ol>
+<li>修改后端数据结构，为<code>Linear</code>和<code>Alloc</code>这两种映射方式增加对齐参数<code>align</code>，该参数的类型为<code>PageSize</code>。根据对齐方式，分配相应的内存块。</li>
+<li>修改物理页帧的分配方法<code>alloc_frame</code>，以4KB为单位，根据对齐参数大小，计算页面数量<code>num_pages</code>，调用全局分配器，分配<code>num_pages</code>个连续的物理页面，将这段连续内存的地址返回并映射到页表中，作为一整个页面。</li>
+<li>修改释放方法<code>dealloc_frame</code>，基于以上<code>alloc_frame</code>，物理页帧的释放同理，根据对齐参数，以4KB为单位，计算需要释放的物理页帧数量，并调用全局分配器，释放这一段连续的物理内存。</li>
+<li>修改空闲内存查找方法<code>find_free_area</code>，为适配不同的对齐要求，该函数首先对建议的起始地址<code>hint</code>进行对齐，然后执行两轮扫描，第一轮扫描处理<code>hint</code>之前的区域，以确定起始搜索位置，第二轮扫描检查各内存区域之间的空隙，跳过重叠和已占用的区域，检查满足对齐要求和大小的区域，最后检查末尾区域，验证并返回找到的地址。</li>
+<li>修改<code>unmap</code>方法，考虑取消映射的内存区域可能存在不同对齐的情况，对<code>unmap</code>方法进行改进。首先验证起始地址和大小是否满足4K对齐，然后查找定位取消映射的内存块，根据每个内存块的对齐要求，验证对齐，最后执行取消映射。</li>
+<li>增加一个<code>page_iter_wraper.rs</code>文件，包装<code>PageIter4K</code>，<code>PageIter2M</code>，<code>PageIter1G</code>为一个<code>PageIterWrapper</code>，方便遍历。</li>
+<li>对线性映射，文件读写，DMA和懒分配的支持，在相关函数如<code>new_linear</code>，<code>process_area_data</code>，<code>handle_page_fault</code>中增加对齐参数支持不同页面的对齐要求。</li>
+</ol>
+</li>
+<li><h3 id="内存扩展"><a href="#内存扩展" class="headerlink" title="内存扩展"></a>内存扩展</h3><ol>
+<li>为测试大页尤其是1G大页的分配，读写和回收等情况，需要扩展平台内存以运行测例。<ol>
+<li>修改<code>aarch64</code>架构配置文件，修改其物理内存大小为4G</li>
+<li>修改<code>riscv64</code>架构配置文件，修改其物理内存大小为4G</li>
+<li>修改<code>loongarch64</code>架构的配置文件，扩展其物理内存，并修改其物理基址和内核基址以避免内存重叠</li>
+<li>修改<code>x86_64</code>架构的配置文件，扩展其物理内存，在<code>mmio-regions</code>新增高地址支持，修改<code>modules/axhal/src/mem.rs</code>文件，新增free_memory_region，扩展<code>x86_pc</code>中的<code>multiboot.S</code>支持高位地址空间</li>
+</ol>
+</li>
+<li>扩展内存之后在所有架构下测试</li>
+<li>将以上所做的修改工作落实成文档提交</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><h2 id="分析和改进axalloc"><a href="#分析和改进axalloc" class="headerlink" title="分析和改进axalloc"></a>分析和改进axalloc</h2><ol>
+<li>分析axalloc代码逻辑，撰写<a href="https://github.com/Ticonderoga2017/arceos_blog" target="_blank" rel="noopener">文档</a></li>
+<li>改进axalloc<ol>
+<li>新增<a href="https://github.com/Ticonderoga2017/arceos/blob/buddy_page/modules/axalloc/src/buddy_page.rs" target="_blank" rel="noopener">buddy_page.rs</a>，基于buddy算法，实现了一个页分配器，并添加相关的测试模块。实现思路如下：<ol>
+<li><strong>初始化过程：</strong>将起始地址和结束地址对齐到页边界，内存基址对齐到1G边界（与arceos的<code>BitmapPageAllocator</code>保持一致），将整个内存区域分解为最大可能的2的幂次个块。</li>
+<li><strong>分配算法：</strong>检查需要分配的页面数量和页面大小，验证其是否与<code>PAGE_SIZE</code>对齐，根据所需页面数量和对齐，计算所需阶数，查找可用块，将大块分割到所需大小，将多余部分加入对应的空闲链表，标记页面为已分配，更新使用统计。</li>
+<li><strong>释放与合并算法：</strong>首先标记当前块为空闲，然后递归检查伙伴块是否空闲，如果是则合并，将最终合并的块加入到对应阶数的空闲链表。</li>
+</ol>
+</li>
+<li>新增<a href="https://github.com/Ticonderoga2017/arceos/blob/buddy_page/modules/axalloc/src/tests.rs" target="_blank" rel="noopener">tests.rs</a>，提供一个基准测试模块，用于比较<code>BitmapPageAllocator</code>和<code>BuddyPageAllocator</code>两种页分配器的性能表现。该测试模块包含两个主要测试函数，用于评估不同分配器在碎片化和内存合并方面的表现 ，测试结果如下：<img src="/blog/.io//image-20250621162956014.png" alt="image-20250621162956014"><ol>
+<li><strong>合并效率测试结果：</strong>两个分配器都显示了 100% 的合并效率，这意味着它们都能完美地将释放的单页重新合并成大的连续内存块</li>
+<li><strong>碎片化测试结果分析：</strong><ul>
+<li><strong>Random Small Pattern（随机小块分配）:</strong><ul>
+<li>Bitmap: 50.0% 碎片化率</li>
+<li>Buddy: 83.3% 碎片化率</li>
+<li><strong>BitmapPageAllocator 表现更好</strong></li>
+</ul>
+</li>
+<li><strong>Mixed Size Pattern（混合大小分配）:</strong><ul>
+<li>Bitmap: 41.7% 碎片化率</li>
+<li>Buddy: 33.3% 碎片化率</li>
+<li><strong>BuddyPageAllocator 表现更好</strong></li>
+</ul>
+</li>
+<li><strong>Power-of-2 Pattern（2的幂次分配）:</strong><ul>
+<li>Bitmap: 16.7% 碎片化率</li>
+<li>Buddy: 33.3% 碎片化率</li>
+<li><strong>BitmapPageAllocator 表现更好</strong></li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/21/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%94%B9%E8%BF%9BStarry%E6%96%87%E6%A1%A3/" rel="prev" title="开源操作系统训练营第四阶段总结-改进Starry文档">
+      <i class="fa fa-chevron-left"></i> 开源操作系统训练营第四阶段总结-改进Starry文档
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/21/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93-elebirds/" rel="next" title="2025春夏季开源操作系统训练营第四阶段学习总结-elebirds">
+      2025春夏季开源操作系统训练营第四阶段学习总结-elebirds <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
