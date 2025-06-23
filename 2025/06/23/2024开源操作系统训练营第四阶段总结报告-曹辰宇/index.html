@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="第四阶段总结报告一些碎语我查看了三篇文档 ， 其中https:&#x2F;&#x2F;os.phil-opp.com&#x2F;async-await&#x2F;#pinning 新使用的crate：crossbeam ,conquer_once 为啥使用conquer_once的OnceCell而不是lazy_static!因为这个类型实现了避免中断程序进行堆空间开辟（从而避免产生一个死锁） future 中还有一个Stream的tr">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2024开源操作系统训练营第四阶段总结报告-曹辰宇">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/06/23/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%9B%B9%E8%BE%B0%E5%AE%87/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="第四阶段总结报告一些碎语我查看了三篇文档 ， 其中https:&#x2F;&#x2F;os.phil-opp.com&#x2F;async-await&#x2F;#pinning 新使用的crate：crossbeam ,conquer_once 为啥使用conquer_once的OnceCell而不是lazy_static!因为这个类型实现了避免中断程序进行堆空间开辟（从而避免产生一个死锁） future 中还有一个Stream的tr">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-06-23T12:09:39.294Z">
+<meta property="article:modified_time" content="2025-06-23T12:09:39.294Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/06/23/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%9B%B9%E8%BE%B0%E5%AE%87/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2024开源操作系统训练营第四阶段总结报告-曹辰宇 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#第四阶段总结报告"><span class="nav-number">1.</span> <span class="nav-text">第四阶段总结报告</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#一些碎语"><span class="nav-number">1.0.1.</span> <span class="nav-text">一些碎语</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Tokio-文档阅读"><span class="nav-number">1.1.</span> <span class="nav-text">Tokio 文档阅读</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#chat"><span class="nav-number">1.1.1.</span> <span class="nav-text">chat</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#io-uring"><span class="nav-number">1.2.</span> <span class="nav-text">io_uring</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#与linux"><span class="nav-number">1.2.1.</span> <span class="nav-text">与linux</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#io-uring-和-epoll。"><span class="nav-number">1.2.2.</span> <span class="nav-text">io-uring 和 epoll。</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#smol"><span class="nav-number">1.3.</span> <span class="nav-text">smol</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#关于我的运行时"><span class="nav-number">1.4.</span> <span class="nav-text">关于我的运行时</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">727</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">69</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">633</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/23/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%9B%B9%E8%BE%B0%E5%AE%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2024开源操作系统训练营第四阶段总结报告-曹辰宇
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-06-23 12:09:39" itemprop="dateCreated datePublished" datetime="2025-06-23T12:09:39+00:00">2025-06-23</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="第四阶段总结报告"><a href="#第四阶段总结报告" class="headerlink" title="第四阶段总结报告"></a>第四阶段总结报告</h1><h3 id="一些碎语"><a href="#一些碎语" class="headerlink" title="一些碎语"></a>一些碎语</h3><p>我查看了三篇文档 ， 其中<a href="https://os.phil-opp.com/async-await/#pinning" target="_blank" rel="noopener">https://os.phil-opp.com/async-await/#pinning</a></p>
+<p>新使用的crate：crossbeam ,conquer_once</p>
+<p>为啥使用conquer_once的OnceCell而不是lazy_static!因为这个类型实现<br>了避免中断程序进行堆空间开辟（从而避免产生一个死锁）</p>
+<p>future 中还有一个Stream的trait<br>tokio文档看了一下（trait回忆一下，它像个接口，implement后应用到具体的一个类型）</p>
+<h2 id="Tokio-文档阅读"><a href="#Tokio-文档阅读" class="headerlink" title="Tokio 文档阅读"></a>Tokio 文档阅读</h2><h3 id="chat"><a href="#chat" class="headerlink" title="chat"></a>chat</h3><p>首先阅读的是一堆example，这里先看chat。<br>chat是一个聊天室，设立服务端然后异步读取其他客户端的消息，并且广播到是所有的客户端，<br>是一种中心式结构</p>
+<h2 id="io-uring"><a href="#io-uring" class="headerlink" title="io_uring"></a>io_uring</h2><h3 id="与linux"><a href="#与linux" class="headerlink" title="与linux"></a>与linux</h3><p>linux有一个自己的原生异步IO接口，叫aio,他有一些问题：</p>
+<ol>
+<li>因为0_DIRECT，所以很多的IO用例不适用。普通的IO会退化为同步IO。</li>
+<li>就算异步，IO也可能会阻塞，比如硬件部分，这使得软件必须获取加载这些部分的锡信息</li>
+<li>API不够完美，每次提交需要64+8字节的内存，每次完成徐娅萍<br>他常用的方法是：io_submit() , io_setup()  , io_getevents().</li>
+</ol>
+<h3 id="io-uring-和-epoll。"><a href="#io-uring-和-epoll。" class="headerlink" title="io-uring 和 epoll。"></a>io-uring 和 epoll。</h3><p>epoll 只是通知机制，本质上事情还是通过用户代码直接 syscall 来做的，如 read。这样在高频<br>syscall 的场景下，频繁的用户态内核态切换会消耗较多资源。io-uring 可以做异步 syscall，<br>即便是不开 SQ_POLL 也可以大大减少 syscall 次数。</p>
+<p>io-uring 的问题在于下面几点：</p>
+<p><strong>兼容问题</strong>。平台兼容就不说了，linux only（epoll 在其他平台上有类似的存在，可以基于已<br>经十分完善的 mio 做无缝兼容）。linux 上也会对 kernel 版本有一定要求，且不同版本的实现性<br>能还有一定差距。大型公司一般还会有自己修改的内核版本，所以想持续跟进 backport 也是一件头疼<br>事。同时对于 Mac/Windows 用户，在开发体验上也会带来一定困难。</p>
+<p><strong>Buffer 生命周期问题</strong>。io-uring 是全异步的，Op push 到 SQ 后就不能移动 buffer，一定<br>要保证其有效，直到 syscall 完成或 Cancel Op 执行完毕。无论是在 C/C++ 还是 Rust 中，都<br>会面临 buffer 生命周期管理问题。epoll 没有这个问题，因为 syscall 就是用户做的，陷入 sy<br>scall 期间本来就无法操作 buffer，所以可以保证其持续有效直到 syscall 返回。</p>
+<h2 id="smol"><a href="#smol" class="headerlink" title="smol"></a>smol</h2><p>在几个库的基础上封装成最后几个接口</p>
+<p>在 Linux 上，mio 使用 epoll 来实现高效的 I/O 多路复用。smol 使用 mio 来实现<br>这一点。具体来说，smol 会将 I/O 操作抽象为异步任务，然后将这些任务交给 mio 处理。<br>mio 通过 epoll 监听文件描述符，当某个文件描述符变得可读或可写时，它会通知 smol 来<br>执行相应的任务。</p>
+<p>在 smol 的源码中，底层通过调用 mio 提供的异步 I/O API 来实现任务的异步调度。例如<br>，读取数据时，它会发出 epoll 查询，直到某个文件描述符准备好读取数据，才会从事件队列中获<br>取该事件并执行对应的异步任务。</p>
+<h2 id="关于我的运行时"><a href="#关于我的运行时" class="headerlink" title="关于我的运行时"></a>关于我的运行时</h2><p>用proactor包装io_uring实现基本的异步读写，然后再包装proactor实现io和file，然后没有什么了，<br>一开始低估了整个运行时的大小</p>
+<p>然后看了很多的文档：</p>
+<p><a href="https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/stream.rs" target="_blank" rel="noopener">https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/stream.rs</a><br><a href="https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html" target="_blank" rel="noopener">https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html</a><br><a href="https://github.com/bytedance/monoio/blob/master/docs/zh/io-cancel.md" target="_blank" rel="noopener">https://github.com/bytedance/monoio/blob/master/docs/zh/io-cancel.md</a><br><a href="https://github.com/ihciah/mini-rust-runtime/blob/master/src/tcp.rs" target="_blank" rel="noopener">https://github.com/ihciah/mini-rust-runtime/blob/master/src/tcp.rs</a><br><a href="https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/lib.rs" target="_blank" rel="noopener">https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/lib.rs</a></p>
+<p>这里我认为monoio算是一个正确的，完善的运行时，不过这个大小太夸张了，可以下期一开始就把它粘出来，让大家<br>直观感受一下成果的规模。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/23/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/" rel="prev" title="2024年开源操作系统训练营总结-winddevil/2024年开源操作系统训练营总结-winddevil">
+      <i class="fa fa-chevron-left"></i> 2024年开源操作系统训练营总结-winddevil/2024年开源操作系统训练营总结-winddevil
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/06/23/2024%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-fengtdi/" rel="next" title="2024春夏季开源操作系统训练营第一阶段总结报告-fengtdi">
+      2024春夏季开源操作系统训练营第一阶段总结报告-fengtdi <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
