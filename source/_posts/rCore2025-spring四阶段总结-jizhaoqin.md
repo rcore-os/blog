@@ -6,9 +6,9 @@ tags:
     - repo:https://github.com/LearningOS/2025s-rcore-jizhaoqin
 ---
 
-# rCore 2025 spring blog
+# 2025春操作系统训练营四阶段报告
 
-## 第一阶段-Rust编程
+## 第一阶段 - Rust编程
 
 - 这一阶段主要就是了解学习Rust的语法和特性, 以及完成所有的rustlings题目, 以及实现一些基础的数据结构和算法, 为之后的项目内容做准备.
 - 我对rust的语法已经比较熟悉了, 其实rustlings之前也做过一遍, 所以很快, 但数据结构和算法的rust实现有点忘了, 这部分花了点时间
@@ -66,9 +66,10 @@ tags:
 - [simple_hv]:
   - hypervisor虚拟化相关的内容
 
-## 第四阶段项目三 - 基于协程异步机制的操作系统/驱动
+## 第四阶段 - 项目三: 基于协程异步机制的操作系统/驱动
 
 - 仓库连接: [https://github.com/jizhaoqin/arceos/tree/dev-async-irq](https://github.com/jizhaoqin/arceos/tree/dev-async-irq)
+- 汇报连接: [https://docs.google.com/presentation/d/1VZuvpDa1Ot9joiWxl2y-eviw-mX34QQXLZYLFYfCR1c/edit?usp=sharing](https://docs.google.com/presentation/d/1VZuvpDa1Ot9joiWxl2y-eviw-mX34QQXLZYLFYfCR1c/edit?usp=sharing)
 - 选题方向:
   - 主要目标是尝试对部分非实时中断异步化, 具体以uart串口通信为例, 实时意味着需要立即处理完毕, 非实时中断则不要求中断信息能马上处理完毕, 对这种中断我们可以将其放在后台运行而不阻塞当前逻辑, 比较适合将其转化为异步任务进行处理. 
   - 需要注意的是, 我们一般要求所有中断都要求立即返回, 但这并不意味着中断已经处理完毕, 比如网络包下载, 或者高负载串口通信, 有些信息处理比较耗时, 这时为了快速结束中断, 我们可以将未经处理的数据放入缓冲区队列, 然后在结束中断前通知异步任务进行处理.
@@ -101,4 +102,4 @@ tags:
 	- 执行器阻塞线程不主动yield, 直到一个周期后被抢占才切换到其他线程, 而其他线程正常yield, 这使得执行器线程占用了几乎所有CPU时间
 	- 最后又更改了中断处理流程, 添加了两个缓冲区才最终把逻辑跑通
 - 其他:
-  - 为较大项目添加特性真是令人窒息, 不敢想象如果没有好的代码架构, 抽象以及解耦, 可以想象越到后来, 最终将达到一个极限, 使得这一工作几乎不可能完成. 也可能是我不习惯吧.
+  - 为较大项目添加特性是一件很困难的事, 除了考虑本特性的实现, 还要嵌合进整个项目的组织框架和编译逻辑中, 不敢想象如果没有好的代码架构, 抽象以及解耦, 可以想象越到后来, 最终将达到一个极限, 使得这一工作几乎不可能完成.
