@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">727</span>
+          <span class="site-state-item-count">728</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,114 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/24/rcore-study-report-by-mio/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/05/24/rcore-study-report-by-mio/" class="post-title-link" itemprop="url">rcore-study-report-by-mio</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-24 23:48:45" itemprop="dateCreated datePublished" datetime="2025-05-24T23:48:45+00:00">2025-05-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="rustling-阶段总结"><a href="#rustling-阶段总结" class="headerlink" title="rustling 阶段总结"></a>rustling 阶段总结</h2><p>先来一份 C++ 转 Rust 急救指南（</p>
+<h3 id="Mutable-Borrow-amp-take-ownership"><a href="#Mutable-Borrow-amp-take-ownership" class="headerlink" title="/ Mutable Borrow &amp; take ownership"></a>/ Mutable Borrow &amp; take ownership</h3><p>rust 中函数传递参数有三种方式，不可变借用，可变借用以及获取所有权。这三种方式贯穿了 rust 的设计思想。<br>它们的定义对应了 <code>&amp;T, &amp;mut T, T</code> 三种类型。与 C++ 不同，rust 中值传递的默认行为是 <code>move</code> 而非 <code>copy</code>，对于 <code>copy</code> 需要实现 <code>Copy</code> 的 trait。 且类型一旦实现 <code>Copy</code> trait 之后，默认行为就变为 <code>copy</code>。</p>
+<h3 id="Borrow-amp"><a href="#Borrow-amp" class="headerlink" title="Borrow &amp;"></a>Borrow &amp;</h3><p>rust 中的 <code>&amp;T</code> 应等同于 C++ 中的指针，只是 rust 对于 <code>&amp;T</code> 实现了隐式 <code>Deref</code>，在大部分情况下避免了显式 <code>* / &amp;</code>。<br>迭代器有三种类型：<code>iter(), iter_mut(), into_iter()</code>，分别对应了 <code>&amp;T, &amp;mut T, T</code> 三种类型。</p>
+<h3 id="Iterator"><a href="#Iterator" class="headerlink" title="Iterator"></a>Iterator</h3><p>rust 中迭代器的成员函数被分为两类，<strong>Non-Consuming Adaptors</strong> 返回对应的迭代器，是惰性的，<strong>Consuming Adaptors</strong> 返回结果，会消耗迭代器的所有权，在使用后无法再次使用该迭代器。</p>
+<h3 id="Index"><a href="#Index" class="headerlink" title="Index"></a>Index</h3><p><code>[]</code> 应返回 <code>&amp;T</code> 或 <code>&amp;mut T</code>，不应获取所有权，这是为了避免通过 index 访问而隐式获得所有权的情况。</p>
+<h3 id="Deref"><a href="#Deref" class="headerlink" title="Deref"></a>Deref</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">Deref</span></span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Target</span></span>: ?<span class="built_in">Sized</span>;  <span class="comment">// 关联类型，表示解引用后的目标类型</span></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">deref</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;Self::Target;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这是 rust 中关于 Deref 的定义，通过在 impl 的时候指定相关的类型，就可以无需像泛型定义那样显式指定类型。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Deref <span class="keyword">for</span> <span class="built_in">String</span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Target</span></span> = <span class="built_in">str</span>; <span class="comment">// 指定解引用目标为 `str`</span></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">deref</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;<span class="built_in">str</span> &#123;</span><br><span class="line">        <span class="keyword">unsafe</span> &#123; <span class="built_in">str</span>::from_utf8_unchecked(&amp;<span class="keyword">self</span>.as_bytes()) &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>由此我们也知道了，对于一个 <code>Deref</code> 实现来说，它所返回的类型是 single 的，并不会出现解引用可以返回不同类型的情况。对 <code>&amp;String</code> 解引用可以得到 <code>&amp;str</code>，是因为 <code>Target = str</code>。<br>正因如此，编译器可以通过 <code>T, U</code> 类型推断这两个类型是否可以通过 <code>Deref</code> 转换。</p>
+<h3 id="Drop"><a href="#Drop" class="headerlink" title="Drop"></a>Drop</h3><p><code>Drop::drop()</code> 会在变量离开作用域后由编译器隐式调用，不应显式调用该函数。<br><code>Drop</code> trait 被实现用于回收资源，若需要显式调用，可使用 <code>std::mem::drop(x)</code> 通过消耗 <code>x</code> 的所有权来提前触发析构。</p>
+<h3 id="RefCell"><a href="#RefCell" class="headerlink" title="RefCell"></a>RefCell</h3><p>在编译时允许同时存在多个可变引用，但运行时仍会检查是否存在多个可变引用，通过 <code>borrow(), borrow_mut()</code> 中的引用计数来实现。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">RefCell</span></span>&lt;T&gt; &#123;</span><br><span class="line">    value: T,</span><br><span class="line">    borrow_count: <span class="built_in">usize</span>,</span><br><span class="line">    is_mut_borrowed: <span class="built_in">bool</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;T&gt; RefCell&lt;T&gt; &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">borrow</span></span>(&amp;<span class="keyword">self</span>) -&gt; Ref&lt;T&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.is_mut_borrowed &#123;</span><br><span class="line">            <span class="built_in">panic!</span>(<span class="string">"Already mutably borrowed!"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">self</span>.borrow_count += <span class="number">1</span>;</span><br><span class="line">        Ref &#123; <span class="comment">/* ... */</span> &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">borrow_mut</span></span>(&amp;<span class="keyword">self</span>) -&gt; RefMut&lt;T&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.borrow_count &gt; <span class="number">0</span> || <span class="keyword">self</span>.is_mut_borrowed &#123;</span><br><span class="line">            <span class="built_in">panic!</span>(<span class="string">"Already borrowed!"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">self</span>.is_mut_borrowed = <span class="literal">true</span>;</span><br><span class="line">        RefMut &#123; <span class="comment">/* ... */</span> &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>RefCell&lt;T&gt;</code> 会返回 <code>Ref&lt;T&gt;</code> 或者 <code>RefMut&lt;T&gt;</code>。<code>Ref&lt;T&gt;</code> 的所有权检查发生在运行时，且可以通过 <code>map</code> 来拆分借用，更加灵活。<br>可以通过 <code>RefCell</code> 来实现内部可变性。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::cell::RefCell;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Cache</span></span> &#123;</span><br><span class="line">    data: RefCell&lt;<span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt;&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> Cache &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">get_data</span></span>(&amp;<span class="keyword">self</span>) -&gt; <span class="built_in">String</span> &#123;</span><br><span class="line">        <span class="comment">// 检查缓存</span></span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> cache = <span class="keyword">self</span>.data.borrow_mut();</span><br><span class="line">        <span class="keyword">if</span> cache.is_none() &#123;</span><br><span class="line">            *cache = <span class="literal">Some</span>(<span class="string">"Expensive result"</span>.to_string());</span><br><span class="line">        &#125;</span><br><span class="line">        cache.as_ref().unwrap().clone()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> cache = Cache &#123; data: RefCell::new(<span class="literal">None</span>) &#125;;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Data: &#123;&#125;"</span>, cache.get_data()); <span class="comment">// 计算并缓存</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Cached: &#123;&#125;"</span>, cache.get_data()); <span class="comment">// 直接读取缓存</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用 <code>borrow_mut()</code> 时，由于变量的生命周期与临时值不同，应谨慎与变量进行绑定。</p>
+<h3 id="Lifetime"><a href="#Lifetime" class="headerlink" title="Lifetime"></a>Lifetime</h3><p>rust 的临时值会在表达式结束后析构，因此允许存在这样的情况。在 <code>clone2.borrow_mut()</code> 语句执行的时候，<code>clone1.borrow_mut()</code> 已经被析构，所以 <code>borrow_mut()</code> 不会因为引用计数 <code>&gt; 1</code> 而崩溃。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> shared_data = Rc::new(RefCell::new(<span class="number">42</span>)); <span class="comment">// 克隆 Rc（共享所有权） </span></span><br><span class="line"><span class="keyword">let</span> clone1 = Rc::clone(&amp;shared_data); </span><br><span class="line"><span class="keyword">let</span> clone2 = Rc::clone(&amp;shared_data);</span><br><span class="line">*clone1.borrow_mut() += <span class="number">10</span>; <span class="comment">// 步骤1：获取可变借用，修改后立即释放</span></span><br><span class="line">*clone2.borrow_mut() *= <span class="number">2</span>;  <span class="comment">// 步骤2：前一个可变借用已释放，安全获取新借用</span></span><br></pre></td></tr></table></figure>
+<p>作为对比，如果改成</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> shared_data = Rc::new(RefCell::new(<span class="number">42</span>)); <span class="comment">// 克隆 Rc（共享所有权） </span></span><br><span class="line"><span class="keyword">let</span> clone1 = Rc::clone(&amp;shared_data); </span><br><span class="line"><span class="keyword">let</span> clone2 = Rc::clone(&amp;shared_data);</span><br><span class="line"><span class="keyword">let</span> longer_lifetime = clone1.borrow_mut();</span><br><span class="line">*longer_lifetime += <span class="number">10</span>; </span><br><span class="line">*clone2.borrow_mut() *= <span class="number">2</span>;  <span class="comment">// 前一个可变借用未释放，程序崩溃</span></span><br></pre></td></tr></table></figure>
+<p>就无法正常运行，因为 <code>longer_lifetime</code> 作为 <code>RefCell</code> 和 <code>NLL</code> 的交互，其行为表现为它的生命周期持续到该作用域结束。</p>
+<h3 id="Non-Lexical-Lifetime"><a href="#Non-Lexical-Lifetime" class="headerlink" title="Non-Lexical Lifetime"></a>Non-Lexical Lifetime</h3><p>Non-Lexical Lifetimes (NLL) 是 Rust 编译器的一项核心特性，通过更精细的生命周期分析，允许变量在其<strong>最后一次使用后</strong>立即释放（而非必须等到词法作用域结束），但与某些类型的交互具有其他的表现。</p>
+<h3 id="Copy-amp-Clone"><a href="#Copy-amp-Clone" class="headerlink" title="Copy &amp; Clone"></a>Copy &amp; Clone</h3><p><code>Copy</code> trait 是面向编译器实现的，<code>Clone</code> trait 是面向程序员实现的。一旦实现 <code>Copy</code> trait 默认行为将变为 <code>copy</code> 而非 <code>move</code>。在语义上，如果实现了 <code>Copy</code>，实现的 <code>Clone</code> 应当与之相容，可以通过调用 <code>[#derived(Copy, Clone)]</code> 获取默认实现。<br>并没有对于 <code>Clone</code> trait 实现的硬性约束。</p>
+<p>这些是我觉得印象比较深刻的点，除此之外感觉似乎不太难。rust 唯一能折磨我的数据结构只有 <code>Box&lt;T&gt;</code>，但归根到底还是没有完全学会语言底层逻辑，没有完全学会用 rust 的方式写代码。</p>
+<h2 id="rcore-阶段总结"><a href="#rcore-阶段总结" class="headerlink" title="rcore 阶段总结"></a>rcore 阶段总结</h2><p>进入到这个阶段之后意识到，之前学的 xv6 还是有些太玩具了，尽管 rcore-os 也是一个教学用途的操作系统，但它的深度似乎是远大于 xv6 的，你可以在这里面接触到链接器是如何编写的，如何用自己的一套交叉编译工具链来编译并且运行 kernel 以及裸机程序。</p>
+<p>Chapter1 给我的印象很深刻，上来就告诉我们要写一个裸机程序，要抛弃 std 库，但彼时的我还是连 rustling 都没有写明白的完全的 rust 萌新，看到这些东西未免觉得有些难以下手，好在 rcore-os 提供的简明 Tutorial 十分清晰，静下心来读基本上没有不理解的地方。</p>
+<p>整个 rcore 阶段最困扰我也是让我思考了最久的一个问题：</p>
+<blockquote>
+<p>为什么一个物理页不会同时被分配为页表和供内存使用？</p>
+</blockquote>
+<p>因为在创建页表的过程中会使用 <code>PageTable.map()</code>，该函数会调用 <code>PageTable().find_pte_create()</code>，在这一创建多层页表的过程中会使用 <code>frame_alloc()</code>。<br>而在分配内存的部分，<code>MemorySet</code> 的 <code>Framed</code> 映射会调用 <code>frame_alloc()</code> 分配新的物理页供其使用，这是除了创建页表之外我们唯一能使用到 <code>[ekernel, MEMORY_END)</code> 这段内存的部分。<br>而在 <code>MemorySet</code> 里，主要是 <code>KERNEL_SPACE</code> 会产生一个恒等映射 <code>[ekernel, MEMORY_END)</code>。这部分恒等映射被用于寻找页表。<br>即使开启虚拟内存映射后，我们在 <code>PhysPageNum.get_pte_array()</code> 处也可以直接将 <code>pa</code> 转为 <code>*mut PageTableEntry</code>，就是因为此处的恒等映射会直接将 <code>pa</code> 对应的虚拟地址映射为物理地址。</p>
+<p>我觉得愿意去弄明白这些，不给自己留有太多的疑惑，这个阶段的收获基本是不小的。</p>
+<p>rcore-os 阶段让我印象最深刻的 lab 还是 filesystem 相关的部分，要求我们试着给文件维护一个引用计数。这个引用计数维护起来并不困难，但对于这样持久化的数据来说，在什么抽象层来维护十分重要，如果在视图层维护，那么是无法维护的。具体来说 <code>OSInode</code> 和 <code>Inode</code> 便是对于 <code>DiskInode</code> 的视图，而看明白这一点，需要对整个代码的结构有比较好的了解。</p>
+<h2 id="arceos-阶段总结"><a href="#arceos-阶段总结" class="headerlink" title="arceos 阶段总结"></a>arceos 阶段总结</h2><p>这个阶段是我过的比较急的一个阶段。但其实这个阶段的代码质量远高于 rcore-os 阶段，因为是接近工业级别的代码，解耦合等各种设计思想也能学到不少。</p>
+<p>lab2 的实现 HashMap 是我耗时最长的一个 lab，因为对于 Box<T> 的特性不太熟悉，而且在不可变引用迭代器中，又很容易涉及到 second borrow 的问题。</T></p>
+<p>感觉这个阶段的 lab 都是很贴近实际工程环境的 lab，但难度相较于 rcore-os 阶段来说其实下降了一些，因为通过 demo 并不要求效率，也不考虑 corner case。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/24/ACrazyShark-25rcore-blog/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +372,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
 
           
@@ -336,7 +444,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
 
           
@@ -404,7 +512,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
 
           
@@ -481,7 +589,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
 
           
@@ -553,7 +661,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
 
           
@@ -623,7 +731,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
 
           
@@ -695,7 +803,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -779,7 +887,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -891,7 +999,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
               </span>
 
           
@@ -926,86 +1034,6 @@
 <li>最难的感觉就是开始，了解了re-export这个机制，重新认识了一下rust的项目管理，之后就没啥了。</li>
 <li>这里印象最深的是文件系统和对齐，前者再让我体会了lsp机制不完善吧，然后通过条件编译管理以达到组件化的效果也是学到了，我看大多数都会有一个接口或者一个默认的实现，然后再用条件编译来管理不同的实现，估计第四阶段会进一步用到吧。</li>
 </ol>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/23/2025s-rcore%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E8%8A%B6%E6%96%B0%E6%98%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/05/23/2025s-rcore%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E8%8A%B6%E6%96%B0%E6%98%93/" class="post-title-link" itemprop="url">2025s-rcore训练营总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-23 11:43:25" itemprop="dateCreated datePublished" datetime="2025-05-23T11:43:25+00:00">2025-05-23</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 09:42:49" itemprop="dateModified" datetime="2025-07-01T09:42:49+00:00">2025-07-01</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>这是rcore训练营前三个阶段的总结报告。</p>
-<p>做实验的过程中有写一些笔记，不过是写给自己看的，行文有些杂乱：<a href="https://github.com/plerks/rcore-notes" target="_blank" rel="noopener">rcore-notes</a>，<a href="https://github.com/plerks/arceos-notes" target="_blank" rel="noopener">arceos-notes</a>。</p>
-<hr>
-<p>在群里看到有人分享rcore训练营的消息，然后在rcore开营启动会那天加入了进来。对os的很多概念一直只能靠想象，没有代码级的理解，通过这次训练营，学到了非常非常多。以前尝试去看过<a href="https://www.ituring.com.cn/book/2450" target="_blank" rel="noopener">《一个64位操作系统的设计与实现》</a>这本书，但是这本书并无过多讲解，并不适合入门os代码，读不动。现在有了训练营的基础，后面有时间再试试。</p>
-<p>训练营的内容大部分时间是读代码，完成练习所需写的代码量并不大。训练营准备了详尽的文档与指导书，并已经准备好了构建脚本，能非常顺利地上手开始学习os。</p>
-<p>此外，这次训练营学习还连带着学习了rust，之前听说过rust和其它语言在思维上有些不同，不过实际接触下来感觉还好，还是和c++很相似的，只是有个所有权的机制很特别。rust吸收并处理了c++的一些好的概念与不足(移动语义，没有包管理器等等)，有Cargo这一点比c++方便多了。</p>
-<h1 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h1><p>学习rust基础，做rustlings的练习。</p>
-<p>这个比较基础，我是看了下rust的<a href="https://www.runoob.com/rust/rust-tutorial.html" target="_blank" rel="noopener">菜鸟教程</a>学rust，然后做的过程中不知道的问chatgpt就行。</p>
-<h1 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h1><p>学习rcore指导书并完成5个实验。</p>
-<p>rcore指导书的质量非常高，前几章基础的代码需要仔细阅读理解，这样就能知道基础的执行流程。</p>
-<p>前面的章节把一些代码(比如那几个汇编写的函数)交给chatgpt解读非常方便。后面的章节效果要差一些，有些主要起个提示作用。</p>
-<h1 id="第三阶段"><a href="#第三阶段" class="headerlink" title="第三阶段"></a>第三阶段</h1><p>学习arceos并完成6个练习。</p>
-<p>原本以为第三阶段是第二阶段的递进，会去学习M态的rustabi什么的，但是实际第三阶段的arceos是和rcore指导书平级的，相当于是另一种设计思路下实现的os。</p>
-<p>有了第二阶段rcore指导书的基础，第三阶段问题不大。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>训练营的质量非常高，特别是考虑到了对学生的教学，文档和工程都很齐全，rcore指导书的质量非常高。学习到了很多。</p>
-<p>感谢清华大学的老师们开放的课程，以及助教，群友等的答疑。</p>
 
       
     </div>
