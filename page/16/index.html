@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">728</span>
+          <span class="site-state-item-count">729</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,106 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%A2%9C%E7%86%99%E7%82%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E9%A2%9C%E7%86%99%E7%82%86/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营四阶段学习总结报告-颜熙炆</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-21 22:59:33" itemprop="dateCreated datePublished" datetime="2024-12-21T22:59:33+00:00">2024-12-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="第一周"><a href="#第一周" class="headerlink" title="第一周:"></a>第一周:</h1><h2 id="有栈协程与无栈协程"><a href="#有栈协程与无栈协程" class="headerlink" title="有栈协程与无栈协程"></a>有栈协程与无栈协程</h2><p>协程这块的概念可能比较混乱，不太能说得清，但是计科毕竟大多数情况下也不是深究定义的，所以纤程、绿色线程、协程大体上是可以混为一谈的，以下我们统称为协程。<br>尽管名称可能不同，但它们都可以被划分为两大类，一类是有栈（stackful）协程，一类是无栈（stackless）协程。<br>此处的有栈和无栈指的不是指协程在运行时是否需要栈，（毕竟不能回到“远古时代”的面条式编程）对于大多数语言来说，一个函数调用另一个函数，总是存在调用栈的；而是指协程是否可以在其任意嵌套函数中被挂起。有栈协程是可以的，而无栈协程则不可以。</p>
+<h3 id="有栈协程"><a href="#有栈协程" class="headerlink" title="有栈协程"></a>有栈协程</h3><p>实现一个协程的关键点在于如何保存、恢复和切换上下文。<br>在有栈协程中，我们将函数作为协程，保存上下文也就是保存从这个函数及其嵌套函数的栈帧存储的值。恢复上下文则是将这些值重新写回对应的栈帧和寄存器当中。切换上下文也就是保存当前的上下文，恢复下一个要执行的函数的上下文。有栈协程就是这么地朴素，也是我这种刚听说协程的萌新最易于理解的一种协程实现。</p>
+<h3 id="无栈协程"><a href="#无栈协程" class="headerlink" title="无栈协程"></a>无栈协程</h3><p>相比于无栈协程直接切换栈帧的思路，无栈协程则没有改变调用栈。而是使用了生成器（一种特殊的迭代器，能够在函数的执行过程中保存状态，并在需要时恢复执行）。这种特性可以用来模拟协程切换的行为，从而实现上下文切换。</p>
+<p>无栈协程就是把代码转换成状态机，我们可以将 Future 视为一种协程。</p>
+<p>rust的 Future 是通过状态机的形式来实现异步操作的。每个 Future 都是一个状态机，表示一个可能尚未完成的计算。<br>它通过轮询（polling）的方式推进计算过程，直到完成。<br>poll 方法会被异步运行时反复调用，当 Future 返回 Poll::Pending 时表示还没准备好，当返回 Poll::Ready 时表示完成。<br>所以，对future的运算实际上也就可以视为是在执行协程。</p>
+<p>它不依赖操作系统或运行时的栈切换，而是通过将状态信息嵌入到 Future 的数据结构中。这样可以在编译时生成高效的代码来管理异步操作。</p>
+<h3 id="rust的协程"><a href="#rust的协程" class="headerlink" title="rust的协程"></a>rust的协程</h3><p>rust在古早版本（1.0之前）曾经有过一个有栈协程的方案——绿色线程。但是由于不符合零成本抽象的思想被移除了。此外，对于rust而言，绿色线程需要尽可能地减小预分配的堆栈大小，进而降低内存上的开销，毕竟需要比操作系统的线程更加轻量级，否则为什么不直接使用操作系统的线程呢？<br>之后，rust使用了无栈协程的方案，虽然增加了开发上的复杂度，但是良好地解决了并发问题。</p>
+<h2 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h2><p>阅读了：</p>
+<p><a href="https://os.phil-opp.com/async-await/" target="_blank" rel="noopener">https://os.phil-opp.com/async-await/</a></p>
+<p>两百行实现绿色线程：<br><a href="https://zhuanlan.zhihu.com/p/100058478" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/100058478</a></p>
+<h1 id="第二周"><a href="#第二周" class="headerlink" title="第二周:"></a>第二周:</h1><p>基本上就读读tokio和smol的源码，但是说实话，没太看明白，但是smol确实会更简单易懂一点。剩下的就是在读io_uring</p>
+<h2 id="io-uring机制"><a href="#io-uring机制" class="headerlink" title="io_uring机制"></a>io_uring机制</h2><p>io_uring的设计主要围绕着环形缓冲区实现，SQ和CQ都是环形的，并且大小都是2的n次方（位运算奇技淫巧 index % size == index &amp; (size - 1)，当且仅当size为2的n次方时成立）。并且由于 UInt 的回环，所以可以直接tail - head，这种设计的一个优势是可以利用环的完整大小，而无需额外管理“环已满”标志。</p>
+<p>应用程序与内核通过io_uring交互的过程大致如下：</p>
+<p>应用程序通过提交队列SQ将SQE（IO请求）提交给内核，内核操作完成之后通过完成队列CQ将CQE（完成的IO请求）写回给应用程序，应用程序自行处理已完成的事件。</p>
+<p>SQ 和 CQ 是内核与应用程序共享的内存区域，这样子，我们避免了频繁的用户态和内核态之间的切换，并且支持批量地提交请求，也减少了系统调用的次数，提高了性能。此外，由于 io_uring 可以直接访问用户态提供的缓冲区，避免不必要的内存拷贝操作。</p>
+<h2 id="其他-1"><a href="#其他-1" class="headerlink" title="其他"></a>其他</h2><p>看了io_uring的一些资料：</p>
+<p><a href="https://kernel.dk/io_uring.pdf" target="_blank" rel="noopener">https://kernel.dk/io_uring.pdf</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/361955546" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/361955546</a></p>
+<p>稍微看了看:</p>
+<p><a href="https://tony612.github.io/tokio-internals/01.html" target="_blank" rel="noopener">https://tony612.github.io/tokio-internals/01.html</a></p>
+<h1 id="第三周"><a href="#第三周" class="headerlink" title="第三周:"></a>第三周:</h1><h2 id="实现运行时"><a href="#实现运行时" class="headerlink" title="实现运行时"></a>实现运行时</h2><p>大体上是参考了 <a href="https://toetoe55.github.io/async-rt-book/Introduction.html" target="_blank" rel="noopener">async-rt-book</a> 和 <a href="https://github.com/ringbahn/maglev" target="_blank" rel="noopener">maglev</a> 这两个写出来的</p>
+<p>仓库在<a href="https://github.com/ZIYAN137/my_runtime.git" target="_blank" rel="noopener">my_runtime</a></p>
+<h2 id="其他-2"><a href="#其他-2" class="headerlink" title="其他"></a>其他</h2><p>读了点与异步协程运行时以及IO_Uring有关的一些资料</p>
+<p>一个实验性质的运行时: <a href="https://github.com/ringbahn/maglev" target="_blank" rel="noopener">https://github.com/ringbahn/maglev</a></p>
+<p>训练营内的一位同学的博客：<a href="https://zhuanlan.zhihu.com/p/12850908116" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/12850908116</a></p>
+<p>rust与io_uring: <a href="https://zhuanlan.zhihu.com/p/346219893" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/346219893</a></p>
+<p>无栈协程: <a href="https://mthli.xyz/coroutines-in-c/" target="_blank" rel="noopener">https://mthli.xyz/coroutines-in-c/</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/21/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Aoi979/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +364,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
 
           
@@ -351,7 +451,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
 
           
@@ -502,7 +602,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
 
           
@@ -590,7 +690,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -719,7 +819,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
 
           
@@ -787,7 +887,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
 
           
@@ -863,7 +963,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
 
           
@@ -940,7 +1040,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1037,7 +1137,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
               </span>
 
           
@@ -1062,90 +1162,6 @@
             </div>
           <!--/noindex-->
         
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/19/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Zoneshiyi/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/19/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-Zoneshiyi/" class="post-title-link" itemprop="url">2024秋冬季训练营第四阶段总结-Zoneshiyi</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-19 19:45:08" itemprop="dateCreated datePublished" datetime="2024-12-19T19:45:08+00:00">2024-12-19</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 10:04:47" itemprop="dateModified" datetime="2025-07-01T10:04:47+00:00">2025-07-01</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="mocklibc"><a href="#mocklibc" class="headerlink" title="mocklibc"></a>mocklibc</h1><h2 id="ELF结构"><a href="#ELF结构" class="headerlink" title="ELF结构"></a>ELF结构</h2><h3 id="ELF-Header"><a href="#ELF-Header" class="headerlink" title="ELF Header"></a>ELF Header</h3><p>描述整个文件的组织。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Elf32_Ehdr</span></span> &#123;</span><br><span class="line">    <span class="comment">// Magic、Class（32-bit vs 64-bit）、Data（2's complement、endian）、ELF Version、OS/ABI、ABI Version</span></span><br><span class="line">    <span class="keyword">pub</span> e_ident: [<span class="built_in">u8</span>; abi::EI_NIDENT],</span><br><span class="line">    <span class="comment">// Relocatable file、Executable file、Shared object file、Core file</span></span><br><span class="line">    <span class="keyword">pub</span> e_type: <span class="built_in">u16</span>,</span><br><span class="line">    <span class="comment">// CPU 平台属性</span></span><br><span class="line">    <span class="keyword">pub</span> e_machine: <span class="built_in">u16</span>,</span><br><span class="line">    <span class="comment">// ELF 版本号，通常为1</span></span><br><span class="line">    <span class="keyword">pub</span> e_version: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="keyword">pub</span> e_entry: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="keyword">pub</span> e_phoff: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="keyword">pub</span> e_shoff: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="keyword">pub</span> e_flags: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="comment">// Size of elf header</span></span><br><span class="line">    <span class="keyword">pub</span> e_ehsize: <span class="built_in">u16</span>,</span><br><span class="line">    <span class="comment">// Size of ph entry</span></span><br><span class="line">    <span class="keyword">pub</span> e_phentsize: <span class="built_in">u16</span>,</span><br><span class="line">    <span class="comment">// Number of ph</span></span><br><span class="line">    <span class="keyword">pub</span> e_phnum: <span class="built_in">u16</span>,</span><br><span class="line">    <span class="comment">// Size of sh entry</span></span><br><span class="line">    <span class="keyword">pub</span> e_shentsize: <span class="built_in">u16</span>,</span><br><span class="line">    <span class="comment">// Number of ph</span></span><br><span class="line">    <span class="keyword">pub</span> e_shnum: <span class="built_in">u16</span>,</span><br><span class="line">    <span class="comment">// Section header string table index</span></span><br><span class="line">    <span class="keyword">pub</span> e_shstrndx: <span class="built_in">u16</span>,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Elf64_Ehdr</span></span> &#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="keyword">pub</span> e_entry: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="keyword">pub</span> e_phoff: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="keyword">pub</span> e_shoff: <span class="built_in">u64</span>,</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="Sections-和-Segments"><a href="#Sections-和-Segments" class="headerlink" title="Sections 和 Segments"></a>Sections 和 Segments</h3><p>segments是从运行的角度来描述elf文件，sections是从链接的角度来描述elf文件，在链接阶段，可以忽略program header table来处理此文件，在运行阶段可以忽略section header table来处理此程序（所以很多加固手段删除了section header table）。一个segment包含若干个section。</p>
-<h4 id="Program-Header-Table"><a href="#Program-Header-Table" class="headerlink" title="Program Header Table"></a>Program Header Table</h4><p>描述文件中的各种segments，用来告诉系统如何创建进程映像的。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">ProgramHeader</span></span> &#123;</span><br><span class="line">    <span class="comment">/// Program segment type</span></span><br><span class="line">    <span class="keyword">pub</span> p_type: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="comment">/// Offset into the ELF file where this segment begins</span></span><br><span class="line">    <span class="keyword">pub</span> p_offset: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Virtual adress where this segment should be loaded</span></span><br><span class="line">    <span class="keyword">pub</span> p_vaddr: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Physical address where this segment should be loaded</span></span><br><span class="line">    <span class="keyword">pub</span> p_paddr: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Size of this segment in the file</span></span><br><span class="line">    <span class="keyword">pub</span> p_filesz: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Size of this segment in memory</span></span><br><span class="line">    <span class="keyword">pub</span> p_memsz: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Flags for this segment</span></span><br><span class="line">    <span class="keyword">pub</span> p_flags: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="comment">/// file and memory alignment</span></span><br><span class="line">    <span class="keyword">pub</span> p_align: <span class="built_in">u64</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><strong>p_type</strong></p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Program header table entry unused</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_NULL: <span class="built_in">u32</span> = <span class="number">0</span>;</span><br><span class="line"><span class="comment">/// Loadable program segment</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_LOAD: <span class="built_in">u32</span> = <span class="number">1</span>;</span><br><span class="line"><span class="comment">/// Dynamic linking information</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_DYNAMIC: <span class="built_in">u32</span> = <span class="number">2</span>;</span><br><span class="line"><span class="comment">/// Program interpreter</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_INTERP: <span class="built_in">u32</span> = <span class="number">3</span>;</span><br><span class="line"><span class="comment">/// Auxiliary information</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_NOTE: <span class="built_in">u32</span> = <span class="number">4</span>;</span><br><span class="line"><span class="comment">/// Unused</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_SHLIB: <span class="built_in">u32</span> = <span class="number">5</span>;</span><br><span class="line"><span class="comment">/// The program header table</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_PHDR: <span class="built_in">u32</span> = <span class="number">6</span>;</span><br><span class="line"><span class="comment">/// Thread-local storage segment</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_TLS: <span class="built_in">u32</span> = <span class="number">7</span>;</span><br><span class="line"><span class="comment">/// GCC .eh_frame_hdr segment</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_GNU_EH_FRAME: <span class="built_in">u32</span> = <span class="number">0x6474e550</span>;</span><br><span class="line"><span class="comment">/// Indicates stack executability</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_GNU_STACK: <span class="built_in">u32</span> = <span class="number">0x6474e551</span>;</span><br><span class="line"><span class="comment">/// Read-only after relocation</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_GNU_RELRO: <span class="built_in">u32</span> = <span class="number">0x6474e552</span>;</span><br><span class="line"><span class="comment">/// The segment contains .note.gnu.property section</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_GNU_PROPERTY: <span class="built_in">u32</span> = <span class="number">0x6474e553</span>;</span><br><span class="line"><span class="comment">/// Values between [PT_LOOS, PT_HIOS] in this inclusive range are reserved for</span></span><br><span class="line"><span class="comment">/// operating system-specific semantics.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_LOOS: <span class="built_in">u32</span> = <span class="number">0x60000000</span>;</span><br><span class="line"><span class="comment">/// Values between [PT_LOOS, PT_HIOS] in this inclusive range are reserved for</span></span><br><span class="line"><span class="comment">/// operating system-specific semantics.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_HIOS: <span class="built_in">u32</span> = <span class="number">0x6fffffff</span>;</span><br><span class="line"><span class="comment">/// Values between [PT_LOPROC, PT_HIPROC] in this inclusive range are reserved</span></span><br><span class="line"><span class="comment">/// for processor-specific semantics.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_LOPROC: <span class="built_in">u32</span> = <span class="number">0x70000000</span>;</span><br><span class="line"><span class="comment">/// Values between [PT_LOPROC, PT_HIPROC] in this inclusive range are reserved</span></span><br><span class="line"><span class="comment">/// for processor-specific semantics.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PT_HIPROC: <span class="built_in">u32</span> = <span class="number">0x7fffffff</span>;</span><br></pre></td></tr></table></figure>
-<h4 id="Section-Header-Table"><a href="#Section-Header-Table" class="headerlink" title="Section Header Table"></a>Section Header Table</h4><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">SectionHeader</span></span> &#123;</span><br><span class="line">    <span class="comment">/// Section Name,对应字符串在string table段中的偏移</span></span><br><span class="line">    <span class="keyword">pub</span> sh_name: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="comment">/// Section Type</span></span><br><span class="line">    <span class="keyword">pub</span> sh_type: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="comment">/// Section Flags</span></span><br><span class="line">    <span class="keyword">pub</span> sh_flags: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// in-memory address where this section is loaded</span></span><br><span class="line">    <span class="keyword">pub</span> sh_addr: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Byte-offset into the file where this section starts</span></span><br><span class="line">    <span class="keyword">pub</span> sh_offset: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Section size in bytes</span></span><br><span class="line">    <span class="keyword">pub</span> sh_size: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// Defined by section type</span></span><br><span class="line">    <span class="keyword">pub</span> sh_link: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="comment">/// Defined by section type</span></span><br><span class="line">    <span class="keyword">pub</span> sh_info: <span class="built_in">u32</span>,</span><br><span class="line">    <span class="comment">/// address alignment</span></span><br><span class="line">    <span class="keyword">pub</span> sh_addralign: <span class="built_in">u64</span>,</span><br><span class="line">    <span class="comment">/// size of an entry if section data is an array of entries</span></span><br><span class="line">    <span class="keyword">pub</span> sh_entsize: <span class="built_in">u64</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="自定义加载ELF"><a href="#自定义加载ELF" class="headerlink" title="自定义加载ELF"></a>自定义加载ELF</h2><h3 id="静态链接"><a href="#静态链接" class="headerlink" title="静态链接"></a>静态链接</h3><p><strong>编译选项：</strong></p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">STATIC_FLAG = \</span><br><span class="line">-nostdlib \</span><br><span class="line">-nostartfiles \</span><br><span class="line">-nodefaultlibs \</span><br><span class="line">-ffreestanding \</span><br><span class="line">-O0 \</span><br><span class="line">-mcmodel=medany \</span><br><span class="line">-static \</span><br><span class="line">-no-pie \</span><br><span class="line">-L./target/riscv64gc-unknown-linux-musl/release/ -lmocklibc</span><br><span class="line"></span><br><span class="line">riscv64-linux-musl-gcc hello.c $(STATIC_FLAG) -o hello</span><br></pre></td></tr></table></figure>
-
-<p>静态编译的可执行文件加载比较简单，直接将其加载到内存中的一块连续空间即可。</p>
-<p>唯一要注意的是同时开启<code>-static</code>和<code>-no-pie</code>选项才能生产类型为EXEC (Executable file)的ELF文件，同时还需要通过linker.ld链接脚本正确设置起始地址。</p>
-<h3 id="动态链接"><a href="#动态链接" class="headerlink" title="动态链接"></a>动态链接</h3><p><strong>编译选项：</strong></p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">DYNAMIC_FLAG = \</span><br><span class="line">-nostdlib \</span><br><span class="line">-nostartfiles \</span><br><span class="line">-nodefaultlibs \</span><br><span class="line">-ffreestanding \</span><br><span class="line">-O0 \</span><br><span class="line">-mcmodel=medany \</span><br><span class="line">-L./target/riscv64gc-unknown-linux-musl/release/ -lmocklibc</span><br><span class="line"></span><br><span class="line">riscv64-linux-musl-gcc hello.c $(DYNAMIC_FLAG) -o hello -Wl,-dynamic-linker /path/to/ld-musl-riscv64.so.1</span><br></pre></td></tr></table></figure>
-
-<p>linux加载动态链接的可执行文件流程比较复杂，一方面是系统在执行应用前有很多额外的处理，另一方面是加载器本身不提供函数，需要加载一系列的动态链接库。而在我们当前的Unikernel框架下，并不存在动态链接库，系统启动时所有函数都加载到了内存中，因此可以大幅简化加载流程。</p>
-<p>首先解析program header将elf文件中类型为PT_LOAD的segment加载到内存中，然后解析.dynsym、.rela.plt节的信息可以知道需要动态链接的函数名，以及重定位条目在内存中的位置。在内核中建立了函数名到对于函数地址的映射，根据这些信息修改重定位条目就能让程序正确执行。</p>
-
       
     </div>
 
