@@ -29,15 +29,15 @@
 <meta property="og:site_name" content="rcore-os Blog">
 <meta property="og:description" content="二阶段 rCore 实验总结 - 折鸦实验环境配置用 Rust 开发操作系统内核源代码, 通过 rustc 交叉编译到 riscv64gc-unknown-none-elf (一般情况下是 x86_64-unknown-linux-gnu), 通过 rust-objcopy 提取出 bin, 然后放到 qemu-system-riscv64 模拟器进行模拟, 大概是这么个工具链. QEMU 最好装">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="http://rcore-os.github.io/blog/.io//2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/satp.png">
-<meta property="og:image" content="http://rcore-os.github.io/blog/.io//2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/sv39-pte.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/satp.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/sv39-pte.png">
 <meta property="article:published_time" content="2025-04-13T02:00:30.000Z">
-<meta property="article:modified_time" content="2025-07-01T11:27:24.232Z">
+<meta property="article:modified_time" content="2025-07-01T13:02:26.136Z">
 <meta property="article:author" content="rcore-os Group">
 <meta property="article:tag" content="author:AMIRIOX">
 <meta property="article:tag" content="repo:2025s-rcore-AMIRIOX">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://rcore-os.github.io/blog/.io//2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/satp.png">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/satp.png">
 
 <link rel="canonical" href="http://rcore-os.github.io/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
 
@@ -274,7 +274,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
 
           
@@ -492,11 +492,11 @@
 <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> PhysAddr &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">floor</span></span>(&amp;<span class="keyword">self</span>) -&gt; PhysPageNum &#123; PhysPageNum(<span class="keyword">self</span>.<span class="number">0</span> / PAGE_SIZE) &#125;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">ceil</span></span>(&amp;<span class="keyword">self</span>) -&gt; PhysPageNum &#123; PhysPageNum((<span class="keyword">self</span>.<span class="number">0</span> + PAGE_SIZE - <span class="number">1</span>) / PAGE_SIZE) &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> <span class="built_in">From</span>&lt;PhysAddr&gt; <span class="keyword">for</span> PhysPageNum &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">from</span></span>(v: PhysAddr) -&gt; <span class="keyword">Self</span> &#123;</span><br><span class="line">        <span class="built_in">assert_eq!</span>(v.page_offset(), <span class="number">0</span>);</span><br><span class="line">        v.floor()</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <h4 id="S-特权级的内存相关-CSR-satp"><a href="#S-特权级的内存相关-CSR-satp" class="headerlink" title="S 特权级的内存相关 CSR: satp"></a>S 特权级的内存相关 CSR: <code>satp</code></h4><p>区分不同地址空间的页表基地址寄存器是 RISCV 的 CSR <code>satp</code>, 其约定如下</p>
-<img src="/blog/.io//2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/satp.png" class title="satp">
+<img src="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/satp.png" class="" title="satp">
 
 <p><code>MODE</code> 设置为 8 即 $\log_2(8)=3$ 级页表, <code>ASID</code> 是一个 token 作为地址空间的标识符, <code>PPN</code> 为页表的根地址(物理页号)</p>
 <p>SV39 分页模式的对页表项的约定是:</p>
-<img src="/blog/.io//2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/sv39-pte.png" class title="SV39PTE">
+<img src="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/sv39-pte.png" class="" title="SV39PTE">
 
 <p>可以看到 <code>D</code> <code>A</code> <code>G</code> 等就是 flags, 具体意义可以查手册, 这里不再赘述.</p>
 <p>我们的 <code>PageTableEntry</code> 实际上就是管理一个 <code>usize</code> 的数据结构, 通过 <code>bitflags</code> crate 实现标志位的读写, 并且设计读取 ppn 的接口</p>

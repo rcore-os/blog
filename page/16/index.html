@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:25" itemprop="dateModified" datetime="2025-07-01T13:02:25+00:00">2025-07-01</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -364,7 +364,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
 
           
@@ -384,7 +384,7 @@
 <ul>
 <li><h2 id="对于协程的调用者"><a href="#对于协程的调用者" class="headerlink" title="对于协程的调用者"></a>对于协程的调用者</h2></li>
 </ul>
-<p>cpp的做法是协程的调用者会得到来自promise_type结构体内get_return_object方法返回的对象，这里一般通过form_promise构造协程句柄coroutine_handle<promise_type>，调用者可以通过协程句柄resume协程和destroy协程，cpp的协程不是lazy的，这点和rust不一样，相当于拿到future后直接开始poll,不过cpp不需要waker，cpp的handle不需要程序员提供函数也不需要提供指针，已经构造好了，而rust需要rawwaker,需要一个函数表定义行为，再传入任务对象的指针，让waker能够操作任务对象，自然而然就能调度这个任务了，cpp只需要管理好何时resume,但rust是loop poll,程序员管理何时把future重新加入被poll的队列</promise_type></p>
+<p>cpp的做法是协程的调用者会得到来自promise_type结构体内get_return_object方法返回的对象，这里一般通过form_promise构造协程句柄coroutine_handle<promise_type>，调用者可以通过协程句柄resume协程和destroy协程，cpp的协程不是lazy的，这点和rust不一样，相当于拿到future后直接开始poll,不过cpp不需要waker，cpp的handle不需要程序员提供函数也不需要提供指针，已经构造好了，而rust需要rawwaker,需要一个函数表定义行为，再传入任务对象的指针，让waker能够操作任务对象，自然而然就能调度这个任务了，cpp只需要管理好何时resume,但rust是loop poll,程序员管理何时把future重新加入被poll的队列</p>
 <p>rust则是每一个async函数都会自动生成并返回一个future对象，通过future trait可以看到主要是通过poll来执行协程内代码以及状态切换，这里贴一下tokio教学文档里的例子</p>
 <figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span> Future <span class="keyword">for</span> MainFuture &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Output</span></span> = ();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">mut</span> <span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;)</span><br><span class="line">        -&gt; Poll&lt;()&gt;</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">use</span> MainFuture::*;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">loop</span> &#123;</span><br><span class="line">            <span class="keyword">match</span> *<span class="keyword">self</span> &#123;</span><br><span class="line">                State0 =&gt; &#123;</span><br><span class="line">                    <span class="keyword">let</span> when = Instant::now() +</span><br><span class="line">                        Duration::from_millis(<span class="number">10</span>);</span><br><span class="line">                    <span class="keyword">let</span> future = Delay &#123; when &#125;;</span><br><span class="line">                    *<span class="keyword">self</span> = State1(future);</span><br><span class="line">                &#125;</span><br><span class="line">                State1(<span class="keyword">ref</span> <span class="keyword">mut</span> my_future) =&gt; &#123;</span><br><span class="line">                    <span class="keyword">match</span> Pin::new(my_future).poll(cx) &#123;</span><br><span class="line">                        Poll::Ready(out) =&gt; &#123;</span><br><span class="line">                            <span class="built_in">assert_eq!</span>(out, <span class="string">"done"</span>);</span><br><span class="line">                            *<span class="keyword">self</span> = Terminated;</span><br><span class="line">                            <span class="keyword">return</span> Poll::Ready(());</span><br><span class="line">                        &#125;</span><br><span class="line">                        Poll::Pending =&gt; &#123;</span><br><span class="line">                            <span class="keyword">return</span> Poll::Pending;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                Terminated =&gt; &#123;</span><br><span class="line">                    <span class="built_in">panic!</span>(<span class="string">"future polled after completion"</span>)</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -451,7 +451,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
 
           
@@ -488,19 +488,19 @@
 
 <p>Seabios 加载内核流程，seabios加载内核是通过 fw_cfg 的 file 接口，读取 multiboo.bin 当作 rom 来加载的，这个 multiboo.bin是linux内核封装过的带有 0x55aa 标记的可以引导的 rom，seabios读取到 rom后，加载到内存中然后执行。整理需要实现内容如下(“对号” 为截至此笔记已完成的):</p>
 <ul>
-<li><input checked disabled type="checkbox"> <ol>
+<li><input checked="" disabled="" type="checkbox"> <ol>
 <li>seabios第一条指令地址为: 0xf000:0xe05b, 支持设置primary vcpu第一条指令地址 entry_point.</li>
 </ol>
 </li>
 </ul>
 <pre><code><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1. 目前实模式下还不支设置超过0xffff的地址</span><br><span class="line">2. 考虑设置代码段 CS 寄存器</span><br></pre></td></tr></table></figure></code></pre><ul>
-<li><input checked disabled type="checkbox"> <ol start="2">
+<li><input checked="" disabled="" type="checkbox"> <ol start="2">
 <li><p>设置虚拟化需要截获的io端口</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">有些端口需要进行截获, 否则会透传到宿主机, 获取宿主机的信息, 例如pci信息, 内存大小信息等</span><br></pre></td></tr></table></figure>
 </li>
 </ol>
 </li>
-<li><input disabled type="checkbox"> <ol start="3">
+<li><input disabled="" type="checkbox"> <ol start="3">
 <li><p>dma 实现支持</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">很多数据的传输需要通过 dma 传输</span><br></pre></td></tr></table></figure>
 
@@ -510,7 +510,7 @@
 </li>
 </ul>
 <ul>
-<li><input disabled type="checkbox"> <ol start="4">
+<li><input disabled="" type="checkbox"> <ol start="4">
 <li>实现fw_cfg设备模拟</li>
 </ol>
 </li>
@@ -520,13 +520,13 @@
 
 - [ ] fw_cfg 实现 dma, 设备地址 [0x514]
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">用于传输数据, 例如内核data数据等</span><br></pre></td></tr></table></figure></code></pre><ul>
-<li><input checked disabled type="checkbox"> <ol start="5">
+<li><input checked="" disabled="" type="checkbox"> <ol start="5">
 <li>实现rtc设备模拟, 设备地址 [0x70, 0x71]</li>
 </ol>
 </li>
 </ul>
 <pre><code><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">在虚拟化环境中, seabios 通过 rtc 几个保留的寄存器获取内存大小信息</span><br></pre></td></tr></table></figure></code></pre><ul>
-<li><input disabled type="checkbox"> <ol start="6">
+<li><input disabled="" type="checkbox"> <ol start="6">
 <li><p>multiboot 实现</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">seabios通过内核启动是通过multiboot协议启动的, 需要将内核文件进行重新封装</span><br></pre></td></tr></table></figure>
 
@@ -536,7 +536,7 @@
 </li>
 </ul>
 <ul>
-<li><input disabled type="checkbox"> 其他 …</li>
+<li><input disabled="" type="checkbox"> 其他 …</li>
 </ul>
 <p><strong>修改链接如下:</strong></p>
 <p><a href="https://github.com/hbuxiaofei/arceos-umhv/tree/support-seabios" target="_blank" rel="noopener">https://github.com/hbuxiaofei/arceos-umhv/tree/support-seabios</a></p>
@@ -602,7 +602,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
 
           
@@ -690,7 +690,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:25" itemprop="dateModified" datetime="2025-07-01T13:02:25+00:00">2025-07-01</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -819,7 +819,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:25" itemprop="dateModified" datetime="2025-07-01T13:02:25+00:00">2025-07-01</time>
               </span>
 
           
@@ -887,7 +887,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
 
           
@@ -963,7 +963,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
 
           
@@ -1040,7 +1040,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1137,7 +1137,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:25" itemprop="dateModified" datetime="2025-07-01T13:02:25+00:00">2025-07-01</time>
               </span>
 
           

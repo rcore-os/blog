@@ -41,7 +41,7 @@
 <meta property="og:image" content="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%B8%83%E5%B1%80.png">
 <meta property="og:image" content="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/user-stack-cmdargs.png">
 <meta property="article:published_time" content="2025-05-02T16:33:52.000Z">
-<meta property="article:modified_time" content="2025-07-01T11:27:24.168Z">
+<meta property="article:modified_time" content="2025-07-01T13:02:26.071Z">
 <meta property="article:author" content="rcore-os Group">
 <meta property="article:tag" content="[object Object]">
 <meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;caiwen666&#x2F;rcore-blog">
@@ -283,7 +283,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-07-01 11:27:24" itemprop="dateModified" datetime="2025-07-01T11:27:24+00:00">2025-07-01</time>
+                <time title="Modified: 2025-07-01 13:02:26" itemprop="dateModified" datetime="2025-07-01T13:02:26+00:00">2025-07-01</time>
               </span>
 
           
@@ -339,7 +339,7 @@
 <p><code>core::slice::from_raw_parts(ptr, cnt)</code> 将 <code>ptr</code> 到 <code>ptr + cnt</code> 转为一个不可变引用切片</p>
 <p><code>core::slice::from_raw_parts_mut(ptr, cnt)</code>  将 <code>ptr</code> 到 <code>ptr + cnt</code> 转为一个可变引用切片</p>
 <p><code>slice.copy_from_slice(slice2)</code> 将 <code>slice2</code> 数据复制到 <code>slice</code></p>
-<h3 id="内存布局"><a href="#内存布局" class="headerlink" title="内存布局"></a>内存布局</h3><p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/MemoryLayout.png" alt></p>
+<h3 id="内存布局"><a href="#内存布局" class="headerlink" title="内存布局"></a>内存布局</h3><p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/MemoryLayout.png" alt=""></p>
 <ul>
 <li>.bss 保存程序中未初始化的全局数据，应当在程序加载时由程序或者加载者将其清零</li>
 <li>.rodata 保存只读的全局数据，如一些常亮、字符串</li>
@@ -402,15 +402,15 @@
 <p>实际上这么做是为了建立资源之间生命周期的绑定，以借助 Rust 的 RAII 机制帮助我们管理资源</p>
 <p>接下来考虑为内核建立内存空间，我们设计的布局如下：</p>
 <p>低 256GB ，这个会在内核初始化的时候就被建立</p>
-<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/kernel-as-low.png" alt></p>
+<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/kernel-as-low.png" alt=""></p>
 <p>前面四个段不用多说。最后一个段是物理内存中剩余的空间，这些空间可用来让 FrameAllocator 分配物理页</p>
 <p>注意这里建立的内存空间的时候需要是对等映射，即在内核访问的虚拟内存就等同于地址一样的物理内存。这样可以确保内核在启用虚拟内存后仍然能继续正常工作</p>
 <p>然后是高 256GB ，这个会在内核加载应用程序时建立</p>
-<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/kernel-as-high.png" alt></p>
+<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/kernel-as-high.png" alt=""></p>
 <p>最高地址处的跳板稍后会说。后面紧跟着的是应用程序的内核栈，栈之间有一个 Guard Page，这个虚拟页并没有映射，为了让栈溢出的时候能够触发异常。</p>
 <p>然后考虑建立应用的地址空间。这一章我们就不把编译出来的用户程序的 elf 头去掉了，因为 elf 头中有应用程序各个段的信息，有助于帮助我们建立内存空间</p>
 <p>低 256GB，直接根据 elf 的信息建立即可。高 256GB，存放跳板和 Trap 上下文</p>
-<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/app-as-full.png" alt></p>
+<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/app-as-full.png" alt=""></p>
 <p>然后我们的应用与内核切换的部分，即 trap 部分也需要修改</p>
 <p>当应用发生 trap 时，CPU 跳到 __alltraps 处，此时我们还处在应用的地址空间，需要保存 trap 上下文（这也是为什么把 trap 上下文放到应用的虚拟空间中）。不同的是，在 sscratch 中我们存储的是 trap 上下文而不是内核栈（内核栈在内核的内存空间中，也存不了），然后把 sscratch 与 sp 交换，根据交换后的 sp 写入 trap 上下文。由于我们需要知道后续跳入内核之后要跳到哪个地址（trap_handler 在内核中的虚拟地址），kernel 内存空间的 token（用来切换内存空间），内核栈的虚拟地址，所以我们把这三者也用 trap 上下文维护。准备完毕之后先让 sp 指针指向内核栈，然后切换到内核空间，然后使用 jr 指令跳转到 trap_handler</p>
 <p>注意，切换内存空间前后 pc 寄存器指向的指令的地址所属的空间就发生了变化，为了让 <code>__alltraps</code> 在切换内存空间前后指令仍然能顺利执行下去，我们就需要把 <code>__alltraps</code> 和 <code>__restore</code> 的代码映射到所有内存空间的同一地方，也就是我们上文所说的位于最高地址处的跳板段。</p>
@@ -418,7 +418,7 @@
 <p>同时我们看到，上述 <code>__alltraps</code> 和 <code>__restore</code> 是针对用户态和内核态之间切换这种具体的情况写的。而对于内核态 trap 到内核态这种情况就不适用了。所以 trap_handler 首先修改 stvec 寄存器，使得内核发生 trap 后 CPU 跳到另一个处理逻辑。trap_handler 在最后执行一个 trap_return ，来把 stvec 寄存器修改回来，同时使用 jr 指令跳到 <code>__restore</code></p>
 <p>当我们从页表中准备好地址空间的映射之后，就可以启用虚拟内存了，具体来说</p>
 <p>RISCV 64 架构上有一个 <code>satp</code> 寄存器来配置虚拟内存，其存放的内容如下：</p>
-<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/satp.png" alt></p>
+<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/satp.png" alt=""></p>
 <ul>
 <li><p>MODE 控制 CPU 使用哪种页表实现</p>
 </li>
@@ -426,9 +426,9 @@
 </li>
 </ul>
 <p>我们写 <code>satp</code> 这个寄存器即可</p>
-<h3 id="启用-SV39-分页机制后虚拟地址和物理地址的结构"><a href="#启用-SV39-分页机制后虚拟地址和物理地址的结构" class="headerlink" title="启用 SV39 分页机制后虚拟地址和物理地址的结构"></a>启用 SV39 分页机制后虚拟地址和物理地址的结构</h3><p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/sv39-va-pa.png" alt></p>
+<h3 id="启用-SV39-分页机制后虚拟地址和物理地址的结构"><a href="#启用-SV39-分页机制后虚拟地址和物理地址的结构" class="headerlink" title="启用 SV39 分页机制后虚拟地址和物理地址的结构"></a>启用 SV39 分页机制后虚拟地址和物理地址的结构</h3><p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/sv39-va-pa.png" alt=""></p>
 <p>页表项结构</p>
-<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/sv39-pte.png" alt></p>
+<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/sv39-pte.png" alt=""></p>
 <ul>
 <li>V：为 1 时表示页表项是合法的</li>
 <li>R/W/X：分别控制页表项对应的内存是否允许读/写/执行</li>
@@ -438,7 +438,7 @@
 <li>D：如果页表项被修改了，CPU 就将其置为 1</li>
 </ul>
 <p>上述除了 G 位不能被操作系统修改，其他都可以</p>
-<h3 id="页表寻址方式"><a href="#页表寻址方式" class="headerlink" title="页表寻址方式"></a>页表寻址方式</h3><p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/sv39-full.png" alt></p>
+<h3 id="页表寻址方式"><a href="#页表寻址方式" class="headerlink" title="页表寻址方式"></a>页表寻址方式</h3><p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/sv39-full.png" alt=""></p>
 <p>SV39 中采用三级页表。我们将虚拟地址的 27 位虚拟页号分成三个等长的部分，第 26-18 位为一级页索引，第 17-9 位为二级页索引，第 8-0 位为三级页索引</p>
 <p>CPU 在进行地址转换时，首先根据 <code>satp</code> 寄存器的 <code>PPN</code> 字段拿到一级页表的地址。地址再加上一级页索引就得到了对应的页表项。拿到页表项之后 CPU 做如下判断：</p>
 <ul>
@@ -587,7 +587,7 @@
 <td>不太清楚，文档上说的是 e_ident[] 数组大小</td>
 </tr>
 </tbody></table>
-<p><img src="https://i-blog.csdnimg.cn/blog_migrate/2e4cc110baa4e41b46144c67fea98f64.jpeg" alt></p>
+<p><img src="https://i-blog.csdnimg.cn/blog_migrate/2e4cc110baa4e41b46144c67fea98f64.jpeg" alt=""></p>
 <ul>
 <li>e_type，2 字节，表示 ELF 文件类型，常用的如下：</li>
 </ul>
@@ -861,7 +861,7 @@
 <h2 id="04-23-04-25（文件系统）"><a href="#04-23-04-25（文件系统）" class="headerlink" title="04-23~04-25（文件系统）"></a>04-23~04-25（文件系统）</h2><p>由于准备期中考试，进度严重停滞。考完之后赶紧来继续完成了第六章</p>
 <p>这章制作了一个叫做 easy-fs 的文件系统，感觉比较困难的地方是整个的层次架构，在这里梳理一下。</p>
 <p>整个文件系统的结构如图所示</p>
-<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%B8%83%E5%B1%80.png" alt></p>
+<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%B8%83%E5%B1%80.png" alt=""></p>
 <p>文件系统把磁盘看成一块一块的，并根据块的编号来进行操作。第一个块是超级块，记录了文件系统的特征魔数，索引节点位图的大小（块数量），索引节点区域的大小，数据块位图的大小，数据块区域的大小</p>
 <p>创建文件系统的时候，索引节点位图大小需要手动设置，然后索引节点区域大小就能计算出来。剩余区域根据神秘的数学公式也能计算出数据块位图和数据块区域的大小</p>
 <p>easy-fs 作为一个 crate 被独立出来。在最底层有一个 BlockDevice 的接口，用于接入内核。BlockDevice 主要需要两个功能：读块和写块</p>
@@ -880,7 +880,7 @@
 <p>这章首先给标准输入输出实现了 File trait，将其视为了一个文件，非常简单</p>
 <p>然后是管道，管道建立在内核的堆中，并将生命周期绑定在 TCB 的文件描述符表上。管道具体的结构是一个循环队列。当队列满的时候写队列，或者队列为空的时候读队列，都会堵塞进程</p>
 <p>然后是传递命令行参数，内核在启动进程前会先把参数信息写入内核栈，具体的结构是这样</p>
-<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/user-stack-cmdargs.png" alt></p>
+<p><img src="https://rcore-os.cn/rCore-Tutorial-Book-v3/_images/user-stack-cmdargs.png" alt=""></p>
 <p>然后把 argv_base 和参数个数存到寄存器里作为调用 main 函数的参数</p>
 <p>IO 重定向这里感觉很妙，我们引入 <code>sys_dup</code> 这个系统调用，作用是复制一个文件描述符。具体操作时，我们先 fork，然后在子进程里判断是否要重定向 IO。如果要重定向 stdin，那么就先打开一个文件，获得文件描述符 fd，然后把 stdin 的文件描述符释放掉，再把 fd 复制一份。由于我们分配文件描述符的时候一定是分配最小编号，所以把 stdin 释放相当于腾出了个位置，后续 fd 复制出来的文件描述符编号必然是 stdin 的。这样就很巧妙地实现了 IO 重定向</p>
 <p>信号这里首先涉及到了若干系统调用</p>
