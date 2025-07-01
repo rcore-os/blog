@@ -105,19 +105,19 @@ evering-ipc 目前采用第 4 种思路．此外，不难发现，在 evering-ip
 
 详细的性能测试的结果见 <https://github.com/loichyan/openoscamp-2025s/tree/ipc-benchmark>，下面我们将对该结果进行简略的分析．
 
-![ipc-benchmark 完整测试结果对比](./2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_all.svg)
+{% asset_img "ipc_benchmark_all.svg" "ipc-benchmark 完整测试结果对比" %}
 
 此图对比了完整的测试结果，其中 $x$ 轴是上述的 `buf_size`，而 $y$ 轴则是完成一次测试所需的平均时间．可以看到，随着数据大小的增长 evering 和 shmipc 明显优于其他三者，并且相对于表现最差的 tokio_epoll，二者分别有接近 50% 和 30% 的性能提升．
 
-![ipc-benchmark 前五轮测试结果对比](./2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_first_5.svg)
+{% asset_img "ipc_benchmark_first_5.svg" "ipc-benchmark 前五轮测试结果对比" %}
 
 此图对比了前五个测试的结果，此时数据并不算大，都在通常范围之内．这里能发现相对于另外三者，evering 和 shmipc 都有超过 80% 的性能提升．
 
-![ipc-benchmark 中五轮测试结果对比](./2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_mid_5.svg)
+{% asset_img "ipc_benchmark_mid_5.svg" "ipc-benchmark 中五轮测试结果对比" %}
 
 此图对比了中间五轮测试的结果，此时数据大小开始逐渐出现大幅度的增长．可以看到，除了 evering 和 shmipc 外的三者针对大块数据的传输并无明显差异．
 
-![ipc-benchmark 后五轮测试结果对比](./2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_last_5.svg)
+{% asset_img "ipc_benchmark_last_5.svg" "ipc-benchmark 后五轮测试结果对比" %}
 
 此图对比了最后五轮测试的结果，此时数据大小已接近极端情况．这里能观察到与第一个对比图同样的结果．
 
@@ -127,15 +127,15 @@ evering-ipc 目前采用第 4 种思路．此外，不难发现，在 evering-ip
 
 对比前两者，shmipc 支持 MPSC（多生产者多消费者）的通信方式，而本测试中仅使用 SPSC 的模型进行测试，因此无法发挥其完整的优势．另外，对共享内存处理的方式不同也可能导致了一些性能差异．而对于另外三者，由于使用 UDS 需要将数据在用户空间和内核空间来回拷贝，在面对大块数据时，这将大大降低整体性能．而对于极小的数据块，又由于系统调用等带来的开销，最终需要接近 10 倍的额外时间来完成测试．这一点可以在火焰图[^2]中体现：
 
-|                                evering (buf_size=4B)                                 |                                tokio-epoll (buf_size=4B)                                 |
-| :----------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------: |
-| ![](./2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4B_evering.jpg) | ![](./2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4B_tokio_epoll.jpg) |
+|             evering (buf_size=4B)              |             tokio-epoll (buf_size=4B)              |
+| :--------------------------------------------: | :------------------------------------------------: |
+| {% asset_img "flamegraph-4B_evering.jpg" "" %} | {% asset_img "flamegraph-4B_tokio_epoll.jpg" "" %} |
 
 此图中展示了在 4B 数据下，性能测试主体函数中各子过程的占比．其中，蓝色高亮部分是校验数据过程，用作参照．不难发现，evering 中主要时间都消耗在传递消息所需的多线程同步上了．而在 tokio-epoll 中则是多个与内核交互的函数调用占用主要时间．在后几轮测试中，当数据变得非常大时，这些消耗则变得无关紧要，此时的性能热点是数据传递引起的内存拷贝．下面的火焰图可以佐证：
 
-|                                evering (buf_size=4M)                                 |                                tokio-epoll (buf_size=4M)                                 |
-| :----------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------: |
-| ![](./2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4M_evering.jpg) | ![](./2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4M_tokio_epoll.jpg) |
+|             evering (buf_size=4M)              |             tokio-epoll (buf_size=4M)              |
+| :--------------------------------------------: | :------------------------------------------------: |
+| {% asset_img "flamegraph-4M_evering.jpg" "" %} | {% asset_img "flamegraph-4M_tokio_epoll.jpg" "" %} |
 
 此图与上面两个图相同，不过这里的数据大小是 4M．很明显，当数据非常大时，evering 中绝大部分时间用来初始化需要传递的数据，但传递的过程几乎不占用太多时间．而 tokio-epoll 中的情况更加复杂，除了拷贝数据以外，还花费了相当一大部分时间执行内存分配，这些内存用于放置从内核空间传递来的数据．
 
