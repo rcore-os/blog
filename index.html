@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">731</span>
+          <span class="site-state-item-count">732</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,7 +233,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/arceOS-%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -247,221 +247,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/arceOS-%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">arceOS 学习总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2025-11-04 06:28:59 / Modified: 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T06:28:59+00:00">2025-11-04</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/2025-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2025 秋冬季开源操作系统训练营</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="arceOS-学习总结"><a href="#arceOS-学习总结" class="headerlink" title="arceOS 学习总结"></a>arceOS 学习总结</h1><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>arceOS 是一个用 Rust 编写的模块化操作系统，与 rcore 相比，arceOS 采用了更加模块化的设计思路。</p>
-<p>这次学习 arceOS 的练习，我花了不少时间。虽然之前做过 rcore 的实验，但 arceOS 的模块化设计和实现方式还是让我遇到了不少挑战。特别是在虚拟化部分，两级地址转换机制让我困惑了很久，好在最后通过看源码和调试还有网站上的博客，终于理解了。</p>
-<p>这篇博客主要记录我在完成这些练习过程中的学习体会、遇到的问题以及解决思路。内核的学习实际上最重要的部分可能更是在于解决问题，也就是在针对特定问题的排查思路上。</p>
-<h2 id="练习概览"><a href="#练习概览" class="headerlink" title="练习概览"></a>练习概览</h2><p>本次学习完成了以下练习：</p>
-<ol>
-<li><strong>print_with_color</strong> - 带颜色的控制台输出</li>
-<li><strong>alt_alloc</strong> - 备用分配器测试</li>
-<li><strong>ramfs_rename</strong> - 文件系统重命名功能</li>
-<li><strong>support_hashmap</strong> - 内存管理测试</li>
-<li><strong>sys_map</strong> - 系统调用映射实现</li>
-<li><strong>simple_hv</strong> - 简单虚拟化器实现</li>
-</ol>
-<p>其中 <code>simple_hv</code> 是最复杂的，花了我最多时间。其他练习相对简单，但每个练习都让我对 arceOS 的设计有了更深入的理解。</p>
-<hr>
-<h2 id="练习一：print-with-color"><a href="#练习一：print-with-color" class="headerlink" title="练习一：print_with_color"></a>练习一：print_with_color</h2><h3 id="学习过程"><a href="#学习过程" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习看似简单，但一开始我也遇到了一些困惑。在无标准库（no_std）的环境下，如何实现带颜色的输出？我之前在 Linux 上用过 ANSI 转义序列，但在 Rust 的字符串字面量中如何表示 ESC 字符？</p>
-<h3 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h3><p>最终实现的代码很简单：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#![cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_std)]</span></span><br><span class="line"><span class="meta">#![cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_main)]</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"axstd"</span>)]</span></span><br><span class="line"><span class="keyword">use</span> axstd::println;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// ANSI color code: \u&#123;1B&#125;[32m for green</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"\u&#123;1B&#125;[32m[WithColor]: Hello, Arceos!\u&#123;1B&#125;[m"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>关键点：</p>
-<ul>
-<li>使用<code>no_std</code>特性，不依赖标准库</li>
-<li>使用<code>axstd::println!</code>宏而不是标准库的<code>println!</code></li>
-<li>ANSI 转义序列使用 Unicode 转义<code>\u{1B}</code>表示 ESC 字符</li>
-</ul>
-<p>通过查看 arceOS 源码，我发现 arceOS 的打印系统（<code>axlog</code>模块）已经内置了对 ANSI 转义序列的支持，但<code>with_color!</code>宏是模块内部的私有宏，无法在外部直接使用。所以直接使用 ANSI 转义序列是合理的选择。</p>
-<h3 id="遇到的问题和解决方案"><a href="#遇到的问题和解决方案" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><h4 id="问题-1：Unicode-转义序列的写法"><a href="#问题-1：Unicode-转义序列的写法" class="headerlink" title="问题 1：Unicode 转义序列的写法"></a>问题 1：Unicode 转义序列的写法</h4><p><strong>问题</strong>：最初尝试使用<code>\x1B</code>但编译失败。</p>
-<p><strong>原因</strong>：Rust 中字符串字面量需要使用 Unicode 转义序列<code>\u{1B}</code>而不是十六进制转义<code>\x1B</code>。</p>
-<p><strong>解决</strong>：使用<code>\u{1B}</code>来表示 ESC 字符。</p>
-<h4 id="问题-2：颜色代码的理解"><a href="#问题-2：颜色代码的理解" class="headerlink" title="问题 2：颜色代码的理解"></a>问题 2：颜色代码的理解</h4><p><strong>问题</strong>：不清楚不同颜色对应的 ANSI 代码。</p>
-<p><strong>学习</strong>：</p>
-<ul>
-<li>30-37：标准颜色（黑、红、绿、黄、蓝、品红、青、白）</li>
-<li>90-97：亮色（高亮版本）</li>
-<li>32：绿色（本练习使用）</li>
-</ul>
-<h4 id="问题-3：终端是否支持颜色"><a href="#问题-3：终端是否支持颜色" class="headerlink" title="问题 3：终端是否支持颜色"></a>问题 3：终端是否支持颜色</h4><p><strong>问题</strong>：在某些终端中，ANSI 转义序列可能被过滤或不被支持。</p>
-<p><strong>解决</strong>：测试脚本会检查输出中是否实际包含 ANSI 转义序列，确保不仅输出了文本，还输出了颜色控制码。</p>
-<h3 id="学习感悟"><a href="#学习感悟" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习虽然简单，但让我理解了 arceOS 的模块化设计。即使是简单的功能，也需要考虑底层实现。另外，在 Rust 中表示特殊字符需要使用 Unicode 转义，这也是一个小的知识点。</p>
-<hr>
-<h2 id="练习二：alt-alloc"><a href="#练习二：alt-alloc" class="headerlink" title="练习二：alt_alloc"></a>练习二：alt_alloc</h2><h3 id="学习过程-1"><a href="#学习过程-1" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习主要是测试备用分配器（bump allocator）的功能。虽然代码很简单，但让我理解了 arceOS 的模块化设计——可以通过 feature 标志在编译时选择不同的分配器实现。</p>
-<h3 id="实现-1"><a href="#实现-1" class="headerlink" title="实现"></a>实现</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">#![cfg_attr(feature &#x3D; &quot;axstd&quot;, no_std)]</span><br><span class="line">#![cfg_attr(feature &#x3D; &quot;axstd&quot;, no_main)]</span><br><span class="line"></span><br><span class="line">#[macro_use]</span><br><span class="line">#[cfg(feature &#x3D; &quot;axstd&quot;)]</span><br><span class="line">extern crate axstd as std;</span><br><span class="line">extern crate alloc;</span><br><span class="line"></span><br><span class="line">use alloc::vec::Vec;</span><br><span class="line"></span><br><span class="line">#[cfg_attr(feature &#x3D; &quot;axstd&quot;, no_mangle)]</span><br><span class="line">fn main() &#123;</span><br><span class="line">    println!(&quot;Running bump tests...&quot;);</span><br><span class="line"></span><br><span class="line">    const N: usize &#x3D; 3_000_000;</span><br><span class="line">    let mut v &#x3D; Vec::with_capacity(N);</span><br><span class="line">    for i in 0..N &#123;</span><br><span class="line">        v.push(i);</span><br><span class="line">    &#125;</span><br><span class="line">    v.sort();</span><br><span class="line">    for i in 0..N - 1 &#123;</span><br><span class="line">        assert!(v[i] &lt;&#x3D; v[i + 1]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    println!(&quot;Bump tests run OK!&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="遇到的问题和解决方案-1"><a href="#遇到的问题和解决方案-1" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题</strong>：在分配 300 万个元素时，程序偶尔会崩溃。</p>
-<p><strong>原因</strong>：bump allocator 是线性分配器，在内存不足时会失败。</p>
-<p><strong>解决</strong>：通过查看 <code>alt_axalloc</code> 的源码，理解了 bump allocator 的工作原理。它从内存池的一端开始分配，只能向前推进，不能释放单个分配。这让我理解了为什么需要不同的分配器策略。</p>
-<h3 id="学习感悟-1"><a href="#学习感悟-1" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习虽然简单，但让我看到了 arceOS 模块化设计的优势。通过 feature 标志，可以在编译时选择不同的实现，这种设计非常灵活。</p>
-<hr>
-<h2 id="练习三：ramfs-rename"><a href="#练习三：ramfs-rename" class="headerlink" title="练习三：ramfs_rename"></a>练习三：ramfs_rename</h2><h3 id="学习过程-2"><a href="#学习过程-2" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习主要是实现文件系统重命名功能。一开始我以为会很简单，但实际做起来发现需要理解 arceOS 的文件系统抽象。特别是 <code>ramfs.rs</code> 的实现，让我理解了文件系统接口的设计。</p>
-<h3 id="实现-2"><a href="#实现-2" class="headerlink" title="实现"></a>实现</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">fn create_file(fname: &amp;str, text: &amp;str) -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    println!(&quot;Create &#39;&#123;&#125;&#39; and write [&#123;&#125;] ...&quot;, fname, text);</span><br><span class="line">    let mut file &#x3D; File::create(fname)?;</span><br><span class="line">    file.write_all(text.as_bytes())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; Only support rename, NOT move.</span><br><span class="line">fn rename_file(src: &amp;str, dst: &amp;str) -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    println!(&quot;Rename &#39;&#123;&#125;&#39; to &#39;&#123;&#125;&#39; ...&quot;, src, dst);</span><br><span class="line">    fs::rename(src, dst)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn print_file(fname: &amp;str) -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    let mut buf &#x3D; [0; 1024];</span><br><span class="line">    let mut file &#x3D; File::open(fname)?;</span><br><span class="line">    loop &#123;</span><br><span class="line">        let n &#x3D; file.read(&amp;mut buf)?;</span><br><span class="line">        if n &gt; 0 &#123;</span><br><span class="line">            print!(&quot;Read &#39;&#123;&#125;&#39; content: [&quot;, fname);</span><br><span class="line">            io::stdout().write_all(&amp;buf[..n])?;</span><br><span class="line">            println!(&quot;] ok!&quot;);</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            return Ok(());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn process() -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    create_file(&quot;&#x2F;tmp&#x2F;f1&quot;, &quot;hello&quot;)?;</span><br><span class="line">    &#x2F;&#x2F; Just rename, NOT move.</span><br><span class="line">    &#x2F;&#x2F; So this must happen in the same directory.</span><br><span class="line">    rename_file(&quot;&#x2F;tmp&#x2F;f1&quot;, &quot;&#x2F;tmp&#x2F;f2&quot;)?;</span><br><span class="line">    print_file(&quot;&#x2F;tmp&#x2F;f2&quot;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="遇到的问题和解决方案-2"><a href="#遇到的问题和解决方案-2" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题</strong>：最初不理解为什么需要 <code>ramfs.rs</code> 这个文件，以及它和主代码的关系。</p>
-<p><strong>原因</strong>：arceOS 使用 trait 来抽象文件系统，需要实现 <code>MyFileSystemIf</code> trait。</p>
-<p><strong>解决</strong>：通过查看 <code>ramfs.rs</code> 的代码，理解了文件系统接口的设计。它使用 <code>crate_interface::impl_interface</code> 来实现接口，这是 arceOS 模块化设计的一部分。</p>
-<h3 id="学习感悟-2"><a href="#学习感悟-2" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>通过这个练习，我理解了 arceOS 文件系统的抽象设计。虽然实现简单，但背后的设计理念很清晰。在 no_std 环境下实现类似标准库的 API，这种设计很优雅。</p>
-<hr>
-<h2 id="练习四：support-hashmap"><a href="#练习四：support-hashmap" class="headerlink" title="练习四：support_hashmap"></a>练习四：support_hashmap</h2><h3 id="学习过程-3"><a href="#学习过程-3" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习主要是测试 arceOS 对集合类型（BTreeMap）的支持。虽然代码很简单，但让我理解了 arceOS 如何在 no_std 环境下提供标准库的替代实现。</p>
-<h3 id="实现-3"><a href="#实现-3" class="headerlink" title="实现"></a>实现</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">fn test_hashmap() &#123;</span><br><span class="line">    const N: u32 &#x3D; 50_000;</span><br><span class="line">    let mut m &#x3D; BTreeMap::new();</span><br><span class="line">    for value in 0..N &#123;</span><br><span class="line">        let key &#x3D; format!(&quot;key_&#123;value&#125;&quot;);</span><br><span class="line">        m.insert(key, value);</span><br><span class="line">    &#125;</span><br><span class="line">    for (k, v) in m.iter() &#123;</span><br><span class="line">        if let Some(k) &#x3D; k.strip_prefix(&quot;key_&quot;) &#123;</span><br><span class="line">            assert_eq!(k.parse::&lt;u32&gt;().unwrap(), *v);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    println!(&quot;test_hashmap() OK!&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="遇到的问题和解决方案-3"><a href="#遇到的问题和解决方案-3" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题</strong>：在插入大量数据时，程序运行时间较长。</p>
-<p><strong>原因</strong>：BTreeMap 使用 B 树实现，插入操作需要维护树结构。</p>
-<p><strong>解决</strong>：通过测试，理解了 BTreeMap 的性能特征。虽然插入较慢，但查找和遍历操作比较高效。</p>
-<h3 id="学习感悟-3"><a href="#学习感悟-3" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习让我理解了 arceOS 如何提供标准库的替代实现。在 no_std 环境下，需要自己实现这些数据结构，但这种设计让系统更加可控。</p>
-<hr>
-<h2 id="练习五：sys-map"><a href="#练习五：sys-map" class="headerlink" title="练习五：sys_map"></a>练习五：sys_map</h2><h3 id="学习过程-4"><a href="#学习过程-4" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习比较复杂，涉及系统调用的实现。一开始我对用户程序加载和地址空间管理不太理解，特别是 <code>sys_mmap</code> 的实现，花了我不少时间。</p>
-<h3 id="实现-4"><a href="#实现-4" class="headerlink" title="实现"></a>实现</h3><p>这个练习主要包括：</p>
-<ol>
-<li>用户程序加载：从文件系统加载 ELF 文件到用户地址空间</li>
-<li>系统调用处理：实现 <code>mmap</code>、<code>open</code>、<code>read</code>、<code>write</code>、<code>exit</code> 等系统调用</li>
-<li>内存映射：实现 <code>sys_mmap</code>，支持匿名映射和文件映射</li>
-</ol>
-<h3 id="关键实现-sys-mmap"><a href="#关键实现-sys-mmap" class="headerlink" title="关键实现 - sys_mmap"></a>关键实现 - sys_mmap</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">#[allow(unused_variables)]</span><br><span class="line">fn sys_mmap(</span><br><span class="line">    addr: *mut usize,</span><br><span class="line">    length: usize,</span><br><span class="line">    prot: i32,</span><br><span class="line">    flags: i32,</span><br><span class="line">    fd: i32,</span><br><span class="line">    _offset: isize,</span><br><span class="line">) -&gt; isize &#123;</span><br><span class="line">    syscall_body!(sys_mmap, &#123;</span><br><span class="line">        &#x2F;&#x2F; Get the user space address space</span><br><span class="line">        let curr &#x3D; current();</span><br><span class="line">        let task_ext &#x3D; curr.task_ext();</span><br><span class="line">        let mut aspace &#x3D; task_ext.aspace.lock();</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Parse flags</span><br><span class="line">        let mmap_flags &#x3D; MmapFlags::from_bits_truncate(flags);</span><br><span class="line">        let mmap_prot &#x3D; MmapProt::from_bits_truncate(prot);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Align address and size to page boundaries first</span><br><span class="line">        let aligned_length &#x3D; (length + PAGE_SIZE_4K - 1) &amp; !(PAGE_SIZE_4K - 1);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Allocate virtual address if addr is NULL</span><br><span class="line">        let aligned_vaddr &#x3D; if !addr.is_null() &#123;</span><br><span class="line">            VirtAddr::from(addr as usize).align_down_4k()</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            &#x2F;&#x2F; Find a suitable virtual address below stack</span><br><span class="line">            &#x2F;&#x2F; Stack is at [aspace.end() - USER_STACK_SIZE, aspace.end())</span><br><span class="line">            &#x2F;&#x2F; So we place mmap at aspace.end() - USER_STACK_SIZE - aligned_length</span><br><span class="line">            (aspace.end() - USER_STACK_SIZE - aligned_length).align_down_4k()</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Map the memory</span><br><span class="line">        let mapping_flags &#x3D; MappingFlags::from(mmap_prot) | MappingFlags::USER;</span><br><span class="line">        aspace.map_alloc(aligned_vaddr, aligned_length, mapping_flags, true)?;</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; If it&#39;s a file mapping, read the file and write to the mapped memory</span><br><span class="line">        if !mmap_flags.contains(MmapFlags::MAP_ANONYMOUS) &amp;&amp; fd &gt;&#x3D; 0 &#123;</span><br><span class="line">            &#x2F;&#x2F; Read from file</span><br><span class="line">            let mut data &#x3D; vec![0u8; aligned_length];</span><br><span class="line">            let mut read_count &#x3D; 0;</span><br><span class="line">            while read_count &lt; length &#123;</span><br><span class="line">                let buf &#x3D; &amp;mut data[read_count..];</span><br><span class="line">                let n &#x3D; api::sys_read(fd, buf.as_mut_ptr() as *mut c_void, buf.len());</span><br><span class="line">                if n &lt;&#x3D; 0 &#123;</span><br><span class="line">                    break;</span><br><span class="line">                &#125;</span><br><span class="line">                read_count +&#x3D; n as usize;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F; Write to mapped memory</span><br><span class="line">            aspace.write(aligned_vaddr, &amp;data[..read_count])?;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Ok(aligned_vaddr.as_usize())</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="遇到的问题和解决方案-4"><a href="#遇到的问题和解决方案-4" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题 1</strong>：<code>sys_mmap</code> 的地址对齐问题</p>
-<p><strong>原因</strong>：内存映射需要按页对齐，但用户传入的地址和长度可能不对齐。</p>
-<p><strong>解决</strong>：使用 <code>align_down_4k()</code> 和按页对齐长度：<code>(length + PAGE_SIZE_4K - 1) &amp; !(PAGE_SIZE_4K - 1)</code></p>
-<p><strong>问题 2</strong>：文件映射的实现</p>
-<p><strong>问题</strong>：如何将文件内容映射到内存？</p>
-<p><strong>解决</strong>：先读取文件内容到缓冲区，然后使用 <code>aspace.write()</code> 写入映射的内存区域。</p>
-<p><strong>问题 3</strong>：虚拟地址分配</p>
-<p><strong>问题</strong>：当 <code>addr</code> 为 NULL 时，如何选择合适的虚拟地址？</p>
-<p><strong>解决</strong>：在栈下方分配，计算 <code>aspace.end() - USER_STACK_SIZE - aligned_length</code>，确保不与栈冲突。</p>
-<h3 id="学习感悟-4"><a href="#学习感悟-4" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习让我深入理解了系统调用的实现机制。特别是地址空间管理和内存映射，让我对操作系统内核有了更深入的理解。在实现过程中，需要仔细处理地址对齐、权限等问题，这些都是系统编程中需要注意的细节。</p>
-<hr>
-<h2 id="练习六：simple-hv"><a href="#练习六：simple-hv" class="headerlink" title="练习六：simple_hv"></a>练习六：simple_hv</h2><h3 id="学习过程-5"><a href="#学习过程-5" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习是最复杂的，花了我最多时间。一开始我对虚拟化的概念不太理解，特别是两级地址转换机制，让我困惑了很久。看了很多资料，包括 RISC-V 虚拟化扩展规范，才慢慢理解了。</p>
-<p>后来在调试过程中，遇到了很多问题，比如 <code>htinst</code> 寄存器不可用、地址转换错误等。好在最后通过看源码和调试，终于理解了。</p>
-<h3 id="实现-5"><a href="#实现-5" class="headerlink" title="实现"></a>实现</h3><p>这个练习涉及虚拟化技术的多个核心方面：</p>
-<ol>
-<li><strong>客户机镜像加载</strong>：从文件系统加载 ELF 或二进制格式的客户机镜像</li>
-<li><strong>地址转换</strong>：实现两级地址转换（GVA → GPA → HPA）</li>
-<li><strong>虚拟 CPU 管理</strong>：保存和恢复虚拟 CPU 的寄存器状态</li>
-<li><strong>陷阱处理</strong>：处理客户机产生的陷阱，包括非法指令、页面错误、环境调用等</li>
-</ol>
-<p>关键点：</p>
-<ul>
-<li>使用身份映射（GPA = HPA）简化实现</li>
-<li>禁用 VSATP，让客户机直接使用 GPA</li>
-<li>通过指令模拟实现特权指令的功能</li>
-</ul>
-<h3 id="遇到的问题和解决方案-5"><a href="#遇到的问题和解决方案-5" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><h4 id="问题-1：地址转换的复杂性"><a href="#问题-1：地址转换的复杂性" class="headerlink" title="问题 1：地址转换的复杂性"></a>问题 1：地址转换的复杂性</h4><p><strong>问题</strong>：最初不理解两级地址转换的工作原理，特别是 VSATP 和 HGATP 的关系。</p>
-<p><strong>原因</strong>：RISC-V H 扩展的地址转换机制比较复杂，需要理解：</p>
-<ul>
-<li>VSATP 将 GVA 转换为 GPA</li>
-<li>HGATP 将 GPA 转换为 HPA</li>
-<li>两者需要配合工作</li>
-</ul>
-<p><strong>解决</strong>：</p>
-<ul>
-<li>通过阅读 RISC-V 虚拟化扩展规范理解地址转换流程</li>
-<li>使用身份映射简化实现</li>
-<li>在代码中添加详细注释说明地址转换过程</li>
-</ul>
-<h4 id="问题-2：htinst-寄存器不可用"><a href="#问题-2：htinst-寄存器不可用" class="headerlink" title="问题 2：htinst 寄存器不可用"></a>问题 2：htinst 寄存器不可用</h4><p><strong>问题</strong>：当 VSATP 禁用时，<code>htinst</code> 寄存器可能为 0，无法获取导致非法指令异常的指令。</p>
-<p><strong>原因</strong>：<code>htinst</code> 寄存器在某些情况下（如 VSATP 禁用）可能不包含有效信息。</p>
-<p><strong>解决</strong>：</p>
-<ul>
-<li>检查 <code>htinst</code> 是否为 0</li>
-<li>如果为 0，从 <code>sepc</code> 指定的物理地址读取指令</li>
-<li>使用内核的直接映射将 GPA 转换为 KVA 后读取</li>
-</ul>
-<h4 id="问题-3：身份映射的必要性"><a href="#问题-3：身份映射的必要性" class="headerlink" title="问题 3：身份映射的必要性"></a>问题 3：身份映射的必要性</h4><p><strong>问题</strong>：不理解为什么需要为 GPA 创建身份映射。</p>
-<p><strong>原因</strong>：HGATP 使用 GPA 作为虚拟地址来访问页表，因此需要将 GPA 映射到 HPA（在身份映射中，GPA = HPA）。</p>
-<p><strong>解决</strong>：</p>
-<ul>
-<li>理解 HGATP 的地址转换机制</li>
-<li>为页表根和入口地址创建身份映射</li>
-<li>确保 HGATP 可以正确访问页表页面</li>
-</ul>
-<h3 id="学习感悟-5"><a href="#学习感悟-5" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>通过这个练习，我深入理解了虚拟化技术的核心原理。特别是两级地址转换机制，让我对 RISC-V H 扩展有了更深入的理解。</p>
-<p>在调试过程中，我学会了如何排查虚拟化相关的问题，包括地址转换错误、寄存器状态错误等。这些经验对我理解操作系统内核非常有帮助。</p>
-<p>虽然这个练习很复杂，但完成后的成就感也很强。虚拟化是操作系统中最复杂的技术之一，通过这个练习，我对操作系统有了更深入的理解。</p>
-<hr>
-<h2 id="总体学习收获"><a href="#总体学习收获" class="headerlink" title="总体学习收获"></a>总体学习收获</h2><p>通过完成这些练习，我学到了很多：</p>
-<ol>
-<li><p><strong>模块化设计</strong>：arceOS 的模块化设计让我印象深刻。通过 feature 标志，可以在编译时选择不同的实现，这种设计非常灵活。</p>
-</li>
-<li><p><strong>no_std 环境编程</strong>：理解了在无标准库环境下如何实现常用功能。虽然代码量增加了，但这种设计让系统更加可控。</p>
-</li>
-<li><p><strong>底层系统编程</strong>：深入理解了操作系统核心机制，包括内存管理、进程管理、虚拟化等。这些知识对我理解操作系统内核非常有帮助。</p>
-</li>
-<li><p><strong>问题解决能力</strong>：在调试过程中，我学会了如何排查系统级问题。特别是通过看源码和调试，理解了很多之前不理解的概念。</p>
-</li>
-<li><p><strong>Rust 系统编程</strong>：通过实践加深了对 Rust 在系统编程中的应用理解。Rust 的所有权系统和类型安全，让系统编程更加安全。</p>
-</li>
-</ol>
-<h2 id="后续思考"><a href="#后续思考" class="headerlink" title="后续思考"></a>后续思考</h2><p>arceOS 的模块化设计给我留下了深刻印象。即使是简单的功能，也需要考虑底层实现。这种设计使得每个组件都可以独立测试和替换，为系统开发和调试带来了极大的便利。</p>
-<p>通过这次学习，我不仅掌握了操作系统的基本原理，还深入理解了 Rust 在系统编程中的优势。内核的学习实际上最重要的部分可能更是在于解决问题，也就是在针对特定问题的排查思路上。</p>
-<p>很感谢这次训练营的主办方，给了这么好的学习机会。虽然学习过程中遇到了很多困难，但完成后的成就感也很强。未来如果有机会，我还会继续深入学习操作系统内核。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/11/04/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/" class="post-title-link" itemprop="url">第二阶段rcore学习心得-胡旭</a>
+            <a href="/blog/2025/11/07/%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97-%E8%83%A1%E6%97%AD/" class="post-title-link" itemprop="url">第二阶段rcore学习心得-胡旭</a>
         </h2>
 
         <div class="post-meta">
@@ -471,7 +257,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:29" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:29+00:00">2025-11-07</time>
             </span>
 
           
@@ -505,7 +291,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/%E6%A2%A6%E9%86%92%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%B0%E5%BD%95/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/%E6%A2%A6%E9%86%92%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%B0%E5%BD%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -519,7 +305,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/%E6%A2%A6%E9%86%92%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">梦醒的学习记录</a>
+            <a href="/blog/2025/11/07/%E6%A2%A6%E9%86%92%E7%9A%84%E5%AD%A6%E4%B9%A0%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">梦醒的学习记录</a>
         </h2>
 
         <div class="post-meta">
@@ -529,7 +315,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:29" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:29+00:00">2025-11-07</time>
             </span>
 
           
@@ -566,7 +352,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/yjymosheng-2024%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/yjymosheng-2024%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -580,7 +366,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/yjymosheng-2024%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">2024三阶段总结</a>
+            <a href="/blog/2025/11/07/yjymosheng-2024%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">2024三阶段总结</a>
         </h2>
 
         <div class="post-meta">
@@ -590,7 +376,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
             </span>
 
           
@@ -675,7 +461,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/reganzm-s-SOS/lab1/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/reganzm-s-SOS/lab2/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -689,7 +475,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/reganzm-s-SOS/lab1/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab1</a>
+            <a href="/blog/2025/11/07/reganzm-s-SOS/lab2/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab2</a>
         </h2>
 
         <div class="post-meta">
@@ -699,7 +485,80 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>地址空间映射这一章知识密度较高，反复看了几遍才基本弄懂，调试代码陆陆续续调试了3天。(还是太菜，菜就多练！)<br>简单总结下本章：在开启分页SV39分页之前，OS和都是直接访问物理地址，这给系统带来很多潜在的安全隐患，例如地址空间未隔离等。开启分页模式后，OS和用户代码中就都是虚拟地址了，需要通过页表和MMU进行转换，并且页表上的属性区分出了U和S，进行了权限和空间的隔离，分别在特权级和地址空间上保证了OS内核的安全，同时也保证了用户程序之间相互隔离，彼此空间不会重叠。(虚拟空间可以重叠，但通过页表映射后通常是隔离的，有种特殊情况是通过映射到相同的物理也实现内存共享)</p>
+<p>另外为了OS在开启分页后能平滑的访问，对于OS采用的是恒等映射(虚拟页号=物理页帧)。而对于用户程序通常采用Framed映射，通过栈式页帧分配器分配页帧并和虚拟页号建立映射关系，动态生成页表及页表项，实现物理页帧的按需分配。</p>
+<p>另外一个比较好的抽象是地址空间MemorySet，它作为任务的一部分，管理着页表及和逻辑区。在实现采用了RAIL机制，加上rust的所有权及drop trait自动实现页表项的释放。</p>
+<p><img src="./ch4_%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86.png" alt="笔记"></p>
+<h4 id="第一题"><a href="#第一题" class="headerlink" title="第一题"></a>第一题</h4><p>最低的位则是标志位，它们的含义如下：<br>仅当 V(Valid) 位为 1 时，页表项才是合法的；<br>R/W/X 分别控制索引到这个页表项的对应虚拟页面是否允许读/写/取指；<br>U 控制索引到这个页表项的对应虚拟页面是否在 CPU 处于 U 特权级的情况下是否被允许访问；<br>G 全局页表项。这意味着即使是在上下文切换（例如，进程切换）之后，该页表项也不会被冲洗（flushed）或失效。简而言之，G位用于指示页表项在地址空间的多个上下文中保持有效。<br>A(Accessed) 记录自从页表项上的这一位被清零之后，页表项的对应虚拟页面是否被访问过；<br>D(Dirty) 则记录自从页表项上的这一位被清零之后，页表项的对应虚拟页表是否被修改过。</p>
+<h4 id="第二题"><a href="#第二题" class="headerlink" title="第二题"></a>第二题</h4><h4 id="荣誉准则"><a href="#荣誉准则" class="headerlink" title="荣誉准则"></a>荣誉准则</h4><ol>
+<li><p>在完成本次实验的过程（含此前学习的过程）中，我曾分别与 以下各位 就（与本次实验相关的）以下方面做过交流，还在代码中对应的位置以注释形式记录了具体的交流对象及内容：<br>无</p>
+</li>
+<li><p>此外，我也参考了 以下资料 ，还在代码中对应的位置以注释形式记录了具体的参考来源及内容：</p>
+<p>我的参考资料：rCore-Tutorial-Book-v3</p>
+</li>
+<li><p>我独立完成了本次实验除以上方面之外的所有工作，包括代码与文档。 我清楚地知道，从以上方面获得的信息在一定程度上降低了实验难度，可能会影响起评分。</p>
+</li>
+<li><p>我从未使用过他人的代码，不管是原封不动地复制，还是经过了某些等价转换。 我未曾也不会向他人（含此后各届同学）复制或公开我的实验代码，我有义务妥善保管好它们。 我提交至本实验的评测系统的代码，均无意于破坏或妨碍任何计算机系统的正常运转。 我清楚地知道，以上情况均为本课程纪律所禁止，若违反，对应的实验成绩将按“-100”分计。</p>
+</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/reganzm-s-SOS/lab1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/07/reganzm-s-SOS/lab1/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab1</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
             </span>
 
           
@@ -759,7 +618,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/reganzm-s-SOS/lab2/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/reganzm-s-SOS/lab3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -773,7 +632,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/reganzm-s-SOS/lab2/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab2</a>
+            <a href="/blog/2025/11/07/reganzm-s-SOS/lab3/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab3</a>
         </h2>
 
         <div class="post-meta">
@@ -783,80 +642,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>地址空间映射这一章知识密度较高，反复看了几遍才基本弄懂，调试代码陆陆续续调试了3天。(还是太菜，菜就多练！)<br>简单总结下本章：在开启分页SV39分页之前，OS和都是直接访问物理地址，这给系统带来很多潜在的安全隐患，例如地址空间未隔离等。开启分页模式后，OS和用户代码中就都是虚拟地址了，需要通过页表和MMU进行转换，并且页表上的属性区分出了U和S，进行了权限和空间的隔离，分别在特权级和地址空间上保证了OS内核的安全，同时也保证了用户程序之间相互隔离，彼此空间不会重叠。(虚拟空间可以重叠，但通过页表映射后通常是隔离的，有种特殊情况是通过映射到相同的物理也实现内存共享)</p>
-<p>另外为了OS在开启分页后能平滑的访问，对于OS采用的是恒等映射(虚拟页号=物理页帧)。而对于用户程序通常采用Framed映射，通过栈式页帧分配器分配页帧并和虚拟页号建立映射关系，动态生成页表及页表项，实现物理页帧的按需分配。</p>
-<p>另外一个比较好的抽象是地址空间MemorySet，它作为任务的一部分，管理着页表及和逻辑区。在实现采用了RAIL机制，加上rust的所有权及drop trait自动实现页表项的释放。</p>
-<p><img src="./ch4_%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86.png" alt="笔记"></p>
-<h4 id="第一题"><a href="#第一题" class="headerlink" title="第一题"></a>第一题</h4><p>最低的位则是标志位，它们的含义如下：<br>仅当 V(Valid) 位为 1 时，页表项才是合法的；<br>R/W/X 分别控制索引到这个页表项的对应虚拟页面是否允许读/写/取指；<br>U 控制索引到这个页表项的对应虚拟页面是否在 CPU 处于 U 特权级的情况下是否被允许访问；<br>G 全局页表项。这意味着即使是在上下文切换（例如，进程切换）之后，该页表项也不会被冲洗（flushed）或失效。简而言之，G位用于指示页表项在地址空间的多个上下文中保持有效。<br>A(Accessed) 记录自从页表项上的这一位被清零之后，页表项的对应虚拟页面是否被访问过；<br>D(Dirty) 则记录自从页表项上的这一位被清零之后，页表项的对应虚拟页表是否被修改过。</p>
-<h4 id="第二题"><a href="#第二题" class="headerlink" title="第二题"></a>第二题</h4><h4 id="荣誉准则"><a href="#荣誉准则" class="headerlink" title="荣誉准则"></a>荣誉准则</h4><ol>
-<li><p>在完成本次实验的过程（含此前学习的过程）中，我曾分别与 以下各位 就（与本次实验相关的）以下方面做过交流，还在代码中对应的位置以注释形式记录了具体的交流对象及内容：<br>无</p>
-</li>
-<li><p>此外，我也参考了 以下资料 ，还在代码中对应的位置以注释形式记录了具体的参考来源及内容：</p>
-<p>我的参考资料：rCore-Tutorial-Book-v3</p>
-</li>
-<li><p>我独立完成了本次实验除以上方面之外的所有工作，包括代码与文档。 我清楚地知道，从以上方面获得的信息在一定程度上降低了实验难度，可能会影响起评分。</p>
-</li>
-<li><p>我从未使用过他人的代码，不管是原封不动地复制，还是经过了某些等价转换。 我未曾也不会向他人（含此后各届同学）复制或公开我的实验代码，我有义务妥善保管好它们。 我提交至本实验的评测系统的代码，均无意于破坏或妨碍任何计算机系统的正常运转。 我清楚地知道，以上情况均为本课程纪律所禁止，若违反，对应的实验成绩将按“-100”分计。</p>
-</li>
-</ol>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/reganzm-s-SOS/lab3/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/11/04/reganzm-s-SOS/lab3/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab3</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
             </span>
 
           
@@ -900,7 +686,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/reganzm-s-SOS/lab4/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/reganzm-s-SOS/lab4/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -914,7 +700,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/reganzm-s-SOS/lab4/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab4</a>
+            <a href="/blog/2025/11/07/reganzm-s-SOS/lab4/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab4</a>
         </h2>
 
         <div class="post-meta">
@@ -924,7 +710,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
             </span>
 
           
@@ -971,7 +757,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/reganzm-s-SOS/lab5/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/reganzm-s-SOS/lab5/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -985,7 +771,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/reganzm-s-SOS/lab5/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab5</a>
+            <a href="/blog/2025/11/07/reganzm-s-SOS/lab5/" class="post-title-link" itemprop="url">reganzm-s-SOS/lab5</a>
         </h2>
 
         <div class="post-meta">
@@ -995,7 +781,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
             </span>
 
           
@@ -1041,7 +827,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -1055,7 +841,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/04/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">dream第二阶段总结</a>
+            <a href="/blog/2025/11/07/dream%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">dream第二阶段总结</a>
         </h2>
 
         <div class="post-meta">
@@ -1065,7 +851,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-04 02:28:41" itemprop="dateCreated datePublished" datetime="2025-11-04T02:28:41+00:00">2025-11-04</time>
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
             </span>
 
           
@@ -1089,6 +875,209 @@
 <p>实验4非常nice本来一开始一直没搞懂，为什么要设置 DiskInode 和 Inode 两层抽象，而不是一层，但实际开始写的时候突然意识到，这是对于fs资源保证只有一个人使用的管理。对于涉及到了锁的编程，以前没太写过，debug弄了好久。</p>
 <p>实验5在群里和佬们交流了才搞懂该怎么弄，debug了也弄了好久。好在最后做出来了。</p>
 <p>可惜，阶段三之后可能没啥时间弄了，得抓数学了。未来说不定还会来参加啦，哈哈哈。多谢清华给了这么好的学习机会</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/axsl666-2023%E7%A7%8B%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/07/axsl666-2023%E7%A7%8B%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">axsl666-2023秋第二阶段总结</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-07 04:51:28" itemprop="dateCreated datePublished" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Axsl666-2023秋季OS训练营第二阶段总结"><a href="#Axsl666-2023秋季OS训练营第二阶段总结" class="headerlink" title="Axsl666-2023秋季OS训练营第二阶段总结"></a>Axsl666-2023秋季OS训练营第二阶段总结</h1><p>首先感谢learningOS社区的所有贡献者。前几次训练营因为错过报名时间而未能参加，终于在2023秋季参与到了本次训练营活动。</p>
+<h2 id="实验一内容总结"><a href="#实验一内容总结" class="headerlink" title="实验一内容总结"></a>实验一内容总结</h2><p>多任务系统的简单实现</p>
+<ul>
+<li>扩展 <code>TaskControlBlock</code>：<ul>
+<li><code>start_time</code></li>
+<li><code>started</code></li>
+<li><code>syscall_times</code></li>
+</ul>
+</li>
+<li>设计 <code>TaskManager</code> 的公共接口<ul>
+<li><code>add_syscall_times</code></li>
+<li><code>get_current_task_info</code></li>
+</ul>
+</li>
+<li>在相应函数中更新 TCB 数据, 记录开始时间：<ul>
+<li><code>run_first_task</code></li>
+<li><code>run_next_task</code></li>
+</ul>
+</li>
+<li>在系统调用处理函数中调用 <code>add_syscall_times</code> 更新 TCB 中的记录</li>
+<li>完成 <code>sys_task_info</code> 系统调用<ul>
+<li>主要是调用 <code>get_current_task_info</code> 并返回 <code>TaskInfo</code>。</li>
+</ul>
+</li>
+</ul>
+<h2 id="实验二内容总结"><a href="#实验二内容总结" class="headerlink" title="实验二内容总结"></a>实验二内容总结</h2><p>系统开启虚拟地址空间</p>
+<h3 id="重写-sys-get-time-和-sys-task-info"><a href="#重写-sys-get-time-和-sys-task-info" class="headerlink" title="重写 sys_get_time 和 sys_task_info"></a>重写 sys_get_time 和 sys_task_info</h3><ul>
+<li>在内存管理中增加 translated_mut_ptr 函数，实现进程用户地址空间中的指针到可变引用的转换</li>
+<li>其余类似 ch3 中的操作</li>
+</ul>
+<h3 id="mmap-和-munmap-匿名映射"><a href="#mmap-和-munmap-匿名映射" class="headerlink" title="mmap 和 munmap 匿名映射"></a>mmap 和 munmap 匿名映射</h3><ul>
+<li>内存管理接口<ul>
+<li>delete_frame_area</li>
+</ul>
+</li>
+<li>任务管理接口<ul>
+<li>mmap：调用insert_framed_area增加映射区域</li>
+<li>munmap：调用delete_frame_area删除映射区域</li>
+</ul>
+</li>
+<li>系统调用的实现<ul>
+<li>合法性检验</li>
+<li>调用任务管理接口 mmap 和 munmap</li>
+</ul>
+</li>
+</ul>
+<h2 id="实验三内容总结"><a href="#实验三内容总结" class="headerlink" title="实验三内容总结"></a>实验三内容总结</h2><p>实现进程管理相关系统调用</p>
+<h3 id="实现系统调用-spawn"><a href="#实现系统调用-spawn" class="headerlink" title="实现系统调用 spawn"></a>实现系统调用 spawn</h3><ul>
+<li>扩展 Task 公共接口<ul>
+<li>spawn<ul>
+<li>MemorySet::from_elf 新建地址空间，用户栈，程序入口点</li>
+<li>分配 pid 与内核栈</li>
+<li>建立 TCB</li>
+<li>加入父进程的子进程链表</li>
+<li>准备 TrapContext</li>
+<li>返回新子进程的TCB</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>完成系统调用功能<ul>
+<li>sys_spawn</li>
+</ul>
+</li>
+</ul>
+<h3 id="实现-stride-调度算法"><a href="#实现-stride-调度算法" class="headerlink" title="实现 stride 调度算法"></a>实现 stride 调度算法</h3><ul>
+<li>扩展 TCB<ul>
+<li>stride</li>
+<li>priority</li>
+</ul>
+</li>
+<li>扩展 Task 公共接口<ul>
+<li>set_priority</li>
+</ul>
+</li>
+<li>修改 TaskManager 调度算法<ul>
+<li>fetch 修改为 stride 调度算法</li>
+</ul>
+</li>
+<li>完成系统调用功能<ul>
+<li>sys_set_priority 调用 set_priority</li>
+</ul>
+</li>
+</ul>
+<h2 id="实验四内容总结"><a href="#实验四内容总结" class="headerlink" title="实验四内容总结"></a>实验四内容总结</h2><p>实现几个文件系统相关系统调用</p>
+<h3 id="sys-linkat"><a href="#sys-linkat" class="headerlink" title="sys_linkat"></a>sys_linkat</h3><ul>
+<li>给 File trait 增加 fstat 接口</li>
+<li>扩展 efs 中 DiskInode 接口<ul>
+<li>get_inode_id： get_disk_inode_pos的逆过程</li>
+</ul>
+</li>
+<li>在 vfs 中 Inode 增加接口<ul>
+<li>create_link<ul>
+<li>新建目录项，(new_name, old_inode_id)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>完成系统调用 sys_linkat</li>
+</ul>
+<h3 id="sys-unlinkat"><a href="#sys-unlinkat" class="headerlink" title="sys_unlinkat"></a>sys_unlinkat</h3><ul>
+<li>给 File trait 增加 fstat 接口</li>
+<li>扩展 efs 中 DiskInode 接口<ul>
+<li>get_inode_id： get_disk_inode_pos的逆过程</li>
+</ul>
+</li>
+<li>在 vfs 中 Inode 增加接口<ul>
+<li>delete_link<ul>
+<li>遍历目录下所有目录项，找到与对应文件名相同的inode</li>
+<li>删除（清空）对应目录项</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>完成系统调用 sys_unlinkat</li>
+</ul>
+<h3 id="sys-stat"><a href="#sys-stat" class="headerlink" title="sys_stat"></a>sys_stat</h3><ul>
+<li>给 File trait 增加 fstat 接口</li>
+<li>扩展 efs 中 DiskInode 接口<ul>
+<li>get_inode_id： get_disk_inode_pos的逆过程</li>
+</ul>
+</li>
+<li>在 vfs 中 Inode 增加接口<ul>
+<li>inode_id: 实现获取自身 inode id</li>
+<li>isdir：判读是 inode 否为目录</li>
+<li>linknum: 获取 root inode 下的某一个 inode id 对应的硬链接数量</li>
+</ul>
+</li>
+<li>完成系统调用 sys_stat</li>
+</ul>
+<h2 id="实验五内容总结"><a href="#实验五内容总结" class="headerlink" title="实验五内容总结"></a>实验五内容总结</h2><p>本节主要几种同步原语与及其内核实现。</p>
+<ul>
+<li>加入死锁检测机制，实现银行家算法。</li>
+<li>扩展 PCB 和 TCB<ul>
+<li>可利用资源向量 分配矩阵 需求矩阵</li>
+</ul>
+</li>
+<li>数据更新<ul>
+<li>相关系统调用时进行更新数据</li>
+</ul>
+</li>
+<li>检测算法<ul>
+<li>获取资源前进行死锁检测</li>
+</ul>
+</li>
+</ul>
 
       
     </div>
