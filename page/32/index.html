@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">733</span>
+          <span class="site-state-item-count">734</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">640</span>
+        <span class="site-state-item-count">641</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,99 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/11/07/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-NoahNieh/" class="post-title-link" itemprop="url">2024秋冬季开源操作系统训练营二阶段总结-NoahNieh</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-11-07 16:26:56" itemprop="dateCreated datePublished" datetime="2024-11-07T16:26:56+00:00">2024-11-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024秋冬季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h1><p>这个阶段主要是要完成几个实验，借助几个实验理解一个具有进程/线程管理、内存管理、文件系统、进程间通信和提供了一定同步机制的内核是如何构成并运作起来的。</p>
+<p>比较深刻的有这么几个知识点：</p>
+<ul>
+<li>链接脚本与全局符号的使用</li>
+<li><code>Rust</code>的汇编嵌入</li>
+<li>第四章中，在使用分离内核空间的时候。通过设计跳板页来解决切换页表后指令执行的问题。<a href="#跳板">跳板页</a></li>
+<li>第六章了解了文件系统，了解了块设备的概念，对文件系统的各个抽象层有了一定的了解。</li>
+<li>第七、八章了解了操作系统是如何为应用提供同步原语的</li>
+</ul>
+<h2 id="跳板"><a href="#跳板" class="headerlink" title="跳板"></a>跳板</h2><p>由于我们的内核使用了分离内核空间的设置，所以在<code>Trap</code>的时候需要切换页表。但在切换页表之后，<code>pc</code>寄存器还是忠实的在其原来的位置自加到下一条指令，如果<code>内核内存空间</code>和<code>程序内存空间</code>对这段代码的映射不是在同一个位置的话，则会表现出来程序跳转到了别的地方执行的效果。因此我们设计了一个跳板页，在虚存中映射到所有内存空间的最高页，确保在切换之后，也能正确运行下一条指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"># trap.S</span><br><span class="line">...</span><br><span class="line">    .section .text.trampoline</span><br><span class="line">    .globl __alltraps</span><br><span class="line">    .globl __restore</span><br><span class="line">    .align 2</span><br><span class="line">__alltraps:</span><br><span class="line">    csrrw sp, sscratch, sp</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"># linker.ld</span><br><span class="line">...</span><br><span class="line">    stext &#x3D; .;</span><br><span class="line">    .text : &#123;</span><br><span class="line">        *(.text.entry)</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        strampoline &#x3D; .;</span><br><span class="line">        *(.text.trampoline);</span><br><span class="line">        . &#x3D; ALIGN(4K);</span><br><span class="line">        *(.text .text.*)</span><br><span class="line">    &#125;</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>在上面的汇编可以看到，我们给<code>trap.S</code>分配到了<code>.text.trampoline</code>段，并在链接脚本中定义了一个<code>strampline</code>符号来标记他的位置，这样我们可以在<code>Rust</code>中找到这个跳板页，映射到我们期望的位置。</p>
+<p>但将跳板也映射到别的地方带来了新的问题，原来<code>__alltraps</code>中最后跳转到<code>trap_handler</code>使用的是<code>call trap_handler</code>。我们可以通过<code>obj-dump</code>看看编译得到的指令。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># obj-dump -Dx ...</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line">80201056: 73 90 02 18   csrw    satp, t0</span><br><span class="line">8020105a: 73 00 00 12   sfence.vma</span><br><span class="line">8020105e: 97 80 00 00   auipc   ra, 0x8</span><br><span class="line">80201062: e7 80 e0 0b   jalr    0xbe(ra) &lt;trap_handler&gt; # pc+0x80be</span><br><span class="line">...</span><br><span class="line">000000008020911c g     F .text  00000000000003b2 trap_handler</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，这里用的是pc相对寻址，也就是基于当前指令的偏移找到<code>trap_handler</code>所在的位置。但是现在<code>__alltraps</code>已经被我们映射到内存的最高页去了，也就是说我们实际运行代码的时候是在下面这一段内存中。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># gdb</span><br><span class="line">&gt;&gt;&gt; x &#x2F;20i $pc-10</span><br><span class="line">   0xfffffffffffff054:  ld      sp,280(sp)</span><br><span class="line">   0xfffffffffffff056:  csrw    satp,t0</span><br><span class="line">   0xfffffffffffff05a:  sfence.vma</span><br><span class="line">&#x3D;&gt; 0xfffffffffffff05e:  jr      t1 </span><br><span class="line"></span><br><span class="line">&gt;&gt;&gt; p &#x2F;x $t1</span><br><span class="line">$9 &#x3D; 0x8020911c</span><br></pre></td></tr></table></figure>
+
+<p>很明显如果这里跳转到$pc+offset$的话，并不是跳到位于正常代码段的<code>trap_handler</code>。所以我们要将这里换成寄存器跳转，将<code>trap_handler</code>的地址放到寄存器<code>t1</code>中，这样才能顺利地调用到<code>trap_handler</code>。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/07/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E7%8E%8B%E4%B8%80%E5%B0%A7/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +357,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
 
           
@@ -329,7 +422,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -417,7 +510,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -505,7 +598,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
 
           
@@ -584,7 +677,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -685,7 +778,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
 
           
@@ -757,7 +850,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
 
           
@@ -830,7 +923,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -935,7 +1028,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 09:35:54" itemprop="dateModified" datetime="2025-11-07T09:35:54+00:00">2025-11-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -973,81 +1066,6 @@
 <li>练习涵盖了Rust的所有权、借用、生命周期、错误处理、宏、模式匹配等方面的内容。</li>
 </ul>
 <h2 id="三、学习心得"><a href="#三、学习心得" class="headerlink" title="三、学习心得"></a>三、学习心得</h2><pre><code>非常感谢训练营的老师和助教帮助，让我能够在两周的时间快速入门rust这门优秀的语言。印象最深的还是最后的算法部份，尤其是前两道关于链表的题目，其实之前一直是使用c++做算法题，对链表也较为熟悉了，但是由于对rust的特性不熟悉以及对链表没有深刻理解，让我有一种有力使不出的感觉，后面通过阅读题目的框架，以及对书本知识的巩固，终于是对rust中的链表有了初步的认识，写完链表的题目后，后续的题目也很快完成了。rust语言的特性让我对编程和计算机有了更深的理解，尽管现在还是写得磕磕绊绊，和编译器打架，但是相信通过不断学习和时间，将来我也能够编写出优秀的rust代码。</code></pre>
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/11/05/greatbridf-%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/11/05/greatbridf-%E4%BA%8C%E9%98%B6%E6%AE%B5rcore%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">greatbridf-二阶段rcore学习总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-11-05 23:05:28" itemprop="dateCreated datePublished" datetime="2024-11-05T23:05:28+00:00">2024-11-05</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="碎碎念"><a href="#碎碎念" class="headerlink" title="碎碎念"></a>碎碎念</h1><p>拖了好久最后还是写完了，中间碰到些奇怪的问题和bug，卡了好一大气，最后发现问题在什么地方的时候真的血压升高，一整个气烂了。但是最后还是解决了，感觉自己的能力有所提升吧。</p>
-<p><del>最后真的永远也习惯不了写各种报告（捂脸</del></p>
-<h1 id="学习总结"><a href="#学习总结" class="headerlink" title="学习总结"></a>学习总结</h1><h2 id="前三个lab"><a href="#前三个lab" class="headerlink" title="前三个lab"></a>前三个lab</h2><p>前三个lab的内容大致上还是比较简单，感谢各位老师和助教提供的框架，写的时候可以更注重于OS的机制以及riscv平台本身，不用关注太多的细节。报告里的思考题也挺有帮助的。</p>
-<p>前四个lab要求需要整合前面lab实现的功能，在写这几个lab的过程当中，一些部分的实现也在一直调整，变得更加合理以及方便使用。也发现自己一些问题，有时候还是要先想清楚把代码读好再动手，不然会浪费很多时间。</p>
-<h2 id="第四个lab"><a href="#第四个lab" class="headerlink" title="第四个lab"></a>第四个lab</h2><p>在这个lab上花的时间最长。代码写好以后调试始终是不对。最后发现<code>spawn</code>跑过去之后整个文件系统一整个挂掉了，<del>整个easy-fs乱成了一锅粥</del>。调试了好久好久也搞不清楚什么原因，最后还是换了种实现<code>spawn</code>的方法，先过了测试。猜测可能是在<code>exec</code>的时候不小心写了什么地方？玄学问题以后有时间的时候再研究研究吧。<del>如果真的是把fs的内容给覆写掉的了话，我也真厉害能写出这么恶心的代码。毕竟表面上看完全是不可能的</del></p>
-<h2 id="第五个lab"><a href="#第五个lab" class="headerlink" title="第五个lab"></a>第五个lab</h2><p>这个lab是要我们实现一个死锁检测的算法。这个算法之前在课上有学过，这下也算是见到本体了。觉得自己有时候对于并发编程的了解还是不够深入，可能如果加上一些实现并发的代码和lab会更好一些？希望能在后面的课程中学到更多的知识。</p>
-<h1 id="心得体会"><a href="#心得体会" class="headerlink" title="心得体会"></a>心得体会</h1><h2 id="rust"><a href="#rust" class="headerlink" title="rust"></a>rust</h2><p>算是开始接触rust有一段时间了<del>，和编译器斗争越来越熟练</del>。感觉rust是一门很有趣的语言，有时候会出现写其他语言的时候没有的一些奇怪的问题，但是解决了之后能对一些东西有更好的了解，平时会更注意一些。</p>
-<p>比如说rust的所有权系统，有时候会觉得很麻烦，但是这个系统也能帮助我们避免一些潜在的bug，也能让我们更好的理解内存和生命周期的管理。这些内容其实在写C/C++的时候也会遇到，但是表现的形式可能更加<strong>狂野</strong>一点。rust这样更加严格的检查让我们在写代码的时候，设计整个结构的时候更小心，考虑到更多的细节。之前在写C++的时候，发现C++11加入的<code>std::move</code>和<code>std::unique_ptr</code>等等，也是为了表达一些所有权等相关的语义，但是没有强制化的要求。rust的所有权系统更加严格，也更加直观。</p>
-<p>希望以后能够继续学习rust。</p>
-<h2 id="riscv"><a href="#riscv" class="headerlink" title="riscv"></a>riscv</h2><p>riscv和x86比起来简直就是天堂（</p>
-<p>riscv指令集更简单，更容易理解。在设计的时候就避免了很多x86遗留的历史设计问题，实现OS的时候更加方便。在学习riscv的过程中，也对计算机体系结构有了更深的了解。觉得riscv是一个很有潜力的平台，希望以后应用更普遍一些吧。</p>
-
       
     </div>
 
@@ -1162,6 +1180,59 @@
   
 
   
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
 
   
 
