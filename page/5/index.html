@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">732</span>
+          <span class="site-state-item-count">733</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">638</span>
+        <span class="site-state-item-count">640</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,226 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/04/arceOS-%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/04/arceOS-%E5%AD%A6%E4%B9%A0%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">arceOS 学习总结</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-04 06:28:59" itemprop="dateCreated datePublished" datetime="2025-11-04T06:28:59+00:00">2025-11-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2025-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2025 秋冬季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="arceOS-学习总结"><a href="#arceOS-学习总结" class="headerlink" title="arceOS 学习总结"></a>arceOS 学习总结</h1><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>arceOS 是一个用 Rust 编写的模块化操作系统，与 rcore 相比，arceOS 采用了更加模块化的设计思路。</p>
+<p>这次学习 arceOS 的练习，我花了不少时间。虽然之前做过 rcore 的实验，但 arceOS 的模块化设计和实现方式还是让我遇到了不少挑战。特别是在虚拟化部分，两级地址转换机制让我困惑了很久，好在最后通过看源码和调试还有网站上的博客，终于理解了。</p>
+<p>这篇博客主要记录我在完成这些练习过程中的学习体会、遇到的问题以及解决思路。内核的学习实际上最重要的部分可能更是在于解决问题，也就是在针对特定问题的排查思路上。</p>
+<h2 id="练习概览"><a href="#练习概览" class="headerlink" title="练习概览"></a>练习概览</h2><p>本次学习完成了以下练习：</p>
+<ol>
+<li><strong>print_with_color</strong> - 带颜色的控制台输出</li>
+<li><strong>alt_alloc</strong> - 备用分配器测试</li>
+<li><strong>ramfs_rename</strong> - 文件系统重命名功能</li>
+<li><strong>support_hashmap</strong> - 内存管理测试</li>
+<li><strong>sys_map</strong> - 系统调用映射实现</li>
+<li><strong>simple_hv</strong> - 简单虚拟化器实现</li>
+</ol>
+<p>其中 <code>simple_hv</code> 是最复杂的，花了我最多时间。其他练习相对简单，但每个练习都让我对 arceOS 的设计有了更深入的理解。</p>
+<hr>
+<h2 id="练习一：print-with-color"><a href="#练习一：print-with-color" class="headerlink" title="练习一：print_with_color"></a>练习一：print_with_color</h2><h3 id="学习过程"><a href="#学习过程" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习看似简单，但一开始我也遇到了一些困惑。在无标准库（no_std）的环境下，如何实现带颜色的输出？我之前在 Linux 上用过 ANSI 转义序列，但在 Rust 的字符串字面量中如何表示 ESC 字符？</p>
+<h3 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h3><p>最终实现的代码很简单：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#![cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_std)]</span></span><br><span class="line"><span class="meta">#![cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_main)]</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"axstd"</span>)]</span></span><br><span class="line"><span class="keyword">use</span> axstd::println;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg_attr(feature = <span class="meta-string">"axstd"</span>, no_mangle)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="comment">// ANSI color code: \u&#123;1B&#125;[32m for green</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"\u&#123;1B&#125;[32m[WithColor]: Hello, Arceos!\u&#123;1B&#125;[m"</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>关键点：</p>
+<ul>
+<li>使用<code>no_std</code>特性，不依赖标准库</li>
+<li>使用<code>axstd::println!</code>宏而不是标准库的<code>println!</code></li>
+<li>ANSI 转义序列使用 Unicode 转义<code>\u{1B}</code>表示 ESC 字符</li>
+</ul>
+<p>通过查看 arceOS 源码，我发现 arceOS 的打印系统（<code>axlog</code>模块）已经内置了对 ANSI 转义序列的支持，但<code>with_color!</code>宏是模块内部的私有宏，无法在外部直接使用。所以直接使用 ANSI 转义序列是合理的选择。</p>
+<h3 id="遇到的问题和解决方案"><a href="#遇到的问题和解决方案" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><h4 id="问题-1：Unicode-转义序列的写法"><a href="#问题-1：Unicode-转义序列的写法" class="headerlink" title="问题 1：Unicode 转义序列的写法"></a>问题 1：Unicode 转义序列的写法</h4><p><strong>问题</strong>：最初尝试使用<code>\x1B</code>但编译失败。</p>
+<p><strong>原因</strong>：Rust 中字符串字面量需要使用 Unicode 转义序列<code>\u{1B}</code>而不是十六进制转义<code>\x1B</code>。</p>
+<p><strong>解决</strong>：使用<code>\u{1B}</code>来表示 ESC 字符。</p>
+<h4 id="问题-2：颜色代码的理解"><a href="#问题-2：颜色代码的理解" class="headerlink" title="问题 2：颜色代码的理解"></a>问题 2：颜色代码的理解</h4><p><strong>问题</strong>：不清楚不同颜色对应的 ANSI 代码。</p>
+<p><strong>学习</strong>：</p>
+<ul>
+<li>30-37：标准颜色（黑、红、绿、黄、蓝、品红、青、白）</li>
+<li>90-97：亮色（高亮版本）</li>
+<li>32：绿色（本练习使用）</li>
+</ul>
+<h4 id="问题-3：终端是否支持颜色"><a href="#问题-3：终端是否支持颜色" class="headerlink" title="问题 3：终端是否支持颜色"></a>问题 3：终端是否支持颜色</h4><p><strong>问题</strong>：在某些终端中，ANSI 转义序列可能被过滤或不被支持。</p>
+<p><strong>解决</strong>：测试脚本会检查输出中是否实际包含 ANSI 转义序列，确保不仅输出了文本，还输出了颜色控制码。</p>
+<h3 id="学习感悟"><a href="#学习感悟" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习虽然简单，但让我理解了 arceOS 的模块化设计。即使是简单的功能，也需要考虑底层实现。另外，在 Rust 中表示特殊字符需要使用 Unicode 转义，这也是一个小的知识点。</p>
+<hr>
+<h2 id="练习二：alt-alloc"><a href="#练习二：alt-alloc" class="headerlink" title="练习二：alt_alloc"></a>练习二：alt_alloc</h2><h3 id="学习过程-1"><a href="#学习过程-1" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习主要是测试备用分配器（bump allocator）的功能。虽然代码很简单，但让我理解了 arceOS 的模块化设计——可以通过 feature 标志在编译时选择不同的分配器实现。</p>
+<h3 id="实现-1"><a href="#实现-1" class="headerlink" title="实现"></a>实现</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">#![cfg_attr(feature &#x3D; &quot;axstd&quot;, no_std)]</span><br><span class="line">#![cfg_attr(feature &#x3D; &quot;axstd&quot;, no_main)]</span><br><span class="line"></span><br><span class="line">#[macro_use]</span><br><span class="line">#[cfg(feature &#x3D; &quot;axstd&quot;)]</span><br><span class="line">extern crate axstd as std;</span><br><span class="line">extern crate alloc;</span><br><span class="line"></span><br><span class="line">use alloc::vec::Vec;</span><br><span class="line"></span><br><span class="line">#[cfg_attr(feature &#x3D; &quot;axstd&quot;, no_mangle)]</span><br><span class="line">fn main() &#123;</span><br><span class="line">    println!(&quot;Running bump tests...&quot;);</span><br><span class="line"></span><br><span class="line">    const N: usize &#x3D; 3_000_000;</span><br><span class="line">    let mut v &#x3D; Vec::with_capacity(N);</span><br><span class="line">    for i in 0..N &#123;</span><br><span class="line">        v.push(i);</span><br><span class="line">    &#125;</span><br><span class="line">    v.sort();</span><br><span class="line">    for i in 0..N - 1 &#123;</span><br><span class="line">        assert!(v[i] &lt;&#x3D; v[i + 1]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    println!(&quot;Bump tests run OK!&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="遇到的问题和解决方案-1"><a href="#遇到的问题和解决方案-1" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题</strong>：在分配 300 万个元素时，程序偶尔会崩溃。</p>
+<p><strong>原因</strong>：bump allocator 是线性分配器，在内存不足时会失败。</p>
+<p><strong>解决</strong>：通过查看 <code>alt_axalloc</code> 的源码，理解了 bump allocator 的工作原理。它从内存池的一端开始分配，只能向前推进，不能释放单个分配。这让我理解了为什么需要不同的分配器策略。</p>
+<h3 id="学习感悟-1"><a href="#学习感悟-1" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习虽然简单，但让我看到了 arceOS 模块化设计的优势。通过 feature 标志，可以在编译时选择不同的实现，这种设计非常灵活。</p>
+<hr>
+<h2 id="练习三：ramfs-rename"><a href="#练习三：ramfs-rename" class="headerlink" title="练习三：ramfs_rename"></a>练习三：ramfs_rename</h2><h3 id="学习过程-2"><a href="#学习过程-2" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习主要是实现文件系统重命名功能。一开始我以为会很简单，但实际做起来发现需要理解 arceOS 的文件系统抽象。特别是 <code>ramfs.rs</code> 的实现，让我理解了文件系统接口的设计。</p>
+<h3 id="实现-2"><a href="#实现-2" class="headerlink" title="实现"></a>实现</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">fn create_file(fname: &amp;str, text: &amp;str) -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    println!(&quot;Create &#39;&#123;&#125;&#39; and write [&#123;&#125;] ...&quot;, fname, text);</span><br><span class="line">    let mut file &#x3D; File::create(fname)?;</span><br><span class="line">    file.write_all(text.as_bytes())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; Only support rename, NOT move.</span><br><span class="line">fn rename_file(src: &amp;str, dst: &amp;str) -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    println!(&quot;Rename &#39;&#123;&#125;&#39; to &#39;&#123;&#125;&#39; ...&quot;, src, dst);</span><br><span class="line">    fs::rename(src, dst)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn print_file(fname: &amp;str) -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    let mut buf &#x3D; [0; 1024];</span><br><span class="line">    let mut file &#x3D; File::open(fname)?;</span><br><span class="line">    loop &#123;</span><br><span class="line">        let n &#x3D; file.read(&amp;mut buf)?;</span><br><span class="line">        if n &gt; 0 &#123;</span><br><span class="line">            print!(&quot;Read &#39;&#123;&#125;&#39; content: [&quot;, fname);</span><br><span class="line">            io::stdout().write_all(&amp;buf[..n])?;</span><br><span class="line">            println!(&quot;] ok!&quot;);</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            return Ok(());</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn process() -&gt; io::Result&lt;()&gt; &#123;</span><br><span class="line">    create_file(&quot;&#x2F;tmp&#x2F;f1&quot;, &quot;hello&quot;)?;</span><br><span class="line">    &#x2F;&#x2F; Just rename, NOT move.</span><br><span class="line">    &#x2F;&#x2F; So this must happen in the same directory.</span><br><span class="line">    rename_file(&quot;&#x2F;tmp&#x2F;f1&quot;, &quot;&#x2F;tmp&#x2F;f2&quot;)?;</span><br><span class="line">    print_file(&quot;&#x2F;tmp&#x2F;f2&quot;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="遇到的问题和解决方案-2"><a href="#遇到的问题和解决方案-2" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题</strong>：最初不理解为什么需要 <code>ramfs.rs</code> 这个文件，以及它和主代码的关系。</p>
+<p><strong>原因</strong>：arceOS 使用 trait 来抽象文件系统，需要实现 <code>MyFileSystemIf</code> trait。</p>
+<p><strong>解决</strong>：通过查看 <code>ramfs.rs</code> 的代码，理解了文件系统接口的设计。它使用 <code>crate_interface::impl_interface</code> 来实现接口，这是 arceOS 模块化设计的一部分。</p>
+<h3 id="学习感悟-2"><a href="#学习感悟-2" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>通过这个练习，我理解了 arceOS 文件系统的抽象设计。虽然实现简单，但背后的设计理念很清晰。在 no_std 环境下实现类似标准库的 API，这种设计很优雅。</p>
+<hr>
+<h2 id="练习四：support-hashmap"><a href="#练习四：support-hashmap" class="headerlink" title="练习四：support_hashmap"></a>练习四：support_hashmap</h2><h3 id="学习过程-3"><a href="#学习过程-3" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习主要是测试 arceOS 对集合类型（BTreeMap）的支持。虽然代码很简单，但让我理解了 arceOS 如何在 no_std 环境下提供标准库的替代实现。</p>
+<h3 id="实现-3"><a href="#实现-3" class="headerlink" title="实现"></a>实现</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">fn test_hashmap() &#123;</span><br><span class="line">    const N: u32 &#x3D; 50_000;</span><br><span class="line">    let mut m &#x3D; BTreeMap::new();</span><br><span class="line">    for value in 0..N &#123;</span><br><span class="line">        let key &#x3D; format!(&quot;key_&#123;value&#125;&quot;);</span><br><span class="line">        m.insert(key, value);</span><br><span class="line">    &#125;</span><br><span class="line">    for (k, v) in m.iter() &#123;</span><br><span class="line">        if let Some(k) &#x3D; k.strip_prefix(&quot;key_&quot;) &#123;</span><br><span class="line">            assert_eq!(k.parse::&lt;u32&gt;().unwrap(), *v);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    println!(&quot;test_hashmap() OK!&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="遇到的问题和解决方案-3"><a href="#遇到的问题和解决方案-3" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题</strong>：在插入大量数据时，程序运行时间较长。</p>
+<p><strong>原因</strong>：BTreeMap 使用 B 树实现，插入操作需要维护树结构。</p>
+<p><strong>解决</strong>：通过测试，理解了 BTreeMap 的性能特征。虽然插入较慢，但查找和遍历操作比较高效。</p>
+<h3 id="学习感悟-3"><a href="#学习感悟-3" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习让我理解了 arceOS 如何提供标准库的替代实现。在 no_std 环境下，需要自己实现这些数据结构，但这种设计让系统更加可控。</p>
+<hr>
+<h2 id="练习五：sys-map"><a href="#练习五：sys-map" class="headerlink" title="练习五：sys_map"></a>练习五：sys_map</h2><h3 id="学习过程-4"><a href="#学习过程-4" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习比较复杂，涉及系统调用的实现。一开始我对用户程序加载和地址空间管理不太理解，特别是 <code>sys_mmap</code> 的实现，花了我不少时间。</p>
+<h3 id="实现-4"><a href="#实现-4" class="headerlink" title="实现"></a>实现</h3><p>这个练习主要包括：</p>
+<ol>
+<li>用户程序加载：从文件系统加载 ELF 文件到用户地址空间</li>
+<li>系统调用处理：实现 <code>mmap</code>、<code>open</code>、<code>read</code>、<code>write</code>、<code>exit</code> 等系统调用</li>
+<li>内存映射：实现 <code>sys_mmap</code>，支持匿名映射和文件映射</li>
+</ol>
+<h3 id="关键实现-sys-mmap"><a href="#关键实现-sys-mmap" class="headerlink" title="关键实现 - sys_mmap"></a>关键实现 - sys_mmap</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line">#[allow(unused_variables)]</span><br><span class="line">fn sys_mmap(</span><br><span class="line">    addr: *mut usize,</span><br><span class="line">    length: usize,</span><br><span class="line">    prot: i32,</span><br><span class="line">    flags: i32,</span><br><span class="line">    fd: i32,</span><br><span class="line">    _offset: isize,</span><br><span class="line">) -&gt; isize &#123;</span><br><span class="line">    syscall_body!(sys_mmap, &#123;</span><br><span class="line">        &#x2F;&#x2F; Get the user space address space</span><br><span class="line">        let curr &#x3D; current();</span><br><span class="line">        let task_ext &#x3D; curr.task_ext();</span><br><span class="line">        let mut aspace &#x3D; task_ext.aspace.lock();</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Parse flags</span><br><span class="line">        let mmap_flags &#x3D; MmapFlags::from_bits_truncate(flags);</span><br><span class="line">        let mmap_prot &#x3D; MmapProt::from_bits_truncate(prot);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Align address and size to page boundaries first</span><br><span class="line">        let aligned_length &#x3D; (length + PAGE_SIZE_4K - 1) &amp; !(PAGE_SIZE_4K - 1);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Allocate virtual address if addr is NULL</span><br><span class="line">        let aligned_vaddr &#x3D; if !addr.is_null() &#123;</span><br><span class="line">            VirtAddr::from(addr as usize).align_down_4k()</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            &#x2F;&#x2F; Find a suitable virtual address below stack</span><br><span class="line">            &#x2F;&#x2F; Stack is at [aspace.end() - USER_STACK_SIZE, aspace.end())</span><br><span class="line">            &#x2F;&#x2F; So we place mmap at aspace.end() - USER_STACK_SIZE - aligned_length</span><br><span class="line">            (aspace.end() - USER_STACK_SIZE - aligned_length).align_down_4k()</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; Map the memory</span><br><span class="line">        let mapping_flags &#x3D; MappingFlags::from(mmap_prot) | MappingFlags::USER;</span><br><span class="line">        aspace.map_alloc(aligned_vaddr, aligned_length, mapping_flags, true)?;</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; If it&#39;s a file mapping, read the file and write to the mapped memory</span><br><span class="line">        if !mmap_flags.contains(MmapFlags::MAP_ANONYMOUS) &amp;&amp; fd &gt;&#x3D; 0 &#123;</span><br><span class="line">            &#x2F;&#x2F; Read from file</span><br><span class="line">            let mut data &#x3D; vec![0u8; aligned_length];</span><br><span class="line">            let mut read_count &#x3D; 0;</span><br><span class="line">            while read_count &lt; length &#123;</span><br><span class="line">                let buf &#x3D; &amp;mut data[read_count..];</span><br><span class="line">                let n &#x3D; api::sys_read(fd, buf.as_mut_ptr() as *mut c_void, buf.len());</span><br><span class="line">                if n &lt;&#x3D; 0 &#123;</span><br><span class="line">                    break;</span><br><span class="line">                &#125;</span><br><span class="line">                read_count +&#x3D; n as usize;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            &#x2F;&#x2F; Write to mapped memory</span><br><span class="line">            aspace.write(aligned_vaddr, &amp;data[..read_count])?;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Ok(aligned_vaddr.as_usize())</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="遇到的问题和解决方案-4"><a href="#遇到的问题和解决方案-4" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><p><strong>问题 1</strong>：<code>sys_mmap</code> 的地址对齐问题</p>
+<p><strong>原因</strong>：内存映射需要按页对齐，但用户传入的地址和长度可能不对齐。</p>
+<p><strong>解决</strong>：使用 <code>align_down_4k()</code> 和按页对齐长度：<code>(length + PAGE_SIZE_4K - 1) &amp; !(PAGE_SIZE_4K - 1)</code></p>
+<p><strong>问题 2</strong>：文件映射的实现</p>
+<p><strong>问题</strong>：如何将文件内容映射到内存？</p>
+<p><strong>解决</strong>：先读取文件内容到缓冲区，然后使用 <code>aspace.write()</code> 写入映射的内存区域。</p>
+<p><strong>问题 3</strong>：虚拟地址分配</p>
+<p><strong>问题</strong>：当 <code>addr</code> 为 NULL 时，如何选择合适的虚拟地址？</p>
+<p><strong>解决</strong>：在栈下方分配，计算 <code>aspace.end() - USER_STACK_SIZE - aligned_length</code>，确保不与栈冲突。</p>
+<h3 id="学习感悟-4"><a href="#学习感悟-4" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>这个练习让我深入理解了系统调用的实现机制。特别是地址空间管理和内存映射，让我对操作系统内核有了更深入的理解。在实现过程中，需要仔细处理地址对齐、权限等问题，这些都是系统编程中需要注意的细节。</p>
+<hr>
+<h2 id="练习六：simple-hv"><a href="#练习六：simple-hv" class="headerlink" title="练习六：simple_hv"></a>练习六：simple_hv</h2><h3 id="学习过程-5"><a href="#学习过程-5" class="headerlink" title="学习过程"></a>学习过程</h3><p>这个练习是最复杂的，花了我最多时间。一开始我对虚拟化的概念不太理解，特别是两级地址转换机制，让我困惑了很久。看了很多资料，包括 RISC-V 虚拟化扩展规范，才慢慢理解了。</p>
+<p>后来在调试过程中，遇到了很多问题，比如 <code>htinst</code> 寄存器不可用、地址转换错误等。好在最后通过看源码和调试，终于理解了。</p>
+<h3 id="实现-5"><a href="#实现-5" class="headerlink" title="实现"></a>实现</h3><p>这个练习涉及虚拟化技术的多个核心方面：</p>
+<ol>
+<li><strong>客户机镜像加载</strong>：从文件系统加载 ELF 或二进制格式的客户机镜像</li>
+<li><strong>地址转换</strong>：实现两级地址转换（GVA → GPA → HPA）</li>
+<li><strong>虚拟 CPU 管理</strong>：保存和恢复虚拟 CPU 的寄存器状态</li>
+<li><strong>陷阱处理</strong>：处理客户机产生的陷阱，包括非法指令、页面错误、环境调用等</li>
+</ol>
+<p>关键点：</p>
+<ul>
+<li>使用身份映射（GPA = HPA）简化实现</li>
+<li>禁用 VSATP，让客户机直接使用 GPA</li>
+<li>通过指令模拟实现特权指令的功能</li>
+</ul>
+<h3 id="遇到的问题和解决方案-5"><a href="#遇到的问题和解决方案-5" class="headerlink" title="遇到的问题和解决方案"></a>遇到的问题和解决方案</h3><h4 id="问题-1：地址转换的复杂性"><a href="#问题-1：地址转换的复杂性" class="headerlink" title="问题 1：地址转换的复杂性"></a>问题 1：地址转换的复杂性</h4><p><strong>问题</strong>：最初不理解两级地址转换的工作原理，特别是 VSATP 和 HGATP 的关系。</p>
+<p><strong>原因</strong>：RISC-V H 扩展的地址转换机制比较复杂，需要理解：</p>
+<ul>
+<li>VSATP 将 GVA 转换为 GPA</li>
+<li>HGATP 将 GPA 转换为 HPA</li>
+<li>两者需要配合工作</li>
+</ul>
+<p><strong>解决</strong>：</p>
+<ul>
+<li>通过阅读 RISC-V 虚拟化扩展规范理解地址转换流程</li>
+<li>使用身份映射简化实现</li>
+<li>在代码中添加详细注释说明地址转换过程</li>
+</ul>
+<h4 id="问题-2：htinst-寄存器不可用"><a href="#问题-2：htinst-寄存器不可用" class="headerlink" title="问题 2：htinst 寄存器不可用"></a>问题 2：htinst 寄存器不可用</h4><p><strong>问题</strong>：当 VSATP 禁用时，<code>htinst</code> 寄存器可能为 0，无法获取导致非法指令异常的指令。</p>
+<p><strong>原因</strong>：<code>htinst</code> 寄存器在某些情况下（如 VSATP 禁用）可能不包含有效信息。</p>
+<p><strong>解决</strong>：</p>
+<ul>
+<li>检查 <code>htinst</code> 是否为 0</li>
+<li>如果为 0，从 <code>sepc</code> 指定的物理地址读取指令</li>
+<li>使用内核的直接映射将 GPA 转换为 KVA 后读取</li>
+</ul>
+<h4 id="问题-3：身份映射的必要性"><a href="#问题-3：身份映射的必要性" class="headerlink" title="问题 3：身份映射的必要性"></a>问题 3：身份映射的必要性</h4><p><strong>问题</strong>：不理解为什么需要为 GPA 创建身份映射。</p>
+<p><strong>原因</strong>：HGATP 使用 GPA 作为虚拟地址来访问页表，因此需要将 GPA 映射到 HPA（在身份映射中，GPA = HPA）。</p>
+<p><strong>解决</strong>：</p>
+<ul>
+<li>理解 HGATP 的地址转换机制</li>
+<li>为页表根和入口地址创建身份映射</li>
+<li>确保 HGATP 可以正确访问页表页面</li>
+</ul>
+<h3 id="学习感悟-5"><a href="#学习感悟-5" class="headerlink" title="学习感悟"></a>学习感悟</h3><p>通过这个练习，我深入理解了虚拟化技术的核心原理。特别是两级地址转换机制，让我对 RISC-V H 扩展有了更深入的理解。</p>
+<p>在调试过程中，我学会了如何排查虚拟化相关的问题，包括地址转换错误、寄存器状态错误等。这些经验对我理解操作系统内核非常有帮助。</p>
+<p>虽然这个练习很复杂，但完成后的成就感也很强。虚拟化是操作系统中最复杂的技术之一，通过这个练习，我对操作系统有了更深入的理解。</p>
+<hr>
+<h2 id="总体学习收获"><a href="#总体学习收获" class="headerlink" title="总体学习收获"></a>总体学习收获</h2><p>通过完成这些练习，我学到了很多：</p>
+<ol>
+<li><p><strong>模块化设计</strong>：arceOS 的模块化设计让我印象深刻。通过 feature 标志，可以在编译时选择不同的实现，这种设计非常灵活。</p>
+</li>
+<li><p><strong>no_std 环境编程</strong>：理解了在无标准库环境下如何实现常用功能。虽然代码量增加了，但这种设计让系统更加可控。</p>
+</li>
+<li><p><strong>底层系统编程</strong>：深入理解了操作系统核心机制，包括内存管理、进程管理、虚拟化等。这些知识对我理解操作系统内核非常有帮助。</p>
+</li>
+<li><p><strong>问题解决能力</strong>：在调试过程中，我学会了如何排查系统级问题。特别是通过看源码和调试，理解了很多之前不理解的概念。</p>
+</li>
+<li><p><strong>Rust 系统编程</strong>：通过实践加深了对 Rust 在系统编程中的应用理解。Rust 的所有权系统和类型安全，让系统编程更加安全。</p>
+</li>
+</ol>
+<h2 id="后续思考"><a href="#后续思考" class="headerlink" title="后续思考"></a>后续思考</h2><p>arceOS 的模块化设计给我留下了深刻印象。即使是简单的功能，也需要考虑底层实现。这种设计使得每个组件都可以独立测试和替换，为系统开发和调试带来了极大的便利。</p>
+<p>通过这次学习，我不仅掌握了操作系统的基本原理，还深入理解了 Rust 在系统编程中的优势。内核的学习实际上最重要的部分可能更是在于解决问题，也就是在针对特定问题的排查思路上。</p>
+<p>很感谢这次训练营的主办方，给了这么好的学习机会。虽然学习过程中遇到了很多困难，但完成后的成就感也很强。未来如果有机会，我还会继续深入学习操作系统内核。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/03/2025%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +484,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
 
           
@@ -337,7 +557,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -462,7 +682,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
 
           
@@ -668,7 +888,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -856,7 +1076,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
 
           
@@ -926,7 +1146,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
 
           
@@ -1156,7 +1376,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
 
           
@@ -1228,7 +1448,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
 
           
@@ -1359,7 +1579,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
+                <time title="Modified: 2025-11-07 05:03:17" itemprop="dateModified" datetime="2025-11-07T05:03:17+00:00">2025-11-07</time>
               </span>
 
           
@@ -1409,116 +1629,6 @@
 <h2 id="总结和将来的工作"><a href="#总结和将来的工作" class="headerlink" title="总结和将来的工作"></a>总结和将来的工作</h2><p>由于时间不多，我的水平有限，相比其他同学对社区的贡献，我的工作可能微不足道。如果社区的大佬们不嫌弃，入职工作之后我也愿意继续帮助完成文档（主要因为这个项目里面用到的Rust语法很全面，我想要学习rust， 还包含了很多汇编和c,将来也能对用rust驱动硬件做为一个参考）。</p>
 <p>可能有一部分同学和我一样，在阶段一到阶段三主要注重于做题（阅读测例-&gt;知道预期的结果是什么-&gt;查看相关的接口和需要用到的函数-&gt;实现功能），完成任务即可。没有特别理解整体的设计和原理，因而到了阶段四之后没有了题目之后感到迷茫。</p>
 <p>因而为了帮助第三阶段的同学能够丝滑的进入到第四阶段，我觉得当务之急是需要完善ArceOS的文档（我第三阶段完全就是参考PPT完成的，对于很多细节没有掌握）我接下来的工作就是理解ArceOS的细节，说明Starry如何使用了ArceOS的接口和模块。然后首先实现文档整体框架的从无到有，最后在掌握了细节和整体设计思路之后再完善指导书并修正其中的错误。也希望有大佬能够一起加入到完善文档队伍中，一起交流。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/21/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-moot/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/06/21/2025%E5%B9%B4%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-moot/" class="post-title-link" itemprop="url">2025年春夏开源操作系统训练营前三阶段总结-moot</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-06-21 00:00:00" itemprop="dateCreated datePublished" datetime="2025-06-21T00:00:00+00:00">2025-06-21</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-07 04:51:28" itemprop="dateModified" datetime="2025-11-07T04:51:28+00:00">2025-11-07</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/ArceOS/" itemprop="url" rel="index"><span itemprop="name">ArceOS</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/ArceOS/x86/" itemprop="url" rel="index"><span itemprop="name">x86</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h2><p>过去一个月，由于我对 ArceOS 的架构理解较少，为了快速掌握 ArceOS 的架构，<strong><em>Unikernel</em></strong> 和 <strong><em>宏内核</em></strong>，我的主要目标改进 <strong><em>oscamp</em></strong>，为其完善对 <strong><em>x86_64</em></strong> 的支持。同时还做了对内核组件 <strong><em>x86_rtc</em></strong> 说明文档和测试的完善。<br>最直接的收获有两点：</p>
-<ul>
-<li><strong>Unikernel 思想</strong> —— “用户态就是内核的一部分” 的最小可信边界，让我重新审视传统多进程操作系统里“内核/用户”硬隔离的成本。</li>
-<li><strong>宏内核工程学</strong> —— 模块划分、内核线程、系统调用网关、设备驱动归一化，这些都在 Starry/ArceOS 的设计里有了“先行者版本”。</li>
-</ul>
-<hr>
-<h2 id="工作记录"><a href="#工作记录" class="headerlink" title="工作记录"></a>工作记录</h2><h3 id="第一周"><a href="#第一周" class="headerlink" title="第一周"></a>第一周</h3><p>为了快速掌握 ArceOS 的架构，<strong><em>Unikernel</em></strong> 和 <strong><em>宏内核</em></strong>，我选择了改进 <strong><em>oscamp</em></strong>，为其完善对 <strong><em>x86_64</em></strong> 的支持这一项工作。并开始了对 <strong><em>x86_64</em></strong> 的学习。</p>
-<h3 id="第二、三周"><a href="#第二、三周" class="headerlink" title="第二、三周"></a>第二、三周</h3><p>主要是做代码工作，以下是一些总结<br>RISC‑V 是通过 <code>scause</code> + <code>stval</code>；x86‑64 要区分 <strong>Exception Class</strong>（#PF/#UD）与 <strong>IRQ Vector</strong>，且栈布局不一样。<br>对 <strong><em>x86_64</em></strong> 的支持这一项工作需要完成以下的功能实现：</p>
-<ol>
-<li>改进 <strong><em>context.rs</em></strong>，保存相关的寄存器，并完善 <strong><em>context_switch</em></strong> 和 <strong><em>enter_uspace</em></strong>。<ul>
-<li>保存/恢复的寄存器集对齐 <strong>SysV x86‑64</strong> 调用约定：<code>RBX RBP R12‑R15</code> + <code>CR3</code> + <code>RFLAGS</code>；<code>FPU/AVX</code> 延后到 lazy fp 任务。</li>
-<li><code>context_switch(old, new)</code> = 保存旧任务栈顶 → 恢复新任务栈顶 → <em><code>iretq</code></em>；为支持 <code>SMP</code>，加了 <code>core::arch::asm!(&quot;swapgs&quot;)</code> 保证每 CPU 的 GS 基址切换。</li>
-<li>进入用户态 (<code>enter_uspace</code>)：手动构造 <em><code>iretq</code></em> 帧：<code>SS|RSP|RFLAGS|CS|RIP</code>，再写 <code>CR3 = user_pml4</code>; 关中断→加载帧→开中断→ <em><code>iretq</code></em>。</li>
-</ul>
-</li>
-<li>改进 <strong><em>trap.S</em></strong><ul>
-<li><strong>IDT 256 项</strong>：<code>0x20</code> 时钟、<code>0x80</code> 软中断、<code>0x0E</code> #PF……全部指向统一的 <code>trap_entry</code>；硬中断通过 APIC 自动切到 <strong>IST[0] emergency stack</strong> 防止内核栈溢出。</li>
-<li><code>trap.rs</code> 根据向量号派发到 <code>handle_page_fault / handle_irq / handle_syscall</code>。</li>
-</ul>
-</li>
-<li>改进 <strong><em>syscall.rs</em></strong> 和 <strong><em>syscall.S</em></strong><ul>
-<li>选 <code>SYSCALL/SYSRET</code> 而非 <code>INT 0x80</code>；入口先 <code>swapgs</code> 用 GS 保存/恢复用户栈。</li>
-<li>按 SysV ABI <code>RAX</code>=nr，<code>RDI RSI RDX R10 R8 R9</code> 传六参 —— 在汇编里把寄存器序列化到栈，统一传给 <code>x86_syscall_handler()</code>。</li>
-<li>退出路径：恢复通用寄存器 → <code>swapgs</code> → <code>sysretq</code></li>
-</ul>
-</li>
-</ol>
-<h3 id="第四周"><a href="#第四周" class="headerlink" title="第四周"></a>第四周</h3><p>对内核组件 <strong><em>x86_rtc</em></strong> 说明文档和测试的完善。<br><a href="https://github.com/MTttth/x86_rtc.git" target="_blank" rel="noopener">repo</a></p>
-<h2 id="未来展望"><a href="#未来展望" class="headerlink" title="未来展望"></a>未来展望</h2><ul>
-<li><strong>Transparent HugePages</strong>：复用前期完成的巨页 API，引入 <code>khugepaged</code> 合并线程。</li>
-<li><strong>vDSO</strong>：把高频 <code>clock_gettime</code> 胶水放到用户态，加速 Sys‑API。</li>
-</ul>
-<hr>
 
       
     </div>
