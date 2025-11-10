@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">735</span>
+          <span class="site-state-item-count">736</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">643</span>
+        <span class="site-state-item-count">644</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,85 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%9B%B9%E8%BE%B0%E5%AE%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/10/2024%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E6%9B%B9%E8%BE%B0%E5%AE%87/" class="post-title-link" itemprop="url">2024开源操作系统训练营第四阶段总结报告-曹辰宇</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="第四阶段总结报告"><a href="#第四阶段总结报告" class="headerlink" title="第四阶段总结报告"></a>第四阶段总结报告</h1><h3 id="一些碎语"><a href="#一些碎语" class="headerlink" title="一些碎语"></a>一些碎语</h3><p>我查看了三篇文档 ， 其中<a href="https://os.phil-opp.com/async-await/#pinning" target="_blank" rel="noopener">https://os.phil-opp.com/async-await/#pinning</a></p>
+<p>新使用的crate：crossbeam ,conquer_once</p>
+<p>为啥使用conquer_once的OnceCell而不是lazy_static!因为这个类型实现<br>了避免中断程序进行堆空间开辟（从而避免产生一个死锁）</p>
+<p>future 中还有一个Stream的trait<br>tokio文档看了一下（trait回忆一下，它像个接口，implement后应用到具体的一个类型）</p>
+<h2 id="Tokio-文档阅读"><a href="#Tokio-文档阅读" class="headerlink" title="Tokio 文档阅读"></a>Tokio 文档阅读</h2><h3 id="chat"><a href="#chat" class="headerlink" title="chat"></a>chat</h3><p>首先阅读的是一堆example，这里先看chat。<br>chat是一个聊天室，设立服务端然后异步读取其他客户端的消息，并且广播到是所有的客户端，<br>是一种中心式结构</p>
+<h2 id="io-uring"><a href="#io-uring" class="headerlink" title="io_uring"></a>io_uring</h2><h3 id="与linux"><a href="#与linux" class="headerlink" title="与linux"></a>与linux</h3><p>linux有一个自己的原生异步IO接口，叫aio,他有一些问题：</p>
+<ol>
+<li>因为0_DIRECT，所以很多的IO用例不适用。普通的IO会退化为同步IO。</li>
+<li>就算异步，IO也可能会阻塞，比如硬件部分，这使得软件必须获取加载这些部分的锡信息</li>
+<li>API不够完美，每次提交需要64+8字节的内存，每次完成徐娅萍<br>他常用的方法是：io_submit() , io_setup()  , io_getevents().</li>
+</ol>
+<h3 id="io-uring-和-epoll。"><a href="#io-uring-和-epoll。" class="headerlink" title="io-uring 和 epoll。"></a>io-uring 和 epoll。</h3><p>epoll 只是通知机制，本质上事情还是通过用户代码直接 syscall 来做的，如 read。这样在高频<br>syscall 的场景下，频繁的用户态内核态切换会消耗较多资源。io-uring 可以做异步 syscall，<br>即便是不开 SQ_POLL 也可以大大减少 syscall 次数。</p>
+<p>io-uring 的问题在于下面几点：</p>
+<p><strong>兼容问题</strong>。平台兼容就不说了，linux only（epoll 在其他平台上有类似的存在，可以基于已<br>经十分完善的 mio 做无缝兼容）。linux 上也会对 kernel 版本有一定要求，且不同版本的实现性<br>能还有一定差距。大型公司一般还会有自己修改的内核版本，所以想持续跟进 backport 也是一件头疼<br>事。同时对于 Mac/Windows 用户，在开发体验上也会带来一定困难。</p>
+<p><strong>Buffer 生命周期问题</strong>。io-uring 是全异步的，Op push 到 SQ 后就不能移动 buffer，一定<br>要保证其有效，直到 syscall 完成或 Cancel Op 执行完毕。无论是在 C/C++ 还是 Rust 中，都<br>会面临 buffer 生命周期管理问题。epoll 没有这个问题，因为 syscall 就是用户做的，陷入 sy<br>scall 期间本来就无法操作 buffer，所以可以保证其持续有效直到 syscall 返回。</p>
+<h2 id="smol"><a href="#smol" class="headerlink" title="smol"></a>smol</h2><p>在几个库的基础上封装成最后几个接口</p>
+<p>在 Linux 上，mio 使用 epoll 来实现高效的 I/O 多路复用。smol 使用 mio 来实现<br>这一点。具体来说，smol 会将 I/O 操作抽象为异步任务，然后将这些任务交给 mio 处理。<br>mio 通过 epoll 监听文件描述符，当某个文件描述符变得可读或可写时，它会通知 smol 来<br>执行相应的任务。</p>
+<p>在 smol 的源码中，底层通过调用 mio 提供的异步 I/O API 来实现任务的异步调度。例如<br>，读取数据时，它会发出 epoll 查询，直到某个文件描述符准备好读取数据，才会从事件队列中获<br>取该事件并执行对应的异步任务。</p>
+<h2 id="关于我的运行时"><a href="#关于我的运行时" class="headerlink" title="关于我的运行时"></a>关于我的运行时</h2><p>用proactor包装io_uring实现基本的异步读写，然后再包装proactor实现io和file，然后没有什么了，<br>一开始低估了整个运行时的大小</p>
+<p>然后看了很多的文档：</p>
+<p><a href="https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/stream.rs" target="_blank" rel="noopener">https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/stream.rs</a><br><a href="https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html" target="_blank" rel="noopener">https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html</a><br><a href="https://github.com/bytedance/monoio/blob/master/docs/zh/io-cancel.md" target="_blank" rel="noopener">https://github.com/bytedance/monoio/blob/master/docs/zh/io-cancel.md</a><br><a href="https://github.com/ihciah/mini-rust-runtime/blob/master/src/tcp.rs" target="_blank" rel="noopener">https://github.com/ihciah/mini-rust-runtime/blob/master/src/tcp.rs</a><br><a href="https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/lib.rs" target="_blank" rel="noopener">https://github.com/rust-lang/futures-rs/blob/master/futures-core/src/lib.rs</a></p>
+<p>这里我认为monoio算是一个正确的，完善的运行时，不过这个大小太夸张了，可以下期一开始就把它粘出来，让大家<br>直观感受一下成果的规模。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%B8%80%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -257,7 +336,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -480,7 +559,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -599,6 +678,73 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%B9%9D%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%B9%9D%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">2024年开源操作系统训练营总结-winddevil/ArceOS第九节课笔记</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><ol>
+<li>虚拟时钟中断支持；虚拟机外设的支持。</li>
+<li>虚拟机中运行宏内核和通过透传pflash加载应用。</li>
+</ol>
+<h1 id="实验"><a href="#实验" class="headerlink" title="实验"></a>实验</h1><blockquote>
+<p><code>H_3_0</code>和<code>H_4_0</code>还没有上传做不了基础实验.</p>
+</blockquote>
+<h1 id="课后作业"><a href="#课后作业" class="headerlink" title="课后作业"></a>课后作业</h1><blockquote>
+<p>可以尝试跑<code>rcore-ch1</code>群里有大佬已经实现了.</p>
+</blockquote>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%B8%83%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -623,7 +769,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -719,7 +865,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%B9%9D%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%BA%94%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/blog/images/avatar.gif">
@@ -733,7 +879,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%B9%9D%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">2024年开源操作系统训练营总结-winddevil/ArceOS第九节课笔记</a>
+            <a href="/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%BA%94%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">2024年开源操作系统训练营总结-winddevil/ArceOS第五节课笔记</a>
         </h2>
 
         <div class="post-meta">
@@ -743,7 +889,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -757,15 +903,73 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><ol>
-<li>虚拟时钟中断支持；虚拟机外设的支持。</li>
-<li>虚拟机中运行宏内核和通过透传pflash加载应用。</li>
+          <h1 id="实验1"><a href="#实验1" class="headerlink" title="实验1"></a>实验1</h1><p>这部分实验是上部分的作业暂时略过.</p>
+<h1 id="LinuxApp"><a href="#LinuxApp" class="headerlink" title="LinuxApp"></a>LinuxApp</h1><p>实验命令:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make payload</span><br><span class="line">./update_disk.sh payload/hello_c/hello</span><br><span class="line">make run A=tour/m_3_0 BLK=y</span><br></pre></td></tr></table></figure>
+
+<p>这里看<code>payload/hello_c/Makefile</code>,可以看到:</p>
+<figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">TARGET := hello</span><br><span class="line"></span><br><span class="line">CC := riscv64-linux-musl-gcc</span><br><span class="line">STRIP := riscv64-linux-musl-strip</span><br><span class="line"></span><br><span class="line"><span class="section">all: <span class="variable">$(TARGET)</span></span></span><br><span class="line"></span><br><span class="line"><span class="section">%: %.c</span></span><br><span class="line">	<span class="variable">$(CC)</span> -static <span class="variable">$&lt;</span> -o <span class="variable">$@</span></span><br><span class="line">	<span class="variable">$(STRIP)</span> <span class="variable">$@</span></span><br><span class="line"></span><br><span class="line"><span class="section">clean:</span></span><br><span class="line">	@rm -rf ./<span class="variable">$(TARGET)</span></span><br></pre></td></tr></table></figure>
+
+<p>可以看到我们使用的<strong>编译器</strong>和<strong>信息移除工具</strong>都是指定的版本是<code>linux</code>.</p>
+<p>这张图有些<strong>害人匪浅</strong>了,</p>
+<p><img src="00%20inbox/asset/Pasted%20image%2020241203211933.png" alt=""></p>
+<p>这个图是<code>linux</code>应用的用户栈.</p>
+<p>但是我们从<strong>实用的角度</strong>来看,应用主函数的原型:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">char</span> *argv[], <span class="keyword">char</span> *enp[])</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>我们只需要在栈里边按顺序保存:</p>
+<ol>
+<li>argc</li>
+<li>arg_ptr</li>
+<li>env_ptr</li>
+<li>auxv</li>
 </ol>
-<h1 id="实验"><a href="#实验" class="headerlink" title="实验"></a>实验</h1><blockquote>
-<p><code>H_3_0</code>和<code>H_4_0</code>还没有上传做不了基础实验.</p>
+<p>即可,只要<code>argc</code>的值是对的,<code>arg_ptr</code>和<code>env_ptr</code>指向的实例是对的即可.</p>
+<blockquote>
+<p>这里有一个疑问:到底谁是对的?</p>
 </blockquote>
-<h1 id="课后作业"><a href="#课后作业" class="headerlink" title="课后作业"></a>课后作业</h1><blockquote>
-<p>可以尝试跑<code>rcore-ch1</code>群里有大佬已经实现了.</p>
+<p>在<code>kernel-elf-parser</code>里的<code>src/user_stack.rs</code>的注释和它具体的实现是一样的:</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//! Initialize the user stack for the application</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! The structure of the user stack is described in the following figure:</span></span><br><span class="line"><span class="comment">//! position            content                     size (bytes) + comment</span></span><br><span class="line"><span class="comment">//!   ------------------------------------------------------------------------</span></span><br><span class="line"><span class="comment">//! stack pointer -&gt;  [ argc = number of args ]     8</span></span><br><span class="line"><span class="comment">//!                   [ argv[0] (pointer) ]         8   (program name)</span></span><br><span class="line"><span class="comment">//!                   [ argv[1] (pointer) ]         8</span></span><br><span class="line"><span class="comment">//!                   [ argv[..] (pointer) ]        8 * x</span></span><br><span class="line"><span class="comment">//!                   [ argv[n - 1] (pointer) ]     8</span></span><br><span class="line"><span class="comment">//!                   [ argv[n] (pointer) ]         8   (= NULL)</span></span><br><span class="line"><span class="comment">//!                   [ envp[0] (pointer) ]         8</span></span><br><span class="line"><span class="comment">//!                   [ envp[1] (pointer) ]         8</span></span><br><span class="line"><span class="comment">//!                   [ envp[..] (pointer) ]        8</span></span><br><span class="line"><span class="comment">//!                   [ envp[term] (pointer) ]      8   (= NULL)</span></span><br><span class="line"><span class="comment">//!                   [ auxv[0] (Elf32_auxv_t) ]    16</span></span><br><span class="line"><span class="comment">//!                   [ auxv[1] (Elf32_auxv_t) ]    16</span></span><br><span class="line"><span class="comment">//!                   [ auxv[..] (Elf32_auxv_t) ]   16</span></span><br><span class="line"><span class="comment">//!                   [ auxv[term] (Elf32_auxv_t) ] 16  (= AT_NULL vector)</span></span><br><span class="line"><span class="comment">//!                   [ padding ]                   0 - 16</span></span><br><span class="line"><span class="comment">//!                   [ argument ASCIIZ strings ]   &gt;= 0</span></span><br><span class="line"><span class="comment">//!                   [ environment ASCIIZ str. ]   &gt;= 0</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! (0xbffffff8)      [ end marker ]                8   (= NULL)</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! (0xc0000000)      &lt; bottom of stack &gt;           0   (virtual)</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! More details can be found in the link: &lt;https://articles.manugarg.com/aboutelfauxiliaryvectors.html&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>形成的栈:</p>
+<p><img src="00%20inbox/asset/Pasted%20image%2020241203212752.png" alt="|300"></p>
+<p>运行log:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br></pre></td><td class="code"><pre><span class="line">OpenSBI v0.9</span><br><span class="line">   ____                    _____ ____ _____</span><br><span class="line">  / __ \                  / ____|  _ \_   _|</span><br><span class="line"> | |  | |_ __   ___ _ __ | (___ | |_) || |</span><br><span class="line"> | |  | | '_ \ / _ \ '_ \ \___ \|  _ &lt; | |</span><br><span class="line"> | |__| | |_) |  __/ | | |____) | |_) || |_</span><br><span class="line">  \____/| .__/ \___|_| |_|_____/|____/_____|</span><br><span class="line">        | |</span><br><span class="line">        |_|</span><br><span class="line"></span><br><span class="line">Platform Name             : riscv-virtio,qemu</span><br><span class="line">Platform Features         : timer,mfdeleg</span><br><span class="line">Platform HART Count       : 1</span><br><span class="line">Firmware Base             : 0x80000000</span><br><span class="line">Firmware Size             : 100 KB</span><br><span class="line">Runtime SBI Version       : 0.2</span><br><span class="line"></span><br><span class="line">Domain0 Name              : root</span><br><span class="line">Domain0 Boot HART         : 0</span><br><span class="line">Domain0 HARTs             : 0*</span><br><span class="line">Domain0 Region00          : 0x0000000080000000-0x000000008001ffff ()</span><br><span class="line">Domain0 Region01          : 0x0000000000000000-0xffffffffffffffff (R,W,X)</span><br><span class="line">Domain0 Next Address      : 0x0000000080200000</span><br><span class="line">Domain0 Next Arg1         : 0x0000000087000000</span><br><span class="line">Domain0 Next Mode         : S-mode</span><br><span class="line">Domain0 SysReset          : yes</span><br><span class="line"></span><br><span class="line">Boot HART ID              : 0</span><br><span class="line">Boot HART Domain          : root</span><br><span class="line">Boot HART ISA             : rv64imafdcsu</span><br><span class="line">Boot HART Features        : scounteren,mcounteren,time</span><br><span class="line">Boot HART PMP Count       : 16</span><br><span class="line">Boot HART PMP Granularity : 4</span><br><span class="line">Boot HART PMP Address Bits: 54</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MIDELEG         : 0x0000000000000222</span><br><span class="line">Boot HART MEDELEG         : 0x000000000000b109</span><br><span class="line"></span><br><span class="line">       d8888                            .d88888b.   .d8888b.</span><br><span class="line">      d88888                           d88P" "Y88b d88P  Y88b</span><br><span class="line">     d88P888                           888     888 Y88b.</span><br><span class="line">    d88P 888 888d888  .d8888b  .d88b.  888     888  "Y888b.</span><br><span class="line">   d88P  888 888P"   d88P"    d8P  Y8b 888     888     "Y88b.</span><br><span class="line">  d88P   888 888     888      88888888 888     888       "888</span><br><span class="line"> d8888888888 888     Y88b.    Y8b.     Y88b. .d88P Y88b  d88P</span><br><span class="line">d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"</span><br><span class="line"></span><br><span class="line">arch = riscv64</span><br><span class="line">platform = riscv64-qemu-virt</span><br><span class="line">target = riscv64gc-unknown-none-elf</span><br><span class="line">smp = 1</span><br><span class="line">build_mode = release</span><br><span class="line">log_level = info</span><br><span class="line"></span><br><span class="line">[  1.746356 0 axruntime:130] Logging is enabled.</span><br><span class="line">[  1.856119 0 axruntime:131] Primary CPU 0 started, dtb = 0x87000000.</span><br><span class="line">[  1.905723 0 axruntime:133] Found physcial memory regions:</span><br><span class="line">[  1.962960 0 axruntime:135]   [PA:0x80200000, PA:0x80232000) .text (READ | EXECUTE | RESERVED)</span><br><span class="line">[  2.026512 0 axruntime:135]   [PA:0x80232000, PA:0x80241000) .rodata (READ | RESERVED)</span><br><span class="line">[  2.073912 0 axruntime:135]   [PA:0x80241000, PA:0x80244000) .data .tdata .tbss .percpu (READ | WRITE | RESERVED)</span><br><span class="line">[  2.124278 0 axruntime:135]   [PA:0x80244000, PA:0x80284000) boot stack (READ | WRITE | RESERVED)</span><br><span class="line">[  2.168556 0 axruntime:135]   [PA:0x80284000, PA:0x802ad000) .bss (READ | WRITE | RESERVED)</span><br><span class="line">[  2.212764 0 axruntime:135]   [PA:0x802ad000, PA:0x88000000) free memory (READ | WRITE | FREE)</span><br><span class="line">[  2.261680 0 axruntime:135]   [PA:0x101000, PA:0x102000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.305544 0 axruntime:135]   [PA:0xc000000, PA:0xc210000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.349843 0 axruntime:135]   [PA:0x10000000, PA:0x10001000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.394978 0 axruntime:135]   [PA:0x10001000, PA:0x10009000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.440055 0 axruntime:135]   [PA:0x22000000, PA:0x24000000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.485718 0 axruntime:135]   [PA:0x30000000, PA:0x40000000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.530990 0 axruntime:135]   [PA:0x40000000, PA:0x80000000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.583846 0 axruntime:208] Initialize global memory allocator...</span><br><span class="line">[  2.621634 0 axruntime:209]   use TLSF allocator.</span><br><span class="line">[  2.816195 0 axmm:81] Initialize virtual memory management...</span><br><span class="line">[  3.188863 0 axruntime:150] Initialize platform devices...</span><br><span class="line">[  3.249907 0 axtask::api:68] Initialize scheduling...</span><br><span class="line">[  3.436552 0 axtask::api:74]   use Completely Fair scheduler.</span><br><span class="line">[  3.474966 0 axdriver:152] Initialize device drivers...</span><br><span class="line">[  3.510394 0 axdriver:153]   device model: static</span><br><span class="line">[  3.664938 0 virtio_drivers::device::blk:59] config: 0xffffffc040006000</span><br><span class="line">[  3.721121 0 virtio_drivers::device::blk:64] found a block device of size 65536KB</span><br><span class="line">[  3.787426 0 axdriver::bus::pci:104] registered a new Block device at 00:01.0: "virtio-blk"</span><br><span class="line">[ 21.285217 0 axfs:41] Initialize filesystems...</span><br><span class="line">[ 21.329601 0 axfs:44]   use block device 0: "virtio-blk"</span><br><span class="line">[ 22.099152 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.277106 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.556181 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.683443 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.770783 0 axruntime:176] Initialize interrupt handlers...</span><br><span class="line">[ 22.932112 0 axruntime:186] Primary CPU 0 init OK.</span><br><span class="line">[ 23.210370 0:2 m_3_0::loader:58] e_entry: 0x50E</span><br><span class="line">phdr: offset: 0x0=&gt;0x0 size: 0x17CC=&gt;0x17CC</span><br><span class="line">VA:0x0 - VA:0x2000</span><br><span class="line">phdr: offset: 0x1E70=&gt;0x2E70 size: 0x338=&gt;0x9A8</span><br><span class="line">VA:0x2000 - VA:0x4000</span><br><span class="line">entry: 0x50e</span><br><span class="line">Mapping user stack: VA:0x3fffff0000 -&gt; VA:0x4000000000</span><br><span class="line">New user address space: AddrSpace &#123;</span><br><span class="line">    va_range: VA:0x0..VA:0x4000000000,</span><br><span class="line">    page_table_root: PA:0x8064e000,</span><br><span class="line">&#125;</span><br><span class="line">[ 23.946790 0:4 m_3_0::task:56] Enter user space: entry=0x50e, ustack=0x3fffffffc0, kstack=VA:0xffffffc0806a7010</span><br><span class="line">handle_syscall [96] ...</span><br><span class="line">handle_syscall [29] ...</span><br><span class="line">Unimplemented syscall: SYS_IOCTL</span><br><span class="line">handle_syscall [66] ...</span><br><span class="line">Hello, UserApp!</span><br><span class="line">handle_syscall [66] ...</span><br><span class="line"></span><br><span class="line">handle_syscall [94] ...</span><br><span class="line">[SYS_EXIT_GROUP]: system is exiting ..</span><br><span class="line">monolithic kernel exit [Some(0)] normally!</span><br><span class="line">[ 24.504671 0:2 axhal::platform::riscv64_qemu_virt::misc:3] Shutting down...</span><br></pre></td></tr></table></figure>
+
+
+<p>可以看到运行过程中还调用了:<code>SYS_IOCTL</code>和<code>SYS_SET_TID_ADDRESS</code>两个系统调用.</p>
+<p>这是因为:”示例m_3_0基于musl工具链以静态方式编译，工具链为应用附加的部分也会调用syscall。”</p>
+<p><img src="00%20inbox/asset/Pasted%20image%2020241204001716.png" alt=""></p>
+<p>就是添加的这个<code>_start</code>和<code>_exit</code>的系统调用.</p>
+<blockquote>
+<p><code>set_tid_address</code>会设置<code>clear_child_tid</code>的值,在进程创建和释放的时候会用到.<br><code>set_tid_address</code>在父线程创建一个子线程的时候会把自己的<code>tid</code>写到这个<code>address</code>的区域里.<br><code>clear_child_tid</code>在释放自己线程或者锁和其它资源的时候,会把返回的值里写入到<code>address</code>里.</p>
+</blockquote>
+<blockquote>
+<p><code>ioctl</code>是用来设置对外输出终端属性的.<br>现在用的是<code>sbi</code>的<code>putchar</code>,因此可以直接跳过.</p>
+</blockquote>
+<blockquote>
+<p>对于不同的体系结构，系统调用号不同。示例是基于riscv64的系统调用号规范。</p>
+</blockquote>
+<p>最后总结就是我们设置好合理的<code>syscall</code>,把系统调用号设置好,那么就可以实现一定程度上的兼容.</p>
+<p><img src="00%20inbox/asset/Pasted%20image%2020241204002546.png" alt=""></p>
+<p>像这个APP只需要提供<code>syscall</code>的兼容层就行了.</p>
+<p>其余的兼容层根据APP不同也需要实现.</p>
+<h2 id="对Linux常用文件系统的支持"><a href="#对Linux常用文件系统的支持" class="headerlink" title="对Linux常用文件系统的支持"></a>对Linux常用文件系统的支持</h2><blockquote>
+<p>arceOS是通过<code>axfs_ramfs</code>对<code>procfs</code>和<code>sysfs</code>提供兼容.通过<code>axfs_devfs</code>提供<code>devfs</code>的兼容.<br>目前用<code>ramfs</code>进行兼容是一个临时的方法.<br>也就是使用内存文件系统.访问的时候相当于访问了一个基于内存的节点,里边有一些基于内存的数据,这些数据是其它子系统填充过来的数据.<br>正常的Linux是你访问这个<code>proc</code>之类的文件的时候实际上是调用了一个回调函数去获取系统状态.</p>
+</blockquote>
+<h1 id="实现mmap系统调用"><a href="#实现mmap系统调用" class="headerlink" title="实现mmap系统调用"></a>实现mmap系统调用</h1><p>实现方法:</p>
+<ol>
+<li>通过<code>sys_read</code>方法读取到文件里的内容. </li>
+<li>读取当前的任务的<code>user space</code>.</li>
+<li>寻找空闲的映射空间的虚拟地址</li>
+<li>构造<code>flag</code>.</li>
+<li>创建一块<code>frame</code>,并且把虚拟地址映射到<code>frame</code>.</li>
+<li>把文件内容拷贝到内存中去</li>
+</ol>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[allow(unused_variables)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_mmap</span></span>(</span><br><span class="line">    addr: *<span class="keyword">mut</span> <span class="built_in">usize</span>,</span><br><span class="line">    length: <span class="built_in">usize</span>,</span><br><span class="line">    prot: <span class="built_in">i32</span>,</span><br><span class="line">    flags: <span class="built_in">i32</span>,</span><br><span class="line">    fd: <span class="built_in">i32</span>,</span><br><span class="line">    _offset: <span class="built_in">isize</span>,</span><br><span class="line">) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> MAX_MMAP_SIZE: <span class="built_in">usize</span> = <span class="number">64</span>;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> buf: [<span class="built_in">u8</span>; <span class="number">64</span>] = [<span class="number">0u8</span>;MAX_MMAP_SIZE];</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> buf_ptr = &amp;<span class="keyword">mut</span> buf <span class="keyword">as</span> *<span class="keyword">mut</span> _ <span class="keyword">as</span> *<span class="keyword">mut</span> c_void;</span><br><span class="line">        sys_read(fd, buf_ptr, length+_offset <span class="keyword">as</span> <span class="built_in">usize</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> buf = &amp;buf[_offset <span class="keyword">as</span> <span class="built_in">usize</span>..length+_offset <span class="keyword">as</span> <span class="built_in">usize</span>];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> binding = current();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> uspace = &amp;<span class="keyword">mut</span> binding.task_ext().aspace.lock();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> free_va = <span class="keyword">if</span> addr.is_null() &#123;</span><br><span class="line">        uspace.find_free_area(</span><br><span class="line">            (addr <span class="keyword">as</span> <span class="built_in">usize</span>).into(), </span><br><span class="line">            length, </span><br><span class="line">            VirtAddrRange::new(</span><br><span class="line">                uspace.base(),</span><br><span class="line">                uspace.end()))</span><br><span class="line">            .unwrap_or_else(|| <span class="built_in">panic!</span>(<span class="string">"No free area for mmap"</span>))</span><br><span class="line">    &#125;<span class="keyword">else</span>&#123;</span><br><span class="line">        (addr <span class="keyword">as</span> <span class="built_in">usize</span>).into()</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 把prot转换成MappingFlags</span></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> flags = MappingFlags::from(MmapProt::from_bits_truncate(prot));</span><br><span class="line">    flags.set(MappingFlags::USER, <span class="literal">true</span>);</span><br><span class="line"></span><br><span class="line">    uspace.map_alloc(</span><br><span class="line">        free_va, </span><br><span class="line">        PAGE_SIZE_4K, </span><br><span class="line">        flags, </span><br><span class="line">        <span class="literal">true</span>)</span><br><span class="line">        .unwrap();</span><br><span class="line">    <span class="keyword">let</span> (paddr, _, _) = uspace</span><br><span class="line">        .page_table()</span><br><span class="line">        .query(free_va)</span><br><span class="line">        .unwrap_or_else(|_| <span class="built_in">panic!</span>(<span class="string">"Mapping failed for segment"</span>));</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        core::ptr::copy_nonoverlapping(</span><br><span class="line">            buf.as_ptr(),</span><br><span class="line">            phys_to_virt(paddr).as_mut_ptr(),</span><br><span class="line">            PAGE_SIZE_4K,</span><br><span class="line">        );</span><br><span class="line">    &#125;</span><br><span class="line">    free_va.as_usize() <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>这里<code>flags</code>的处理还是很不到位,需要后续增加.</p>
 </blockquote>
 
       
@@ -810,7 +1014,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -1010,131 +1214,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%BA%94%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E4%BA%94%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">2024年开源操作系统训练营总结-winddevil/ArceOS第五节课笔记</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="实验1"><a href="#实验1" class="headerlink" title="实验1"></a>实验1</h1><p>这部分实验是上部分的作业暂时略过.</p>
-<h1 id="LinuxApp"><a href="#LinuxApp" class="headerlink" title="LinuxApp"></a>LinuxApp</h1><p>实验命令:</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make payload</span><br><span class="line">./update_disk.sh payload/hello_c/hello</span><br><span class="line">make run A=tour/m_3_0 BLK=y</span><br></pre></td></tr></table></figure>
-
-<p>这里看<code>payload/hello_c/Makefile</code>,可以看到:</p>
-<figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">TARGET := hello</span><br><span class="line"></span><br><span class="line">CC := riscv64-linux-musl-gcc</span><br><span class="line">STRIP := riscv64-linux-musl-strip</span><br><span class="line"></span><br><span class="line"><span class="section">all: <span class="variable">$(TARGET)</span></span></span><br><span class="line"></span><br><span class="line"><span class="section">%: %.c</span></span><br><span class="line">	<span class="variable">$(CC)</span> -static <span class="variable">$&lt;</span> -o <span class="variable">$@</span></span><br><span class="line">	<span class="variable">$(STRIP)</span> <span class="variable">$@</span></span><br><span class="line"></span><br><span class="line"><span class="section">clean:</span></span><br><span class="line">	@rm -rf ./<span class="variable">$(TARGET)</span></span><br></pre></td></tr></table></figure>
-
-<p>可以看到我们使用的<strong>编译器</strong>和<strong>信息移除工具</strong>都是指定的版本是<code>linux</code>.</p>
-<p>这张图有些<strong>害人匪浅</strong>了,</p>
-<p><img src="00%20inbox/asset/Pasted%20image%2020241203211933.png" alt=""></p>
-<p>这个图是<code>linux</code>应用的用户栈.</p>
-<p>但是我们从<strong>实用的角度</strong>来看,应用主函数的原型:</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">char</span> *argv[], <span class="keyword">char</span> *enp[])</span></span>;</span><br></pre></td></tr></table></figure>
-
-<p>我们只需要在栈里边按顺序保存:</p>
-<ol>
-<li>argc</li>
-<li>arg_ptr</li>
-<li>env_ptr</li>
-<li>auxv</li>
-</ol>
-<p>即可,只要<code>argc</code>的值是对的,<code>arg_ptr</code>和<code>env_ptr</code>指向的实例是对的即可.</p>
-<blockquote>
-<p>这里有一个疑问:到底谁是对的?</p>
-</blockquote>
-<p>在<code>kernel-elf-parser</code>里的<code>src/user_stack.rs</code>的注释和它具体的实现是一样的:</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//! Initialize the user stack for the application</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! The structure of the user stack is described in the following figure:</span></span><br><span class="line"><span class="comment">//! position            content                     size (bytes) + comment</span></span><br><span class="line"><span class="comment">//!   ------------------------------------------------------------------------</span></span><br><span class="line"><span class="comment">//! stack pointer -&gt;  [ argc = number of args ]     8</span></span><br><span class="line"><span class="comment">//!                   [ argv[0] (pointer) ]         8   (program name)</span></span><br><span class="line"><span class="comment">//!                   [ argv[1] (pointer) ]         8</span></span><br><span class="line"><span class="comment">//!                   [ argv[..] (pointer) ]        8 * x</span></span><br><span class="line"><span class="comment">//!                   [ argv[n - 1] (pointer) ]     8</span></span><br><span class="line"><span class="comment">//!                   [ argv[n] (pointer) ]         8   (= NULL)</span></span><br><span class="line"><span class="comment">//!                   [ envp[0] (pointer) ]         8</span></span><br><span class="line"><span class="comment">//!                   [ envp[1] (pointer) ]         8</span></span><br><span class="line"><span class="comment">//!                   [ envp[..] (pointer) ]        8</span></span><br><span class="line"><span class="comment">//!                   [ envp[term] (pointer) ]      8   (= NULL)</span></span><br><span class="line"><span class="comment">//!                   [ auxv[0] (Elf32_auxv_t) ]    16</span></span><br><span class="line"><span class="comment">//!                   [ auxv[1] (Elf32_auxv_t) ]    16</span></span><br><span class="line"><span class="comment">//!                   [ auxv[..] (Elf32_auxv_t) ]   16</span></span><br><span class="line"><span class="comment">//!                   [ auxv[term] (Elf32_auxv_t) ] 16  (= AT_NULL vector)</span></span><br><span class="line"><span class="comment">//!                   [ padding ]                   0 - 16</span></span><br><span class="line"><span class="comment">//!                   [ argument ASCIIZ strings ]   &gt;= 0</span></span><br><span class="line"><span class="comment">//!                   [ environment ASCIIZ str. ]   &gt;= 0</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! (0xbffffff8)      [ end marker ]                8   (= NULL)</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! (0xc0000000)      &lt; bottom of stack &gt;           0   (virtual)</span></span><br><span class="line"><span class="comment">//!</span></span><br><span class="line"><span class="comment">//! More details can be found in the link: &lt;https://articles.manugarg.com/aboutelfauxiliaryvectors.html&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p>形成的栈:</p>
-<p><img src="00%20inbox/asset/Pasted%20image%2020241203212752.png" alt="|300"></p>
-<p>运行log:</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br></pre></td><td class="code"><pre><span class="line">OpenSBI v0.9</span><br><span class="line">   ____                    _____ ____ _____</span><br><span class="line">  / __ \                  / ____|  _ \_   _|</span><br><span class="line"> | |  | |_ __   ___ _ __ | (___ | |_) || |</span><br><span class="line"> | |  | | '_ \ / _ \ '_ \ \___ \|  _ &lt; | |</span><br><span class="line"> | |__| | |_) |  __/ | | |____) | |_) || |_</span><br><span class="line">  \____/| .__/ \___|_| |_|_____/|____/_____|</span><br><span class="line">        | |</span><br><span class="line">        |_|</span><br><span class="line"></span><br><span class="line">Platform Name             : riscv-virtio,qemu</span><br><span class="line">Platform Features         : timer,mfdeleg</span><br><span class="line">Platform HART Count       : 1</span><br><span class="line">Firmware Base             : 0x80000000</span><br><span class="line">Firmware Size             : 100 KB</span><br><span class="line">Runtime SBI Version       : 0.2</span><br><span class="line"></span><br><span class="line">Domain0 Name              : root</span><br><span class="line">Domain0 Boot HART         : 0</span><br><span class="line">Domain0 HARTs             : 0*</span><br><span class="line">Domain0 Region00          : 0x0000000080000000-0x000000008001ffff ()</span><br><span class="line">Domain0 Region01          : 0x0000000000000000-0xffffffffffffffff (R,W,X)</span><br><span class="line">Domain0 Next Address      : 0x0000000080200000</span><br><span class="line">Domain0 Next Arg1         : 0x0000000087000000</span><br><span class="line">Domain0 Next Mode         : S-mode</span><br><span class="line">Domain0 SysReset          : yes</span><br><span class="line"></span><br><span class="line">Boot HART ID              : 0</span><br><span class="line">Boot HART Domain          : root</span><br><span class="line">Boot HART ISA             : rv64imafdcsu</span><br><span class="line">Boot HART Features        : scounteren,mcounteren,time</span><br><span class="line">Boot HART PMP Count       : 16</span><br><span class="line">Boot HART PMP Granularity : 4</span><br><span class="line">Boot HART PMP Address Bits: 54</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MHPM Count      : 0</span><br><span class="line">Boot HART MIDELEG         : 0x0000000000000222</span><br><span class="line">Boot HART MEDELEG         : 0x000000000000b109</span><br><span class="line"></span><br><span class="line">       d8888                            .d88888b.   .d8888b.</span><br><span class="line">      d88888                           d88P" "Y88b d88P  Y88b</span><br><span class="line">     d88P888                           888     888 Y88b.</span><br><span class="line">    d88P 888 888d888  .d8888b  .d88b.  888     888  "Y888b.</span><br><span class="line">   d88P  888 888P"   d88P"    d8P  Y8b 888     888     "Y88b.</span><br><span class="line">  d88P   888 888     888      88888888 888     888       "888</span><br><span class="line"> d8888888888 888     Y88b.    Y8b.     Y88b. .d88P Y88b  d88P</span><br><span class="line">d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"</span><br><span class="line"></span><br><span class="line">arch = riscv64</span><br><span class="line">platform = riscv64-qemu-virt</span><br><span class="line">target = riscv64gc-unknown-none-elf</span><br><span class="line">smp = 1</span><br><span class="line">build_mode = release</span><br><span class="line">log_level = info</span><br><span class="line"></span><br><span class="line">[  1.746356 0 axruntime:130] Logging is enabled.</span><br><span class="line">[  1.856119 0 axruntime:131] Primary CPU 0 started, dtb = 0x87000000.</span><br><span class="line">[  1.905723 0 axruntime:133] Found physcial memory regions:</span><br><span class="line">[  1.962960 0 axruntime:135]   [PA:0x80200000, PA:0x80232000) .text (READ | EXECUTE | RESERVED)</span><br><span class="line">[  2.026512 0 axruntime:135]   [PA:0x80232000, PA:0x80241000) .rodata (READ | RESERVED)</span><br><span class="line">[  2.073912 0 axruntime:135]   [PA:0x80241000, PA:0x80244000) .data .tdata .tbss .percpu (READ | WRITE | RESERVED)</span><br><span class="line">[  2.124278 0 axruntime:135]   [PA:0x80244000, PA:0x80284000) boot stack (READ | WRITE | RESERVED)</span><br><span class="line">[  2.168556 0 axruntime:135]   [PA:0x80284000, PA:0x802ad000) .bss (READ | WRITE | RESERVED)</span><br><span class="line">[  2.212764 0 axruntime:135]   [PA:0x802ad000, PA:0x88000000) free memory (READ | WRITE | FREE)</span><br><span class="line">[  2.261680 0 axruntime:135]   [PA:0x101000, PA:0x102000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.305544 0 axruntime:135]   [PA:0xc000000, PA:0xc210000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.349843 0 axruntime:135]   [PA:0x10000000, PA:0x10001000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.394978 0 axruntime:135]   [PA:0x10001000, PA:0x10009000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.440055 0 axruntime:135]   [PA:0x22000000, PA:0x24000000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.485718 0 axruntime:135]   [PA:0x30000000, PA:0x40000000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.530990 0 axruntime:135]   [PA:0x40000000, PA:0x80000000) mmio (READ | WRITE | DEVICE | RESERVED)</span><br><span class="line">[  2.583846 0 axruntime:208] Initialize global memory allocator...</span><br><span class="line">[  2.621634 0 axruntime:209]   use TLSF allocator.</span><br><span class="line">[  2.816195 0 axmm:81] Initialize virtual memory management...</span><br><span class="line">[  3.188863 0 axruntime:150] Initialize platform devices...</span><br><span class="line">[  3.249907 0 axtask::api:68] Initialize scheduling...</span><br><span class="line">[  3.436552 0 axtask::api:74]   use Completely Fair scheduler.</span><br><span class="line">[  3.474966 0 axdriver:152] Initialize device drivers...</span><br><span class="line">[  3.510394 0 axdriver:153]   device model: static</span><br><span class="line">[  3.664938 0 virtio_drivers::device::blk:59] config: 0xffffffc040006000</span><br><span class="line">[  3.721121 0 virtio_drivers::device::blk:64] found a block device of size 65536KB</span><br><span class="line">[  3.787426 0 axdriver::bus::pci:104] registered a new Block device at 00:01.0: "virtio-blk"</span><br><span class="line">[ 21.285217 0 axfs:41] Initialize filesystems...</span><br><span class="line">[ 21.329601 0 axfs:44]   use block device 0: "virtio-blk"</span><br><span class="line">[ 22.099152 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.277106 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.556181 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.683443 0 fatfs::dir:139] Is a directory</span><br><span class="line">[ 22.770783 0 axruntime:176] Initialize interrupt handlers...</span><br><span class="line">[ 22.932112 0 axruntime:186] Primary CPU 0 init OK.</span><br><span class="line">[ 23.210370 0:2 m_3_0::loader:58] e_entry: 0x50E</span><br><span class="line">phdr: offset: 0x0=&gt;0x0 size: 0x17CC=&gt;0x17CC</span><br><span class="line">VA:0x0 - VA:0x2000</span><br><span class="line">phdr: offset: 0x1E70=&gt;0x2E70 size: 0x338=&gt;0x9A8</span><br><span class="line">VA:0x2000 - VA:0x4000</span><br><span class="line">entry: 0x50e</span><br><span class="line">Mapping user stack: VA:0x3fffff0000 -&gt; VA:0x4000000000</span><br><span class="line">New user address space: AddrSpace &#123;</span><br><span class="line">    va_range: VA:0x0..VA:0x4000000000,</span><br><span class="line">    page_table_root: PA:0x8064e000,</span><br><span class="line">&#125;</span><br><span class="line">[ 23.946790 0:4 m_3_0::task:56] Enter user space: entry=0x50e, ustack=0x3fffffffc0, kstack=VA:0xffffffc0806a7010</span><br><span class="line">handle_syscall [96] ...</span><br><span class="line">handle_syscall [29] ...</span><br><span class="line">Unimplemented syscall: SYS_IOCTL</span><br><span class="line">handle_syscall [66] ...</span><br><span class="line">Hello, UserApp!</span><br><span class="line">handle_syscall [66] ...</span><br><span class="line"></span><br><span class="line">handle_syscall [94] ...</span><br><span class="line">[SYS_EXIT_GROUP]: system is exiting ..</span><br><span class="line">monolithic kernel exit [Some(0)] normally!</span><br><span class="line">[ 24.504671 0:2 axhal::platform::riscv64_qemu_virt::misc:3] Shutting down...</span><br></pre></td></tr></table></figure>
-
-
-<p>可以看到运行过程中还调用了:<code>SYS_IOCTL</code>和<code>SYS_SET_TID_ADDRESS</code>两个系统调用.</p>
-<p>这是因为:”示例m_3_0基于musl工具链以静态方式编译，工具链为应用附加的部分也会调用syscall。”</p>
-<p><img src="00%20inbox/asset/Pasted%20image%2020241204001716.png" alt=""></p>
-<p>就是添加的这个<code>_start</code>和<code>_exit</code>的系统调用.</p>
-<blockquote>
-<p><code>set_tid_address</code>会设置<code>clear_child_tid</code>的值,在进程创建和释放的时候会用到.<br><code>set_tid_address</code>在父线程创建一个子线程的时候会把自己的<code>tid</code>写到这个<code>address</code>的区域里.<br><code>clear_child_tid</code>在释放自己线程或者锁和其它资源的时候,会把返回的值里写入到<code>address</code>里.</p>
-</blockquote>
-<blockquote>
-<p><code>ioctl</code>是用来设置对外输出终端属性的.<br>现在用的是<code>sbi</code>的<code>putchar</code>,因此可以直接跳过.</p>
-</blockquote>
-<blockquote>
-<p>对于不同的体系结构，系统调用号不同。示例是基于riscv64的系统调用号规范。</p>
-</blockquote>
-<p>最后总结就是我们设置好合理的<code>syscall</code>,把系统调用号设置好,那么就可以实现一定程度上的兼容.</p>
-<p><img src="00%20inbox/asset/Pasted%20image%2020241204002546.png" alt=""></p>
-<p>像这个APP只需要提供<code>syscall</code>的兼容层就行了.</p>
-<p>其余的兼容层根据APP不同也需要实现.</p>
-<h2 id="对Linux常用文件系统的支持"><a href="#对Linux常用文件系统的支持" class="headerlink" title="对Linux常用文件系统的支持"></a>对Linux常用文件系统的支持</h2><blockquote>
-<p>arceOS是通过<code>axfs_ramfs</code>对<code>procfs</code>和<code>sysfs</code>提供兼容.通过<code>axfs_devfs</code>提供<code>devfs</code>的兼容.<br>目前用<code>ramfs</code>进行兼容是一个临时的方法.<br>也就是使用内存文件系统.访问的时候相当于访问了一个基于内存的节点,里边有一些基于内存的数据,这些数据是其它子系统填充过来的数据.<br>正常的Linux是你访问这个<code>proc</code>之类的文件的时候实际上是调用了一个回调函数去获取系统状态.</p>
-</blockquote>
-<h1 id="实现mmap系统调用"><a href="#实现mmap系统调用" class="headerlink" title="实现mmap系统调用"></a>实现mmap系统调用</h1><p>实现方法:</p>
-<ol>
-<li>通过<code>sys_read</code>方法读取到文件里的内容. </li>
-<li>读取当前的任务的<code>user space</code>.</li>
-<li>寻找空闲的映射空间的虚拟地址</li>
-<li>构造<code>flag</code>.</li>
-<li>创建一块<code>frame</code>,并且把虚拟地址映射到<code>frame</code>.</li>
-<li>把文件内容拷贝到内存中去</li>
-</ol>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[allow(unused_variables)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_mmap</span></span>(</span><br><span class="line">    addr: *<span class="keyword">mut</span> <span class="built_in">usize</span>,</span><br><span class="line">    length: <span class="built_in">usize</span>,</span><br><span class="line">    prot: <span class="built_in">i32</span>,</span><br><span class="line">    flags: <span class="built_in">i32</span>,</span><br><span class="line">    fd: <span class="built_in">i32</span>,</span><br><span class="line">    _offset: <span class="built_in">isize</span>,</span><br><span class="line">) -&gt; <span class="built_in">isize</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> MAX_MMAP_SIZE: <span class="built_in">usize</span> = <span class="number">64</span>;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> buf: [<span class="built_in">u8</span>; <span class="number">64</span>] = [<span class="number">0u8</span>;MAX_MMAP_SIZE];</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> buf_ptr = &amp;<span class="keyword">mut</span> buf <span class="keyword">as</span> *<span class="keyword">mut</span> _ <span class="keyword">as</span> *<span class="keyword">mut</span> c_void;</span><br><span class="line">        sys_read(fd, buf_ptr, length+_offset <span class="keyword">as</span> <span class="built_in">usize</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> buf = &amp;buf[_offset <span class="keyword">as</span> <span class="built_in">usize</span>..length+_offset <span class="keyword">as</span> <span class="built_in">usize</span>];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> binding = current();</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> uspace = &amp;<span class="keyword">mut</span> binding.task_ext().aspace.lock();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> free_va = <span class="keyword">if</span> addr.is_null() &#123;</span><br><span class="line">        uspace.find_free_area(</span><br><span class="line">            (addr <span class="keyword">as</span> <span class="built_in">usize</span>).into(), </span><br><span class="line">            length, </span><br><span class="line">            VirtAddrRange::new(</span><br><span class="line">                uspace.base(),</span><br><span class="line">                uspace.end()))</span><br><span class="line">            .unwrap_or_else(|| <span class="built_in">panic!</span>(<span class="string">"No free area for mmap"</span>))</span><br><span class="line">    &#125;<span class="keyword">else</span>&#123;</span><br><span class="line">        (addr <span class="keyword">as</span> <span class="built_in">usize</span>).into()</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 把prot转换成MappingFlags</span></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> flags = MappingFlags::from(MmapProt::from_bits_truncate(prot));</span><br><span class="line">    flags.set(MappingFlags::USER, <span class="literal">true</span>);</span><br><span class="line"></span><br><span class="line">    uspace.map_alloc(</span><br><span class="line">        free_va, </span><br><span class="line">        PAGE_SIZE_4K, </span><br><span class="line">        flags, </span><br><span class="line">        <span class="literal">true</span>)</span><br><span class="line">        .unwrap();</span><br><span class="line">    <span class="keyword">let</span> (paddr, _, _) = uspace</span><br><span class="line">        .page_table()</span><br><span class="line">        .query(free_va)</span><br><span class="line">        .unwrap_or_else(|_| <span class="built_in">panic!</span>(<span class="string">"Mapping failed for segment"</span>));</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        core::ptr::copy_nonoverlapping(</span><br><span class="line">            buf.as_ptr(),</span><br><span class="line">            phys_to_virt(paddr).as_mut_ptr(),</span><br><span class="line">            PAGE_SIZE_4K,</span><br><span class="line">        );</span><br><span class="line">    &#125;</span><br><span class="line">    free_va.as_usize() <span class="keyword">as</span> <span class="built_in">isize</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<blockquote>
-<p>这里<code>flags</code>的处理还是很不到位,需要后续增加.</p>
-</blockquote>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/ArceOS%E7%AC%AC%E5%85%AB%E8%8A%82%E8%AF%BE%E7%AC%94%E8%AE%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1159,7 +1238,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -1224,7 +1303,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -1336,7 +1415,7 @@
               </span>
               <span class="post-meta-item-text">Posted on</span>
 
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
+              <time title="Created: 2025-11-10 09:22:39" itemprop="dateCreated datePublished" datetime="2025-11-10T09:22:39+00:00">2025-11-10</time>
             </span>
 
           
@@ -1373,92 +1452,6 @@
 <blockquote>
 <p>未来工作：扩展泛型化——同时引入不同类型扩展 -&gt; 甚至能到异构内核</p>
 </blockquote>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/11/10/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/2024%E5%B9%B4%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-winddevil/" class="post-title-link" itemprop="url">2024年开源操作系统训练营总结-winddevil/2024年开源操作系统训练营总结-winddevil</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-11-10 08:33:37" itemprop="dateCreated datePublished" datetime="2025-11-10T08:33:37+00:00">2025-11-10</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="阶段一-Rustlings"><a href="#阶段一-Rustlings" class="headerlink" title="阶段一-Rustlings"></a>阶段一-Rustlings</h1><p>这个阶段主要是需要进行rust相关的学习.</p>
-<p>其实早就有接触过rust,但是语法,尤其是所有权和生命周期这块,一直还比较生疏.</p>
-<p>有关于所有权相关的内容主要是看了这个视频:<a href="https://www.bilibili.com/video/BV1hjh1emEAY/?spm_id_from=333.337.search-card.all.click" target="_blank" rel="noopener">如何一步一步推导出Rust所有权、借用规则、引用类型以及秒懂生命周期标注_哔哩哔哩_bilibili</a></p>
-<p>其中关于rust作为无gc语言,大部分内存都是保存在栈上的,只有少部分是保存在栈里边.</p>
-<p><strong>‘a指出返回的引用与输入参数x、y之间有关联</strong>.</p>
-<p>这个非常非常重要.</p>
-<h1 id="阶段二-OS内核实验"><a href="#阶段二-OS内核实验" class="headerlink" title="阶段二-OS内核实验"></a>阶段二-OS内核实验</h1><h2 id="ch0-2"><a href="#ch0-2" class="headerlink" title="ch0-2"></a>ch0-2</h2><p>可以参见我之前复现<a href="https://rcore-os.cn/rCore-Tutorial-Book-v3/" target="_blank" rel="noopener">rCore-Tutorial-Book-v3 3.6.0-alpha.1 文档</a>的笔记,被公开在博客园上.</p>
-<p>[<a href="https://www.cnblogs.com/chenhan-winddevil/p/18292624" target="_blank" rel="noopener">winddevil的笔记 - 博客园</a></p>
-<p>这次学习主要是从<code>ch3~ch8</code>的学习,重点换做了解决通过测例,和一些自己的问题.</p>
-<h2 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h2><p>主要是讲的一个任务切换的流程,有了任务切换之后又通过定时器中断实现了抢占式调度.</p>
-<p><img src="https://img2024.cnblogs.com/blog/3071041/202409/3071041-20240914172749474-2031592744.png" alt="替代文本|800" title="可选标题"></p>
-<h2 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h2><p>这一章主要解决的是一个虚拟地址转换为物理地址的过程,说是虚拟地址,我原来以为真的改变了地址,实际上每一次调用资源都还是使用了物理地址的,利用地址空间对所有的需要访问具体物理地址的对象进行操作.</p>
-<p><img src="https://img2024.cnblogs.com/blog/3071041/202410/3071041-20241027024955160-396645957.png" alt="替代文本|800" title="可选标题"></p>
-<h2 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h2><p>这一章同样是承接了上一章的知识,讲的主要是一个进程的概念,加入了很多新的结构体,后边我应该会有时间的时候更新一下图片.</p>
-<p>进程中最巧妙的就是使用了<code>fork</code>这个复制一个任务的操作,有了进程,那么就可以实现编程的简洁性,倭只需要编写一个小任务,然后再进行组合,而不是调用<code>fn</code>,然后自己设计各种分支结构.</p>
-<p>有了进程,相当于把调度的工作委托给了<code>os</code>.</p>
-<h2 id="ch6"><a href="#ch6" class="headerlink" title="ch6"></a>ch6</h2><p>在上一章的基础上,引入了块和文件系统.</p>
-<p>这一部分的知识学的非常的不牢靠.</p>
-<p>但是让我印象深刻的地方是,这一章基本实现了我对之前学习的时候发现windows是可以直接”点开”应用这个操作的好奇.</p>
-<p>那么应用保存在哪里,为什么我用U盘拷贝了还是可以继续运行.</p>
-<p>之前学习单片机的时候很少想到我可以通过什么东西对”可执行”的东西进行操作.</p>
-<p>通过二进制文件进行加载然后运行的操作属实惊艳到了我.</p>
-<h2 id="ch7"><a href="#ch7" class="headerlink" title="ch7"></a>ch7</h2><p>这个和<code>ch4</code>更加相关.之前运行<code>rtos</code>的时候总是想着,那么这个变量可以直接以全局变量的方式进行传输为什么我要使用各种比如信号量比如邮箱的方式,现在就一目了然了.</p>
-<p>因为地址空间的不同所以进程之间的通信需要通过管道,也就是需要经由操作系统这一层.</p>
-<h2 id="ch8"><a href="#ch8" class="headerlink" title="ch8"></a>ch8</h2><p>这一部分让我想起了之前进行单片机编程的时候的<code>临界段保护</code>操作,那时候是通过非常暴力的方法关掉了所有的中断以保证这次读取不会出现问题.</p>
-<p>或者使用原子操作保证中断无法打断单一时钟下的操作.</p>
-<p>这里并没有和硬件和中断打交道,而是选用了三种方式,加锁\条件变量\信号量的方式.</p>
-<p>使用银行家算法进行了调度,算法不难,但是调用本身很麻烦,需要在每一次加锁的时候对题中的变量进行操作.并且每一次上锁的时候都需要<code>detect</code>,那么对上锁的程序也必须进行改造.</p>
-<h2 id="本次体验"><a href="#本次体验" class="headerlink" title="本次体验"></a>本次体验</h2><p>越到后边越忙,如果有幸进入下一个阶段一定不能好高骛远多线程操作,一定要留足时间给自己.</p>
 
       
     </div>
