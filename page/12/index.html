@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">739</span>
+          <span class="site-state-item-count">740</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">645</span>
+        <span class="site-state-item-count">646</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,192 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/04/Lfan-ke%EF%BC%9ArCore%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/05/04/Lfan-ke%EF%BC%9ArCore%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">rCore学习笔记</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-04 13:14:52" itemprop="dateCreated datePublished" datetime="2025-05-04T13:14:52+00:00">2025-05-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E8%A1%A5%E5%AE%8C%E8%AE%A1%E5%88%92/" itemprop="url" rel="index"><span itemprop="name">补完计划</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="rCore学习笔记"><a href="#rCore学习笔记" class="headerlink" title="rCore学习笔记"></a>rCore学习笔记</h1><p>根据学习顺序从头梳理一下操作系统的发展历史：</p>
+<h2 id="原生之初"><a href="#原生之初" class="headerlink" title="原生之初"></a>原生之初</h2><h3 id="CPU做了什么？"><a href="#CPU做了什么？" class="headerlink" title="CPU做了什么？"></a>CPU做了什么？</h3><p>CPU-Central Processing Unit，中央处理器，由IFU，EXU，MMU等等等组成，就不赘述了。以RV64IM指令集架构的角度来讲吧：</p>
+<ul>
+<li><p>门电路只能根据输入来生成输出</p>
+</li>
+<li><p>一个运算模块的输入：<code>ep1</code>，<code>ep2</code> 输出：<code>res</code> 取决于具体的指令</p>
+</li>
+<li><p>以一个简单的只有加减的<code>ALU</code>为例：<code>MUX(choose, res_add, res_sub)</code></p>
+</li>
+<li><pre><code class="verilog"><span class="keyword">module</span> ALU (
+    <span class="keyword">input</span> choose,
+    <span class="keyword">input</span> [<span class="number">63</span>:<span class="number">0</span>] ep1,
+    <span class="keyword">input</span> [<span class="number">63</span>:<span class="number">0</span>] ep2,
+    <span class="keyword">output</span> [<span class="number">63</span>:<span class="number">0</span>] res
+);
+    <span class="keyword">assign</span> res = choose == <span class="number">0</span> ? ep1 + ep2 : ep1 - ep2;
+<span class="keyword">endmodule</span></code></pre>
+</li>
+<li><p>电路只管<code>res_add</code>和<code>res_sub</code>的计算，结果是都算出来的，但是最后的<code>res</code>被通过选择器来选择输出<code>res_sub | res_add</code></p>
+</li>
+<li><p>CPU就是一个只管埋头干活的驴（有限状态机），而<code>choose</code>是CPU根据PC取值译码后得到的，用来选择哪个输入作为输入以及哪个输出作为输出</p>
+</li>
+<li><p>所以在CPU看来他只要不停的根据时钟进行不停01摇摆就行，而操作系统关心的就多了，包括“特权级的转换”/“进程调度”/“IO”等等</p>
+</li>
+<li><p>CPU角度的函数调用：我不知道发生了啥，只知道<code>gpr[rs1] = pc+4, pc = gpr[rs2]</code>，即：用了一下全加器，存了俩reg，调哪个函数全看pc指向内存里面的哪</p>
+</li>
+<li><p>CPU角度的设备读写：我不知道发生了啥，只知道某总线使用某协议按照某种规律发了一串特定的bit波形</p>
+</li>
+<li><p>CPU角度的异常处理：我不知道发生了啥，只知道某个被人类称为CSRs的寄存器组里面几个寄存器取了存，存了取</p>
+</li>
+<li><p>CPU角度的面向对象：我没有这个概念，只知道一个数字存哪取哪全靠选择器最后是否选中MEM，或者选中GPR？CSR？更高层次的汇编里面称这个决定选中哪里的一串01的数字为指针？</p>
+</li>
+</ul>
+<p>所以，CPU压根不知道一些奇奇怪怪的高级概念，更不知道什么奇奇怪怪的转换特权级，只知道，当前状态的输入，以及自己时钟边沿敏感后存下选中的输出。在CPU看来，只是一堆与或门在0101变，有的0101会连接到选择器的与或门上，决定了下一波存的0101而已。</p>
+<blockquote>
+<p>仿佛充电就不停运动的牛马，优雅的被称为“程序是一个状态机”，不停的在状态之间兜兜转转</p>
+</blockquote>
+<h3 id="ISA做了什么？"><a href="#ISA做了什么？" class="headerlink" title="ISA做了什么？"></a>ISA做了什么？</h3><p>​    指令集架构，以上面的<code>ALU</code>为例，规定了<code>choose == 0</code>时选择<code>res_add</code>，否则选择<code>res_sub</code>。在真实的CPU中，ISA规定了每一条指令的格式，数据类型，寄存器，中断/异常，字节次序等等等。比如末尾后7位是opcode，opcode是0110011是基本的运算族指令，比如add，sub等等。简而言之就是上面的规定了<code>choose == 0</code>时选择<code>res_add</code>，还是选择<code>res_sub</code>。</p>
+<p>​    它给人们提供了一套规范，可以有规范可查，遇到情况可以查相关的手册或者文档，有册可查，有规可依。</p>
+<blockquote>
+<p>规定了你看见A就说1，看见B就说0，AABBA就是11001，让CPU的电路运行有据可查</p>
+</blockquote>
+<h3 id="SBI做了什么？"><a href="#SBI做了什么？" class="headerlink" title="SBI做了什么？"></a>SBI做了什么？</h3><p>​    一套二进制接口，封装特定操作的软件程序，刷在PC初始值位置，用于初始化CPU的各项寄存器（广义，包括GPR，CSR，PC等等）中的值，之后提供了一个函数映射表的位置，当某些情况下<code>ecall</code>指令的时候，就把PC设置为这个函数映射表的位置，执行所指向的执行流，之后某个时机再返回到某个特定的位置。</p>
+<blockquote>
+<p>根据规范封装特定的指令，以及初始化指定的寄存器，初始化结束后，PC也被初始化到了OS所在的位置</p>
+</blockquote>
+<h3 id="OS做了什么？"><a href="#OS做了什么？" class="headerlink" title="OS做了什么？"></a>OS做了什么？</h3><p>​    也相当于一套二进制接口，是一个软件程序，用来管理硬件的各项资源，大部分的操作通过调用SBI提供的接口，很少直接操作硬件。决定了某些寄存器的值，以改变PC的指向，从而改变用户眼中的当前执行的程序（执行流）。</p>
+<blockquote>
+<p>因为遇事不决调SBICall，所以可以当是一个封装在特定SBI实现上的一个软件，或者调SBI实现的接口/库的一个程序</p>
+</blockquote>
+<h3 id="Syscall做了什么？"><a href="#Syscall做了什么？" class="headerlink" title="Syscall做了什么？"></a>Syscall做了什么？</h3><p>​    OS提供的一个函数映射表，当某些情况下<code>ecall</code>指令的时候，就把PC指向映射表的位置，映射表会根据参数和栈来决定下一步做什么，之后某个可能的时机再返回原来执行到的地方。</p>
+<blockquote>
+<p>封装了一个函数映射表，可以根据参数的值选择要执行的操作</p>
+</blockquote>
+<h3 id="用户程序做了什么？"><a href="#用户程序做了什么？" class="headerlink" title="用户程序做了什么？"></a>用户程序做了什么？</h3><p>​    依据各基于的标准库，来编写程序或更高层级的库，然后调用现有的依赖编写自己心目中的程序或者功能。游戏，网页，基础设施，编译器等等等，一切他们觉得让生产生活更方便的东西，比如：饥荒营火重生Mod，QQ，雷碧超市小程序……</p>
+<blockquote>
+<p>使用操作系统提供的接口，或者在操作系统之上的虚拟机平台提供的接口，拼接，组装，变成自己需要的程序</p>
+</blockquote>
+<h3 id="所以他们做了什么？"><a href="#所以他们做了什么？" class="headerlink" title="所以他们做了什么？"></a>所以他们做了什么？</h3><p>​    总结来看，仿佛就是一层调用一层的接口，一层接着一层的调包导库，实际上也是，不过是为了学习或使用方便而简化了一些东西而已。这些简化的东西在上层的使用者几乎不用关心，被称为“抽象”</p>
+<p>​    ISA规定了硬件都有哪些寄存器，遇到哪些指令该怎么做，提供了UB以外的确定性硬件操作（不确定的比如/0才是UB吧，所以这句就是废话是吧…）</p>
+<p>​    SBI初始化硬件提供的寄存器，之后跳转到OS所在位置，确保了OS的执行正确，不会遇到get_time的时候，一看，俩寄存器还是未初始化的随机脏值</p>
+<p>​    OS将“资源”具象化，来分配，调度OS所知晓的内存空间，存储空间。同时，也创建了对于用户程序不可见的物理地址之下的虚拟地址，为系统安全提供保障。用户所编写的程序将不需要关心真实的物理地址在哪，程序会被安排到什么地方。OS：“给你这些你就用，其他的别管！”</p>
+<p>​    用户程序，在OS的抽象下，用户以为自己独占了一台物理机，当其需要操作系统的服务，比如获取当前系统时间的时候，调用Syscall</p>
+<p>​    而为了区分不同层级的程序，为了用户越界访问系统的时候，硬件能给点反应，触发中断，切回OS叫醒OS：“你用户越界了！”，部分CSR寄存器的某些位连接了译码器以及MMU的部分部件，为的就是检测到不对就警报进行中断。为了配合这个硬件机制，软件上就得设置这些位是0还是1。比如SBI初始化的mstatus，OS初始化的sstatus等等。这样子在特定位没被设置的时候，某不属于此特权级的指令的执行就会触发中断。但是如果软件不设防，一切运行在裸机（没有SBI，没有OS来管理调度资源的芯片），那么特权级将会失去意义。</p>
+<p>​    这一过程就像你MC（一个游戏）开服务器，你不设防，认为一切道法自然，那么熊孩子炸了你家你也不知道，你也只能接受。但是当你软件开启“游客权限：不准使用TNT”，“好友权限：可申请使用TNT”的时候，你也就划分了特权级的抽象：“USM” - “房主 好友 游客”。</p>
+<blockquote>
+<p>所以，学的广不能学的深，调库侠不如底层佬什么什么的都是伪命题，都是在认知范围内合理利用工具而已</p>
+</blockquote>
+<h2 id="批处理"><a href="#批处理" class="headerlink" title="批处理"></a>批处理</h2><p>当我裸机能运行一个程序的时候，我就想让他运行两个，但是切换好麻烦，能不能一次输入，就能得到所有想要的输出？</p>
+<p>​    好，将两个程序拼接</p>
+<p>万一前面的出错怎么办？</p>
+<p>​    将PC指向下一个程序，这程序就算运行结束了</p>
+<p>有程序破坏系统篡改数据怎么办？</p>
+<p>​    我得规定程序的权限：不能随意访问空间，不能破坏系统</p>
+<blockquote>
+<p>简而言之，批处理系统是操作系统的雏形，通过简单的程序二进制拼接起来，依次执行，进行了简单的错误处理以及特权级切换</p>
+</blockquote>
+<h2 id="多道分时"><a href="#多道分时" class="headerlink" title="多道分时"></a>多道分时</h2><p>提高系统的性能和效率是操作系统的核心目标之一，一个个排着队，不论长短一直等着就不耐烦。为了解决这个问题，不同目的的操作系统有了不同的策略。执行流在被阻塞的状态下让出处理器是通用的。其余的，急者优先，先来先服务等等调度算法应用在了不同领域。但是最常见的还是基于时间平均分配时间片的分时复用算法。底层是每隔一小段时间触发一次时钟中断来切换执行流。</p>
+<blockquote>
+<p>在CPU角度，CPU是一个状态机，下一步的结果只与当前状态有关，所以切换执行流实际上就是保存了CPU当前的状态，即：Context-上下文，之后找个时间再恢复。所以CPU当前的状态是什么？</p>
+<p>取指的PC：关系到指令执行到哪了，该执行哪个了</p>
+<p>ISA规定的寄存器组：32个寄存器，起码zero恒0，不用保存，sp要手动霍霍调度执行流，不保存</p>
+<p>部分执行流相关csr：得按需保存，比如sstatus，sepc，scause等等，按需？比如裸机保存的就是mepc而不是sepc</p>
+</blockquote>
+<h2 id="地址空间"><a href="#地址空间" class="headerlink" title="地址空间"></a>地址空间</h2><p>将程序按部就班刷入固定位置，每次有新程序还得重新安排程序所在的位置，且用户程序能直接访问物理地址本来就是不安全的。</p>
+<p>所以地址空间思考的就是：如何使用一个抽象，让所有程序不必想自己得被安排到哪，且隔绝不同程序之间的地址空间？</p>
+<blockquote>
+<p>PageTable一个是方便MMU硬件查找虚拟地址对应的物理地址，一个是维护了软件的接口，方便操作系统需要时霍霍。</p>
+<p>[MapArea]保存了连续的虚拟地址的映射，以及此段地址的权限，分配和回收直接霍霍PageTable，方便了OS维护PT</p>
+<p>此时程序看到的地址都是OS提供的抽象幻象，隔绝了程序的同时，用户编写程序也不用思考程序将会被放在哪了！</p>
+</blockquote>
+<h2 id="进程管理"><a href="#进程管理" class="headerlink" title="进程管理"></a>进程管理</h2><p>之前的程序都是确定要运行的，被刷入的程序只能决定会被运行，不能决定自己什么时候不运行，什么时候去运行。人机交互差。所以一开始只执行一个负责和用户交互的程序，后续由用户选择执行特定的程序。提高了用户的自由度和体验。</p>
+<blockquote>
+<p>现在的程序可以被用户选择是否要运行，以及什么时候开始运行。比起之前开机只是为了关机的死程序疙瘩多了人性化。</p>
+<p>比死程序疙瘩多的操作也就是：如何将创建一个执行流的上下文，将上下文加入调度队列，以及获取上下文返回的信息</p>
+<p>由于地址空间的支持，所有程序的起始地址都可以相同，应该说，都是相同的，所以每次创建执行流的时候，虚拟起始地址每个程序都一样，不一样的只是被映射到的物理地址。</p>
+</blockquote>
+<h2 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h2><p>​    一次性刷好所有的程序，有新的程序还得重新刷，关机内存的数据就没了，所以需要一种持久化存储数据/程序的方式。然后管理这种持久化存储的程序的系统就是文件系统，这种持久化的程序或者数据的抽象就是“文件”。但是文件平铺对于习惯分门别类的人来说阅读性太差，就有了“目录”。归结到底“目录”也是一种特殊的文件，其中存的内容是规则的目录项罢了。</p>
+<p>​    所以，目录就是一个目录项的容器，目录项就是描述一个目录或者文件的指针和属性的集合。而一切的起源就是根目录，就是目录树的根节点。通过一层层指针，就能找到最终指向的文件区域。</p>
+<blockquote>
+<p>有了文件系统，可以很方便的持久化程序和数据。程序又何不是一种数据？</p>
+<p>之后想运行程序的时候就可以在持久化的数据中寻找对应的文件，读入内存，后创建PCB，加入调度</p>
+</blockquote>
+<h2 id="管道通信"><a href="#管道通信" class="headerlink" title="管道通信"></a>管道通信</h2><p>不同进程之间的通信，可以通过父进程的文件描述符来进行读写buffer。</p>
+<h2 id="并发和锁"><a href="#并发和锁" class="headerlink" title="并发和锁"></a>并发和锁</h2><p>​    当进程变为线程的管理容器的时候，线程共享着进程的资源。由于线程异步执行的不确定性，一个内存区域（资源）被不同线程访问修改后不能保证原执行流的原子性。很有可能一个数据，比如一个u128的变量，在sd低64位的时候被调度了，导致写线程还没把高64位写进去，读线程读的时候会发现数据错误。所以就需要一种机制来保证这种边沿区域的读写原子性。没写完就读的，让读的先缓缓，切回写的，写完再把要读的放出来读就不会出错了。</p>
+<p>​    但是往往一个线程有时候并不只需要一个资源，有时候需要N个不同的资源。这时假设A线程拿到了资源1，B线程拿到了资源2，但是B要访问资源1，A要访问资源2，但A拿着资源1睡去了，B就只能干耗着，形成死锁。死锁的解锁方式很多，比如卡足够时间就释放，过段随机时间再请求等等。但是如果可以预防死锁，在可能发生死锁的时候拒绝分配，让可以安全执行完成的执行流先完成，那么就不会形成死锁。所以在ch8完成了银行家算法的化简版。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2025/05/04/Lfan-ke%EF%BC%9ArCore%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/03/2025s-os-camp-note/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +450,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
 
           
@@ -378,7 +564,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
 
           
@@ -630,7 +816,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
 
           
@@ -744,7 +930,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
 
           
@@ -816,7 +1002,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
 
           
@@ -881,7 +1067,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1033,7 +1219,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
 
           
@@ -1105,7 +1291,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1190,7 +1376,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1236,78 +1422,6 @@
             </div>
           <!--/noindex-->
         
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/28/OrangeQi/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/04/28/OrangeQi/" class="post-title-link" itemprop="url">OrangeQi</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-04-28 02:39:23" itemprop="dateCreated datePublished" datetime="2025-04-28T02:39:23+00:00">2025-04-28</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>之前对操作系统有一定理论基础，rcore 和 arceos 项目对我最大的挑战主要包括：</p>
-<ol>
-<li>risc-v 体系结构的知识，尤其是特权架构。这对理解 trap、context_switch、地址空间相关的代码极其重要。</li>
-<li>arceos 项目的组织构建。最底层是 axhal，抽象了硬件架构和运行平台，往上是各个 module 例如 axtask 等，再向上是 axapi 乃至 ulib。这种组件化的设计思想充分利用的 rust 语言的优势，极大方便构建。</li>
-</ol>
-<p>unikernel 架构是没有特权级切换的，应用程序也运行在 s 态。刚开始没有仔细理解 ppt，给我造成了挺大的困扰。</p>
-<p>hashmap 的实验我并没有自己手写代码，而是直接引入了 hashbrown 库。但手撕一下代码应该能更加锻炼能力。</p>
-<p>此外，hypervisor 给我带来了挺大的困难，参考其他同学的经验我才得以通过。</p>
-
       
     </div>
 
