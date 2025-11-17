@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">738</span>
+          <span class="site-state-item-count">739</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">644</span>
+        <span class="site-state-item-count">645</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,194 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/" class="post-title-link" itemprop="url">基于 uring 的异步 IPC</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-06-30 23:00:00" itemprop="dateCreated datePublished" datetime="2025-06-30T23:00:00+00:00">2025-06-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="异步通信框架-evering"><a href="#异步通信框架-evering" class="headerlink" title="异步通信框架: evering"></a>异步通信框架: evering</h2><p><a href="https://loichyan.github.io/openoscamp-2025s/evering" target="_blank" rel="noopener">evering</a> 是受 <a href="https://en.wikipedia.org/wiki/Io_uring" target="_blank" rel="noopener">io_uring</a> 启发的的异步通信框架，作为本文实现异步 IPC 的基石，它</p>
+<ul>
+<li>🦀 基于 Rust 异步模型</li>
+<li>🐧 基于共享内存</li>
+<li>📡 提供双向 SPSC 消息队列</li>
+<li>🎬 提供灵活的资源管理机制</li>
+</ul>
+<p>evering 使用两个单生产者单消费者（SPSC）并发队列进行通信，</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">       Client                                     Server</span><br><span class="line">         |                                           |</span><br><span class="line">.-------&gt;|                                           |&lt;---------.</span><br><span class="line">|        |               Request Queue               |          |</span><br><span class="line">|   (Send Request)   --&gt;-(3)-&gt;-(2)-&gt;-(1)-&gt;-- (Receive Response) |</span><br><span class="line">|        |                                           |          |</span><br><span class="line">|        |                                           |          |</span><br><span class="line">| (Receive Response) --&lt;-(1)-&lt;-(2)-&lt;-(3)-&lt;--   (Send Request)   |</span><br><span class="line">|        |               Response Queue              |          |</span><br><span class="line">&#39;--------&#39;                                           &#39;----------&#39;</span><br></pre></td></tr></table></figure>
+
+<p>受限于 SPSC 通信，目前 evering 只能遵循 thread-per-core 模型，不同于 tokio、async-std 等使用 work-stealing 的运行时．在基于 thread-per-core 的异步模型中，每个线程有一个局部的运行时，不同线程之间保持最小的通信，甚至完全独立．而基于 work-stealing 的异步模型中，任何异步任务都可能由于运行时的调度而被“偷”到其他线程上运行．二者相比有以下异同：</p>
+<ul>
+<li>在 thread-per-core 模型中，异步任务不必担心同步问题，即在 Rust 中不需要使用诸如 <code>impl Send + Future</code> 的类型，这可以大大简化异步编码体验．而在 work-stealing 模型中，几乎所有的异步任务都需要注意线程之间的同步，这样难免会带来一些额外的开销，也使得异步编码更为繁琐<a href="https://maciej.codes/2022-06-09-local-async.html" target="_blank" rel="noopener">^1</a>．</li>
+<li>正如 work-stealing 这名称所示，在此类模型中，运行时会根据程序实时状态对不同线程上的异步任务进行负载均衡，使得每个线程都不会陷入长时间的忙碌或空间．而对于 thread-per-core 模型，由于异步任务不能在多线程之间共享，当处理某个 CPU 密集型任务时，很可能因为长时间阻塞而导致该线程上的其他任务迟迟得不到处理，最终出现较高的响应延迟．因此 thread-per-core 不适合 I/O 密集混合 CPU 密集的场景．</li>
+</ul>
+<h2 id="实验性异步-IPC-模型-evering-ipc"><a href="#实验性异步-IPC-模型-evering-ipc" class="headerlink" title="实验性异步 IPC 模型: evering-ipc"></a>实验性异步 IPC 模型: evering-ipc</h2><p><a href="https://github.com/loichyan/openoscamp-2025s/tree/final/examples/evering-ipc" target="_blank" rel="noopener">evering-ipc</a> 在 evering 的基础上，同时利用 Linux 的共享内存机制实现了异步 IPC．具体而言，要通信的两个进程使用以下所示的共享内存区进行同步：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">.-----------------------------------------------------------------------------.</span><br><span class="line">|                   |               |                   |                     |</span><br><span class="line">| [1] uring offsets | [2] allocator | [3] uring buffers | [4] free memory ... |</span><br><span class="line">| ^                 |               |                   |                   ^ |</span><br><span class="line">&#39;-|-------------------------------------------------------------------------|-&#39;</span><br><span class="line">  &#39;-- start of the shared memory (page aligned)                             |</span><br><span class="line">                                                 end of the shared memory --&#39;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><em>[1]</em> 是整个共享内存区的起始，通过 mmap(2) 映射到地址空间中，因此是页对齐的．</li>
+<li><em>[1]</em> 中包含 evering 的两个通信队列的偏移量，基于这个偏移量配合 evering 提供的构造队列的接口，可以确保两个进程看到的状态是相同的．</li>
+<li><em>[2]</em> 中包含一个单线程的内存分配器，这个分配器通常由客户端使用．</li>
+<li><em>[3]</em> 是通信队列的实际所在位置．</li>
+<li><em>[4]</em> 是其余全部的空闲内存，这些内存由 <em>[2]</em> 中的分配器管理．</li>
+</ul>
+<p>在 evering-ipc 中，uring 仅用于传递静态类型且通常仅有十几到几十个字节的<em>消息</em>．而对于更大的以及编译期间无法确定大小的<em>数据</em>，它利用共享的空闲内存来传递．具体而言，</p>
+<ol>
+<li>客户端获取内存分配器，从中分配合适的内存块，并写入<em>请求体</em>作为待传递<em>数据</em>．</li>
+<li>客户端将该内存块指针以及其他信息构造成<em>请求头</em>作为<em>消息</em>写入请求队列．</li>
+<li>服务端接收并解析请求，得到<em>请求头</em>和<em>请求体</em>．</li>
+<li>服务端处理请求，将处理结果构造<em>响应头</em>作为<em>消息</em>写入响应队列．</li>
+<li>客户端收到响应，检查结果并执行后续流程．</li>
+</ol>
+<p>当服务端同样也需要传<em>响应体</em>作为<em>数据</em>时，有多种思路可以实现：</p>
+<ol>
+<li>将分配器加锁使它能同时在服务端和客户端使用．对于请求频率特别高的场景，锁可能会降低整体性能．</li>
+<li>增加一个分配器供服务端使用．对于空闲内存分配比例的设定可能不容易权衡．</li>
+<li>结合前两个思路，使用两个分配器，但空闲内存加锁，根据程序运行状况动态调整分配给两方的空闲内存．</li>
+<li>空闲内存完全由客户端管理，在请求时，客户端分配合适大小的内存块供服务端写入<em>响应体</em>．实际中，客户端可能需要预请求一次来确定<em>响应体</em>的大小．</li>
+</ol>
+<p>evering-ipc 目前采用第 4 种思路．此外，不难发现，在 evering-ipc 中，数据都是通过指针进行传递的．而在程序运行时，共享内存通常被映射到不同的地址，因此实际传递的是数据块在共享内存中的偏移量．同时，共享内存区的起始地址都是页对齐的，这保证了所有基于相对偏移量得到的地址，即使在两个进程间不同，对齐也是一致的，从而满足 Rust 对不同类型内存布局的要求．</p>
+<h2 id="多种-IPC-方案的性能测试-ipc-benchmark"><a href="#多种-IPC-方案的性能测试-ipc-benchmark" class="headerlink" title="多种 IPC 方案的性能测试: ipc-benchmark"></a>多种 IPC 方案的性能测试: ipc-benchmark</h2><p><a href="https://github.com/loichyan/openoscamp-2025s/tree/final/examples/ipc-benchmark" target="_blank" rel="noopener">ipc-benchmark</a> 针对多种 IPC 方案进行了关于通信延迟的性能测试，这些方案包括：</p>
+<ul>
+<li>基于 evering + memfd 的 IPC</li>
+<li>基于 shmipc + memfd 的 IPC</li>
+<li>基于 tokio + epoll + UDS 的 IPC</li>
+<li>基于 tokio + io_uring + UDS 的 IPC</li>
+<li>基于 monoio + io_uring + UDS 的 IPC</li>
+</ul>
+<p>其中，</p>
+<ul>
+<li>memfd 是 create_memfd(2) 创建的匿名内存．</li>
+<li>UDS 是指 Unix Domain Socket．</li>
+<li><a href="https://github.com/cloudwego/shmipc-rs" target="_blank" rel="noopener">shmipc</a> 是基于共享内存的高性能 IPC 框架．</li>
+<li><a href="https://tokio.rs/" target="_blank" rel="noopener">tokio</a> 是基于 epoll(7) 和 work-stealing 模型的异步 I/O 运行时．</li>
+<li><a href="https://github.com/tokio-rs/tokio-uring" target="_blank" rel="noopener">tokio-uring</a> 为 tokio 提供了基于 io_uring 的异步 I/O 实现．</li>
+<li><a href="https://github.com/bytedance/monoio" target="_blank" rel="noopener">monoio</a> 是基于 io_uring 和 thread-per-core 模型的异步 I/O 运行时．</li>
+</ul>
+<p>对于每个框架我们采用如下测试方案：</p>
+<ol>
+<li>启动两个线程作为客户端和服务端．</li>
+<li>客户端写入 <code>i32</code> 的请求头以及大小为 <code>buf_size</code> 的请求体．</li>
+<li>服务端接收并校验请求头和请求体，随后同样写入 <code>i32</code> 的响应头和 <code>buf_size</code> 大小的响应体．</li>
+<li>客户端接收并校验响应头和响应体．</li>
+</ol>
+<p>其中，<code>buf_size</code> 以字节为单位，由 4B 逐渐增长到 4M．</p>
+<h3 id="结果对比"><a href="#结果对比" class="headerlink" title="结果对比"></a>结果对比</h3><p>详细的性能测试的结果见 <a href="https://github.com/loichyan/openoscamp-2025s/tree/ipc-benchmark" target="_blank" rel="noopener">https://github.com/loichyan/openoscamp-2025s/tree/ipc-benchmark</a>，下面我们将对该结果进行简略的分析．</p>
+<img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_all.svg" class="" title="ipc-benchmark 完整测试结果对比">
+
+<p>此图对比了完整的测试结果，其中 $x$ 轴是上述的 <code>buf_size</code>，而 $y$ 轴则是完成一次测试所需的平均时间．可以看到，随着数据大小的增长 evering 和 shmipc 明显优于其他三者，并且相对于表现最差的 tokio_epoll，二者分别有接近 50% 和 30% 的性能提升．</p>
+<img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_first_5.svg" class="" title="ipc-benchmark 前五轮测试结果对比">
+
+<p>此图对比了前五个测试的结果，此时数据并不算大，都在通常范围之内．这里能发现相对于另外三者，evering 和 shmipc 都有超过 80% 的性能提升．</p>
+<img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_mid_5.svg" class="" title="ipc-benchmark 中五轮测试结果对比">
+
+<p>此图对比了中间五轮测试的结果，此时数据大小开始逐渐出现大幅度的增长．可以看到，除了 evering 和 shmipc 外的三者针对大块数据的传输并无明显差异．</p>
+<img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/ipc_benchmark_last_5.svg" class="" title="ipc-benchmark 后五轮测试结果对比">
+
+<p>此图对比了最后五轮测试的结果，此时数据大小已接近极端情况．这里能观察到与第一个对比图同样的结果．</p>
+<h3 id="测试结论"><a href="#测试结论" class="headerlink" title="测试结论"></a>测试结论</h3><p>单从性能的角度来看，对于上述五种 IPC 方案，<code>evering &gt; shmipc &gt;&gt; monoio &gt; tokio_uring &gt; tokio_epoll</code>．</p>
+<p>对比前两者，shmipc 支持 MPSC（多生产者多消费者）的通信方式，而本测试中仅使用 SPSC 的模型进行测试，因此无法发挥其完整的优势．另外，对共享内存处理的方式不同也可能导致了一些性能差异．而对于另外三者，由于使用 UDS 需要将数据在用户空间和内核空间来回拷贝，在面对大块数据时，这将大大降低整体性能．而对于极小的数据块，又由于系统调用等带来的开销，最终需要接近 10 倍的额外时间来完成测试．这一点可以在火焰图<a href="https://github.com/flamegraph-rs/flamegraph" target="_blank" rel="noopener">^2</a>中体现：</p>
+<table>
+<thead>
+<tr>
+<th align="center">evering (buf_size=4B)</th>
+<th align="center">tokio-epoll (buf_size=4B)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4B_evering.jpg" class=""></td>
+<td align="center"><img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4B_tokio_epoll.jpg" class=""></td>
+</tr>
+</tbody></table>
+<p>此图中展示了在 4B 数据下，性能测试主体函数中各子过程的占比．其中，蓝色高亮部分是校验数据过程，用作参照．不难发现，evering 中主要时间都消耗在传递消息所需的多线程同步上了．而在 tokio-epoll 中则是多个与内核交互的函数调用占用主要时间．在后几轮测试中，当数据变得非常大时，这些消耗则变得无关紧要，此时的性能热点是数据传递引起的内存拷贝．下面的火焰图可以佐证：</p>
+<table>
+<thead>
+<tr>
+<th align="center">evering (buf_size=4M)</th>
+<th align="center">tokio-epoll (buf_size=4M)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4M_evering.jpg" class=""></td>
+<td align="center"><img src="/blog/2025/06/30/2025spring-rust-based-os-comp-final-report-loichyan/flamegraph-4M_tokio_epoll.jpg" class=""></td>
+</tr>
+</tbody></table>
+<p>此图与上面两个图相同，不过这里的数据大小是 4M．很明显，当数据非常大时，evering 中绝大部分时间用来初始化需要传递的数据，但传递的过程几乎不占用太多时间．而 tokio-epoll 中的情况更加复杂，除了拷贝数据以外，还花费了相当一大部分时间执行内存分配，这些内存用于放置从内核空间传递来的数据．</p>
+<p>至于后三者的性能差别，我们猜测主要是由于：</p>
+<ol>
+<li>设计架构不同，monoio 是单线程的 thread-per-core 模型，因此与我们的测试相性更好．</li>
+<li>基于 io_uring 实现的异步 I/O 相对于基于 epoll 的，理论上会花费更少的时间在与内核交互上．并且测试中我们利用 io_uring_register(2) 做了进一步的优化，减少了传递小数据时内核处理的开销．</li>
+</ol>
+<h2 id="未完成的任务"><a href="#未完成的任务" class="headerlink" title="未完成的任务"></a>未完成的任务</h2><h3 id="让-evering-支持-MPSC"><a href="#让-evering-支持-MPSC" class="headerlink" title="让 evering 支持 MPSC"></a>让 evering 支持 MPSC</h3><p>正如开头所述，evering 目前只实现了 SPSC 队列，受限于此，不能很好的处理复杂的应用场景．而实现 MPSC 队列之后，客户端就能更好的与 tokio 等运行时协同工作．要实现这个目标，主要是对 evering 的队列结构 <code>RawUring</code> 和操作驱动结构 <code>Driver</code> 进行多线程改造，并且尽可能要实现无锁的数据结构．对于 <code>RawUring</code> 的改造可以参考现有的并发队列实现．而 <code>Driver</code> 底层依赖于 <a href="https://docs.rs/slab/latest/slab/" target="_blank" rel="noopener"><code>slab::Slab</code></a> 结构体，因此改造难度稍高．不过，目前 evering 已经支持使用固定大小的 <code>Slab</code>，基于这一点可以大幅降低多线程化的难度．</p>
+<h3 id="基于-evering-实现系统调用"><a href="#基于-evering-实现系统调用" class="headerlink" title="基于 evering 实现系统调用"></a>基于 evering 实现系统调用</h3><p>evering-ipc 只适用于用户进程之间的通信，而本项目最初的目标是实现用户进程和内核的通信．对于这个目标，除了处理共享内存以外，可能还会遇到页表隔离的问题，以及用户进程意外退出后，对应内核异步任务的清理问题．更长远来看，当实现异步系统调用之后，那么可以将用户进程转彻底换成类似 Rust 中 <code>Future</code> 的无栈协程，从而将开销进一步降低．此外，迁移到异步系统调用时，不可避免的会破坏与现有同步代码的兼容性．因此，实现基于有栈绿色线程的异步系统调用也是一个值得尝试的目标．</p>
+<!-- dprint-ignore-start -->
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/30/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90os%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%82%B5%E5%8D%93%E7%82%9C/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +452,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
 
           
@@ -334,7 +522,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
 
           
@@ -564,7 +752,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
 
           
@@ -636,7 +824,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
 
           
@@ -767,7 +955,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
 
           
@@ -867,7 +1055,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -977,7 +1165,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1110,7 +1298,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
 
           
@@ -1197,7 +1385,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:43:13" itemprop="dateModified" datetime="2025-11-17T06:43:13+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1237,194 +1425,6 @@
 <p>而相比用户态的线程，使用协程的一个显著优点是，对用户任务的唤醒实际上相当于执行一次 <code>Future::poll</code>．这意味着，当用户主动让权时，它不需要保存任何上下文——用户任务的唤醒本质上变成了函数调用，而主动让权表示该函数的返回．如此便能够进一步减少用户和内核切换的开销，以及系统中所需执行栈的数量．当然，当用户协程被抢占时，它便回退成了类似线程的有独立执行栈和上下文的存在．</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>经过近两个月的学习，对操作系统和异步编程的许多方面都有了一些相对清晰的认知．非常感谢夏令营中各位老师的付出和历届同学的努力，学习的过程中让我切身的感受到操作系统发展到现在那段波澜壮阔的历史，以及在不断推陈出新的技术潮流中一点微不足道的参与感．尽管最后没能完成目标有些遗憾，不过，这也为将来再次参加夏令营留下了充足的理由 :P</p>
 <!-- dprint-ignore-start -->
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/18/2025s-os-camp-4-summary-noah/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/06/18/2025s-os-camp-4-summary-noah/" class="post-title-link" itemprop="url">2025年春夏开源操作系统训练营四阶段总结-noah-低侵入式的异步协程运行时</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-06-18 23:59:00" itemprop="dateCreated datePublished" datetime="2025-06-18T23:59:00+00:00">2025-06-18</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h2><p>非常高兴能参加到开源操作系统训练营第四阶段的学习，跟大家一起进步。经历完这四个阶段，自己有非常大的收获，让我理解了操作系统内部的运行机制，通过组件化的管理来实现更现代化的操作系统，最终在操作系统中支持异步机制提高操作系统的性能。</p>
-<p>在每周的学习过程中，非常感谢<a href="https://space.bilibili.com/507884048" target="_blank" rel="noopener">向勇老师</a>给与了很多的指导和鼓励，成为了我前进的支柱。同时也要感谢<a href="https://github.com/zjp-CN" target="_blank" rel="noopener">周积萍</a>学长给与了很多帮助和支持以及建设性的意见，让我遇到困难时不迷茫。在第四阶段的过程中，也从其他同学那学到了很多，能便捷的获取到学习资料和代码，当有疑惑了也有人能够理解你，跟你一起深入到技术中进行讨论，那种感觉真是舒服。</p>
-<h2 id="每周工作"><a href="#每周工作" class="headerlink" title="每周工作"></a>每周工作</h2><p>对于一个程序员来说，时间总是不够的，在四周时间里，我主要做了以下几个方面的工作：</p>
-<p><strong>第一周 - 回顾</strong></p>
-<p>当我第一周(2025-06-01)加入训练营的时候，发现去年的学长大佬们已经早早的开始了自己的课题。我就从基础慢慢开始，这周主要是把文档中的例会视频都看了一遍，基本了解了协程异步的作用以及目前是如何把异步应用到操作系统内核当中去的。</p>
-<p><strong>第二周 - 定目标</strong></p>
-<p>在看例会视频的时候，我发现有学长讨论 rust 异步的函数着色问题，碰巧我之前在写 rust 的时候也遇到了这个问题，很多时候一套逻辑代码，要分别实现一个同步版本一个异步版本，从一些学长的代码中看确实是分开写的，比如<a href="https://github.com/AsyncModules/async-os/tree/main/modules" target="_blank" rel="noopener">赵方亮学长的仓库</a>，在 2025-06-07 例会讨论中，有同学在参加 “大学生操作系统大赛” 的时候也遇到了此问题，最近在学习 zig 这门语言，说是能解决这个问题，我便想借着这个机会深入研究下。也是对于函数着色问题的一些自己的尝试，于是便确立了如下目标：</p>
-<ul>
-<li>长期目标：实现低侵入式的异步协程框架，服务于操作系统内核</li>
-<li>本期目标：实现简单的异步协程运行时 (zig)</li>
-</ul>
-<p>后续在调研的过程中，发现 rust 的异步机制，是基于 Future 来实现的，这是一种无栈协程，跟我之前理解的 Go 语言的那种有栈协程还不一样。</p>
-<p><strong>第三周 - 学习和实验</strong></p>
-<p>后续的两个周，主要是学习文档中的异步协程资料，编写实验代码，验证自己的想法。</p>
-<ul>
-<li><p>学习内容</p>
-<ul>
-<li><a href="https://www.less-bug.com/posts/c-implement-a-mini-stackless-coroutine-framework-minico/" target="_blank" rel="noopener">C：实现一个迷你无栈协程框架——Minico</a> - 理解什么是无栈协程</li>
-<li><a href="https://blog.aloni.org/posts/a-stack-less-rust-coroutine-100-loc/" target="_blank" rel="noopener">stack-less rust coroutine 100-loc</a> - 理解 rust 无栈协程</li>
-<li><a href="https://course.rs/advance/async/future-excuting.html" target="_blank" rel="noopener">Rust 圣经 - 手写 Future Runtime</a> - 理解 Waker 机制</li>
-<li><a href="https://web.archive.org/web/20220527113808/https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/supporting-windows" target="_blank" rel="noopener">200 行代码绿色线程</a> - 如何从零实现协程(绿色线程)</li>
-</ul>
-</li>
-<li><p>实验部分</p>
-<p>  基于上面的学习的内容，进行了如下实验来验证想法：</p>
-<ul>
-<li>实现在 zig 中调用 rust 封装的绿色线程任务</li>
-<li>实现基于 Future 的异步运行时 (用 zig 语言)</li>
-<li>用 asm + zig 实现有栈协程切换机制</li>
-</ul>
-</li>
-</ul>
-<p><strong>第四周 - 代码结合</strong></p>
-<ul>
-<li>异步协程运行时 xasync 框架代码编写<ul>
-<li>基本完成跑通简单测例</li>
-<li>同时初步解决了函数着色问题</li>
-</ul>
-</li>
-</ul>
-<p>完成上述四周的工作后，基本实现我在开源操作系统训练营本阶段的目标，符合预期。</p>
-<h2 id="xasync-异步协程运行时"><a href="#xasync-异步协程运行时" class="headerlink" title="xasync 异步协程运行时"></a>xasync 异步协程运行时</h2><h3 id="使用者角度"><a href="#使用者角度" class="headerlink" title="使用者角度"></a>使用者角度</h3><p>我在设计 xasync 异步协程的时候，借鉴了 <a href="https://kristoff.it/blog/zig-colorblind-async-await/" target="_blank" rel="noopener">zig 协程</a> 的设计思路，感觉 zig 协程更容易让使用者理解和减轻负担，那么从使用者的角度出发，什么样的协程用起来才是最舒服的，我认为尽量保持一套代码，只通过一些简单的标记就可以实现同步和异步的切换，是更加友好的协程框架实现方式。下面是我理解的伪代码。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">var is_async &#x3D; true &#x2F;&#x2F; 如果关闭后，底层会走阻塞逻辑</span><br><span class="line"></span><br><span class="line">fn read(file) &#123;</span><br><span class="line">    if (is_async) &#123;</span><br><span class="line">        scheudle(future:run(sys_read(file))) &#x2F;&#x2F; 生成 future，交给 executor 和 eventloop 调度处理</span><br><span class="line">        suspend()</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        sys_read(file)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn long_time_action() &#123;</span><br><span class="line">    read(&quot;large file&quot;)</span><br><span class="line">    sleep(100)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn other_action() &#123;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn main() &#123;</span><br><span class="line">    let frame &#x3D; xasync(long_time_action) &#x2F;&#x2F; 使用者也可以用 xasync 来标记上层代码是异步的</span><br><span class="line">    &#x2F;&#x2F; xawait(frame) &#x2F;&#x2F; 需要等待的时候才等待</span><br><span class="line">    </span><br><span class="line">    other_action()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>通过上面的注释，可以仔细看下调用流程，这是我个人期望的协程框架使用方式的理解。</p>
-<h3 id="架构设计"><a href="#架构设计" class="headerlink" title="架构设计"></a>架构设计</h3><p><img src="https://github.com/osxspace/qhos/blob/main/output/asyncos/xasync.png?raw=true" alt="总体设计图"></p>
-<p>上面是架构设计图，分为前后两部分把 <code>有栈协程</code> 和 <code>无栈协程</code> 结合起来，其中<code>红线理解为前进</code> <code>蓝线理解为返回</code>，比方说协程切换的前进返回、Future poll 前进和状态返回、协程调度的前进和唤醒的返回等。</p>
-<p>目前图中描述的是有三个协程(绿色线程)在需要的场景下不断让出执行权，在异步任务结束后能随时切换到具体的任务上继续执行。这种机制在需要等待返回结果的情况下尤为重要。后续会优化成协程池方便使用。</p>
-<p>下面从测例的角度简单剖析下实现代码和原理。</p>
-<h3 id="Future"><a href="#Future" class="headerlink" title="Future"></a>Future</h3><p><strong>测例代码</strong></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">const Counter &#x3D; struct &#123;</span><br><span class="line">    const Self &#x3D; @This();</span><br><span class="line">    num: u32,</span><br><span class="line">    max: u32,</span><br><span class="line"></span><br><span class="line">    fn init(num: u32, max: u32) Self &#123;</span><br><span class="line">        return .&#123;</span><br><span class="line">            .num &#x3D; num,</span><br><span class="line">            .max &#x3D; max,</span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fn doCount(ctx: *Context) Result &#123;</span><br><span class="line">        const counter &#x3D; @as(*Counter, @ptrCast(@alignCast(ctx.payload)));</span><br><span class="line">        if (counter.num &lt; counter.max) &#123;</span><br><span class="line">            std.debug.print(&quot;counter num &#x3D; &#123;&#125;\n&quot;, .&#123;counter.num&#125;);</span><br><span class="line">            counter.num +&#x3D; 1;</span><br><span class="line">            return .wait;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            return .&#123; .done &#x3D; &amp;counter.num &#125;;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fn doNextCount(result: ?*anyopaque, ctx: *Context) *Future &#123;</span><br><span class="line">        var counter &#x3D; @as(*Counter, @ptrCast(@alignCast(ctx.payload)));</span><br><span class="line"></span><br><span class="line">        const num &#x3D; @as(*u32, @ptrCast(@alignCast(result)));</span><br><span class="line">        const value &#x3D; num.*;</span><br><span class="line"></span><br><span class="line">        counter.num &#x3D; 0;</span><br><span class="line">        counter.max &#x3D; value + 5;</span><br><span class="line"></span><br><span class="line">        return run(Counter.doCount, counter);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">test &quot;counter-chain-done&quot; &#123;</span><br><span class="line">    const allocator &#x3D; std.testing.allocator;</span><br><span class="line"></span><br><span class="line">    var executor &#x3D; Executor.init(allocator);</span><br><span class="line">    defer executor.deinit();</span><br><span class="line"></span><br><span class="line">    var counter &#x3D; Counter.init(0, 5);</span><br><span class="line">    const fut &#x3D; runWithAllocator(allocator, Counter.doCount, &amp;counter).chain(Counter.printNum); &#x2F;&#x2F; 这里支持链式调用</span><br><span class="line"></span><br><span class="line">    executor.schedule(fut);</span><br><span class="line"></span><br><span class="line">    executor.run();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>上面的代码是把一个 Counter 计数器，改成了异步机制，当 num &gt; max 的时候才会终止运行。在实现的时候利用 zig uinon(enum) 的特性，尽量做到了零成本抽象。</p>
-<p><strong>支持组合</strong></p>
-<p>还支持了 Then 组合操作，因为在封装 Future 代码的时候可能要把原有的阻塞代码拆成多个 Future 逐步执行。代码如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">test &quot;counter-chain-counter&quot; &#123;</span><br><span class="line">    const allocator &#x3D; std.testing.allocator;</span><br><span class="line"></span><br><span class="line">    var executor &#x3D; Executor.init(allocator);</span><br><span class="line">    defer executor.deinit();</span><br><span class="line"></span><br><span class="line">    var counter &#x3D; Counter.init(0, 5);</span><br><span class="line">    const fut &#x3D; runWithAllocator(allocator, Counter.doCount, &amp;counter).chain(Counter.doNextCount); &#x2F;&#x2F; 这里支持链式调用</span><br><span class="line"></span><br><span class="line">    executor.schedule(fut);</span><br><span class="line"></span><br><span class="line">    executor.run();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>后续还会在 Future 上进行扩展支持 Join 等更多组合操作。</p>
-<h3 id="Executor"><a href="#Executor" class="headerlink" title="Executor"></a>Executor</h3><p>Executor 中有两个队列：</p>
-<ul>
-<li>ready_queue: std.ArrayList(*Future) - 调度队列，供调用者放入 Future 任务</li>
-<li>futs: std.ArrayList(*Future) - 执行队列，实际调度器处理的 Future 任务</li>
-</ul>
-<p>Future 先是进入到调度队列，如果调度开始执行后，会从调度队列取出任务放入执行队列，这时候执行队列中可能还有其他未完成的任务，当 Future 结束后会从执行队列中移除，如果执行队列中的所有任务都是等待状态，则 Executor 处于 idle 状态，等待 event_loop 唤醒，具体使用方式在上面的测例代码中已体现。</p>
-<p>目前调度策略比较简单，而且没有经过任何优化，后续会不断完善。</p>
-<h3 id="Coroutine-绿色线程"><a href="#Coroutine-绿色线程" class="headerlink" title="Coroutine(绿色线程)"></a>Coroutine(绿色线程)</h3><p>目前已经支持协程间的切换，下面的代码是非对称协程的实现方式：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">var base_coro: Coroutine &#x3D; undefined;</span><br><span class="line">var count_coro: Coroutine &#x3D; undefined;</span><br><span class="line">var count: i32 &#x3D; 1;</span><br><span class="line"></span><br><span class="line">fn addCount() void &#123;</span><br><span class="line">    count +&#x3D; 1;</span><br><span class="line">    base_coro.resumeFrom(&amp;count_coro);</span><br><span class="line">    count +&#x3D; 1;</span><br><span class="line">    base_coro.resumeFrom(&amp;count_coro);</span><br><span class="line">    count +&#x3D; 1;</span><br><span class="line">    base_coro.resumeFrom(&amp;count_coro);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">test &quot;simple counter suspend and resume coroutine&quot; &#123;</span><br><span class="line">    const allocator &#x3D; std.testing.allocator;</span><br><span class="line"></span><br><span class="line">    base_coro &#x3D; try Coroutine.init(allocator, null);</span><br><span class="line">    defer base_coro.deinit();</span><br><span class="line">    count_coro &#x3D; try Coroutine.init(allocator, addCount);</span><br><span class="line">    defer count_coro.deinit();</span><br><span class="line"></span><br><span class="line">    try std.testing.expect(1 &#x3D;&#x3D; count);</span><br><span class="line"></span><br><span class="line">    count_coro.resumeFrom(&amp;base_coro);</span><br><span class="line">    try std.testing.expect(2 &#x3D;&#x3D; count);</span><br><span class="line"></span><br><span class="line">    count_coro.resumeFrom(&amp;base_coro);</span><br><span class="line">    try std.testing.expect(3 &#x3D;&#x3D; count);</span><br><span class="line"></span><br><span class="line">    count_coro.resumeFrom(&amp;base_coro);</span><br><span class="line">    try std.testing.expect(4 &#x3D;&#x3D; count);</span><br><span class="line"></span><br><span class="line">    std.debug.print(&quot;all finished\n&quot;, .&#123;&#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这个测试就是用协程的方式去执行 addCount 所在的 count_coro 协程，在 addCount 中也可以随时切换调用者协程 base_coro，执行原有逻辑。</p>
-<p>还支持了函数参数的传递，在上下文切换的时候，不是两个函数的切换，是通过一个中间函数 <code>call</code>，它会根据汇编传过来的参数指针地址，转换成具体的 *Coroutine，再从其中拿出 func_ptr 和 args_ptr，就相当于中间层转发了一下。从下面的代码看目前参数类型都是定死的，有点牵强，目前够用。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">fn call(coro_ptr_int: u64) void &#123;</span><br><span class="line">    const coro: *Coroutine &#x3D; @ptrFromInt(coro_ptr_int);</span><br><span class="line"></span><br><span class="line">    std.debug.print(&quot;current coro address: 0x&#123;x&#125;\n&quot;, .&#123;@intFromPtr(coro)&#125;);</span><br><span class="line"></span><br><span class="line">    if (coro.frame.func_ptr !&#x3D; null) &#123;</span><br><span class="line">        if (coro.frame.args_ptr !&#x3D; null) &#123;</span><br><span class="line">            const func_ptr &#x3D; @as(*const fn (*const anyopaque) void, @ptrCast(coro.frame.func_ptr.?));</span><br><span class="line">            const args_ptr &#x3D; coro.frame.args_ptr.?;</span><br><span class="line">            func_ptr(args_ptr);</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            const func_ptr &#x3D; @as(*const fn () void, @ptrCast(coro.frame.func_ptr.?));</span><br><span class="line">            func_ptr();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        std.debug.print(&quot;the func pointer is null\n&quot;, .&#123;&#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="Eventloop"><a href="#Eventloop" class="headerlink" title="Eventloop"></a>Eventloop</h3><p>事件响应机制也就是 eventloop (reactor 模型)，其实是所有异步协程实现的底层支持，我甚至认为就算不用异步，只用事件机制和回调的方式也能做到高性能。这一部分在本期训练营并没有深入的去学习，目前只是实现了一个大概。如果这层封装好了，做成一层统一的抽象去处理 epoll、io_uring、iocp、kqueue 以及中断信号量等，也将会有很大的收获，给自己挖个坑，明年把这部分填上。</p>
-<p>eventloop 的核心代码就是用一个循环，不停的调用系统需要等待的函数，等待系统给出响应，这里用的是 epoll_wait，这些系统提供的函数其实在操作系统里面都有自己的实现，一般性能都比较高，而且可以阻塞也可以非阻塞。当系统给出响应后，再触发回调去唤醒 Executor。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">pub fn poll(self: *Self, timeout_ms: i32) !usize &#123;</span><br><span class="line">    try self.events.resize(16); &#x2F;&#x2F; 预分配事件数组，先这么写</span><br><span class="line"></span><br><span class="line">    const n &#x3D; std.posix.epoll_wait(self.epfd, self.events.items, timeout_ms);</span><br><span class="line"></span><br><span class="line">    for (self.events.items[0..n]) |event| &#123;</span><br><span class="line">        const fd &#x3D; event.data.fd;</span><br><span class="line"></span><br><span class="line">        if (self.callbacks.get(fd)) |callback| &#123;</span><br><span class="line">            if (event.events &amp; std.posix.system.EPOLL.IN !&#x3D; 0) &#123;</span><br><span class="line">                var buf: [8]u8 &#x3D; undefined;</span><br><span class="line">                _ &#x3D; std.posix.read(fd, &amp;buf) catch &#123;&#125;; &#x2F;&#x2F; 这里目前只处理了 timer 的情况</span><br><span class="line"></span><br><span class="line">                if (callback.callback_fn) |func| &#123;</span><br><span class="line">                    func(callback.user_data);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    return n;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">pub fn run(self: *Self) !void &#123;</span><br><span class="line">        self.running &#x3D; true;</span><br><span class="line"></span><br><span class="line">        while (self.running) &#123;</span><br><span class="line">            _ &#x3D; try self.poll(100); &#x2F;&#x2F; 100ms 超时</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="整体组合-xasync"><a href="#整体组合-xasync" class="headerlink" title="整体组合 xasync"></a>整体组合 xasync</h3><p>把上面各部分组合起来，看看能不能达到预期效果。</p>
-<p><strong>Timer</strong></p>
-<p>这部分注册一个 TimerHandle 到 event loop 当中。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">const Timer &#x3D; struct &#123;</span><br><span class="line">    const Self &#x3D; @This();</span><br><span class="line"></span><br><span class="line">    handle: TimerHandle,</span><br><span class="line">    completed: bool &#x3D; false,</span><br><span class="line">    waker: ?*const Waker &#x3D; null,</span><br><span class="line"></span><br><span class="line">    fn init(nanoseconds: u64) !Self &#123;</span><br><span class="line">        const handle &#x3D; try TimerHandle.init(&amp;global_event_loop, nanoseconds); &#x2F;&#x2F; 注册给 event_loop</span><br><span class="line">        return .&#123;</span><br><span class="line">            .handle &#x3D; handle,</span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fn deinit(self: *Self) void &#123;</span><br><span class="line">        self.handle.deinit();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    fn timerCompletedCallback(data: ?*anyopaque) void &#123; &#x2F;&#x2F; event_loop 回调</span><br><span class="line">        if (data) |ptr| &#123;</span><br><span class="line">            const timer: *Timer &#x3D; @ptrCast(@alignCast(ptr));</span><br><span class="line">            timer.completed &#x3D; true;</span><br><span class="line">            std.debug.print(&quot;timer callback completed!\n&quot;, .&#123;&#125;);</span><br><span class="line">            if (timer.waker) |waker| &#123;</span><br><span class="line">                waker.wake(); &#x2F;&#x2F; 唤醒</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F; future poll</span><br><span class="line">    fn poll(ctx: *Context) Result &#123;</span><br><span class="line">        const timer: *Timer &#x3D; @ptrCast(@alignCast(ctx.payload));</span><br><span class="line">        if (timer.completed) &#123;</span><br><span class="line">            std.debug.print(&quot;poll timer is completed\n&quot;, .&#123;&#125;);</span><br><span class="line">            return .&#123; .done &#x3D; null &#125;;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            timer.waker &#x3D; ctx.waker;</span><br><span class="line">            return .wait;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p><strong>Sleep</strong></p>
-<p>这部分把 Timer 包装成 Future</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">fn sleep(nanoseconds: u64) void &#123;</span><br><span class="line">    std.debug.print(&quot;sleep comes in\n&quot;, .&#123;&#125;);</span><br><span class="line">    if (!sys_is_block) &#123;</span><br><span class="line">        const timer_ptr &#x3D; global_runtime.allocator.create(Timer) catch unreachable;</span><br><span class="line">        timer_ptr.* &#x3D; Timer.init(nanoseconds) catch unreachable;</span><br><span class="line"></span><br><span class="line">        const callback &#x3D; EventCallback&#123;</span><br><span class="line">            .callback_fn &#x3D; Timer.timerCompletedCallback,</span><br><span class="line">            .user_data &#x3D; timer_ptr,</span><br><span class="line">        &#125;;</span><br><span class="line">        timer_ptr.handle.setCallback(callback) catch unreachable;</span><br><span class="line"></span><br><span class="line">        const timer_fut &#x3D; future.runWithAllocator(global_runtime.allocator, Timer.poll, timer_ptr).chain(struct &#123;</span><br><span class="line">            fn thenFn(_: ?*anyopaque, ctx: *Context) *Future &#123;</span><br><span class="line">                const timer &#x3D; @as(*Timer, @ptrCast(@alignCast(ctx.payload)));</span><br><span class="line">                ctx.allocator.destroy(timer);</span><br><span class="line">                return future.done(null);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;.thenFn);</span><br><span class="line"></span><br><span class="line">        global_runtime.executor.schedule(timer_fut);</span><br><span class="line"></span><br><span class="line">        global_runtime.switchTaskToBase(); &#x2F;&#x2F; 类似 suspend - 这个地方实现还有点歧义</span><br><span class="line">        &#x2F;&#x2F; global_runtime.switchToExecutor(); &#x2F;&#x2F; 如果需要等待返回结果则需要切换到 executor 等待其 resume 回来</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        std.Thread.sleep(nanoseconds);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn delay() void &#123;</span><br><span class="line">    std.debug.print(&quot;delay comes in\n&quot;, .&#123;&#125;);</span><br><span class="line">    sleep(5 * std.time.ns_per_s);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><strong>main</strong></p>
-<p>整合完毕后对于使用者来说，代码如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">xasync(delay);</span><br><span class="line">&#x2F;&#x2F; xawait(); &#x2F;&#x2F; 需要等待的时候开启</span><br><span class="line">std.debug.print(&quot;hello xasync\n&quot;, .&#123;&#125;);</span><br></pre></td></tr></table></figure>
-
-<h3 id="运行效果"><a href="#运行效果" class="headerlink" title="运行效果"></a>运行效果</h3><p><strong>不等待完成</strong></p>
-<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">delay comes <span class="keyword">in</span></span><br><span class="line">sleep comes <span class="keyword">in</span></span><br><span class="line">hello xasync                - 注意这里，没有等待 timer 异步执行结束，而是直接返回</span><br><span class="line">timer callback completed!</span><br><span class="line">poll timer is completed     - 注意这里，timer 结束了</span><br><span class="line">main will quit</span><br><span class="line">event loop quit</span><br></pre></td></tr></table></figure>
-
-<p><strong>等待完成</strong></p>
-<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">delay comes <span class="keyword">in</span></span><br><span class="line">sleep comes <span class="keyword">in</span></span><br><span class="line">timer callback completed!</span><br><span class="line">poll timer is completed</span><br><span class="line">hello xasync                - 注意这里，虽然底层是异步协程执行，但是这里等待 timer 执行完毕才打印</span><br><span class="line">main will quit</span><br><span class="line">event loop quit</span><br></pre></td></tr></table></figure>
-
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>从目前执行效果和 API 的调用方式看符合预期，基本达成了本期的目标：<code>实现简单的异步协程运行时 (zig)</code>，按照这种方式解决<code>函数着色问题</code>是有希望的。</p>
-<p>虽然本期目标基本达成，但是中间学习的过程中还是有很多技术细节没有完全搞懂，有些学习资料没有完全看完，后续还要继续努力。</p>
-<h2 id="后续规划"><a href="#后续规划" class="headerlink" title="后续规划"></a>后续规划</h2><ul>
-<li>参数和返回值的类型支持且能自动推导</li>
-<li>支持线程池 thread pool</li>
-<li>eventloop 完善</li>
-<li>是否后台调度支持用户配置 - 现在需要改代码来实现</li>
-<li>支持 rust 调用</li>
-<li>封装 asyncio</li>
-<li>集成到 arceos/rcore 中</li>
-<li>性能对比测试</li>
-</ul>
-<h2 id="答疑和思考"><a href="#答疑和思考" class="headerlink" title="答疑和思考"></a>答疑和思考</h2><p><strong>为什么要用 zig 写</strong></p>
-<ul>
-<li>没有任何原因，个人偏好，peace &amp; love.</li>
-</ul>
-<p><strong>实现代码在哪里</strong></p>
-<ul>
-<li><a href="https://github.com/osxspace/qhos/tree/main/output/xasync1" target="_blank" rel="noopener">xasync1</a></li>
-</ul>
 
       
     </div>
