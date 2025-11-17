@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="引言这篇博文记录了我在 LearningOS ArceOS 训练仓库中的调试历程：从基础的 ramfs_rename、alt_alloc 练习，到让 CI 里的 simple_hv 能稳定加载 skernel2，再到阶段性验收脚本 verify_lab1.sh。过程中频繁与 GitHub Actions 环境差异、虚拟机退出机制等问题斗智斗勇，现总结如下。 实验环境 仓库与分支：LearningO">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ArceOS_test_report_blog-Shl1015CS">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/11/15/ArceOS-test-report-blog/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="引言这篇博文记录了我在 LearningOS ArceOS 训练仓库中的调试历程：从基础的 ramfs_rename、alt_alloc 练习，到让 CI 里的 simple_hv 能稳定加载 skernel2，再到阶段性验收脚本 verify_lab1.sh。过程中频繁与 GitHub Actions 环境差异、虚拟机退出机制等问题斗智斗勇，现总结如下。 实验环境 仓库与分支：LearningO">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-11-15T17:23:23.000Z">
+<meta property="article:modified_time" content="2025-11-17T06:42:30.364Z">
+<meta property="article:author" content="rcore-os Group">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/11/15/ArceOS-test-report-blog/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>ArceOS_test_report_blog-Shl1015CS | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#引言"><span class="nav-number">1.</span> <span class="nav-text">引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实验环境"><span class="nav-number">2.</span> <span class="nav-text">实验环境</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#任务拆解与进展"><span class="nav-number">3.</span> <span class="nav-text">任务拆解与进展</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-print-with-color：确认基础输出能力"><span class="nav-number">3.1.</span> <span class="nav-text">1. print_with_color：确认基础输出能力</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-support-hashmap：验证-alloc-集合"><span class="nav-number">3.2.</span> <span class="nav-text">2. support_hashmap：验证 alloc+集合</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-sys-map：实现用户态-mmap"><span class="nav-number">3.3.</span> <span class="nav-text">3. sys_map：实现用户态 mmap</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-ramfs-rename：递归重命名与特殊路径"><span class="nav-number">3.4.</span> <span class="nav-text">4. ramfs_rename：递归重命名与特殊路径</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-alt-alloc：早期堆分配器"><span class="nav-number">3.5.</span> <span class="nav-text">5. alt_alloc：早期堆分配器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-simple-hv：CI-环境无法加载-skernel2"><span class="nav-number">3.6.</span> <span class="nav-text">6. simple_hv：CI 环境无法加载 skernel2</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-verify-lab1-sh：阶段验收"><span class="nav-number">3.7.</span> <span class="nav-text">7. verify_lab1.sh：阶段验收</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">738</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">69</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">644</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/15/ArceOS-test-report-blog/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          ArceOS_test_report_blog-Shl1015CS
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-15 17:23:23" itemprop="dateCreated datePublished" datetime="2025-11-15T17:23:23+00:00">2025-11-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>这篇博文记录了我在 LearningOS ArceOS 训练仓库中的调试历程：从基础的 <code>ramfs_rename</code>、<code>alt_alloc</code> 练习，到让 CI 里的 <code>simple_hv</code> 能稳定加载 <code>skernel2</code>，再到阶段性验收脚本 <code>verify_lab1.sh</code>。过程中频繁与 GitHub Actions 环境差异、虚拟机退出机制等问题斗智斗勇，现总结如下。</p>
+<h2 id="实验环境"><a href="#实验环境" class="headerlink" title="实验环境"></a>实验环境</h2><ul>
+<li><strong>仓库与分支</strong>：LearningOS/2025a-arceos-Shl1015CS 的 <code>main</code>（练习）与 <code>lab1</code>（挑战）</li>
+<li><strong>宿主机</strong>：Ubuntu 22.04，rustup stable toolchain</li>
+<li><strong>QEMU</strong>：<code>qemu-system-riscv64</code></li>
+</ul>
+<h2 id="任务拆解与进展"><a href="#任务拆解与进展" class="headerlink" title="任务拆解与进展"></a>任务拆解与进展</h2><h3 id="1-print-with-color：确认基础输出能力"><a href="#1-print-with-color：确认基础输出能力" class="headerlink" title="1. print_with_color：确认基础输出能力"></a>1. <code>print_with_color</code>：确认基础输出能力</h3><ul>
+<li>目标：让 <code>print_with_color</code> 示例在串口中输出带 ANSI 颜色的 “Hello, Arceos!”。</li>
+<li>方法：直接在 <code>main.rs</code> 中使用 <code>println!(&quot;\x1b[1;31m...&quot;)</code>，并确保 <code>axstd</code> 打印宏可用。</li>
+<li>测试：运行 <code>./scripts/test-print.sh</code>，脚本通过检测转义序列与纯文本，判断是否既有颜色又有正确文案。</li>
+</ul>
+<h3 id="2-support-hashmap：验证-alloc-集合"><a href="#2-support-hashmap：验证-alloc-集合" class="headerlink" title="2. support_hashmap：验证 alloc+集合"></a>2. <code>support_hashmap</code>：验证 alloc+集合</h3><ul>
+<li>目标：在内核环境下跑 <code>support_hashmap</code> 练习，完成 <code>Memory tests run OK!</code>。</li>
+<li>关键点：提供稳定的堆内存来源，让 <code>alloc::collections::HashMap</code> 能频繁插入/删除。</li>
+<li>测试：<code>./scripts/test-support_hashmap.sh</code> 构建磁盘镜像、运行练习并抓取最后一行输出，确保内存测试通过。</li>
+</ul>
+<h3 id="3-sys-map：实现用户态-mmap"><a href="#3-sys-map：实现用户态-mmap" class="headerlink" title="3. sys_map：实现用户态 mmap"></a>3. <code>sys_map</code>：实现用户态 <code>mmap</code></h3><ul>
+<li>目标：补全 <code>exercises/sys_map</code> 的系统调用接口，使用户态程序能够通过 <code>mmap</code> 映射文件，并读回 “hello, arceos!”。</li>
+<li>难点：<ul>
+<li>在内核侧为匿名/文件映射分配虚拟地址，维护 <code>VmArea</code> 元数据；</li>
+<li>当 <code>fd</code> 指向磁盘文件时，需将 payload（<code>payload/mapfile_c/mapfile</code>）写入 <code>disk.img</code> 并供客体访问；</li>
+<li>处理 <code>munmap</code> 与页对齐要求。</li>
+</ul>
+</li>
+<li>测试：<code>./scripts/test-sys_map.sh</code> 会先执行 <code>make payload &amp;&amp; ./update_disk.sh ...</code>，再以 <code>BLK=y</code> 运行练习并搜索 “Read back content: hello, arceos!”。</li>
+</ul>
+<h3 id="4-ramfs-rename：递归重命名与特殊路径"><a href="#4-ramfs-rename：递归重命名与特殊路径" class="headerlink" title="4. ramfs_rename：递归重命名与特殊路径"></a>4. <code>ramfs_rename</code>：递归重命名与特殊路径</h3><ul>
+<li><code>axfs_ramfs</code> 的 <code>DirNode::rename</code> 仅支持同级结点，需要实现跨层级、处理 <code>.</code> <code>..</code> 的逻辑。</li>
+<li>解决方案：在 <code>modules/axfs/src/root.rs</code> 中实现“复制 + 删除”策略，保证旧结点被正确删除并保留内容。</li>
+<li>同时排查 <code>impl_vfs_dir_default!</code> 宏覆盖自定义实现的问题，最后确认修改入口正确。</li>
+</ul>
+<h3 id="5-alt-alloc：早期堆分配器"><a href="#5-alt-alloc：早期堆分配器" class="headerlink" title="5. alt_alloc：早期堆分配器"></a>5. <code>alt_alloc</code>：早期堆分配器</h3><ul>
+<li>要求实现 <code>modules/alt_axalloc/src/bump_allocator.rs</code> 中的 <code>EarlyAllocator</code>。</li>
+<li>重点在于字节对齐、页分配接口实现与统计函数（<code>total_bytes/used_bytes/available_bytes</code>）。</li>
+<li>通过 <code>cargo test -p alt_axalloc</code> 与 <code>./scripts/test-alt_alloc.sh</code> 验证，确保早期分配器可用于内核初始化阶段。</li>
+</ul>
+<h3 id="6-simple-hv：CI-环境无法加载-skernel2"><a href="#6-simple-hv：CI-环境无法加载-skernel2" class="headerlink" title="6. simple_hv：CI 环境无法加载 skernel2"></a>6. <code>simple_hv</code>：CI 环境无法加载 <code>skernel2</code></h3><p>这是整个阶段最耗时的部分，核心需求：让 GitHub Actions 中的 <code>./scripts/test-simple_hv.sh</code> 通过。</p>
+<h3 id="7-verify-lab1-sh：阶段验收"><a href="#7-verify-lab1-sh：阶段验收" class="headerlink" title="7. verify_lab1.sh：阶段验收"></a>7. <code>verify_lab1.sh</code>：阶段验收</h3><ul>
+<li>命令：<code>cd arceos &amp;&amp; ./verify_lab1.sh | tee tmpa.txt</code></li>
+<li>该脚本会重新生成镜像、构建 <code>labs/lab1</code>，并在 QEMU 中运行效验。</li>
+<li>当前阻塞点：<code>lab_allocator</code> 中的 <code>LabByteAllocator</code> 尚未实现，导致 <code>panicked at labs/lab_allocator/src/lib.rs:20:9</code>。后续计划完善 bump allocator 以便完成 lab1。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/11/10/os-camp-blog/" rel="prev" title="os-camp-blog">
+      <i class="fa fa-chevron-left"></i> os-camp-blog
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/11/16/2025fall-stage3-summary-ljy/" rel="next" title="2025fall-stage3-summary-ljy">
+      2025fall-stage3-summary-ljy <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

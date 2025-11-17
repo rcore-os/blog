@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">737</span>
+          <span class="site-state-item-count">738</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,76 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/30/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90os%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%82%B5%E5%8D%93%E7%82%9C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/06/30/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90os%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%82%B5%E5%8D%93%E7%82%9C/" class="post-title-link" itemprop="url">第四阶段总结-邵卓炜</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-06-30 22:23:12" itemprop="dateCreated datePublished" datetime="2025-06-30T22:23:12+00:00">2025-06-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="基于Iouring的异步运行时"><a href="#基于Iouring的异步运行时" class="headerlink" title="基于Iouring的异步运行时"></a>基于Iouring的异步运行时</h3><p>我首先选择完成的任务是<a href="https://github.com/Shao-ZW/kunio" target="_blank" rel="noopener">基于iouring的用户态异步运行时</a>，支持常见的文件和网络（Tcp）io。在我的实践经历来看，构建一个高性能的用户态异步运行时，就像是在应用程序内部再造了一个微型的操作系统，它接管了传统上由内核负责的部分调度和I/O管理职责，目的是为了消除内核/用户态切换的开销，并最大化I/O吞吐量。</p>
+<p>为了实现的简单，我选择了thread-per-core 的任务调度模型。简单来说，thread-per-core可以理解为每个CPU核心分配一个独立的执行线程，每个线程（每个核心）都拥有自己的任务队列。当一个异步任务被提交时，它会被放入相应核心的任务队列中。这种设计有几个优势，一是减少竞争，由于每个线程操作自己的队列，线程间避免了共享锁的开销；二是缓存友好：任务和数据在特定核心上处理，能更好地利用CPU缓存，减少缓存失效，提高数据访问速度；三是不需要对每个任务有Send的限制。</p>
+<p>IO接口的异步封装，负责与将os暴露的io接口改造成rust async/await异步语法的形式。传统的I/O模型（如 select, poll, epoll）虽然是非阻塞的，但它们本质上是“事件通知”模型——通知你有事件发生了，你再去读取数据。这依然涉及用户态和内核态之间的多次上下文切换。io_uring 则是提供了更为本质的异步io接口，一种全新的提交-完成模型————队列 (SQ)：用户态应用程序将各种I/O操作（如文件读写、网络套接字的发送接收等）封装成请求，批量地放入一个共享的内核提交队列中;完成队列 (CQ)：内核处理完这些I/O请求后，会将结果（成功与否、处理了多少字节等）批量地放入另一个共享的内核完成队列中。应用程序只需定期检查这个完成队列，就能得知哪些I/O操作已经完成，以及它们的结果。</p>
+<h3 id="无锁ringbuffer-BBQ"><a href="#无锁ringbuffer-BBQ" class="headerlink" title="无锁ringbuffer BBQ"></a>无锁ringbuffer BBQ</h3><p>为了进一步优化我们比赛的OS内核的任务队列，我选择参考BBQ paper实现的<a href="https://github.com/Shao-ZW/bbring" target="_blank" rel="noopener">无锁ringbuffer</a>，虽然最终性能并不理想，但实现该结构是一个很有趣的历程。大多数lock-free ringbuffer基于version+idx组成的 Atmoicusize 作为头尾指针，并通过loop + CAS方式更新头尾指针，version主要用于解决ABA问题；而BBQ通过将数组分块，头尾指针变为头尾块指针，并且在每个块的内部额外维护2个指针（allocated/reserved）以及2个计数（committed/consumed），一个显然的好处是头节点可以直接通过FAA指令获取分配位置。我对我实现的bbq进行了性能测试，目前实现的BBQ的性能表现非常糟糕，对比crossbeam-arrayqueue，尤其在SPMC、MPMC场景下吞吐差距在10倍以上甚至更多。并且我在实践中认为算法本身还有些边缘情形处理的问题，感兴趣的同学可移步<a href="https://github.com/Shao-ZW/bbring/discussions/1" target="_blank" rel="noopener">讨论区</a>。无锁的设计总是“危险”而精妙的，哪怕论文给出算法伪代码，实现的过程依然是相当曲折的，内存序的问题，aba问题，以及如何调整测试复现特定的bug，这个过程只有踩过坑才能知道痛。</p>
+<h3 id="os内核赛中组件化和异步化尝试"><a href="#os内核赛中组件化和异步化尝试" class="headerlink" title="os内核赛中组件化和异步化尝试"></a>os内核赛中组件化和异步化尝试</h3><p>关于我们的<a href="https://github.com/greatbridf/osdev" target="_blank" rel="noopener">比赛内核</a>，我和我的队友在原先宏内核的基础上做了大量的改动，内容聚焦在组件化拆分以及异步化改造，前者主要集中在工作量上的庞大，如果确定好组件的依赖，如何设计出合适接口，这都需要仔细考量；异步化的改造客观来说工作量也很大，这是async传染性带来的必然，（如果重头构建一个异步内核可能相对好点），所以说目前我们为了必然大范围的传染性，会使用block_on语义的函数做一个暂时解决方案。异步os一个大的优势是不需要对每个task分配内核栈，这确实会节约相当大的内存开销，但任务异步化引入的问题之一就是内核抢占，2024届内核赛获奖内核<a href="https://gitlab.eduxiji.net/educg-group-26010-2376550/T202418123993075-2940" target="_blank" rel="noopener">Phoenix</a>给出的解决方案是通过设置抢占标志允许至多一次的内核抢占，这是一个不错的方案，但通用性能否做的更好一点呢？或许早先组会上听到有无栈的结合是最佳的解决方案，但由于内核比赛测试临近，最近的工作在不停的修syscall，暂时没时间研究，希望能在决赛时拿出我们认为优秀的解决方案。</p>
+<p>相关参考资料<br>monoio设计介绍[<a href="https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html]" target="_blank" rel="noopener">https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html]</a><br>iouring介绍[<a href="https://arthurchiao.art/blog/intro-to-io-uring-zh/]" target="_blank" rel="noopener">https://arthurchiao.art/blog/intro-to-io-uring-zh/]</a><br>BBQ论文[<a href="https://www.usenix.org/conference/atc22/presentation/wang-jiawei]" target="_blank" rel="noopener">https://www.usenix.org/conference/atc22/presentation/wang-jiawei]</a><br>AsyncOs[<a href="https://asyncos.github.io]">https://asyncos.github.io]</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/22/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Wanderlust/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +334,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
 
           
@@ -494,7 +564,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
 
           
@@ -566,7 +636,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:55" itemprop="dateModified" datetime="2025-11-17T04:57:55+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
 
           
@@ -697,7 +767,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:55" itemprop="dateModified" datetime="2025-11-17T04:57:55+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
 
           
@@ -797,7 +867,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -907,7 +977,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1040,7 +1110,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
 
           
@@ -1127,7 +1197,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1217,7 +1287,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-17 06:42:30" itemprop="dateModified" datetime="2025-11-17T06:42:30+00:00">2025-11-17</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1355,94 +1425,6 @@
 <ul>
 <li><a href="https://github.com/osxspace/qhos/tree/main/output/xasync1" target="_blank" rel="noopener">xasync1</a></li>
 </ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/18/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A54%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%98%8E%E6%89%AC/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/06/18/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A54%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%98%8E%E6%89%AC/" class="post-title-link" itemprop="url">2025春夏开源操作系统训练营4阶段总结-明扬</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-06-18 22:33:44" itemprop="dateCreated datePublished" datetime="2025-06-18T22:33:44+00:00">2025-06-18</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 04:57:54" itemprop="dateModified" datetime="2025-11-17T04:57:54+00:00">2025-11-17</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="中断驱动的协程异步网络-在ArceOS中实现"><a href="#中断驱动的协程异步网络-在ArceOS中实现" class="headerlink" title="中断驱动的协程异步网络 - 在ArceOS中实现"></a>中断驱动的协程异步网络 - 在ArceOS中实现</h1><h2 id="一、背景"><a href="#一、背景" class="headerlink" title="一、背景"></a>一、背景</h2><p>时间过的飞快，转眼间，训练营四阶段已经迎来尾声。<br>我由于去年已经参加过一届训练营，所以本次我提前一个月晋级到了四阶段，与向勇老师确定了我的课题方向：“中断驱动的协程异步网络”。<br>在后续周会的沟通中，向老师也给了我更具挑战性的目标：“在VisionFive2开发板上验证我的工作”。</p>
-<h2 id="二、历程"><a href="#二、历程" class="headerlink" title="二、历程"></a>二、历程</h2><p>在四阶段，我主要完成了以下几个里程碑：</p>
-<h3 id="Rust异步运行时"><a href="#Rust异步运行时" class="headerlink" title="Rust异步运行时"></a>Rust异步运行时</h3><p>因为我之前曾经在工作中编写过面向 WASM 平台的 Rust 异步运行时，所以第一个里程碑并没有花掉我太多时间。<br>为了给自己增加一些挑战，我还额外实现了常见的异步运行时辅助数据结构与函数，如：<code>mutex</code>，<code>spawn</code>, <code>block_on</code>, <code>join</code> 等。</p>
-<h3 id="异步版本的网络操作"><a href="#异步版本的网络操作" class="headerlink" title="异步版本的网络操作"></a>异步版本的网络操作</h3><p>在完成 Rust 异步运行时后，我便开始着手实现异步版本的网络API。<br>我为所有网络操作中包含<code>block_on</code>的函数都编写了异步版本，并实现了网络操作的异步化。其中包括:</p>
-<ul>
-<li><code>socket.recv_async()</code></li>
-<li><code>socket.send_async()</code></li>
-<li><code>socket.accept_async()</code></li>
-<li><code>socket.connect_async()</code></li>
-</ul>
-<h3 id="PLIC中断驱动的Future唤醒"><a href="#PLIC中断驱动的Future唤醒" class="headerlink" title="PLIC中断驱动的Future唤醒"></a>PLIC中断驱动的Future唤醒</h3><p>实现以上异步网络操作后，网络异步仍然是以Poll驱动的，而不是以真实的物理世界事件驱动的。<br>为了实现真正的异步网络，我需要实现一个中断驱动的Future唤醒机制。<br>在 RISC-V 架构中，PLIC 是中断控制器，可以用于实现中断驱动的Future唤醒机制。<br>我为 ArceOS 移植了 PLIC 驱动，并实现了 VirtIO-Net 设备的 PLIC 中断驱动的 Future 唤醒机制。</p>
-<h3 id="将ArceOS移植到VisionFive2开发板"><a href="#将ArceOS移植到VisionFive2开发板" class="headerlink" title="将ArceOS移植到VisionFive2开发板"></a>将ArceOS移植到VisionFive2开发板</h3><p>在完成以上工作后，距离训练营结束仍然有一个半月的时间。这次组会中，向老师给了我一个更具挑战性的目标：将 ArceOS 移植到 VisionFive2 开发板，并在 VisionFive2 开发板上验证我的工作。我也就正式开始了移植工作。<br>开发板板载了 u-boot 和 OpenSBI v1.2，我可以直接从 u-boot 启动 ArceOS。<br>幸好我手中还有 jTag 调试器，向老师也给我提供了其他前辈同学的移植经验。<br>感谢萧络元同学的代码仓库，我很快便完成了 ArceOS 的移植。<br>VF2 开发版与常见 RISC-V 开发版有些许不同，例如：<br>    * S 态可用内存起点为 0x4000_0000 而不是 0x8000_0000<br>    * OpenSBI v1.2 支持 SBI v1.0 规范，但未实现 Console Extension。所以日志打印时需要使用 Legacy Console API。<br>以及 u-boot 启动与 Qemu 启动也有些差异，现代镜像打包时更多采用 itb 格式，同时将 dtb 打包进 itb 中。<br>总的来说，移植工作并不算太难，但是当系统无法加载又没有任何日志输出的时候，还是需要些裸机的调试手段，例如直接通过汇编调用串口打印，或者 sbi call 字符打印来确定程序执行到了哪里，是否进入内核代码。</p>
-<h3 id="为VisionFile2启用中断驱动的异步网络"><a href="#为VisionFile2启用中断驱动的异步网络" class="headerlink" title="为VisionFile2启用中断驱动的异步网络"></a>为VisionFile2启用中断驱动的异步网络</h3><p>在完成 ArceOS 的移植后，我便开始着手为 VisionFive2 开发板编写网卡驱动，启用中断功能，复现我在 Qemu 中完成的功能。这是本次训练营中我遇到的最大挑战。<br>首先，启动真实的网卡设备异常复杂，需要按顺序依次启动不下10个时钟信号与复位信号。<br>然后，VF2 平台使用的网络设备为 dwmac-5.2，参考 Linux 内核中驱动实现时，其历史悠久，代码量庞大，支持功能多且复杂，兼容设备多，还需要兼容多个平台和历史版本，硬啃 Linux 内核驱动代码基本上不太现实。<br>在必要时候还需要配合 PHY 芯片的同步配置，与设备寄存器交互通过 MMIO 映射，而与 PHY 芯片交互则需要通过 MDIO 总线，Clause 22/45 协议。</p>
-<p>同时还需要学习众多的 MMIO 寄存器偏移量，与每个 bit 对应的功能含义，了解 GMAC/DMA/MTL/PHY 相关寄存器。<br>也学习了 ring buffer 的实现，以及如何使用 ring buffer 实现网络数据收发。</p>
-<p>最终我还是没能在 VF2 平台开启中断功能，根据与厂家工程师的交流，PHY 芯片中断引脚并未接入 PLIC 中断控制器，所以无法使用 PLIC 中断驱动网络功能。</p>
-<p>遗憾未能亲眼见到自己的工作在真实硬件上运行，但是通过本阶段的学习，我还是学到了海量的知识。</p>
-<h2 id="三、总结"><a href="#三、总结" class="headerlink" title="三、总结"></a>三、总结</h2><p>通过本次训练营，我弥补了我知识体系中的许多空白，包括：</p>
-<ul>
-<li>PLIC 中断控制器</li>
-<li>网卡驱动</li>
-<li>U-Boot 运作原理</li>
-<li>真实硬件是如何运作的</li>
-</ul>
-<h2 id="四、致谢"><a href="#四、致谢" class="headerlink" title="四、致谢"></a>四、致谢</h2><p>感谢向勇、陈渝老师，以及所有帮助过我的老师和同学。</p>
 
       
     </div>
