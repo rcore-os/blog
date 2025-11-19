@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">740</span>
+          <span class="site-state-item-count">741</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,131 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/02/arceos-summary-Blankke/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/02/arceos-summary-Blankke/" class="post-title-link" itemprop="url">arceos-summary-Blankke</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-02 15:05:13" itemprop="dateCreated datePublished" datetime="2025-11-02T15:05:13+00:00">2025-11-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/handnote/" itemprop="url" rel="index"><span itemprop="name">handnote</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <a id="more"></a>
+
+<h1 id="学习总结-Blankke"><a href="#学习总结-Blankke" class="headerlink" title="学习总结 - Blankke"></a>学习总结 - Blankke</h1><p>rcore与arceOS可以理解成两种不同思路编写而来的内核，而内核基本原理上估计是不会有太大区别的。<br>抱着这样的想法，三阶段只给了3周的时间，我就直接上了。<br>因为内核赛的时候基本上是整个内核都写了一遍，除了文件系统是调ext4库了没有太管里面怎么实现的，其他的原理明白了做起来还是挺快的。<br>我不知道有什么荣誉准则要求，这话说起来其实挺不好的，但是我的准则是不管copy还是llm生成，只要我觉得下一次遇到一样的问题我能一眼看出来用这个方法解决，那我就觉得这个学习是有效的。<br>所以这次的arceOS学习我也是抱着这样的态度去做的，并且内核的学习实际上最重要的部分可能更是在于解决问题，也就是在针对特定问题的排查思路上。</p>
+<h1 id="rcore"><a href="#rcore" class="headerlink" title="rcore"></a>rcore</h1><p>rcore部分我本身没有记录很多，只记了一些学习rust的时候的笔记，毕竟rcore的代码量实在是太大了，想要全部理解需要花费大量时间。然后在完成练习的时候我还不知道要写blog，所以只有一点点感悟和笔记。</p>
+<h2 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h2><h3 id="为什么在-TaskManager-中添加方法而不是直接返回-TaskControlBlock"><a href="#为什么在-TaskManager-中添加方法而不是直接返回-TaskControlBlock" class="headerlink" title="为什么在 TaskManager 中添加方法而不是直接返回 TaskControlBlock"></a>为什么在 TaskManager 中添加方法而不是直接返回 TaskControlBlock</h3><p>这确实是 Rust 所有权系统的限制，与 C++ 有本质区别：<br><strong>Rust 所有权问题：</strong></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 这样的设计在 Rust 中是不可能的：</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">get_current_task_mut</span></span>(&amp;<span class="keyword">self</span>) -&gt; &amp;<span class="keyword">mut</span> TaskControlBlock &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.exclusive_access();</span><br><span class="line">    <span class="keyword">let</span> current = inner.current_task;</span><br><span class="line">    &amp;<span class="keyword">mut</span> inner.tasks[current]  <span class="comment">// ❌ 编译错误！</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>inner 是一个临时变量，当函数返回时会被销毁</li>
+<li>返回的 <code>&amp;mut TaskControlBlock</code> 引用了inner的内容</li>
+<li>Rust 编译器检测到”悬垂引用”（dangling reference）问题</li>
+</ul>
+<p><strong>C++ vs Rust</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C++ 可以这样做（自己管理）</span></span><br><span class="line"><span class="function">TaskControlBlock&amp; <span class="title">TaskManager::getCurrentTask</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">auto</span> lock = inner.lock();</span><br><span class="line">    <span class="keyword">return</span> tasks[current_task];  <span class="comment">// 返回引用，但锁可能已释放</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust 强制我们使用更安全的封装方法</span></span><br><span class="line"><span class="keyword">impl</span> TaskManager &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">increment_current_syscall_count</span></span>(&amp;<span class="keyword">self</span>, syscall_id: <span class="built_in">usize</span>) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> inner = <span class="keyword">self</span>.inner.exclusive_access();  <span class="comment">// 获取锁</span></span><br><span class="line">        <span class="keyword">let</span> current = inner.current_task;</span><br><span class="line">        inner.tasks[current].increment_syscall_count(syscall_id);</span><br><span class="line">        <span class="comment">// 锁在这里自动释放</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Clone-trait-和-new-方法的关系"><a href="#Clone-trait-和-new-方法的关系" class="headerlink" title="Clone trait 和 new 方法的关系"></a>Clone trait 和 new 方法的关系</h3><ul>
+<li><strong>Copy</strong>：浅拷贝，按位复制，用于简单类型（如整数）</li>
+<li><strong>Clone</strong>：深拷贝，可能涉及堆内存分配，用于复杂类型<br>但添加 Vec&lt;(usize, usize)&gt; 后：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskControlBlock</span></span> &#123;</span><br><span class="line">    <span class="keyword">pub</span> syscall_counts: <span class="built_in">Vec</span>&lt;(<span class="built_in">usize</span>, <span class="built_in">usize</span>)&gt;,  <span class="comment">// Vec 不能实现 Copy</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">let</span> vec1 = <span class="built_in">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];  <span class="comment">// 在堆上分配内存</span></span><br><span class="line"><span class="keyword">let</span> vec2 = vec1;           <span class="comment">// 如果是 Copy，会有两个指针指向同一块内存</span></span><br><span class="line"><span class="comment">// 当 vec1 和 vec2 都被销毁时，会导致 double free！</span></span><br></pre></td></tr></table></figure>
+原来的初始化方式不再适用：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 旧代码 - 数组字面量初始化</span></span><br><span class="line"><span class="keyword">let</span> tasks = [TaskControlBlock &#123;</span><br><span class="line">    task_cx: TaskContext::zero_init(),</span><br><span class="line">    task_status: TaskStatus::UnInit,</span><br><span class="line">&#125;; MAX_APP_NUM];  <span class="comment">// ❌ 需要 Copy trait</span></span><br></pre></td></tr></table></figure>
+新的初始化方式：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 新代码 - 使用 core::array::from_fn</span></span><br><span class="line"><span class="keyword">let</span> tasks: [TaskControlBlock; MAX_APP_NUM] = core::array::from_fn(|_| &#123;</span><br><span class="line">    TaskControlBlock::new(TaskContext::zero_init(), TaskStatus::UnInit)</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<h2 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h2><p>主要新建的函数有</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Translate a user pointer to a mutable reference</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">translate_user_ptr</span></span>&lt;T&gt;(ptr: *<span class="keyword">mut</span> T) -&gt; <span class="built_in">Option</span>&lt;&amp;<span class="symbol">'static</span> <span class="keyword">mut</span> T&gt; &#123;</span><br><span class="line">    TASK_MANAGER.translate_user_ptr(ptr)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/// Translate a user pointer to a reference</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">translate_user_ptr_readonly</span></span>&lt;T&gt;(ptr: *<span class="keyword">const</span> T) -&gt; <span class="built_in">Option</span>&lt;&amp;<span class="symbol">'static</span> T&gt; &#123;</span><br><span class="line">    TASK_MANAGER.translate_user_ptr_readonly(ptr)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>内部使用页表进行翻译，获得的（可变）引用可以用unsafe的类指针操作直接修改内存。<br>mmap的实现与cpp的方法无异，只是对应的层级是task层，由taskmanager调用获取当前的task，当前的task使用mmap，所以mmap是task的类方法。</p>
+<h1 id="ArceOS"><a href="#ArceOS" class="headerlink" title="ArceOS"></a>ArceOS</h1><h2 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h2><h3 id="T1-print-with-color"><a href="#T1-print-with-color" class="headerlink" title="T1 print-with-color"></a>T1 print-with-color</h3><p>这个看了一下，可以在log层打印，也可以直接改std。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">arch = riscv64</span><br><span class="line">platform = riscv64-qemu-virt</span><br><span class="line">target = riscv64gc-unknown-none-elf</span><br><span class="line">smp = 1</span><br><span class="line">build_mode = release</span><br><span class="line">log_level = warn</span><br></pre></td></tr></table></figure>
+<p>像这种信息就是在log层里打出来的，如果修改axlog模块的lib.rs，那么这些打印信息就会变色</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// axlog/lib.rs</span></span><br><span class="line"><span class="comment">/// Prints to the console, with a newline.</span></span><br><span class="line"><span class="meta">#[macro_export]</span></span><br><span class="line"><span class="built_in">macro_rules!</span> ax_println &#123;</span><br><span class="line">    () =&gt; &#123; $crate::ax_print!(<span class="string">"\n"</span>) &#125;;</span><br><span class="line">    ($($arg:tt)*) =&gt; &#123;</span><br><span class="line">        $crate::__print_impl($crate::with_color!(</span><br><span class="line">            $crate::ColorCode::BrightGreen,</span><br><span class="line">            <span class="string">"&#123;&#125;\n"</span>,</span><br><span class="line">            <span class="built_in">format_args!</span>($($arg)*)</span><br><span class="line">        ));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>但是根据题目要求，我们打印的那句话其实是axstd里面的，所以我其实只在这个macro.rs里添加了色号就可以了。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Prints to the standard output, with a newline.</span></span><br><span class="line"><span class="meta">#[macro_export]</span></span><br><span class="line"><span class="built_in">macro_rules!</span> println &#123;</span><br><span class="line">    () =&gt; &#123; $crate::<span class="built_in">print!</span>(<span class="string">"\n"</span>) &#125;;</span><br><span class="line">    ($($arg:tt)*) =&gt; &#123;</span><br><span class="line">        $crate::io::__print_impl(<span class="built_in">format_args!</span>(<span class="string">"\u&#123;1B&#125;[92m&#123;&#125;\u&#123;1B&#125;[m\n"</span>, <span class="built_in">format_args!</span>($($arg)*)));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这是绿色</p>
+<h3 id="T2-support-hashmap"><a href="#T2-support-hashmap" class="headerlink" title="T2 support-hashmap"></a>T2 support-hashmap</h3><p>在axstd等组件中，支持collections::HashMap<br>先读了一下axstd，原本的情况是这样的</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="keyword">use</span> alloc::&#123;boxed, collections, format, string, vec&#125;;</span><br></pre></td></tr></table></figure>
+<p>这里有一个collections，是从alloc模块过来的，那么实际上是标准库里的（我认为就是内核环境不支持标准库的哈希表），所以要替换成一个自己实现的HashMap。<br>上网查了一下hashbrown是一个常用的哈希表实现(hashbrown n. 薯饼)，所以添加了依赖，用这现成的模块。</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">axhal</span> = &#123; workspace = <span class="literal">true</span> &#125;</span><br><span class="line"><span class="attr">hashbrown</span> = &#123; version = <span class="string">"0.14"</span>, default-features = <span class="literal">false</span> &#125;</span><br></pre></td></tr></table></figure>
+<p>接下来就是在axstd/src里面添加一个collection.rs然后将对应使用过的函数都用hashbrown进行对应实现就可以了。注意new()一定需要有对应的实现否则报错找不到。</p>
+<h3 id="T3-bump-allocator"><a href="#T3-bump-allocator" class="headerlink" title="T3 bump-allocator"></a>T3 bump-allocator</h3><p>这个很简单。<br>当时内核赛的时候瞎装了一万个分配器到自己的内核中，经过痛苦的阅读代码后了解过buddy、slab、liballocator的分配原理，这个bump分配器简单看一下原理似乎是堆分配器。然后需要实现页分配以及细粒度的字节分配，也就是多层级的分配。那就跟linux的slab&amp;buddy的做法差不多了。<br>代码中todo写的很明确，每一步需要干什么，不会漏掉隐秘的细节，不像当初写内核一样自己出一堆找不到的bug在后面回来找。</p>
+<h3 id="T4-rename-for-ramfs"><a href="#T4-rename-for-ramfs" class="headerlink" title="T4 rename-for-ramfs"></a>T4 rename-for-ramfs</h3><p>ramfs就是一个最基础的文件系统，不需要回写，不需要驱动，基本上意思就是在内存里进行书写，关机后不会存下来，这个rename也不会再下次开机后保存下来。<br>学习正常的rename，以前从没看过底层的inode操作，都是直接调用<code>ext_rename()</code>就完工了，所以这次对照着加抄袭整了个版本。<br>明确这个操作是在ramfs模块下的就简单了，这是个结点操作，所以要在两个地方添加操作（这是我的做法），一个是impl VfsNodeOps for DirNode，一个是DirNode内部。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Renames a node from `src_name` to `dst_name` in this directory.</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">rename_node</span></span>(&amp;<span class="keyword">self</span>, src_name: &amp;<span class="built_in">str</span>, dst_name: &amp;<span class="built_in">str</span>) -&gt; VfsResult &#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> children = <span class="keyword">self</span>.children.write();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> node = children.get(src_name).ok_or(VfsError::NotFound)?.clone();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> children.contains_key(dst_name) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">Err</span>(VfsError::AlreadyExists);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// Remove from old name and insert with new name</span></span><br><span class="line">    children.remove(src_name);</span><br><span class="line">    children.insert(dst_name.into(), node);</span><br><span class="line">    </span><br><span class="line">    <span class="literal">Ok</span>(())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在    <code>fn rename(&amp;self, src_path: &amp;str, dst_path: &amp;str) -&gt; VfsResult {</code>中可以照着别的函数写法形成模板，最后一步调用上面的rename就好了</p>
+<h2 id="Macro"><a href="#Macro" class="headerlink" title="Macro"></a>Macro</h2><p>宏内核部分比较熟悉也简单，就略写了。</p>
+<h3 id="T1-Page-fault"><a href="#T1-Page-fault" class="headerlink" title="T1 Page-fault"></a>T1 Page-fault</h3><p>这也是老朋友了，这个提示很明显，在axhal/trap里面，很多异常的处理方法都写在其中了。</p>
+<h3 id="T2-mmap"><a href="#T2-mmap" class="headerlink" title="T2 mmap"></a>T2 mmap</h3><p>这更是老朋友，xv6就做过这个实验，rcore也是有。根据posix标准从堆内存找到空闲位置，扩大堆空间。<br>这里评测环境错误很久没过差点以为是我的问题，所以自己添加了一个<code>get_brk()</code>函数，结果又在本地爆了，这个实验似乎就是让我们使用<code>find_free_area</code>就可以了，并没有按照posix标准去处理那么多flag，也没有匿名映射。<br>后面所以我又改成了最简单的版本</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> start_addr = <span class="keyword">if</span> addr.is_null() &#123;</span><br><span class="line">    <span class="comment">// Use find_free_area to find a suitable address</span></span><br><span class="line">    <span class="keyword">let</span> hint = VirtAddr::from(<span class="number">0x10000000usize</span>);</span><br><span class="line">    <span class="keyword">let</span> limit = VirtAddrRange::from_start_size(aspace.base(), aspace.size());</span><br><span class="line">    aspace.find_free_area(hint, aligned_length, limit)</span><br><span class="line">        .ok_or(LinuxError::ENOMEM)?</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    VirtAddr::from(addr <span class="keyword">as</span> <span class="built_in">usize</span>)</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Map memory in user address space</span></span><br><span class="line">aspace.map_alloc(start_addr, aligned_length, mapping_flags, <span class="literal">true</span>)</span><br><span class="line">    .map_err(|_| LinuxError::ENOMEM)?;</span><br></pre></td></tr></table></figure>
+<p>这属于有点ltp后遗症，写了linux的标准错误号。然后后面其实也处理了fd是-1且不是MAP_ANONYMOUS的情况。</p>
+<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>这个虚拟化有点超纲了，以前确实没见过这种虚拟机的做法。我想理解成用户进程，这样的话自己有一个cpu对象，用户进程的地址空间也是连续的，但是在内核中不连续。</p>
+<h3 id="T1-simple-hv"><a href="#T1-simple-hv" class="headerlink" title="T1 simple-hv"></a>T1 simple-hv</h3><p>这个有两个退出原因（据悉是这样）：<br> IllegalInstruction (非法指令异常)和 LoadGuestPageFault (Guest 页面错误)，需要在vm_exit的时候判断这几次错误并处理。实际上操作的方法有点像写cpu，直接对epc等寄存器进行+4这样。这个错误原因估计还要下到trap模块才能判断，就是csr寄存器里会记录错误原因。<br>为了调试这几种原因，我先添了几句调试输出，没想到其实本来它的打印就是有输出的。<br>可以读到代码中期望的输出就是这两个寄存器要放正确的值，而这之前就不要有vmexit</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> a0 = ctx.guest_regs.gprs.reg(A0);</span><br><span class="line"><span class="keyword">let</span> a1 = ctx.guest_regs.gprs.reg(A1);</span><br><span class="line">ax_println!(<span class="string">"a0 = &#123;:#x&#125;, a1 = &#123;:#x&#125;"</span>, a0, a1);</span><br><span class="line"><span class="built_in">assert_eq!</span>(a0, <span class="number">0x6688</span>);</span><br><span class="line"><span class="built_in">assert_eq!</span>(a1, <span class="number">0x1234</span>);</span><br><span class="line">ax_println!(<span class="string">"Shutdown vm normally!"</span>);</span><br><span class="line">ctx.guest_regs.sepc += <span class="number">4</span>;</span><br><span class="line"><span class="keyword">return</span> <span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+<p>所以就在对应的错误处理处改0x6688和0x1234就可以，对应指令sepc+4跳过</p>
+<h3 id="T2-pflash"><a href="#T2-pflash" class="headerlink" title="T2 pflash"></a>T2 pflash</h3><p>从上面为止练习题其实就做完了。说来非常惭愧，我参加训练营有点面向做题的学习，从rcore开始都是学习的目标就是做完所有练习题就收工了，觉得解决问题才是做这个训练营的精华。这个练习也是个示例，不用我做自己就是好的。所以后面学起来有点没有动力。<br>分析了一下运行指令，其实是先编译了u_3_0的内核，然后把内核的bin文件写进了disk.img里，最后make一个虚拟机出来。运行之后里面也是显示了两次ArceOS（虚拟机里运行了内核），然后从guest里面试图去读host<br>很好看的一点是在make u_3_0的时候直接编译，而运行虚拟机h_2_0的时候可以把log开成info，这样的话就可以看到那句 Starting virtualization…，以及是如何装载虚拟机到虚拟地址的。<br>内核赛的时候很惊讶，因为听说第一名的Starry Mix可以在里面运行xv6，让我直接震惊了。后面了解到StarryOS就是在arceOS基础上改的，现在我才知道原来就是基于了这样的Hypervisor模式，真的长知识了。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/07/07/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-jizhaoqin/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +389,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
 
           
@@ -470,7 +595,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -658,7 +783,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
 
           
@@ -728,7 +853,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
 
           
@@ -958,7 +1083,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
 
           
@@ -1030,7 +1155,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
 
           
@@ -1161,7 +1286,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
 
           
@@ -1261,7 +1386,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1371,7 +1496,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
+                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1469,97 +1594,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/20/2025-oscamp-blog-of-hailong/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/06/20/2025-oscamp-blog-of-hailong/" class="post-title-link" itemprop="url">2025 oscamp blog of hailong</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-06-20 12:43:27" itemprop="dateCreated datePublished" datetime="2025-06-20T12:43:27+00:00">2025-06-20</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-17 06:47:54" itemprop="dateModified" datetime="2025-11-17T06:47:54+00:00">2025-11-17</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="第一阶段-rust基础"><a href="#第一阶段-rust基础" class="headerlink" title="第一阶段 rust基础"></a>第一阶段 rust基础</h2><p>rustlings比较顺利，已关注rust好几年了，也一直跟进rust的发展和变化，用了大概几天的时间突击完成</p>
-<h2 id="第二阶段-rcore"><a href="#第二阶段-rcore" class="headerlink" title="第二阶段 rcore"></a>第二阶段 rcore</h2><p>这是我第一次接触操作系统，印象还都停留在原来的书本上，概念上，都是理论，没有真正接触操作系统是什么样的，所以，这个机会能让我了解探究操作系统内部真正的原理和运行逻辑，解开我心中的多年的疑惑，很是开心到起飞。</p>
-<p>总体印象最深的就是操作系统内核是以什么形态存在的，上下文如何切换，进程空间如何形成，页表是如何实现的，跳板页又是怎么回事</p>
-<h2 id="第三阶段-ArceOS"><a href="#第三阶段-ArceOS" class="headerlink" title="第三阶段 ArceOS"></a>第三阶段 ArceOS</h2><p>这个和我预期不一样，没有沿着rcore继续走，这是一个全新的设计，一时间，有点慌乱，不能和rcore相关的思路很自然的顺承下来，显然这个更具有前瞻性，为此我也花了好多时间来梳理这个逻辑和rcore都关联起来。这个模块化设计的理念很突出，相互之间的关联及细节，需要仔细的研读和体会。</p>
-<h2 id="第三阶段的具体case"><a href="#第三阶段的具体case" class="headerlink" title="第三阶段的具体case"></a>第三阶段的具体case</h2><h3 id="color"><a href="#color" class="headerlink" title="color"></a>color</h3><p>对println!() 把颜色表示直接加入后，可以显示颜色，<br>如在当前文件写了一个宏print_with_color!，让后让println!去去调用此宏，就得不到正确结果，提示找不到这个宏，查了资料，和 $crate有关，宏的暴露方式有关，引用路径，由于时间关系，后面调研</p>
-<h3 id="HashMap"><a href="#HashMap" class="headerlink" title="HashMap"></a>HashMap</h3><p>开始的时候，从rust官方移植，这个太痛苦了，依赖太多了，最后放弃。<br>自己写个简单的，只是利用了官方的<br>use core::hash::Hasher;<br>use core::hash::Hash;<br>这两个hash算法，主体采用了最简单的线性插入算法</p>
-<h3 id="bumpallocator"><a href="#bumpallocator" class="headerlink" title="bumpallocator"></a>bumpallocator</h3><p>需要仔细理解题意和上下文，思路选用：<br>申请一直从可用空间起始向前申请，<br>释放如果全部的空间都释放了，就把下一个可用空间调整到开始</p>
-<h3 id="rename"><a href="#rename" class="headerlink" title="rename"></a>rename</h3><p>采用递归的方式，一层一层的先找到所在当前目录<br>增加当前目录的，更改命名的方法，查找相应的文件，删除后，再插入一个，因为当前存储使用的是BtreeMap，不能更改index</p>
-<h3 id="hv"><a href="#hv" class="headerlink" title="hv"></a>hv</h3><p>这个耗费了我好多时间，主要是因为运行例程会卡住，后来发现可能是qemu的版本问题，升级到9.2后，还是一样卡住，当时环境为windows11，wsl2，卡在这里，不同的情况卡的还不一样：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Write file <span class="string">'payload/skernel2/skernel2'</span> into disk.img</span><br></pre></td></tr></table></figure>
-<p>最后没有办法，找一台空闲机器，实在不行，我就安装裸机linux系统，所以先尝试装了另一种虚拟机，virtualbox7.18，也花了些时间，配置好环境后，默认的qemu为6.x时，还是会出错，不过不是卡主的问题，是会触发异常访问，升级到9.2.x后，按照预期执行了，难道说，wsl2在某些情况就是不行，我真是难过。</p>
-<p>之后遇到提交github，出错，musl.cc被block，</p>
-<blockquote>
-<p>下载不下来：<br>    wget <a href="https://musl.cc/riscv64-linux-musl-cross.tgz" target="_blank" rel="noopener">https://musl.cc/riscv64-linux-musl-cross.tgz</a>  </p>
-</blockquote>
-<p>下载不下来，终于等来了替代方案</p>
-<blockquote>
-<p>   wget <a href="https://musl.cc.timfish.dev/riscv64-linux-musl-cross.tgz" target="_blank" rel="noopener">https://musl.cc.timfish.dev/riscv64-linux-musl-cross.tgz</a><br>最后，终于得以解决</p>
-</blockquote>
-<h3 id="sys-mmap"><a href="#sys-mmap" class="headerlink" title="sys_mmap"></a>sys_mmap</h3><p>参数和返回值我理解出现偏差，</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">sys_mmap</span></span>(</span><br><span class="line">    addr: *<span class="keyword">mut</span> <span class="built_in">usize</span>,</span><br><span class="line">    length: <span class="built_in">usize</span>,</span><br><span class="line">    prot: <span class="built_in">i32</span>,</span><br><span class="line">    flags: <span class="built_in">i32</span>,</span><br><span class="line">    fd: <span class="built_in">i32</span>,</span><br><span class="line">    _offset: <span class="built_in">isize</span>,</span><br><span class="line">) -&gt; <span class="built_in">isize</span></span><br></pre></td></tr></table></figure>
-<p>参数addr为0时要特别注意，需要寻找一空间，还有地址和size的对齐。返回值，当开始时认为0是成功，为负时，返回失败原因，后来再三确认失败返回0，成功返回地址，isize作为地址返回，有点不符合直觉？</p>
-<h2 id="Next"><a href="#Next" class="headerlink" title="Next"></a>Next</h2><p>期待第四阶段</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/blog/page/5/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/blog/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/74/">74</a><a class="extend next" rel="next" href="/blog/page/7/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <a class="extend prev" rel="prev" href="/blog/page/5/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/blog/">1</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/blog/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/75/">75</a><a class="extend next" rel="next" href="/blog/page/7/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
