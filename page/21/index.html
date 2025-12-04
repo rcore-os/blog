@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">741</span>
+          <span class="site-state-item-count">742</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,117 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-lzh/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-lzh/" class="post-title-link" itemprop="url">2024秋冬操作系统训练营第三阶段总结报告</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-01 18:40:28" itemprop="dateCreated datePublished" datetime="2024-12-01T18:40:28+00:00">2024-12-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5/" itemprop="url" rel="index"><span itemprop="name">2024秋冬季开源操作系统训练营</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="课后练习：bump内存分配算法"><a href="#课后练习：bump内存分配算法" class="headerlink" title="课后练习：bump内存分配算法"></a>课后练习：bump内存分配算法</h2><p>主要代码在alt_axalloc里，与axalloc里不同，它在初始化时内部只有一个分配器，并把所有物理内存都分配给它。这个分配器同时实现字节分配器和页分配器的trait，但分配内存时只使用字节分配器里的alloc，页分配器里的alloc_pages没用。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// modules\alt_axalloc\src\lib.rs</span></span><br><span class="line"><span class="meta">#[cfg_attr(all(target_os = <span class="meta-string">"none"</span>, not(test)), global_allocator)]</span></span><br><span class="line"><span class="keyword">static</span> GLOBAL_ALLOCATOR: GlobalAllocator = GlobalAllocator::new();</span><br></pre></td></tr></table></figure>
+
+<p>要想正常实现动态内存分配，首先要用#[global_allocator]属实告诉编译器使用哪个分配器实例作为全局分配器。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// modules\alt_axalloc\src\lib.rs</span></span><br><span class="line"><span class="keyword">unsafe</span> <span class="keyword">impl</span> GlobalAlloc <span class="keyword">for</span> GlobalAllocator &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">alloc</span></span>(&amp;<span class="keyword">self</span>, layout: Layout) -&gt; *<span class="keyword">mut</span> <span class="built_in">u8</span> &#123;...&#125;</span><br><span class="line">     <span class="keyword">unsafe</span> <span class="function"><span class="keyword">fn</span> <span class="title">dealloc</span></span>(&amp;<span class="keyword">self</span>, ptr: *<span class="keyword">mut</span> <span class="built_in">u8</span>, layout: Layout) &#123;...&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后需要为自定义的分配器实现GlobalAlloc trait里的alloc和dealloc方法。查找调用关系：GlonalAlloc::alloc -&gt; GlobalAllocator::alloc -&gt; EarlyAllocator:alloc -&gt; ByteAllocator::alloc，dealloc同理。因此主要修改的代码为modules/bump_allocator里的EarlyAllocator里的ByteAllocator trait的alloca和dealloc方法。</p>
+<p>bump的实现参考<a href="https://blog.csdn.net/xuejianxinokok/article/details/133811834" target="_blank" rel="noopener">Writing an OS in Rust : Allocator Designs 分配器设计与实现-CSDN博客</a></p>
+<h2 id="lab1：针对应用场景，优化内存分配器组件"><a href="#lab1：针对应用场景，优化内存分配器组件" class="headerlink" title="lab1：针对应用场景，优化内存分配器组件"></a>lab1：针对应用场景，优化内存分配器组件</h2><h3 id="分配器内存的初始化和申请"><a href="#分配器内存的初始化和申请" class="headerlink" title="分配器内存的初始化和申请"></a>分配器内存的初始化和申请</h3><p>总共可用于分配的堆内存大小是多少？<br>根据axalloc::global_init(start_vaddr, size) -&gt; GLOBAL_ALLOCATOR.init(start_vaddr, size) 可得size参数的大小即为分配的堆内存大小。查找global_init的使用得axruntime::init_allocator</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// axruntime::init_allocator</span></span><br><span class="line">...</span><br><span class="line"><span class="keyword">for</span> r <span class="keyword">in</span> memory_regions() &#123;</span><br><span class="line">    <span class="keyword">if</span> r.flags.contains(MemRegionFlags::FREE) &amp;&amp; r.paddr == max_region_paddr &#123;</span><br><span class="line">            axalloc::global_init(phys_to_virt(r.paddr).as_usize(), r.size);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">for</span> r <span class="keyword">in</span> memory_regions() &#123;</span><br><span class="line">    <span class="keyword">if</span> r.flags.contains(MemRegionFlags::FREE) &amp;&amp; r.paddr != max_region_paddr &#123;    axalloc::global_add_memory(phys_to_virt(r.paddr).as_usize(), r.size)</span><br><span class="line">            .expect(<span class="string">"add heap memory region failed"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>由上述代码可得标记为free的内存区域都分配给内存分配器使用。</p>
+<p>memory_regions -&gt; platform_regions，当前平台为riscv64</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//riscv64_qemu_virt_/mem.rs</span></span><br><span class="line"><span class="comment">/// Returns platform-specific memory regions.</span></span><br><span class="line"><span class="keyword">pub</span>(<span class="keyword">crate</span>) <span class="function"><span class="keyword">fn</span> <span class="title">platform_regions</span></span>() -&gt; <span class="keyword">impl</span> <span class="built_in">Iterator</span>&lt;Item = MemRegion&gt; &#123;</span><br><span class="line">    crate::mem::default_free_regions().chain(crate::mem::default_mmio_regions())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>default_free_regions里标记为free，块起始地址为_ekernel，结束地址为PHYS_MEMORY_END。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PHYS_MEMORY_END: <span class="built_in">usize</span> = PHYS_MEMORY_BASE + PHYS_MEMORY_SIZE;</span><br></pre></td></tr></table></figure>
+
+<p>定义在config.rs里，查找可得物理内存大小为128m，根据128m查找可得由来为qemu启动时设置的物理内存参数128m。运行时添加LOG=debug参加也可以在输出信息里直观看到分配给分配器的内存，initialize global allocator at: [0xf<br>fffffc080270000, 0xffffffc088000000), size:131661824。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// GlobalAllocator::alloc</span></span><br><span class="line">	<span class="keyword">let</span> old_size = balloc.total_bytes();</span><br><span class="line">	<span class="keyword">let</span> expand_size = old_size</span><br><span class="line">		.max(layout.size())</span><br><span class="line">		.next_power_of_two()</span><br><span class="line">		.max(PAGE_SIZE);</span><br><span class="line">	<span class="keyword">let</span> heap_ptr = <span class="keyword">match</span> <span class="keyword">self</span>.alloc_pages(expand_size / PAGE_SIZE, PAGE_SIZE) &#123;</span><br><span class="line">		<span class="literal">Ok</span>(ptr) =&gt; ptr,</span><br><span class="line">		<span class="literal">Err</span>(e) =&gt; <span class="built_in">panic!</span>(<span class="string">"Bumb: &#123;:?&#125;."</span>, e),&#125;</span><br></pre></td></tr></table></figure>
+
+<p>初始分给字节分配器32KB，当alloc内存不够时，由页分配器再分配页倍数大小的内存。注意分配时要求的内存大小和字节分配器的total_bytes函数返回的值有关，若total_bytes实现不当返回值过大，则一次要求的内存会远远超过实际需要的内存，造成字节分配器分配内存失败，提前终止迭代（我实现的total_bytes返回的是可分配的内存大小，这样每次申请的内存就和需要的内存接近了）。</p>
+<h3 id="应用程序内存的申请和释放"><a href="#应用程序内存的申请和释放" class="headerlink" title="应用程序内存的申请和释放"></a>应用程序内存的申请和释放</h3><p>通过在alloc和dealloc函数里log，分析堆上内存的分配和释放时机，主要和三个变量有关：pool、items和a。a类型是Vec&lt;u8&gt;，可以简单看作是一个内部地址连续的内存块。items和pool类型是Vec&lt;Vec&lt;u8&gt;&gt;，可以看成是存储Vec胖指针的集合。</p>
+<p>在主循环里的每一轮先调用alloc_pass申请大量内存，连续申请$a_n\quad (n = 0, 1, 2, \ldots, 14)+\delta$大小的内存块，其中$\delta$表示轮数，$a_n$是首项为32，最大项为524288的以2为公比等比数列，用等比数列的求和公式可得一轮申请的内存块之和大约为1MB。每申请一个内存块便push进items里，items扩容是翻倍，初始申请$4\times32$B大小的内存，扩容的时候先申请$8\times32$B大小的内存，再释放之前申请的。因为一轮循环里总共申请15块内存，items最大容量为$16\times32=384$B。</p>
+<p>alloc_pass结束后通过free_pass函数连续释放掉偶数项的内存块。然后将items append进pool里，每一轮循环结束pool就增加$7\times24=168$B大小，pool每次扩容时同样会释放掉之前占用的内存。pool的作用域是整个循环，pool本身及对应奇数项占用的内存在循环结束后才释放，随着循环次数的增加，占用内存越来越大，直到耗光128MB总内存。</p>
+<p>我们可以粗略进行分析，如果忽视掉pool和items变量本身的大小（使用bumb算法，items变量最多占用$96+192+384=672$B，pool最多占用$168\times\sum_{n=1}^\delta k$ B）和每次循环递增的$\delta$，每一轮循环释放掉偶数项的总和约为$\frac{2}{3}$ MB，那么理论上最大循环次数约为$128\times3=384$。注意这是在保留奇数项内容正确性，不对奇数项所占内存进行覆写的情况下。</p>
+<h3 id="自定义内存分配器的设计"><a href="#自定义内存分配器的设计" class="headerlink" title="自定义内存分配器的设计"></a>自定义内存分配器的设计</h3><p>根据上面的分析可知，items能占用的最大空间是有限的，且在每轮循环结束后会全部释放，适合在固定大小的内存区域里使用bumb算法管理。偶数项所占用的内存空间随着$\delta$变化非常缓慢，且同样也会在每轮循环结束前全部释放，同样适合在固定固定大小的内存区域里使用bumb算法管理。同时，items和偶数项都会在全部释放完后再重新分配，所以items和偶数项可以在一块内存里用bumb算法管理。pool和奇数项占用空间是持续增加的，pool会释放，奇数项不会，但为了简单处理一样用bumb算法管理（pool占用内存在轮数较大时存在较大的优化空间）。</p>
+<p>分配器初始可用内存为32KB，当分配不够时再向页分配器申请扩容。为了方便划分区域进行管理，在申请第0轮第0项大小的内存时，我们在alloc函数里返回nomemory错误，并在total_bytes函数返回items和偶数项之和的大小来申请足够的内存。在不覆写奇数项情况下，理论最大轮数大约为384，偶数项之和每一项增加15，所以items和偶数项之和为$672+699040+384\times15=704932$B大小，这样分配器初始就能申请向上取整2的n次方和4096的倍数1048576B大小的内存使用。</p>
+<p>由初始地址开始，大小为704932B大小的内存区域用来进行items和偶数项的分配和释放。剩下的区域用来进行pool和奇数项的分配和释放，随着奇数项的增加再向页分配器申请新的扩容，直至最终内存耗尽，所有区域内部均使用bumb算法进行管理。注意，每一轮循环里items和偶数项都会在申请完毕后全部释放，奇数项在整个循环期间不释放，所以用bumb管理是合适的。但pool在循环内是会释放的，且随着轮数的增加，空闲内存大小不容忽视，未来可以用更高效的算法来管理pool的内存，还能进一步增加轮数。</p>
+<h2 id="课后练习：-实现最简单的Hypervisor，响应VM-EXIT常见情况"><a href="#课后练习：-实现最简单的Hypervisor，响应VM-EXIT常见情况" class="headerlink" title="课后练习： 实现最简单的Hypervisor，响应VM_EXIT常见情况"></a>课后练习： 实现最简单的Hypervisor，响应VM_EXIT常见情况</h2><p>先从simple_hv/src/main.rs里的main函数开始运行，此时处于host域。用new_user_aspace创建地址空间，load_vm_image加载要在guest域里运行的内核文件。prepare_guest_context伪造guest上下文件，设置初始特权级为S，sepc值为VM_ENTRY（内核文件的入口地址）。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Kick off vm and wait for it to exit.</span></span><br><span class="line">    <span class="keyword">while</span> !run_guest(&amp;<span class="keyword">mut</span> ctx) &#123;&#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">run_guest</span></span>(ctx: &amp;<span class="keyword">mut</span> VmCpuRegisters) -&gt; <span class="built_in">bool</span> &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        _run_guest(ctx);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    vmexit_handler(ctx)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>while循环里将会启动guest并等待它退出。_run_guest在guest.S里，主要功能是保存host上下文和恢复guest上下文，具体细节下次课会讲，最后sret跳转到sepc里的地址，切换到了guest里的内核执行。触发中断后会跳转到_guest_exit里执行，执行完后会进入vmexit_handler函数里执行（执行完_guest_exit后会接着执行_restore_csrs，里面恢复了ra寄存器的值，并在最后使用ret返回到调用_run_guest的下一行）。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//payload/skernel/src/main.rs</span></span><br><span class="line"><span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">_start</span></span>() -&gt; ! &#123;</span><br><span class="line">    core::arch::asm!(</span><br><span class="line">        <span class="string">"csrr a1, mhartid"</span>,</span><br><span class="line">        <span class="string">"ld a0, 64(zero)"</span>,</span><br><span class="line">        <span class="string">"li a7, 8"</span>,</span><br><span class="line">        <span class="string">"ecall"</span>,</span><br><span class="line">        options(noreturn)</span><br><span class="line">    )</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>内核程序如上所示，当执行csrr a1, mhartid时，VS态写入了M态的寄存器，触发非法指令异常。ld 10, 64(zero)，写入了非法内存地址，触发页错误异常。ecall指令超出VS态执行权限，触发异常。</p>
+<p>先触发非法指令异常，在异常函数处理中，我们先需要将sepc+=4（一条指令长度为4字节），以便下次_run_guest里的sret能正确跳转到下条指令执行。然后返回false，以便while循环不退出，继续执行run_guest函数。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这个阶段学得不是很扎实，很多内容都只看了视频，没有完成课后练习，等后面还要进一步回锅。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +375,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:14" itemprop="dateModified" datetime="2025-11-19T02:45:14+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
 
           
@@ -383,7 +494,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
 
           
@@ -451,7 +562,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -532,7 +643,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
 
           
@@ -632,7 +743,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:14" itemprop="dateModified" datetime="2025-11-19T02:45:14+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
 
           
@@ -709,7 +820,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -823,7 +934,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
 
           
@@ -913,7 +1024,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1018,7 +1129,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:27" itemprop="dateModified" datetime="2025-12-04T08:46:27+00:00">2025-12-04</time>
               </span>
 
           
@@ -1084,120 +1195,6 @@
 </ul>
 <p>其他实验由于忙于项目，暂时未做，后面有时间再补上其他的实验。</p>
 <p>之前总结的一个starry的实现流程也记录这里，方便以后实验查阅：<br><a href="starry-boot.jpeg">Starry启动流程</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/01/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%BC%A0%E5%AE%87%E9%A9%B0/" class="post-title-link" itemprop="url">2024秋冬季训练营第三阶段总结-张宇驰</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-01 10:17:57" itemprop="dateCreated datePublished" datetime="2024-12-01T10:17:57+00:00">2024-12-01</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="组件化内核的意义与概念"><a href="#组件化内核的意义与概念" class="headerlink" title="组件化内核的意义与概念"></a>组件化内核的意义与概念</h1><p><strong>基于组件</strong>构造内核的方法，去构造<strong>不同场景</strong>的<strong>各种模式</strong>内核。组件之间单向依赖。</p>
-<p>与传统设计思路的差异：</p>
-<ol>
-<li>面向场景和应用需求构建内核</li>
-<li>以统一视角看待各种模式、不同规模的内核</li>
-</ol>
-<p>组件化内核相对传统构建方式的优势：</p>
-<ol>
-<li>提高内核开发效率</li>
-<li>降低内核维护难度</li>
-<li>开展基于组件的功能复用和开发协作</li>
-</ol>
-<p>内核模式：1)App和Kernel均处于S Mode.2)相互可见.3)编译形成一个Image.4)是App也是Kernel<br>可以通过组件增量的方式，实现扩展到宏内核与Hypervisor模式。</p>
-<h1 id="Unikernel"><a href="#Unikernel" class="headerlink" title="Unikernel"></a>Unikernel</h1><h2 id="学习心得"><a href="#学习心得" class="headerlink" title="学习心得"></a>学习心得</h2><p>Unikernel令我最惊讶的就是模块化的OS构建方式并通过组件增量的方式组成不同内核模式的OS.</p>
-<h2 id="特点"><a href="#特点" class="headerlink" title="特点"></a>特点</h2><ol>
-<li>应用与内核处于同一特权级（均为内核态），共享地址空间。Unikernel既是内核又是应用，二者合为一体</li>
-<li>优点: 应用与内核之间没有隔离和切换，简单高效</li>
-<li>缺点: 同样因为没有隔离和切换，所以安全性较低</li>
-</ol>
-<p>Unikernel框架与构成框架的核心组件是怎么来的？经历的阶段如下：</p>
-<p>(1) 直接开发一个裸机应用来满足输出Hello的简单需求<br>(2) 需求增加，发现可按照通用性和Arch相关实现分层复用<br>(3) 引入组件化，降低耦合性、提升复用性定制性灵活性。</p>
-<h2 id="应用的开发"><a href="#应用的开发" class="headerlink" title="应用的开发"></a>应用的开发</h2><p>面向应用：基于features选择必要组件的最小集合。</p>
-<ol>
-<li>学习了如何加载和执行外部应用程序</li>
-<li>实现了内核与应用程序的通信机制</li>
-<li>掌握了地址空间分离和切换的技术要点</li>
-</ol>
-<h2 id="课后练习"><a href="#课后练习" class="headerlink" title="课后练习"></a>课后练习</h2><h3 id="练习一"><a href="#练习一" class="headerlink" title="练习一"></a>练习一</h3><p>在打印宏的定义处，使用ANSI控制颜色即可，我使用的是：<code>\x1B[34m</code>和<code>\x1B[0m</code></p>
-<h3 id="练习二"><a href="#练习二" class="headerlink" title="练习二"></a>练习二</h3><p>我做了两版，一版就是直接引入hashbrown，这是最简单的方法，不过对于alloc和hashbrown中的有一个方法存在的冲突，我没有做处理，默认是让alloc的方法覆盖了hashbrown的。另一个版本是CV了std的实现，然后一点一点的修理，但是我还是觉得第一个更优雅一点。</p>
-<h3 id="练习三"><a href="#练习三" class="headerlink" title="练习三"></a>练习三</h3><p>我在EarlyAllocator中添加了start, end, b_pos, p_pos, count属性。然后将每一个Trait需要实现的函数实现出来。我发现PageAllocator中的部分函数并没有被使用，有些函数是直接打了unimplement()!的，但是一样能通过测试。</p>
-<h3 id="练习四"><a href="#练习四" class="headerlink" title="练习四"></a>练习四</h3><p>参数的检查可以直接参考官方函数的实现。<br>rename直接调用API fs::rename就可以。mv通过判断第二个参数dst是否是一个目录，如果是的话，吧文件src读入buf,然后在对应的路径写，最后删除原来的文件。</p>
-<h1 id="Monolithic"><a href="#Monolithic" class="headerlink" title="Monolithic"></a>Monolithic</h1><h2 id="学习心得-1"><a href="#学习心得-1" class="headerlink" title="学习心得"></a>学习心得</h2><p>宏内核在如今的市场上还是占有大量的比率，而Linux也为我们证明了，宏内核加上一些合理的缓解措施，并不意味着会比其他模式差。所以，学习宏内核是很多有意义的。</p>
-<h2 id="特点-1"><a href="#特点-1" class="headerlink" title="特点"></a>特点</h2><p>基于组件化方法构建宏内核模式。</p>
-<ol>
-<li>Unikernel到宏内核：<br>以构建最小化的宏内核为目标，说明：<br>宏内核特点、与Unikernel的差异分析、框架和组件构成、具体实现示例。</li>
-<li>地址空间管理和支持Linux应用：<br>1）用户地址空间映射、缺页加载机制；<br>2）支持运行最简单的Linux的原始应用</li>
-</ol>
-<p>Unikernel模式的应用和内核：<br>(1）处于同一特权级 - 内核特权级<br>(2) 共享同一地址空间 - 相互可见<br>(3) 编译形成一个Image，一体运行<br>(4) Unikernel既是应用又是内核，二者合体</p>
-<h2 id="课后练习-1"><a href="#课后练习-1" class="headerlink" title="课后练习"></a>课后练习</h2><h3 id="练习五"><a href="#练习五" class="headerlink" title="练习五"></a>练习五</h3><p>使用register_trap_handler来标记对PAGE_FAULT的处理，然后实现处理函数：<code>handle_page_fualt()</code><br>处理的实现是通过axtask的接口去实现的，得到task的ext，将aspace上锁后，调用handle_page_fualt同名函数，最后直接打印了对应的输出，然后返回一个正确处理。如果同名函数没有正确执行，那么就直接返回false.</p>
-<h3 id="练习六"><a href="#练习六" class="headerlink" title="练习六"></a>练习六</h3><p>从当前的aspace中调用find_free_area，得到length的addr_src，然后进行4K对齐，同时，对length进行对齐得到size。</p>
-<p>prot和flags通过调用MmapProt::from_bits_truncate(prot), MmapFlags::from_bits_truncate(flags)得到，需要的mappingFlags就from(prot)即可。</p>
-<p>调用aspace的map_alloc方法。</p>
-<p>之后处理一下MmapFlags::MAP_ANONYMOUS。如果有这个flags，直接返回就好</p>
-<p>如果没有MmapFlags::MAP_ANONYMOUS。则通过get_file_like得到我们所需的文件，并将其读取进入buf，然后写入aspace。</p>
-<h1 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h1><h2 id="学习心得-2"><a href="#学习心得-2" class="headerlink" title="学习心得"></a>学习心得</h2><p>HyperVisor，即所谓的虚拟机管理程序，从代码实现来看，和宏内核思想差不多，都是一个高特权级的“内核”为低特权级的“应用”创建独属于它的“虚拟空间”，为它准备对应的资源，然后切换特权级去执行该“应用”。当“应用”发生“中断”的时候，就trap回“内核”处理。GuestOS，就像是一个特殊的应用。</p>
-<h2 id="特点-2"><a href="#特点-2" class="headerlink" title="特点"></a>特点</h2><p>HyperVisor，即所谓的虚拟机管理程序，从代码实现来看，和宏内核思想差不多，都是一个高特权级的“内核”为低特权级的“应用”创建独属于它的“虚拟空间”，为它准备对应的资源，然后切换特权级去执行该“应用”。当“应用”发生“中断”的时候，就trap回“内核”处理。GuestOS，就像是一个特殊的应用。</p>
-<p>基于一台物理计算机建立一些OS的就是虚拟机，我们这里用的是I形虚拟机，也就是不存在宿主机，直接在硬件平台运行的。<br>虚拟机的特点包括：同质、高校、资源受控。为了实现虚拟化，支持了以下层次的对象VM、vCPU、vMem、vDevice、vUtilities。</p>
-<h2 id="课后题"><a href="#课后题" class="headerlink" title="课后题"></a>课后题</h2><h3 id="练习七"><a href="#练习七" class="headerlink" title="练习七"></a>练习七</h3><p>这里处理Trap的时候，需要更改掉panic，然后在这道题中，要求A0、A1为0x1234和0x6688，只需要在处理这些Trap的时候，将对应的寄存器进行修改就可以</p>
-<hr>
-<p>笔记：<a href="https://github.com/inchinaxiaofeng/Blog-arceos" target="_blank" rel="noopener">https://github.com/inchinaxiaofeng/Blog-arceos</a></p>
 
       
     </div>

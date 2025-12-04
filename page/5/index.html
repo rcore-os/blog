@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">741</span>
+          <span class="site-state-item-count">742</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -233,6 +233,81 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/16/%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/16/%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97/" class="post-title-link" itemprop="url">学习心得</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-16 13:50:39" itemprop="dateCreated datePublished" datetime="2025-11-16T13:50:39+00:00">2025-11-16</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>听闻rCore是基于Rust实现的操作系统内核，我对此产生了兴趣并报名参加了训练营。经过三个阶段的系统学习，作为Rust语言的初学者，我掌握了Rust的基础语法特性，并深入复习了操作系统的相关概念。本文将记录我在完成第三阶段ArceOS的学习过程中,对几个较为感兴趣部分的实现理解与思考。</p>
+<h2 id="rename"><a href="#rename" class="headerlink" title="rename"></a>rename</h2><p>ArceOS的虚拟文件系统(VFS)中<code>rename</code>功能的设计充分体现了职责分离和安全性的设计理念。该部分的核心思路是VFS层通过最长匹配原则 (<code>find_fs_for_path</code>) 确定路径所属的文件系统，并妥善处理跨文件系统重命名和挂载点重命名等边界情况。</p>
+<p>VFS在此充当调度者的角色，负责将请求转发给正确的底层文件系统。而底层文件系统 (如ramfs) 则负责执行实际的重命名操作，通过Rust的读写锁机制确保重命名操作以及覆盖情况的原子性和并发安全性，这种分层设计不仅职责清晰,而且使VFS具有良好的灵活性和可扩展性。</p>
+<h2 id="mmap"><a href="#mmap" class="headerlink" title="mmap"></a>mmap</h2><p><code>sys_mmap</code>实现了Linux风格的内存映射机制，其核心流程围绕地址空间管理和文件/匿名映射展开，首先检查映射长度是否为零，并将长度强制对齐到4KB页大小。若指定了addr参数则要求其必须是页对齐的。</p>
+<p>当设置<code>MAP_FIXED</code>标志时,系统必须使用指定的固定地址，并校验该地址是否在合法的地址空间范围内。否则系统会在进程的地址空间中查找一块足够大的空闲区域 (通过<code>find_free_area</code>函数) 作为映射的起始虚拟地址。</p>
+<p>对于匿名映射<code>MAP_ANONYMOUS</code>，系统仅在地址空间中分配并映射物理页,不涉及文件操作。对于文件映射，系统先执行<code>map_alloc</code>建立映射关系,然后通过<code>sys_lseek</code>调整文件偏移量，接着同步读取部分数据到缓冲区，最后通过<code>aspace.write</code>将数据写入新映射的虚拟地址，完成初始数据的填充。</p>
+<p>整个设计的重点在于利用地址空间<code>aspace</code>抽象实现统一的虚拟内存管理和权限控制，这让我深刻理解了操作系统中抽象层的重要性。</p>
+<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>Hypervisor位于操作系统和物理机之间，将CPU、内存、磁盘、网卡等硬件资源切分成独立份额，再封装成多台虚拟计算机，每个虚拟机运行各自的操作系统和应用程序，彼此之间互不干扰。</p>
+<p>在ArceOS的<code>simple_hv</code>练习中，需要实现了一个最小化的RISC-V虚拟机监视器，核心逻辑集中在<code>vmexit_handler</code>函数中，当客户机触发异常或SBI调用时，CPU自动陷入该函数，由宿主机快速处理并模拟所需功能。</p>
+<p><code>VirtualSupervisorEnvCall</code>是SBI调用的集中分发点，处理客户机OS的各种请求，包括<code>printf</code>输出、关机请求、时钟设置和SBI扩展探测等。其中<code>putchar</code>实时回显到宿主终端、<code>SetTimer</code>重写stimecmp寄存器，而<code>SRST_SHUTDOWN</code>在打印”Shutdown vm normally!”后停机。</p>
+<p>整套代码虽然不足百行,却完整串联了异常捕获→寄存器改写→SBI模拟→时钟注入→正常关机的hypervisor核心流程，为学习更深层次的多核虚拟化、扩展页表(EPT)、IOMMU等高级虚拟化技术打下了基础。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/15/ArceOS-test-report-blog/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +339,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -370,7 +445,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -440,7 +515,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -525,7 +600,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -609,7 +684,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -692,7 +767,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -805,7 +880,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -881,7 +956,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
 
           
@@ -988,7 +1063,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
+                <time title="Modified: 2025-12-04 08:46:28" itemprop="dateModified" datetime="2025-12-04T08:46:28+00:00">2025-12-04</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1158,79 +1233,6 @@
 <h2 id="后续思考"><a href="#后续思考" class="headerlink" title="后续思考"></a>后续思考</h2><p>arceOS 的模块化设计给我留下了深刻印象。即使是简单的功能，也需要考虑底层实现。这种设计使得每个组件都可以独立测试和替换，为系统开发和调试带来了极大的便利。</p>
 <p>通过这次学习，我不仅掌握了操作系统的基本原理，还深入理解了 Rust 在系统编程中的优势。内核的学习实际上最重要的部分可能更是在于解决问题，也就是在针对特定问题的排查思路上。</p>
 <p>很感谢这次训练营的主办方，给了这么好的学习机会。虽然学习过程中遇到了很多困难，但完成后的成就感也很强。未来如果有机会，我还会继续深入学习操作系统内核。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/03/2025%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/11/03/2025%E5%89%8D%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">2025前三阶段总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-11-03 18:27:41" itemprop="dateCreated datePublished" datetime="2025-11-03T18:27:41+00:00">2025-11-03</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2025-11-19 02:45:15" itemprop="dateModified" datetime="2025-11-19T02:45:15+00:00">2025-11-19</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>先说说为什么会参加这个训练营。</p>
-<p>起因是在配置arch linux的过程中用到了很多rust写的工具，而且这些工具用起来非常顺手，引起了我对rust的兴趣。在看完《Rust 程序设计语言 中文版》后，我开始寻找一个rust相关的项目练手。正好在知乎上看到有人推荐rcore，加上之前写过xv6（s081），对操作系统有不小的兴趣，就这样开启了这段rocre之旅。</p>
-<h2 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h2><p>这一阶段主要是熟悉rust语言。</p>
-<p>由于我有java、python的语言基础，这一阶段还是比较轻松的。<br>难点是在写链表时因为有所有权限制，要对node作多层包装。刚开始写时并不顺利，其他语言的基础成了障碍，总是会按python的写法往下写，导致所有权出问题。直到真正理解所有权的含义才写出正确的代码。</p>
-<p>所有权是我第一次真切感受到rust和其他语言的不同，它把一些原来从未考虑的可能出现的数据竞争提前暴露出来，迫使编写者去思考数据关系，这种体验是从未有过的。</p>
-<h2 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h2><p>受益于xv6，第二阶段的实验基本没有卡点。这些实验让我深入理解了riscv的trap、页表等机制，重新梳理了操作系统的进程切换、文件系统等相关知识。</p>
-<h2 id="第三阶段"><a href="#第三阶段" class="headerlink" title="第三阶段"></a>第三阶段</h2><p>这一阶段的实验比第二阶段的实验要难一些，花费的时间也更多。</p>
-<p>对于hashmap这个实验，我自己实现了一个固定buckets的hashmap，但看到blog中大家基本是引网上的包，感觉自己有些笨笨的，还是要多和群友交流。</p>
-<p>后面在mmap这个实验卡了很久，一直在想怎么实现文件的lazy load和对应，最后是面向测例编程，直接文件内容读到内存中通过测例完事。</p>
 
       
     </div>
