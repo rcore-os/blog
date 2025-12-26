@@ -1,3 +1,12 @@
+---
+title: ArceOS第八节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 内容
 
 ![](00%20inbox/asset/Pasted%20image%2020241206004959.png)

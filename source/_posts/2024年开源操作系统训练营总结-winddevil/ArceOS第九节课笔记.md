@@ -1,3 +1,12 @@
+---
+title: ArceOS第九节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 概念
 
 1. 虚拟时钟中断支持；虚拟机外设的支持。

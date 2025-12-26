@@ -5,7 +5,7 @@ categories:
   - report
 tags:
   - author:yqthz
---- 
+---
 rcore的实验还是有一定难度的, 需要仔细阅读框架代码, 了解rcore的整体设计  
 lab1是实现sys_task_info系统调用, 比较简单  
 lab2是实现在启用虚拟地址的情况下重写sys_get_time和sys_task_info, 并实现sys_mmap和sys_munmpa系统调用, 难度较大, sys_get_time和sys_task_info仔细阅读sys_write的实现就可以完成, sys_mmap和sys_munmap做了一定简化, 在实现过程中需要对框架代码中的地址空间, 页表有较深的理解  

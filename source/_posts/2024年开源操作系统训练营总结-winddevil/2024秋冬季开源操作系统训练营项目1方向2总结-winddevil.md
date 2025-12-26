@@ -1,3 +1,12 @@
+---
+title: 2024秋冬季开源操作系统训练营项目1方向2总结-winddevil
+date: 2024-12-21 18:19:26
+categories:
+    - report
+tags:
+    - author:Winddevil
+---
+
 # 详细编写过程
 
 附在ArceOS igb网卡驱动编写上

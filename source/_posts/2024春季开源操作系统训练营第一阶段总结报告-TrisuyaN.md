@@ -2,7 +2,7 @@
 title: 2024春季开源操作系统训练营第一阶段总结报告-TrisuyaN
 date: 2024-04-24 22:38:04
 tags:
-    - author:<TrisuyaN>
+    - author:TrisuyaN
 ---
 
 
