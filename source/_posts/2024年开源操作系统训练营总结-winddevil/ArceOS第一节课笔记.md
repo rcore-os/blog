@@ -1,3 +1,12 @@
+---
+title: ArceOS第一节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 解决`rust-analyzer`的问题
 
 创建:`.vscode/settings.json`:

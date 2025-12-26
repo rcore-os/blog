@@ -1,15 +1,13 @@
 ---
-
 title: 24秋冬训练营四阶段总结-yukariyuko 
-date: 12/22
+date: 2024-12-22 12:00:00
 categories:
-    - blog
+    - report
 tags:
     - author:yukariyuko
     - repo:https://github.com/yukariyuko/naive
     - async
     - io_uring
-
 ---
 
 # 总说

@@ -1,3 +1,12 @@
+---
+title: ArceOS第二节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 学习内容
 
 介绍地址空间和页表相关的内容.任务调度下次课说.

@@ -1,3 +1,13 @@
+---
+title: 2024秋冬开源操作系统训练营第二阶段总结-reganzm(阿敏)
+date: 2024-11-10 17:08:30
+categories:
+    - 2024秋冬季开源操作系统训练营 
+tags:
+    - author:reganzm
+    - repo:https://github.com/reganzm/2024a-rcore-reganzm
+---
+
 #### 实验总结
 文件系统章节是我花时间最多的一个章节，时间主要花在了对文件系统的理解上，看源码也费了些时间。将细节通过在线文档整理如下图所示：
 ![ch6 基础知识](./ch6_基础知识.png)

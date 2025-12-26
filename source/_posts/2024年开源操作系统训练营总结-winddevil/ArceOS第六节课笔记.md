@@ -1,3 +1,12 @@
+---
+title: ArceOS第六节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 组件化内核的心得和实践经验
 
 应用场景多样化->多种内核场景的出现

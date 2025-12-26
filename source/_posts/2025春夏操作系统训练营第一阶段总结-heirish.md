@@ -1,5 +1,5 @@
 ---
- title: 2025春夏操作系统训练营第一阶段总结-heirish
+title: 2025春夏操作系统训练营第一阶段总结-heirish
 date: 2025-04-13 23:43:47
 tags:
     - author:heirish

@@ -1,4 +1,11 @@
-
+---
+title: 2024年开源操作系统训练营总结-winddevil
+date: 2024-12-21 18:19:26
+categories:
+    - report
+tags:
+    - author:Winddevil
+---
 # 阶段一-Rustlings
 
 这个阶段主要是需要进行rust相关的学习.

@@ -1,3 +1,12 @@
+---
+title: ArceOS第七节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 概念
 
 ![](00%20inbox/asset/Pasted%20image%2020241204205737.png)

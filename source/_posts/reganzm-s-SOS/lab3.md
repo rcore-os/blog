@@ -1,5 +1,12 @@
-
-
+---
+title: 2024秋冬开源操作系统训练营第二阶段总结-reganzm(阿敏)
+date: 2024-11-10 17:08:30
+categories:
+    - 2024秋冬季开源操作系统训练营 
+tags:
+    - author:reganzm
+    - repo:https://github.com/reganzm/2024a-rcore-reganzm
+---
 
 #### 荣誉准则
 

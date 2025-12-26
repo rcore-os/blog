@@ -1,3 +1,11 @@
+---
+title: 2024a-stage4-yonchicy
+date: 2024-12-22 12:32:26
+categories:
+    - report
+tags:
+    - author:yonchicy
+---
 ## stage4总结
 
 stage 4 算是很扎实的一个阶段。这个阶段从头开始学习了我原来不怎么熟悉的异步运行时。整体上来说算是比较系统的学习了如何构建一个异步运行时，同时也阅读了不少tokio这种生产环境级别的异步运行时代码，受益良多。

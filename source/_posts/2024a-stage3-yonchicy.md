@@ -1,3 +1,12 @@
+---
+title: 2024a-stage3-yonchicy
+date: 2024-12-3 9:20:26
+categories:
+    - report
+tags:
+    - author:yonchicy
+---
+
 # stage3总结
 ## u1.0
 很简单，定位到 axstd 里修改 println 的输出，前后加上转义字符就好了

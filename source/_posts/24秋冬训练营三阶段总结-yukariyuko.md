@@ -1,16 +1,13 @@
-
 ---
-
 title: 24秋冬训练营三阶段总结-yukariyuko
 date: 2020-07-15 16:40:28
 categories:
-    - <catogory>
+    - report
 tags:
     - author:yukariyuko
     - repo:https://github.com/yukariyuko/oscamp24fall
     - arceos
     - 24fall
-
 ---
 
 # 总结

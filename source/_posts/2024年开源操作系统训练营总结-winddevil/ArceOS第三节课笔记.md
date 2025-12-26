@@ -1,3 +1,12 @@
+---
+title: ArceOS第三节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 抢占式调度
 
 两个实验第二个比第一个多一些关于`wait_queue`的内容.

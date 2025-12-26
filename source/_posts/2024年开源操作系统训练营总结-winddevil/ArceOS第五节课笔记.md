@@ -1,3 +1,12 @@
+---
+title: ArceOS第五节课笔记
+date: 2024-12-21 18:19:26
+categories:
+    - note
+tags:
+    - author:Winddevil
+---
+
 # 实验1 
 
 这部分实验是上部分的作业暂时略过.

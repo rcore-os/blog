@@ -1,3 +1,10 @@
+---
+title: 2024-autumn-stage1-stage2-summarize-ynchicy
+date: 2024-11-9 8:35:09
+tags: 
+    - author:ynchicy
+---
+
 # 一阶段学习体会
 
 早就听说过大名鼎鼎的 rustlings， 这次借着 oscamp 的机会来做一做。做的过程中发现 oscamp 的 rustlings 似乎比官方的 rustlings 加了很多私货，难度大了不少，

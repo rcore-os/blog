@@ -1,3 +1,10 @@
+---
+title: 2024-秋冬季开源操作系统集训营第三阶段总结-nomodeset
+date: 2024-12-2 22:31:49
+tags:
+    - author:nomodeset
+---
+
 # 2024秋冬季OS2EDU第三阶段总结报告
 
 ## 概述
