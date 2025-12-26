@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="总说在训练营的第四阶段，几乎一直在读东西，一边看一边学asynchronous和Rust，之前几乎没有了解和使用过异步方面的东西。学习效果不是很好，结营后还得多读多写这一块的代码，继续学习。 细说第一周： 了解了一些RUST的异步和协程机制 读了绿色线程的代码 读了philopp那篇用异步实现协作式任务调度  第二周: 跟着这篇博客了解了实现异步运行时的思路 看PPT给上的tokio相关  第三周">
+<meta property="og:type" content="article">
+<meta property="og:title" content="24秋冬训练营四阶段总结-yukariyuko">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2024/12/22/24%E7%A7%8B%E5%86%AC%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yukariyuko/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="总说在训练营的第四阶段，几乎一直在读东西，一边看一边学asynchronous和Rust，之前几乎没有了解和使用过异步方面的东西。学习效果不是很好，结营后还得多读多写这一块的代码，继续学习。 细说第一周： 了解了一些RUST的异步和协程机制 读了绿色线程的代码 读了philopp那篇用异步实现协作式任务调度  第二周: 跟着这篇博客了解了实现异步运行时的思路 看PPT给上的tokio相关  第三周">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2024-12-22T12:00:00.000Z">
+<meta property="article:modified_time" content="2025-12-26T07:47:16.220Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:yukariyuko">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;yukariyuko&#x2F;naive">
+<meta property="article:tag" content="async">
+<meta property="article:tag" content="io_uring">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2024/12/22/24%E7%A7%8B%E5%86%AC%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yukariyuko/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>24秋冬训练营四阶段总结-yukariyuko | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#总说"><span class="nav-number">1.</span> <span class="nav-text">总说</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#细说"><span class="nav-number">2.</span> <span class="nav-text">细说</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#第一周："><span class="nav-number">2.1.</span> <span class="nav-text">第一周：</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第二周"><span class="nav-number">2.2.</span> <span class="nav-text">第二周:</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第三周"><span class="nav-number">2.3.</span> <span class="nav-text">第三周:</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">756</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">71</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">670</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/22/24%E7%A7%8B%E5%86%AC%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yukariyuko/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          24秋冬训练营四阶段总结-yukariyuko
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2024-12-22 12:00:00" itemprop="dateCreated datePublished" datetime="2024-12-22T12:00:00+00:00">2024-12-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2025-12-26 07:47:16" itemprop="dateModified" datetime="2025-12-26T07:47:16+00:00">2025-12-26</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="总说"><a href="#总说" class="headerlink" title="总说"></a>总说</h1><p>在训练营的第四阶段，几乎一直在读东西，一边看一边学asynchronous和Rust，之前几乎没有了解和使用过异步方面的东西。<br>学习效果不是很好，结营后还得多读多写这一块的代码，继续学习。</p>
+<h1 id="细说"><a href="#细说" class="headerlink" title="细说"></a>细说</h1><h2 id="第一周："><a href="#第一周：" class="headerlink" title="第一周："></a>第一周：</h2><ul>
+<li>了解了一些RUST的异步和协程机制</li>
+<li>读了<a href="https://zjp-cn.github.io/os-notes/green-thread.html" target="_blank" rel="noopener">绿色线程</a>的代码</li>
+<li>读了philopp那篇用<a href="https://os.phil-opp.com/async-await/" target="_blank" rel="noopener">异步实现协作式任务调度</a></li>
+</ul>
+<h2 id="第二周"><a href="#第二周" class="headerlink" title="第二周:"></a>第二周:</h2><ul>
+<li>跟着<a href="https://toetoe55.github.io/async-rt-book/" target="_blank" rel="noopener">这篇博客</a>了解了实现异步运行时的思路</li>
+<li>看PPT给上的<a href="https://tokio-zh.github.io/document/" target="_blank" rel="noopener">tokio相关</a></li>
+</ul>
+<h2 id="第三周"><a href="#第三周" class="headerlink" title="第三周:"></a>第三周:</h2><ul>
+<li>读了io_uring的手册，顺带了解了一下使用环形队列和内存映射，无锁环提高性能的原理</li>
+<li>读了一下smol源码，主要是futures-lite和async-executor部分</li>
+<li>尝试使用iou封装的接口实现<a href="https://github.com/yukariyuko/naive" target="_blank" rel="noopener">简单的异步文件读写</a>，但是实现的waker有问题，没有成功</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-yukariyuko/" rel="tag"># author:yukariyuko</a>
+              <a href="/blog/tags/repo-https-github-com-yukariyuko-naive/" rel="tag"># repo:https://github.com/yukariyuko/naive</a>
+              <a href="/blog/tags/async/" rel="tag"># async</a>
+              <a href="/blog/tags/io-uring/" rel="tag"># io_uring</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/22/2024-%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-yck/" rel="prev" title="2024-秋冬季开源操作系统训练营第四阶段总结-yck">
+      <i class="fa fa-chevron-left"></i> 2024-秋冬季开源操作系统训练营第四阶段总结-yck
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2024/12/22/2024%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E5%BC%A0%E6%9E%97%E4%BC%9F/" rel="next" title="2024秋冬季开源操作系统训练营总结-张林伟">
+      2024秋冬季开源操作系统训练营总结-张林伟 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
