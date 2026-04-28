@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="AxVisor 中统一 eBPF Tracing 系统的设计与实现摘要本文总结了在 AxVisor 中构建统一 eBPF tracing 系统的阶段性工作。系统面向 VMM、Guest Kernel 和 Guest Userspace 三个执行层次，目标是把分散的事件源接入同一条程序装载、命中处理、运行时执行和事件输出链路中。实现过程中，先建立了 tracepoint、runtime、map、he">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2026开源社区实习总结">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/04/26/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="AxVisor 中统一 eBPF Tracing 系统的设计与实现摘要本文总结了在 AxVisor 中构建统一 eBPF tracing 系统的阶段性工作。系统面向 VMM、Guest Kernel 和 Guest Userspace 三个执行层次，目标是把分散的事件源接入同一条程序装载、命中处理、运行时执行和事件输出链路中。实现过程中，先建立了 tracepoint、runtime、map、he">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-04-26T20:55:51.000Z">
+<meta property="article:modified_time" content="2026-04-28T23:27:45.693Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:iscreamx">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;Iscreamx&#x2F;axebpf">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/04/26/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2026开源社区实习总结 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#AxVisor-中统一-eBPF-Tracing-系统的设计与实现"><span class="nav-number">1.</span> <span class="nav-text">AxVisor 中统一 eBPF Tracing 系统的设计与实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-引言"><span class="nav-number">1.2.</span> <span class="nav-text">1. 引言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-总体架构"><span class="nav-number">1.3.</span> <span class="nav-text">2. 总体架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-一条统一的运行链路"><span class="nav-number">1.3.1.</span> <span class="nav-text">2.1 一条统一的运行链路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-程序、目标、绑定和实例"><span class="nav-number">1.3.2.</span> <span class="nav-text">2.2 程序、目标、绑定和实例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-统一上下文和统一事件流"><span class="nav-number">1.3.3.</span> <span class="nav-text">2.3 统一上下文和统一事件流</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-四类-probe-的运行差异"><span class="nav-number">1.3.4.</span> <span class="nav-text">2.4 四类 probe 的运行差异</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-第一阶段：Host-VMM-侧基础设施的建立"><span class="nav-number">1.4.</span> <span class="nav-text">3. 第一阶段：Host&#x2F;VMM 侧基础设施的建立</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-建立顺序"><span class="nav-number">1.4.1.</span> <span class="nav-text">3.1 建立顺序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-程序如何进入系统"><span class="nav-number">1.4.2.</span> <span class="nav-text">3.2 程序如何进入系统</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-运行环境如何建立"><span class="nav-number">1.4.3.</span> <span class="nav-text">3.3 运行环境如何建立</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-统一上下文和统一事件流如何立起来"><span class="nav-number">1.4.4.</span> <span class="nav-text">3.4 统一上下文和统一事件流如何立起来</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-5-Tracepoint-为什么最先接入"><span class="nav-number">1.4.5.</span> <span class="nav-text">3.5 Tracepoint 为什么最先接入</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-6-hprobe-hretprobe-如何接入现有基础设施"><span class="nav-number">1.4.6.</span> <span class="nav-text">3.6 hprobe&#x2F;hretprobe 如何接入现有基础设施</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-7-第一阶段的结果"><span class="nav-number">1.4.7.</span> <span class="nav-text">3.7 第一阶段的结果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-第二阶段：Guest-Kernel-Tracing-的运行逻辑"><span class="nav-number">1.5.</span> <span class="nav-text">4. 第二阶段：Guest Kernel Tracing 的运行逻辑</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-用户输入之后，系统先做什么"><span class="nav-number">1.5.1.</span> <span class="nav-text">4.1 用户输入之后，系统先做什么</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-地址翻译为什么是前提"><span class="nav-number">1.5.2.</span> <span class="nav-text">4.2 地址翻译为什么是前提</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-延迟启用如何发生"><span class="nav-number">1.5.3.</span> <span class="nav-text">4.3 延迟启用如何发生</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-两种命中模式如何工作"><span class="nav-number">1.5.4.</span> <span class="nav-text">4.4 两种命中模式如何工作</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-5-命中之后，系统怎样处理一次-Guest-Probe"><span class="nav-number">1.5.5.</span> <span class="nav-text">4.5 命中之后，系统怎样处理一次 Guest Probe</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-6-恢复为什么是关键环节"><span class="nav-number">1.5.6.</span> <span class="nav-text">4.6 恢复为什么是关键环节</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-7-guest-kretprobe-如何工作"><span class="nav-number">1.5.7.</span> <span class="nav-text">4.7 guest-kretprobe 如何工作</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-8-卸载和回收"><span class="nav-number">1.5.8.</span> <span class="nav-text">4.8 卸载和回收</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-9-第二阶段的结果"><span class="nav-number">1.5.9.</span> <span class="nav-text">4.9 第二阶段的结果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-第三阶段：Guest-Userspace-Tracing-的运行逻辑"><span class="nav-number">1.6.</span> <span class="nav-text">5. 第三阶段：Guest Userspace Tracing 的运行逻辑</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-对象元数据如何进入系统"><span class="nav-number">1.6.1.</span> <span class="nav-text">5.1 对象元数据如何进入系统</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-待激活绑定和运行实例"><span class="nav-number">1.6.2.</span> <span class="nav-text">5.2 待激活绑定和运行实例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-observer-如何把逻辑目标变成实例"><span class="nav-number">1.6.3.</span> <span class="nav-text">5.3 observer 如何把逻辑目标变成实例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-为什么按地址空间管理实例"><span class="nav-number">1.6.4.</span> <span class="nav-text">5.4 为什么按地址空间管理实例</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-5-命中和恢复"><span class="nav-number">1.6.5.</span> <span class="nav-text">5.5 命中和恢复</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-6-回收"><span class="nav-number">1.6.6.</span> <span class="nav-text">5.6 回收</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-7-第三阶段的结果"><span class="nav-number">1.6.7.</span> <span class="nav-text">5.7 第三阶段的结果</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-验证体系与工程化支撑"><span class="nav-number">1.7.</span> <span class="nav-text">6. 验证体系与工程化支撑</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-验证对象分成三层"><span class="nav-number">1.7.1.</span> <span class="nav-text">6.1 验证对象分成三层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-统一验证入口"><span class="nav-number">1.7.2.</span> <span class="nav-text">6.2 统一验证入口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-固定联调流程"><span class="nav-number">1.7.3.</span> <span class="nav-text">6.3 固定联调流程</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-当前边界与后续工作"><span class="nav-number">1.8.</span> <span class="nav-text">7. 当前边界与后续工作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-结论"><span class="nav-number">1.9.</span> <span class="nav-text">8. 结论</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-相关链接"><span class="nav-number">1.10.</span> <span class="nav-text">9. 相关链接</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">757</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">71</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">672</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/26/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2026开源社区实习总结
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-04-26 20:55:51" itemprop="dateCreated datePublished" datetime="2026-04-26T20:55:51+00:00">2026-04-26</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-04-28 23:27:45" itemprop="dateModified" datetime="2026-04-28T23:27:45+00:00">2026-04-28</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="AxVisor-中统一-eBPF-Tracing-系统的设计与实现"><a href="#AxVisor-中统一-eBPF-Tracing-系统的设计与实现" class="headerlink" title="AxVisor 中统一 eBPF Tracing 系统的设计与实现"></a>AxVisor 中统一 eBPF Tracing 系统的设计与实现</h1><h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文总结了在 AxVisor 中构建统一 eBPF tracing 系统的阶段性工作。系统面向 VMM、Guest Kernel 和 Guest Userspace 三个执行层次，目标是把分散的事件源接入同一条程序装载、命中处理、运行时执行和事件输出链路中。实现过程中，先建立了 tracepoint、runtime、map、helper 和统一事件流等基础设施，再逐步扩展到 <code>hprobe/hretprobe</code>、<code>guest-kprobe/kretprobe</code> 与 <code>guest-uprobe/uretprobe</code>。其中，userspace tracing 重点解决了对象元数据装载、运行期激活、实例管理和生命周期回收等问题。最终形成了一套可以继续扩展、并已具备联调与验收路径的 tracing 基础框架。</p>
+<a id="more"></a>
+
+<h2 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h2><p>本阶段工作的目标，是在 AxVisor 中建立一套统一的 tracing 系统，使 Hypervisor 一侧能够持续观察 VMM、Guest Kernel 和 Guest Userspace 的关键运行路径。这个问题之所以需要单独处理，是因为 AxVisor 的观测对象天然分布在不同执行层次中：VMM 运行在 EL2，Guest Kernel 运行在 EL1，Guest Userspace 运行在 EL0。实际联调时，很多问题都跨越这些边界。仅依赖 VMM 日志，通常只能看到 VM-exit、异常类型和少量上下文；仅依赖 Guest 内部工具，又难以把 Guest 的执行位置与 Hypervisor 侧的异常接管、执行权限变化和探针状态对应起来。</p>
+<p>因此，这项工作关注的是一条完整的运行时观测链路。系统需要回答以下几个问题：程序如何进入系统，用户如何表达探测意图，目标在什么条件下能够真正启用或激活，命中之后怎样形成统一上下文，eBPF 程序如何执行，结果如何进入统一事件流，以及生命周期结束后相关状态如何回收。本文围绕这些问题，讨论这套 tracing 系统的整体组织方式、基础设施建立过程、Guest Kernel Tracing、Guest Userspace Tracing，以及相应的验证路径和当前边界。</p>
+<h2 id="2-总体架构"><a href="#2-总体架构" class="headerlink" title="2. 总体架构"></a>2. 总体架构</h2><h3 id="2-1-一条统一的运行链路"><a href="#2-1-一条统一的运行链路" class="headerlink" title="2.1 一条统一的运行链路"></a>2.1 一条统一的运行链路</h3><p>从使用者角度看，系统最终提供了四类主要入口：静态 <code>tracepoint</code>、VMM 自探针 <code>hprobe/hretprobe</code>、Guest Kernel 探针 <code>guest-kprobe/kretprobe</code>，以及 Guest Userspace 探针 <code>guest-uprobe/uretprobe</code>。从内部实现看，这四类能力共享一条统一运行链路：</p>
+<ol>
+<li>用户先把 eBPF 程序装入系统。</li>
+<li>用户再把程序绑定到某个事件源或探测目标。</li>
+<li>目标在运行中被触发或命中。</li>
+<li>系统把这次触发整理成统一上下文。</li>
+<li>runtime 执行对应程序。</li>
+<li>执行结果进入统一事件流和状态统计。</li>
+<li>用户通过统一命令查看状态、事件和统计结果。</li>
+</ol>
+<p>这条链路的意义在于，系统被自然分成了两个部分。前半段负责让不同来源的命中成立，后半段负责把这些命中统一整理成程序执行和事件输出。前半段会随着 probe 类型变化而变化，后半段则尽量保持稳定。这样，系统后续继续扩展新的 probe 类型时，重点会落在目标管理、命中条件、恢复和生命周期处理上，而不需要每次都重做一套新的程序执行和输出方式。</p>
+<h3 id="2-2-程序、目标、绑定和实例"><a href="#2-2-程序、目标、绑定和实例" class="headerlink" title="2.2 程序、目标、绑定和实例"></a>2.2 程序、目标、绑定和实例</h3><p>这套系统内部一直围绕四类对象组织状态：程序、目标、绑定和实例。</p>
+<p>程序是已经装入系统、可以被执行的 eBPF 程序。它包含字节码、关联 map 和必要元数据。程序先进入系统，随后再被不同目标引用。</p>
+<p>目标是用户希望观察的对象。对 tracepoint 来说，目标是某个静态事件；对 <code>hprobe</code> 来说，目标是某个 VMM 符号；对 <code>guest-kprobe</code> 来说，目标是某个 Guest Kernel 地址或符号；对 <code>guest-uprobe</code> 来说，目标是某个路径对象中的符号或偏移。</p>
+<p>绑定表示程序与目标之间的关系。例如，一段程序可以绑定到某个 tracepoint，也可以绑定到某个 hprobe 或 guest-kprobe 目标。绑定关系在目标生命周期中通常比实例更稳定。</p>
+<p>实例表示某个目标在运行时真正活跃的状态。这个概念在 userspace 场景中尤为重要，因为 userspace 目标在注册时只是逻辑对象，只有当路径对象真正进入某个地址空间后，系统才会生成对应实例。实例会随着运行条件变化而生成和回收。</p>
+<p>这套划分的直接作用，是让系统可以自然表达几类真实状态：程序已经装入但尚未使用，目标已经登记但尚未启用，userspace 目标已经存在绑定但尚未激活出运行实例。没有这层划分，很多运行时状态就只能被硬塞进同一种结构里，后续逻辑会很快变乱。</p>
+<h3 id="2-3-统一上下文和统一事件流"><a href="#2-3-统一上下文和统一事件流" class="headerlink" title="2.3 统一上下文和统一事件流"></a>2.3 统一上下文和统一事件流</h3><p>不同 probe 的命中方式差异很大，系统没有试图把这些差异全部消掉，而是把差异保留在命中前后的管理阶段，把命中之后的输入和输出统一起来。</p>
+<p>统一上下文是第一步。一次命中进入 runtime 之前，系统会整理出一份统一输入，其中至少包含事件或探针标识、时间戳、VM 与 vCPU 信息、探针类型以及若干通用参数。在 Guest 探针场景下，还会附带 Guest 的寄存器内容。这样，程序面对的是稳定输入模型，而不是随着 probe 类型变化的多套完全不同的数据结构。</p>
+<p>统一事件流是第二步。命中完成后，系统会把结果写成统一事件记录。事件中保存 probe 类型、事件标识、归属信息、时间戳、参数和值得保留的时长信息。事件优先进入统一事件通道；若主通道当前不可用，系统仍会保留近期事件的本地副本，保证 shell 侧能够继续读取结果。这样，<code>trace stream</code>、<code>trace dump</code> 和 <code>trace stat</code> 面对的始终是一类统一事件，只是来源和语义不同。</p>
+<p>这里还需要说明一个实现上的差别。tracepoint 的程序执行是通过统一事件发射路径触发的：静态事件先生成事件，再根据事件名查找已绑定程序并执行。动态 probe 则不是这样。<code>hprobe</code>、<code>guest-kprobe</code> 和 <code>guest-uprobe</code> 的程序执行是在各自的命中处理逻辑中直接调用 runtime 完成的，同时再把结果写入统一事件流。也就是说，事件流对所有 probe 都统一存在，但“程序执行发生在事件发射前还是事件发射阶段”这一点，在静态 tracepoint 和动态 probe 之间是不同的。</p>
+<h3 id="2-4-四类-probe-的运行差异"><a href="#2-4-四类-probe-的运行差异" class="headerlink" title="2.4 四类 probe 的运行差异"></a>2.4 四类 probe 的运行差异</h3><p>虽然系统使用统一上下文和统一事件流，但不同 probe 的主要差异仍然很明显。</p>
+<p><code>tracepoint</code> 的目标在代码里已经定义好，命中条件由事件点自身决定。<br><code>hprobe/hretprobe</code> 面向 EL2 自身代码，需要处理入口和返回路径上的动态探测。<br><code>guest-kprobe/kretprobe</code> 需要先解决 Guest 地址翻译、启用条件、异常接管和单步恢复。<br><code>guest-uprobe/uretprobe</code> 在此基础上还要处理对象元数据装入、运行时激活以及地址空间级实例管理。</p>
+<p>也就是说，这套系统真正稳定下来的，是命中之后的统一处理链；而命中之前的目标管理和运行时控制，则根据 probe 类型各自展开。</p>
+<h2 id="3-第一阶段：Host-VMM-侧基础设施的建立"><a href="#3-第一阶段：Host-VMM-侧基础设施的建立" class="headerlink" title="3. 第一阶段：Host/VMM 侧基础设施的建立"></a>3. 第一阶段：Host/VMM 侧基础设施的建立</h2><h3 id="3-1-建立顺序"><a href="#3-1-建立顺序" class="headerlink" title="3.1 建立顺序"></a>3.1 建立顺序</h3><p>第一阶段的工作有明确顺序。系统先解决程序装载和执行问题，再建立统一事件流，随后用静态 tracepoint 验证整条基础链能否跑通，最后把 <code>hprobe/hretprobe</code> 作为第一类动态事件源接入。</p>
+<p>这个顺序的意义很直接。动态探针一旦进入系统，运行时问题会立刻增多：目标怎么命中，命中后如何整理上下文，程序能否执行，结果从哪里输出，命中后是否需要恢复。如果程序装载和事件输出本身都还不稳定，后续调试时很难判断问题到底出在命中逻辑，还是出在 runtime 或输出链路。因此，系统先把 tracing 的后半段建立起来，再逐步补前半段的命中逻辑。</p>
+<h3 id="3-2-程序如何进入系统"><a href="#3-2-程序如何进入系统" class="headerlink" title="3.2 程序如何进入系统"></a>3.2 程序如何进入系统</h3><p>程序装载链路是第一阶段最先建立的部分。用户加载 eBPF 程序时，系统先识别输入是原始字节码还是 ELF 对象。如果是 ELF，对象解析会继续向下展开：识别程序段、map 定义和重定位信息，为每个 map 创建运行时对象，并把对象中的 map 名称和系统中创建出的 map 实例对应起来。</p>
+<p>map 创建完成后，系统继续处理两类重定位。一类是 map 相关重定位，使程序中的 map 引用能够正确指向系统中已创建的对象；另一类是对象内部函数调用重定位，使程序能够正确跳转到对象中的其他函数。只有这些步骤完成之后，系统才得到一段真正可执行的 eBPF 指令流。</p>
+<p>装载结束后，程序会被登记到统一注册表中，并保留与之关联的 map 集合和必要元数据。后续 tracepoint 或 probe 命中时，系统根据程序标识直接取出对应实例执行，无需重复解析对象。换句话说，程序装载和探针注册在系统中是两条分开的链：程序先进入系统，探针之后再引用它。</p>
+<h3 id="3-3-运行环境如何建立"><a href="#3-3-运行环境如何建立" class="headerlink" title="3.3 运行环境如何建立"></a>3.3 运行环境如何建立</h3><p>程序装入系统之后，还需要稳定运行环境。这个环境主要由 map、helper 和程序实例构成。</p>
+<p>map 在 tracing 中承担多个角色。它既可以保存命中计数，也可以保留跨命中状态，还可以承载一些需要在 shell 中读取的执行结果。由于 map 在装载阶段已经创建好，因此后续程序执行时可以直接访问这些对象，而不需要临时构造外围状态。</p>
+<p>helper 为程序提供运行期能力。系统在 runtime 初始化时统一注册一组 helper，包括时间获取、CPU 信息获取、map 操作，以及与 Hypervisor 场景直接相关的 VM、vCPU 和退出原因等信息获取能力。这样，程序在执行时既可以读取统一上下文中的输入，也可以通过 helper 主动获取当前运行环境。</p>
+<p>程序实例是真正执行的运行单元。装载阶段生成的程序对象，在这里被封装成“可执行程序体 + 关联 map + 元数据”的组合。命中发生时，系统不再回到装载逻辑，而是直接取出实例、构造 VM、注册 helper、传入上下文并执行。</p>
+<h3 id="3-4-统一上下文和统一事件流如何立起来"><a href="#3-4-统一上下文和统一事件流如何立起来" class="headerlink" title="3.4 统一上下文和统一事件流如何立起来"></a>3.4 统一上下文和统一事件流如何立起来</h3><p>在第一阶段，系统先定义了统一上下文，再建立统一事件流。</p>
+<p>统一上下文的目的，是让不同事件源都能进入同一条程序执行路径。上下文中至少包含事件或探针标识、时间戳、VM 与 vCPU 信息、探针类型以及若干参数。后面 Guest 侧探针接进来时，还会在这份上下文中附加寄存器内容。这样，程序面对的输入模型保持稳定，不需要随着事件来源变化而切换到完全不同的结构。</p>
+<p>在上下文之上，系统继续建立统一事件流。每次命中和程序执行之后，系统都会把结果整理成固定格式事件记录。事件优先进入统一事件通道；若主通道当前不可用，系统仍会保留近期事件的本地副本。这样一来，shell 侧的观察路径从一开始就是统一的：无论事件来自 tracepoint 还是后续的动态 probe，都会进入同一类事件输出。</p>
+<h3 id="3-5-Tracepoint-为什么最先接入"><a href="#3-5-Tracepoint-为什么最先接入" class="headerlink" title="3.5 Tracepoint 为什么最先接入"></a>3.5 Tracepoint 为什么最先接入</h3><p>在程序装载、运行环境和事件流已经建立之后，tracepoint 成为第一类接入系统的事件源。原因很清楚：tracepoint 的触发条件由代码本身决定，不涉及地址翻译、断点注入或单步恢复，因此最适合用来验证整条基础链是否成立。</p>
+<p>一次 tracepoint 触发时，系统会完成以下动作：构造上下文，检查当前是否有程序绑定在该事件上，生成统一事件，更新统计信息，并根据事件名查找已绑定程序并执行。只要这条链能够稳定工作，就说明程序装载、上下文组织、runtime 执行和事件输出已经形成完整路径。</p>
+<p>因此，tracepoint 在第一阶段承担的作用不仅是提供最早可用功能，也用于验证 tracing 的基础设施是否已经站稳。</p>
+<h3 id="3-6-hprobe-hretprobe-如何接入现有基础设施"><a href="#3-6-hprobe-hretprobe-如何接入现有基础设施" class="headerlink" title="3.6 hprobe/hretprobe 如何接入现有基础设施"></a>3.6 <code>hprobe/hretprobe</code> 如何接入现有基础设施</h3><p>当 tracepoint 路径已经成立之后，系统接入了 <code>hprobe/hretprobe</code>。这时新增的重点不再是“命中之后如何执行程序”，而是“VMM 自身函数如何进入这条已有链路”。</p>
+<p>用户注册 <code>hprobe</code> 时，系统先解析目标符号并保存探针记录。为了支持同一函数同时观察入口和返回路径，系统按地址维护成对的探针槽位：一个对应入口探针，一个对应返回探针。</p>
+<p>启用之后，入口探针在函数进入时触发，返回探针则维护额外的返回路径状态。命中发生后，入口探针会直接在命中回调中执行绑定程序。随后，异常处理路径再写入一条统一的 hprobe 事件记录。返回探针则在返回回调中执行绑定程序，并写入一条 hretprobe 事件记录。这样，<code>hprobe/hretprobe</code> 成为 tracing 中的第一类动态事件源，但仍然建立在第一阶段已经完成的基础设施之上。</p>
+<h3 id="3-7-第一阶段的结果"><a href="#3-7-第一阶段的结果" class="headerlink" title="3.7 第一阶段的结果"></a>3.7 第一阶段的结果</h3><p>到第一阶段结束时，系统已经具备了完整基础链：</p>
+<ul>
+<li>程序可以装载、解析、重定位并进入系统；</li>
+<li>map 和 helper 可以为程序执行提供稳定运行环境；</li>
+<li>统一上下文和统一事件流已经建立；</li>
+<li>shell 侧已有统一命令入口；</li>
+<li>tracepoint 可以稳定触发程序执行；</li>
+<li><code>hprobe/hretprobe</code> 已经作为动态事件源接入同一条链路。</li>
+</ul>
+<p>后面的 Guest Kernel Tracing 和 Guest Userspace Tracing，都是建立在这条基础链之上的扩展。</p>
+<h2 id="4-第二阶段：Guest-Kernel-Tracing-的运行逻辑"><a href="#4-第二阶段：Guest-Kernel-Tracing-的运行逻辑" class="headerlink" title="4. 第二阶段：Guest Kernel Tracing 的运行逻辑"></a>4. 第二阶段：Guest Kernel Tracing 的运行逻辑</h2><h3 id="4-1-用户输入之后，系统先做什么"><a href="#4-1-用户输入之后，系统先做什么" class="headerlink" title="4.1 用户输入之后，系统先做什么"></a>4.1 用户输入之后，系统先做什么</h3><p>用户注册一条 Guest 内核探针时，通常会给出 VM 标识、目标地址或符号、探针类型以及要绑定的程序。系统收到请求后，第一步并不是立即建立命中条件，而是先把这条探针记录下来。</p>
+<p>这样处理的原因在于，Guest Kernel Tracing 是否能立即启用，取决于当前 Guest 的运行时状态。系统此时虽然已经知道“用户想观察哪个目标”，但还不一定具备“现在就能安全启用这条探针”的条件。因此，探针生命周期被拆成两个阶段：注册阶段负责保存目标和参数；启用阶段负责在条件满足后真正建立命中条件。</p>
+<h3 id="4-2-地址翻译为什么是前提"><a href="#4-2-地址翻译为什么是前提" class="headerlink" title="4.2 地址翻译为什么是前提"></a>4.2 地址翻译为什么是前提</h3><p>Guest 内核探针的目标最初是 Guest 虚拟地址。Hypervisor 若要控制这个目标，就必须把它一步步翻译到可操作位置。这要求 VMM 向 tracing 子系统提供一组运行时能力：获取 Guest 页表根信息、读取 Guest 页表、把 Guest 物理地址映射到 Hypervisor 可访问位置，以及修改对应执行区域的 Stage-2 执行属性。</p>
+<p>有了这些能力之后，系统才能判断目标地址当前是否可翻译、属于哪个执行区域，以及是否已经具备启用条件。因此，地址翻译在 Guest Kernel Tracing 中是前提条件，而不是一个附属工具。</p>
+<h3 id="4-3-延迟启用如何发生"><a href="#4-3-延迟启用如何发生" class="headerlink" title="4.3 延迟启用如何发生"></a>4.3 延迟启用如何发生</h3><p>注册完成后，系统会立即尝试启用探针。如果此时 Guest 页表上下文已经可用，启用过程会继续向下执行；如果系统还拿不到必要翻译信息，探针就停留在已注册但未启用状态。之后，系统会在 Guest 真实运行的关键时机重新尝试启用，尤其是在 VM-exit 之后。此时若上下文已经具备，探针会自动进入已启用状态。</p>
+<p>这样处理之后，用户可以先登记目标，再等待 Guest 进入可探测状态。对系统来说，这使 Guest 的运行时不确定性能够被纳入探针生命周期管理中。</p>
+<h3 id="4-4-两种命中模式如何工作"><a href="#4-4-两种命中模式如何工作" class="headerlink" title="4.4 两种命中模式如何工作"></a>4.4 两种命中模式如何工作</h3><p>系统为 Guest Kernel Tracing 保留了两种命中方式。</p>
+<p>第一种通过 Stage-2 执行权限控制建立命中条件。启用探针后，系统会限制目标执行区域的可执行属性。Guest 一旦运行到该区域，会因为执行异常回到 EL2。系统随后判断这次 fault 是否对应已启用探针，若匹配成功，就把它解释为一次 probe 命中。</p>
+<p>第二种通过断点注入建立命中条件。启用时，系统先保存目标位置的原始指令，再把该位置改写为断点指令。Guest 运行到该位置时，通过断点异常进入 EL2。系统据此识别 probe 命中。</p>
+<p>这两种方式都能让 Guest 把控制权带回 EL2，但后续恢复逻辑不同。执行权限控制侧重执行区域管理与临时执行窗口；断点注入侧重原始指令保存、重新注入和中间状态清理。系统同时保留两种模式，使不同调试场景可以选择不同命中路径。</p>
+<h3 id="4-5-命中之后，系统怎样处理一次-Guest-Probe"><a href="#4-5-命中之后，系统怎样处理一次-Guest-Probe" class="headerlink" title="4.5 命中之后，系统怎样处理一次 Guest Probe"></a>4.5 命中之后，系统怎样处理一次 Guest Probe</h3><p>无论采用哪种命中方式，一次 Guest Kernel Probe 命中后，系统都会进入统一处理链。系统先在 EL2 异常入口识别当前 VM 和异常类型，再判断这次异常是否对应某条已启用探针。若匹配成功，就提取 Guest 当前寄存器和相关上下文，构造统一输入，执行绑定程序，并把结果写入统一事件流和统计信息中。</p>
+<p>到这里，命中只是完成了一半。剩下的一半，是系统必须把 Guest 带回原控制流。Guest 侧 tracing 最困难的地方，主要就落在这一段。</p>
+<h3 id="4-6-恢复为什么是关键环节"><a href="#4-6-恢复为什么是关键环节" class="headerlink" title="4.6 恢复为什么是关键环节"></a>4.6 恢复为什么是关键环节</h3><p>Guest 命中探针之后仍然要继续运行，因此恢复是 Guest Kernel Tracing 中最关键的环节之一。</p>
+<p>如果系统在断点命中后只记录一次事件而不恢复原始指令，Guest 会在同一位置反复异常，无法继续向前执行。反过来，如果系统恢复了原始指令，但不再重新建立探针条件，那么这条探针只会命中一次，之后就失去作用。执行权限控制路径也有类似问题：如果系统不在合适时机重新恢复执行限制，Guest 要么反复 fault，要么失去后续探测能力。</p>
+<p>因此，恢复链必须完成以下动作：</p>
+<ul>
+<li>让当前命中对应的原始执行内容能够继续执行；</li>
+<li>使用单步或等价方式把 Guest 安全带过当前探测点；</li>
+<li>在执行通过之后重新建立探针条件；</li>
+<li>最后把 Guest 送回正常控制流。</li>
+</ul>
+<p>恢复失败会直接带来两类后果：Guest 在同一位置重复异常，或者探针在首次命中后失效。也正因为这一点，恢复链是命中链的一部分。</p>
+<h3 id="4-7-guest-kretprobe-如何工作"><a href="#4-7-guest-kretprobe-如何工作" class="headerlink" title="4.7 guest-kretprobe 如何工作"></a>4.7 <code>guest-kretprobe</code> 如何工作</h3><p><code>guest-kprobe</code> 关注的是函数进入时发生了什么，<code>guest-kretprobe</code> 关注的是这一次进入最终怎样返回。因此，返回探针比入口探针多出一层调用级状态管理。</p>
+<p>在入口命中时，系统会记录与当前调用对应的返回路径信息；函数真正返回时，系统再利用这部分信息识别返回命中，补充返回值和持续时间，并在结束后清理对应状态。这里增加的内容不是简单“多拿一个返回值”，而是让系统能够把某次入口命中和稍后发生的一次返回关联起来。</p>
+<h3 id="4-8-卸载和回收"><a href="#4-8-卸载和回收" class="headerlink" title="4.8 卸载和回收"></a>4.8 卸载和回收</h3><p>Guest 探针生命周期结束时，系统还要处理运行中的残留状态。例如，探针启用时可能已经修改过执行权限，或在断点模式下替换过原始指令，还可能在返回路径上保留中间状态。如果这些状态不被回收，Guest 后续运行时仍可能撞上已失效探针留下的执行条件。因此，探针卸载和 VM 生命周期结束时，系统会一并清理这些状态。系统还专门保留了 stale BRK 处理逻辑，用来消化探针卸载后可能残留的旧断点命中。</p>
+<h3 id="4-9-第二阶段的结果"><a href="#4-9-第二阶段的结果" class="headerlink" title="4.9 第二阶段的结果"></a>4.9 第二阶段的结果</h3><p>到第二阶段结束时，Guest Kernel Tracing 已经形成了完整运行链：</p>
+<ul>
+<li>用户可以按地址或按符号注册目标；</li>
+<li>探针可以先注册，再在条件满足后启用；</li>
+<li>系统能够通过两种模式建立命中条件；</li>
+<li>EL2 能够识别并接管 Guest 探针命中；</li>
+<li>命中后能够执行程序、生成事件并完成恢复；</li>
+<li>卸载和 VM 生命周期结束时，相关状态能够回收。</li>
+</ul>
+<h2 id="5-第三阶段：Guest-Userspace-Tracing-的运行逻辑"><a href="#5-第三阶段：Guest-Userspace-Tracing-的运行逻辑" class="headerlink" title="5. 第三阶段：Guest Userspace Tracing 的运行逻辑"></a>5. 第三阶段：Guest Userspace Tracing 的运行逻辑</h2><h3 id="5-1-对象元数据如何进入系统"><a href="#5-1-对象元数据如何进入系统" class="headerlink" title="5.1 对象元数据如何进入系统"></a>5.1 对象元数据如何进入系统</h3><p>Userspace 场景中，用户输入的是 VM、路径、符号或偏移，以及要绑定的程序。系统首先要理解目标对象本身，因此 userspace tracing 的起点是对象元数据装载。加载完成后，系统能够把某个路径对象中的符号和偏移解析出来。之后注册 <code>uprobe</code> 时，系统根据“路径 + 符号/偏移”建立一条待激活绑定。</p>
+<p>这一阶段得到的只是逻辑目标。系统知道将来需要观察哪个对象里的哪个位置，但还不知道这个对象是否已经被执行，也不知道它当前位于哪个地址空间位置。</p>
+<h3 id="5-2-待激活绑定和运行实例"><a href="#5-2-待激活绑定和运行实例" class="headerlink" title="5.2 待激活绑定和运行实例"></a>5.2 待激活绑定和运行实例</h3><p>Userspace Tracing 内部同时维护两类对象：待激活绑定和运行实例。</p>
+<p>待激活绑定记录用户的探测意图，它在对象元数据已经进入系统后建立，可以长期存在。<br>运行实例则表示某条绑定在某个具体地址空间中的一次真实激活。运行实例只在对象真正进入地址空间之后生成，并在地址空间退出后回收。</p>
+<p>这种分层非常必要。因为 userspace probe 在注册时只有逻辑目标，没有运行地址。只有在对象真正被执行并映射之后，系统才知道应该在哪个 runtime PC 上建立命中条件。</p>
+<h3 id="5-3-observer-如何把逻辑目标变成实例"><a href="#5-3-observer-如何把逻辑目标变成实例" class="headerlink" title="5.3 observer 如何把逻辑目标变成实例"></a>5.3 observer 如何把逻辑目标变成实例</h3><p>运行期 observer 的作用，就是把逻辑目标变成运行实例。它通过跟踪程序执行和可执行映射建立来回答两个问题：某个路径对象是否已经和某个进程建立关系，以及它是否已经真正映射到某个地址空间中。</p>
+<p>实现上，这个 observer 并不是独立运行的一套旁路，而是建立在一组隐藏的 Guest 内核探针之上。系统会在 Guest 内核侧挂接与 <code>execve</code>、<code>execveat</code>、<code>vm_mmap_pgoff</code>、运行期重试激活以及 <code>exit_mmap</code> 等过程相关的隐藏探针，用它们采集 userspace 对象进入地址空间时所需的关键信息。</p>
+<p>一旦这两个条件都满足，系统就根据映射起点、文件偏移和对象内偏移计算 runtime PC，把待激活绑定推进成运行实例。直到这一步完成，userspace probe 才真正具备可命中的运行位置。</p>
+<h3 id="5-4-为什么按地址空间管理实例"><a href="#5-4-为什么按地址空间管理实例" class="headerlink" title="5.4 为什么按地址空间管理实例"></a>5.4 为什么按地址空间管理实例</h3><p>系统采用地址空间级实例管理。也就是说，userspace probe 的管理单位不是“某条路径”，而是“某条路径在某个具体地址空间中的一次映射实例”。</p>
+<p>这样做的原因在于，同一路径对象可以被多个进程同时执行，而不同进程拥有不同的地址空间、运行地址和命中状态。如果系统只按路径维护状态，一个进程中的命中和返回路径信息会影响另一个进程。地址空间级管理之后，每次命中都可以明确归属到某个实例上，返回路径管理和后续回收也都围绕这个实例展开。</p>
+<h3 id="5-5-命中和恢复"><a href="#5-5-命中和恢复" class="headerlink" title="5.5 命中和恢复"></a>5.5 命中和恢复</h3><p>实例激活完成后，系统才会真正建立 userspace probe 的命中条件。命中发生时，系统先确认当前 PC 属于哪个实例，再提取对应上下文，执行绑定程序，更新实例命中次数，并生成统一事件。之后，系统还要完成恢复，让用户态程序继续运行。</p>
+<p><code>uretprobe</code> 会在此基础上增加一层返回路径状态管理。入口命中时，系统保存与当前实例对应的返回路径信息；返回命中时，再补充返回值和执行时间，并清理相关状态。</p>
+<h3 id="5-6-回收"><a href="#5-6-回收" class="headerlink" title="5.6 回收"></a>5.6 回收</h3><p>userspace tracing 的实例具有天然生命周期。某个对象实例一旦所在进程退出，或者地址空间被销毁，它就不应继续保留在运行实例集合中。因此，observer 不仅负责激活实例，也负责在适当时机回收实例。回收时，系统会删除与该地址空间相关的运行实例，并同时清理与这些实例绑定的运行期状态。</p>
+<p>这里回收的是“这一次运行实例”，不是“用户的探测意图”。待激活绑定仍然保留，因此当同一路径对象将来再次进入某个地址空间时，系统仍然可以重新生成新实例。</p>
+<h3 id="5-7-第三阶段的结果"><a href="#5-7-第三阶段的结果" class="headerlink" title="5.7 第三阶段的结果"></a>5.7 第三阶段的结果</h3><p>到第三阶段结束时，Guest Userspace Tracing 已经形成完整生命周期链：</p>
+<ul>
+<li>用户加载对象元数据；</li>
+<li>系统建立待激活绑定；</li>
+<li>observer 在运行中识别对象进入地址空间；</li>
+<li>待激活绑定被激活成实例；</li>
+<li>实例建立命中条件并在运行中触发；</li>
+<li>命中结果进入统一上下文和事件流；</li>
+<li>地址空间退出后，实例和相关状态被回收。</li>
+</ul>
+<p>主程序场景已经覆盖这条完整路径。共享库动态装载场景仍保留在后续工作范围内。</p>
+<h2 id="6-验证体系与工程化支撑"><a href="#6-验证体系与工程化支撑" class="headerlink" title="6. 验证体系与工程化支撑"></a>6. 验证体系与工程化支撑</h2><h3 id="6-1-验证对象分成三层"><a href="#6-1-验证对象分成三层" class="headerlink" title="6.1 验证对象分成三层"></a>6.1 验证对象分成三层</h3><p>这套 tracing 系统的验证对象可以分成三层：配置是否生效，命中是否发生，命中后系统状态是否仍然正确。</p>
+<p>第一层验证配置是否生效，主要关注程序是否已经装入、目标是否已经登记，以及当前是否处于已启用或已激活状态。<br>第二层验证命中是否发生，主要关注运行中是否真的出现对应事件。<br>第三层验证命中后的系统状态，主要关注恢复是否完成、实例是否仍然归属正确、回收是否在正确时机发生。</p>
+<p>只有这三层都成立，某条 tracing 链路才可以被视为稳定可用。</p>
+<h3 id="6-2-统一验证入口"><a href="#6-2-统一验证入口" class="headerlink" title="6.2 统一验证入口"></a>6.2 统一验证入口</h3><p>系统通过统一 shell 入口提供这三层验证能力。状态类命令回答“系统当前处于什么状态”；事件类命令回答“运行过程中实际发生了什么”；统计类命令回答“一段运行之后系统累计得到了什么结果”。</p>
+<p>不同 probe 的重点落在不同层面上。例如，userspace probe 更依赖运行期事件与实例状态，guest-kprobe 更依赖命中和恢复路径是否完成。但无论重点落在哪里，使用者都沿着同一条入口查看系统状态，而不必为不同 probe 使用不同工具。</p>
+<h3 id="6-3-固定联调流程"><a href="#6-3-固定联调流程" class="headerlink" title="6.3 固定联调流程"></a>6.3 固定联调流程</h3><p>当系统已经包含 tracepoint、hprobe、guest-kprobe 和 guest-uprobe 之后，验证工作逐渐围绕固定联调流程展开。这条流程至少包括：</p>
+<ul>
+<li>装载程序；</li>
+<li>登记目标；</li>
+<li>检查当前是否处于待启用或待激活状态；</li>
+<li>驱动运行场景；</li>
+<li>观察运行期命中；</li>
+<li>查看收尾状态和统计结果。</li>
+</ul>
+<p>这条流程把 tracing 的验证建立在系统真实状态上，而不是建立在零散日志或一次性操作经验上。</p>
+<p>不同 probe 在这条流程中的判据也可以进一步细化。例如，对 <code>guest-kprobe</code> 来说，除了看到命中事件，还要确认恢复完成后 Guest 能继续越过探测点执行；对 <code>guest-uprobe</code> 来说，除了看到命中事件，还要确认实例始终归属于正确地址空间，并能在地址空间退出后被及时回收。</p>
+<h2 id="7-当前边界与后续工作"><a href="#7-当前边界与后续工作" class="headerlink" title="7. 当前边界与后续工作"></a>7. 当前边界与后续工作</h2><p>当前系统已经能够覆盖一组连续场景：VMM 静态事件、VMM 自探针、Guest Kernel 探针以及主程序场景下的 Guest Userspace 探针。但系统边界同样明确。</p>
+<p>性能测量尚未系统展开。当前阶段重点放在功能链路完整性和运行逻辑正确性上，后续仍需补齐不同探针模式的开销、恢复成本和对目标 VM 的影响评估。</p>
+<p>程序安全约束仍以可信输入为前提。系统已经具备程序装载和执行能力，但完整 verifier 尚未纳入这一阶段工作范围。</p>
+<p>Userspace 更复杂对象场景仍需继续推进。共享库动态装载带来的对象识别、实例匹配和返回路径管理问题，比主程序场景复杂得多，适合在现有主线稳定之后继续处理。</p>
+<h2 id="8-结论"><a href="#8-结论" class="headerlink" title="8. 结论"></a>8. 结论</h2><p>这三个月里，AxVisor 的 tracing 已经从若干局部实现发展成一套结构清楚的系统。系统先建立了程序装载、runtime、统一上下文、统一事件输出和命令入口，随后沿着 VMM 自身、Guest Kernel 和 Guest Userspace 三条路径继续扩展，把命中前后的运行时管理逻辑逐步补齐。</p>
+<p>整个实现过程始终围绕完整运行链展开。系统处理的不只是目标能否命中，还包括程序是否已经装入、目标是否已经建立绑定、当前条件是否允许启用或激活、命中之后能否恢复执行，以及生命周期结束后状态是否能够回收。也正因为这些环节都逐步建立起来，最终形成的是一套后续仍可继续扩展的 tracing 基础设施。</p>
+<h2 id="9-相关链接"><a href="#9-相关链接" class="headerlink" title="9. 相关链接"></a>9. 相关链接</h2><ul>
+<li>AxVisor 官方仓库：<a href="https://github.com/arceos-hypervisor/axvisor" target="_blank" rel="noopener">https://github.com/arceos-hypervisor/axvisor</a></li>
+<li>AxVisor 开发分支仓库：<a href="https://github.com/Iscreamx/axvisor/tree/feature/ebpf" target="_blank" rel="noopener">https://github.com/Iscreamx/axvisor/tree/feature/ebpf</a></li>
+<li>axebpf 仓库：<a href="https://github.com/Iscreamx/axebpf/tree/main" target="_blank" rel="noopener">https://github.com/Iscreamx/axebpf/tree/main</a></li>
+<li>实习文档站点：<a href="https://iscreamx.github.io/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0/%E7%9B%AE%E5%BD%95.html" target="_blank" rel="noopener">https://iscreamx.github.io/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0/%E7%9B%AE%E5%BD%95.html</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-iscreamx/" rel="tag"># author:iscreamx</a>
+              <a href="/blog/tags/repo-https-github-com-Iscreamx-axebpf/" rel="tag"># repo:https://github.com/Iscreamx/axebpf</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/12/15/2025%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8F%B2%E5%96%86%E5%85%83/" rel="prev" title="2025秋冬季开源操作系统训练营一二阶段总结-史喆元">
+      <i class="fa fa-chevron-left"></i> 2025秋冬季开源操作系统训练营一二阶段总结-史喆元
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
