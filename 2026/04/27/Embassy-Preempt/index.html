@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="Embassy Preempt摘要Embassy Preempt是一个嵌入式异步实时操作系统调度模块，结合Rust协程机制与传统RTOS的抢占式调度，在内存效率和实时性之间取得平衡。系统支持Rust原生async&#x2F;await语法定义实时任务，兼容uCOSII API接口，并实现了创新的动态栈空间管理——主动让权时共享栈以节省内存，被抢占时按需分配私有栈保存上下文，在64任务场景下相比固定栈方案节省">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Embassy Preempt On VisionFive2 -- Oveln">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/04/27/Embassy-Preempt/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="Embassy Preempt摘要Embassy Preempt是一个嵌入式异步实时操作系统调度模块，结合Rust协程机制与传统RTOS的抢占式调度，在内存效率和实时性之间取得平衡。系统支持Rust原生async&#x2F;await语法定义实时任务，兼容uCOSII API接口，并实现了创新的动态栈空间管理——主动让权时共享栈以节省内存，被抢占时按需分配私有栈保存上下文，在64任务场景下相比固定栈方案节省">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-04-27T15:16:11.000Z">
+<meta property="article:modified_time" content="2026-04-28T23:32:51.526Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="Oveln">
+<meta property="article:tag" content="RTOS">
+<meta property="article:tag" content="Embassy_preempt">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/04/27/Embassy-Preempt/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Embassy Preempt On VisionFive2 -- Oveln | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Embassy-Preempt"><span class="nav-number">1.</span> <span class="nav-text">Embassy Preempt</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#系统简介"><span class="nav-number">1.2.</span> <span class="nav-text">系统简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#系统架构"><span class="nav-number">1.3.</span> <span class="nav-text">系统架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#系统特性"><span class="nav-number">1.4.</span> <span class="nav-text">系统特性</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#支持rust原生协程作为task"><span class="nav-number">1.4.1.</span> <span class="nav-text">支持rust原生协程作为task</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ucosii-api兼容"><span class="nav-number">1.4.2.</span> <span class="nav-text">ucosii api兼容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#动态栈空间使用"><span class="nav-number">1.4.3.</span> <span class="nav-text">动态栈空间使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#上下文切换性能"><span class="nav-number">1.4.4.</span> <span class="nav-text">上下文切换性能</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Embassy-Preempt-On-VisionFive2"><span class="nav-number">2.</span> <span class="nav-text">Embassy Preempt On VisionFive2</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#S7核心适配"><span class="nav-number">2.1.</span> <span class="nav-text">S7核心适配</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#StarryOS兼容"><span class="nav-number">2.2.</span> <span class="nav-text">StarryOS兼容</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#双系统通信"><span class="nav-number">2.3.</span> <span class="nav-text">双系统通信</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能比较"><span class="nav-number">2.4.</span> <span class="nav-text">性能比较</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关链接"><span class="nav-number">2.5.</span> <span class="nav-text">相关链接</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">758</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">71</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">674</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/27/Embassy-Preempt/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Embassy Preempt On VisionFive2 -- Oveln
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-04-27 15:16:11" itemprop="dateCreated datePublished" datetime="2026-04-27T15:16:11+00:00">2026-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-04-28 23:32:51" itemprop="dateModified" datetime="2026-04-28T23:32:51+00:00">2026-04-28</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="Embassy-Preempt"><a href="#Embassy-Preempt" class="headerlink" title="Embassy Preempt"></a>Embassy Preempt</h1><h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>Embassy Preempt是一个嵌入式异步实时操作系统调度模块，结合Rust协程机制与传统RTOS的抢占式调度，在内存效率和实时性之间取得平衡。系统支持Rust原生async/await语法定义实时任务，兼容uCOSII API接口，并实现了创新的动态栈空间管理——主动让权时共享栈以节省内存，被抢占时按需分配私有栈保存上下文，在64任务场景下相比固定栈方案节省约53%内存。</p>
+<p>项目已适配RISC-V平台，在VisionFive2（JH7110）开发板上实现了完整的AMP方案：S7核心运行Embassy Preempt处理实时任务，U74核心运行StarryOS处理通用计算，通过ov_channel共享内存库实现Notification和RPC双向通信。在无数据缓存的S7核心上，上下文切换性能与U74核心上的RT-Thread相当，核间通信延迟比官方AMP方案低约5~6倍。</p>
+<p><a href="https://github.com/Oveln/embassy_preempt_on_Visionfive2-2026-04-19" target="_blank" rel="noopener">汇报仓库</a></p>
+<h2 id="系统简介"><a href="#系统简介" class="headerlink" title="系统简介"></a>系统简介</h2><p>Embassy Preempt是一个嵌入式异步实时操作系统的调度模块，它通过Rust提供的协程机制，结合embassy的异步执行器的实现方式，并借鉴传统嵌入式实时操作系统uCOSII的任务切换机制，在任务调度时实现了一套创新的内存管理和实时性保证机制。</p>
+<p>在传统嵌入式实时操作系统（如uCOSII）中，每个任务都占有一个私有的栈空间，但在实际应用中，大部分任务释放CPU都是由于主动让权，而非被高优先级的任务抢占，这使得栈空间存在一定的浪费。而在embassy中，虽然通过引入Rust的协程机制使得栈空间的利用率得到了极大的提升，但是由于协程之间无法进行抢占，并且没有优先级裁决机制，导致在多任务场景下实时性较差。</p>
+<p>Embassy Preempt在这两者之间进行了”折衷”，实现了一个既可以满足实时应用环境下的实时性要求，又可以尽可能缩小内存使用的嵌入式异步实时操作系统调度模块。其核心在于：</p>
+<ul>
+<li><strong>混合任务调度</strong>：支持Rust原生协程作为任务，兼容传统uCOSII API接口</li>
+<li><strong>动态栈空间管理</strong>：主动让权时进行栈复用，被抢占时进行栈分配和现场保存</li>
+<li><strong>抢占式内核</strong>：支持高优先级任务抢占低优先级任务=</li>
+</ul>
+<p>2025年11月以来，项目重点进行了RISC-V平台支持的开发，特别是在VisionFive2（JH7110）开发板上实现了完整的AMP方案：S7核心运行Embassy Preempt处理实时任务，U74核心运行StarryOS处理通用计算，两系统间实现了Notification和RPC的双向通信机制。</p>
+<h2 id="系统架构"><a href="#系统架构" class="headerlink" title="系统架构"></a>系统架构</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">    A[平台配置库] --&gt; B[platform crate]</span><br><span class="line">    K[架构特定runtime库] --&gt; B</span><br><span class="line">    B --&gt; C[embassy-preempt-executor]</span><br><span class="line">    B --&gt; D[embassy-preempt-mem]</span><br><span class="line">    B --&gt; E[embassy-preempt-event]</span><br><span class="line">    B --&gt; F[embassy-preempt-log]</span><br><span class="line">    B --&gt; G[embassy-preempt-macros]</span><br><span class="line">    B --&gt; H[embassy-preempt-structs]</span><br><span class="line">    B --&gt; I[embassy-preempt-cfg]</span><br><span class="line"></span><br><span class="line">    C --&gt; J[用户编写app]</span><br><span class="line">    D --&gt; J</span><br><span class="line">    E --&gt; J</span><br><span class="line">    F --&gt; J</span><br><span class="line">    G --&gt; J</span><br><span class="line">    H --&gt; J</span><br><span class="line">    I --&gt; J</span><br><span class="line"></span><br><span class="line">    style A fill:#e1f5ff</span><br><span class="line">    style K fill:#e1f5ff</span><br><span class="line">    style B fill:#fff4e1</span><br><span class="line">    style J fill:#e1ffe1</span><br></pre></td></tr></table></figure>
+
+
+<h2 id="系统特性"><a href="#系统特性" class="headerlink" title="系统特性"></a>系统特性</h2><h3 id="支持rust原生协程作为task"><a href="#支持rust原生协程作为task" class="headerlink" title="支持rust原生协程作为task"></a>支持rust原生协程作为task</h3><p>Embassy Preempt完全支持Rust原生的async/await语法，开发者可以使用标准的异步函数作为实时任务。这种支持基于Rust的Future trait，通过执行器的poll机制驱动异步任务执行。</p>
+<p><strong>核心特性：</strong></p>
+<ul>
+<li><strong>原生异步语法</strong>：直接使用<code>async fn</code>定义任务，配合<code>.await</code>进行异步等待</li>
+<li><strong>零成本抽象</strong>：协程在编译期转换为状态机，无运行时开销</li>
+<li><strong>统一的任务模型</strong>：异步任务与同步任务在同一调度器中管理</li>
+<li><strong>优先级支持</strong>：协程任务可以设置优先级，参与抢占式调度</li>
+</ul>
+<p><strong>任务创建示例：</strong></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> embassy_preempt_executor::AsyncOSTaskCreate;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建异步任务 ([源代码](https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-executor/src/os_task.rs#L79-L97))</span></span><br><span class="line">AsyncOSTaskCreate(</span><br><span class="line">    my_async_task,           <span class="comment">// 异步函数</span></span><br><span class="line">    ptr::null_mut(),</span><br><span class="line">    ptr::null_mut(),</span><br><span class="line">    priority,                <span class="comment">// 优先级</span></span><br><span class="line">);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 异步任务定义</span></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">my_async_task</span></span>() &#123;</span><br><span class="line">    <span class="keyword">loop</span> &#123;</span><br><span class="line">        <span class="comment">// 执行实时任务</span></span><br><span class="line">        embassy_preempt_log::info!(<span class="string">"Async task running"</span>);</span><br><span class="line">        <span class="comment">// 主动让权，等待定时器</span></span><br><span class="line">        Timer::after_micros(<span class="number">100000000</span>).<span class="keyword">await</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>执行机制：</strong></p>
+<p>协程任务的执行通过执行器的poll函数驱动。当协程遇到<code>.await</code>点时，会将控制权交还给调度器，调度器可以选择：</p>
+<ul>
+<li>继续poll当前协程（如果未完成）</li>
+<li>切换到其他就绪任务</li>
+<li>进入低功耗状态（如果无就绪任务）</li>
+</ul>
+<p>这种机制使得协程在主动让权时不需要保存完整的栈上下文，因为所有的局部变量都存储在Future的状态机中，而非栈上。</p>
+<h3 id="ucosii-api兼容"><a href="#ucosii-api兼容" class="headerlink" title="ucosii api兼容"></a>ucosii api兼容</h3><p>Embassy Preempt提供了与传统uCOSII RTOS兼容的API接口，使得现有的嵌入式代码可以轻松迁移。</p>
+<p><strong>主要兼容接口：</strong></p>
+<ul>
+<li><strong>OSTaskCreate/OSTaskCreateExt</strong> - 任务创建 (<a href="https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-executor/src/os_task.rs#L43-L97" target="_blank" rel="noopener">源代码</a>)</li>
+<li><strong>OSTimeDly</strong> - 任务延迟 (<a href="https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-executor/src/os_time/mod.rs#L70-L83" target="_blank" rel="noopener">源代码</a>)</li>
+<li><strong>OSTimeDlyHMSM</strong> - 按时分秒延迟</li>
+<li><strong>OSSemCreate/OSSemPend/OSSemPost</strong> - 信号量操作 (<a href="https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-event/src/os_sem.rs#L10-L32" target="_blank" rel="noopener">源代码</a>)</li>
+</ul>
+<p><strong>使用示例：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// C风格任务创建 ([源代码](https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-executor/src/os_task.rs#L43-L76))</span></span><br><span class="line"><span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">void</span> <span class="title">my_task</span><span class="params">(<span class="keyword">void</span>* arg)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        <span class="comment">// 任务逻辑</span></span><br><span class="line">        OSTimeDly(<span class="number">100</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建任务</span></span><br><span class="line">SyncOSTaskCreate(my_task, <span class="literal">NULL</span>, <span class="literal">NULL</span>, <span class="number">10</span>);</span><br></pre></td></tr></table></figure>
+
+<p><strong>统一调度机制：</strong></p>
+<p>在系统内部将任意sync函数视作单个Future，使得所有task能被统一调度</p>
+<h3 id="动态栈空间使用"><a href="#动态栈空间使用" class="headerlink" title="动态栈空间使用"></a>动态栈空间使用</h3><p>Embassy Preempt实现了创新的动态栈空间管理机制，根据任务调度方式智能选择栈分配策略，最大化内存利用率。</p>
+<p><strong>内存设计：</strong></p>
+<ul>
+<li><strong>栈复用</strong>：主动让权时共享栈空间，避免内存浪费</li>
+<li><strong>按需分配</strong>：仅在发生抢占时分配私有栈</li>
+</ul>
+<p><strong>两种调度模式：</strong></p>
+<ol>
+<li><p><strong>让权模式（主动让权）</strong></p>
+<ul>
+<li>任务通过<code>.await</code>主动让出CPU</li>
+<li>所有协程共享同一个程序栈</li>
+<li>无需保存完整栈上下文（局部变量在Future状态机中）</li>
+<li>栈空间利用率最高</li>
+</ul>
+</li>
+<li><p><strong>抢占模式（被动切换）</strong></p>
+<ul>
+<li>高优先级任务抢占低优先级任务</li>
+<li>当前程序栈分配给被抢占任务保存上下文</li>
+<li>立即分配新栈供系统继续运行</li>
+<li>恢复执行时可能回收私有栈（如果任务再次让权或完成）</li>
+</ul>
+</li>
+</ol>
+<p><strong>栈分配器实现：</strong></p>
+<p>采用固定大小块分配算法 (<a href="https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-mem/src/arena.rs" target="_blank" rel="noopener">源代码</a>)，支持8种栈大小：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> STACK_SIZES: [<span class="built_in">usize</span>; <span class="number">8</span>] = [</span><br><span class="line">    <span class="number">128</span>, <span class="number">256</span>, <span class="number">512</span>, <span class="number">1024</span>, <span class="number">2048</span>, <span class="number">4096</span>, <span class="number">8192</span>, <span class="number">16384</span>  <span class="comment">// 字节</span></span><br><span class="line">];</span><br></pre></td></tr></table></figure>
+
+<p>根据Qemu平台的测试数据（64任务场景）：</p>
+<ul>
+<li><strong>动态栈开销</strong>：120KB（峰值时约7个任务同时拥有私有栈）</li>
+<li><strong>uCOSII固定栈</strong>：256KB（每任务4KB）</li>
+<li><strong>内存节省</strong>：约53%</li>
+</ul>
+<p>这种设计既保持了抢占式RTOS的实时性，又最大程度地降低了内存占用，特别适合资源受限的嵌入式系统。</p>
+<h3 id="上下文切换性能"><a href="#上下文切换性能" class="headerlink" title="上下文切换性能"></a>上下文切换性能</h3><p>基于QEMU RISC-V平台的精确指令计数测试，Embassy Preempt展现了高效的上下文切换性能。</p>
+<p><strong>测试环境：</strong></p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>参数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>测试平台</td>
+<td>QEMU RISC-V</td>
+</tr>
+<tr>
+<td>架构</td>
+<td>RISC-V 64位</td>
+</tr>
+<tr>
+<td>测试方法</td>
+<td>指令计数</td>
+</tr>
+<tr>
+<td>测试流程</td>
+<td>从发起上下文切换请求到处理完成</td>
+</tr>
+</tbody></table>
+<table>
+<thead>
+<tr>
+<th>测试项</th>
+<th>指令数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>完整上下文切换</strong></td>
+<td><strong>378条指令</strong></td>
+<td>从请求到完成的完整流程</td>
+</tr>
+</tbody></table>
+<p>在实际平台上运行会因为cache miss等原因大于378时钟周期，具体表现在visionfive2的部分会有比较</p>
+<h1 id="Embassy-Preempt-On-VisionFive2"><a href="#Embassy-Preempt-On-VisionFive2" class="headerlink" title="Embassy Preempt On VisionFive2"></a>Embassy Preempt On VisionFive2</h1><h2 id="S7核心适配"><a href="#S7核心适配" class="headerlink" title="S7核心适配"></a>S7核心适配</h2><p>VisionFive2开发板上的JH7110处理器有5个核心，其中S7核心（hart0）专门运行Embassy Preempt。</p>
+<p><strong>S7核心特点：</strong></p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>S7核心</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指令集</td>
+<td>RV64IMAC（整数+乘法+压缩）</td>
+</tr>
+<tr>
+<td>浮点</td>
+<td>无</td>
+</tr>
+<tr>
+<td>原子指令</td>
+<td>不支持CAS，需要软件模拟</td>
+</tr>
+<tr>
+<td>缓存</td>
+<td>仅有I cache，无D cache</td>
+</tr>
+<tr>
+<td>运行位置</td>
+<td>L2 Cache Lim区域</td>
+</tr>
+</tbody></table>
+<p>S7核心不支持S态，只能运行在M态，这意味着不需要OpenSBI层，可以直接访问硬件，减少了中断延迟。</p>
+<p><strong>L2 Cache Lim配置：</strong></p>
+<p>L2 Cache Lim是JH7110中L2 Cache的特殊功能，disabled的cache ways可以直接作为内存寻址，提供确定的访问时间。</p>
+<p><strong>配置原理：</strong></p>
+<ul>
+<li>总共2MB = 16 ways × 128KB</li>
+<li>复位状态：只有way 0是cache，其他15个ways都是disabled（可作为L2 LIM）</li>
+<li>Enable规则：通过WayEnable寄存器enable ways，从最低编号way开始</li>
+<li>地址映射：最高编号way映射到最低L2 LIM地址</li>
+<li>一旦enable就不可disable，除非系统复位</li>
+</ul>
+<p><strong>启动流程与SPL自搬运：</strong></p>
+<p>初始状态下，这块低内存区域（0x800_0000）被SPL使用。启动流程如下：</p>
+<ol>
+<li><strong>SPL阶段</strong>：SPL搬运opensbi、uboot、embassy_preempt到对应内存位置</li>
+<li><strong>U-Boot阶段</strong>：需要初始化cache2驱动</li>
+</ol>
+<p>为了给Embassy Preempt腾出L2 LIM空间，做了以下修改：</p>
+<p><strong>1. SPL自搬运</strong></p>
+<ul>
+<li>新增<code>arch/riscv/cpu/spl_relocate.S</code>（适用于多核的自搬运算法）</li>
+<li>将SPL自身从<code>0x800_0000</code>搬运到<code>0x808_0000</code></li>
+<li>修改<code>u-boot-spl.lds</code>链接脚本</li>
+<li>这样让出了低内存的512KB空间</li>
+</ul>
+<p><strong>2. Cache2驱动修改</strong></p>
+<ul>
+<li>添加<code>sifive,max-enabled-ways</code>设备树选项</li>
+<li>修改<code>cache-sifive-ccache.c</code>驱动</li>
+<li>只enable way 0~11作为cache（12个ways，1.5MB）</li>
+<li>保持way 12~15为disabled状态（4个ways，512KB）</li>
+</ul>
+<p><strong>最终内存布局：</strong> (<a href="https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-platform/platforms/jh7110/memory.x" target="_blank" rel="noopener">源代码 - memory.x</a>)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">0x800_0000 ┌───────────────────────┐</span><br><span class="line">           │ L2 LIM (4 ways)       │  ← 512KB，disabled ways</span><br><span class="line">           │ way 15 → way 12       │     embassy_preempt运行区</span><br><span class="line">           │   - embassy_preempt.  │</span><br><span class="line">           ├───────────────────────┤</span><br><span class="line">0x808_0000 │ SPL (搬运后位置)       │  ← SPL自搬运到这里</span><br><span class="line">           │在uboot阶段初始化为Cache │</span><br><span class="line">           │ Cache (12 ways)      │  ← 1.5MB，enabled ways</span><br><span class="line">           │ way 11 → way 0       │</span><br><span class="line">           └──────────────────────┘</span><br><span class="line">0x820_0000</span><br></pre></td></tr></table></figure>
+
+<p>Embassy Preempt的代码段通过链接脚本放置在L2 LIM区域（0x800_0000），享受确定的访问延迟，不会有cache miss。</p>
+<h2 id="StarryOS兼容"><a href="#StarryOS兼容" class="headerlink" title="StarryOS兼容"></a>StarryOS兼容</h2><p>VisionFive2的另外4个U74核心（hart1-4）运行StarryOS操作系统。</p>
+<p><strong>U74核心特点：</strong></p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>U74核心</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指令集</td>
+<td>RV64GC（完整指令集）</td>
+</tr>
+<tr>
+<td>浮点</td>
+<td>支持双精度浮点</td>
+</tr>
+<tr>
+<td>原子指令</td>
+<td>完整支持</td>
+</tr>
+<tr>
+<td>缓存</td>
+<td>完整L1 + 共享L2</td>
+</tr>
+</tbody></table>
+<p>U74核心性能比S7核心强，有浮点单元和完整的原子指令，适合运行通用计算任务。</p>
+<p>StarryOS基于ArceOS，支持多核SMP模式。hart1-4核心通过OpenSBI启动，然后uboot加载StarryOS内核，走的是标准的RISC-V启动流程，使用SBI接口访问硬件。</p>
+<p>这与hart0直接运行Embassy Preempt不同：hart0在M态直接运行，而U74核心在S态运行，保持了与传统RISC-V Linux系统的兼容性。</p>
+<h2 id="双系统通信"><a href="#双系统通信" class="headerlink" title="双系统通信"></a>双系统通信</h2><p>S7核心的Embassy Preempt与U74核心的StarryOS之间通过ov_channel库实现双向通信。</p>
+<p><strong>ov_channel库简介：</strong></p>
+<p>ov_channel是一个为该场景特殊设计的双系统共享内存通信库，专门设计用于裸机环境下的高效通信。这个库基于环形缓冲区实现无锁通信。</p>
+<p><strong>主要特性：</strong></p>
+<ul>
+<li><code>no_std</code></li>
+<li>基于环形缓冲区的无锁通信</li>
+<li>四种消息类型：Notification（通知）、Data（数据）、RPC Request/Response（远程过程调用）</li>
+<li>每个消息256字节，包含1字节类型标识和255字节负载数据</li>
+<li>支持类型安全的RPC调用，使用postcard二进制序列化</li>
+</ul>
+<p><strong>测试验证：</strong></p>
+<p>该库已经在x86和RISC-V 64位平台上进行了充分测试，验证了跨平台兼容性和正确性。</p>
+<p><strong>MSIP中断通知机制：</strong></p>
+<p>两系统间通过MSIP（Machine Software Interrupt）寄存器实现中断通知：</p>
+<ol>
+<li><p><strong>StarryOS → Embassy Preempt</strong></p>
+<ul>
+<li>StarryOS写入共享内存消息</li>
+<li>通过OpenSBI扩展SBI接口触发MSIP0中断</li>
+<li>Embassy Preempt的MSI中断处理函数被调用</li>
+<li>唤醒<code>wait_for_ipi().await</code>等待的任务</li>
+<li>处理共享内存中的消息</li>
+</ul>
+</li>
+<li><p><strong>Embassy Preempt → StarryOS</strong></p>
+<ul>
+<li>Embassy Preempt写入共享内存消息</li>
+<li>直接写MSIP1寄存器触发hart1的SSI中断</li>
+<li>StarryOS的IPI设备驱动处理中断</li>
+<li>读取并处理共享内存中的消息</li>
+</ul>
+</li>
+</ol>
+<p>对于StarryOS来说，ov_channal所在的内存区域是一块mmio设备</p>
+<p><strong>RPC通信流程：</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">StarryOS 发起RPC调用:</span><br><span class="line">1. 写入RPC Request到Channel 0</span><br><span class="line">2. 触发MSIP中断通知Embassy Preempt</span><br><span class="line">3. Embassy Preempt处理请求并写入RPC Response到Channel 1</span><br><span class="line">4. 触发MSIP中断通知StarryOS</span><br><span class="line">5. StarryOS读取响应</span><br></pre></td></tr></table></figure>
+
+<p><strong>实际应用示例：</strong></p>
+<p>在embassy_preempt_app_Visionfive2中实现了RPC服务器，支持的方法包括：</p>
+<ul>
+<li><code>HELLO_WORLD</code>: 测试方法</li>
+<li><code>ADD</code>: 加法运算</li>
+</ul>
+<p>任务可以通过<code>wait_for_ipi().await</code> (<a href="https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-executor/src/ipi.rs#L186-L189" target="_blank" rel="noopener">源代码</a>) 异步等待来自StarryOS的RPC调用或Notification。</p>
+<h2 id="性能比较"><a href="#性能比较" class="headerlink" title="性能比较"></a>性能比较</h2><p>与官方在VisionFive2大核心（U74）上移植的RT-Thread AMP方案进行性能对比。</p>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>Embassy Preempt</th>
+<th>RT-Thread</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>运行核心</strong></td>
+<td>S7 (hart0)</td>
+<td>U74</td>
+</tr>
+<tr>
+<td><strong>指令集</strong></td>
+<td>RV64IMAC</td>
+<td>RV64GC</td>
+</tr>
+<tr>
+<td><strong>浮点单元</strong></td>
+<td>无</td>
+<td>双精度浮点</td>
+</tr>
+<tr>
+<td><strong>数据缓存</strong></td>
+<td>无</td>
+<td>完整L1+L2</td>
+</tr>
+<tr>
+<td><strong>上下文切换</strong> (<a href="https://github.com/Oveln/embassy_preempt/blob/a708bb1ea723da795e79d672916791790e841dd5/modules/embassy-preempt-executor/src/os_cpu.rs#L27-L77" target="_blank" rel="noopener">源代码</a>)</td>
+<td>1.25~2.48 μs</td>
+<td>平均1μs，最大2μs</td>
+</tr>
+<tr>
+<td><strong>核间通信</strong></td>
+<td>RPC: 3.585~4.669 μs</td>
+<td>IPI: ~25μs，最大70μs</td>
+</tr>
+</tbody></table>
+<p><strong>核心优势</strong>：</p>
+<ol>
+<li><p><strong>上下文切换</strong>：在无数据缓存的S7核心上，实现了与U74核心上RT-Thread相当的调度性能</p>
+</li>
+<li><p><strong>核间通信</strong>：通过软件中断提醒，通过ov_channal的延迟比官方AMP方案的延迟低约5~6倍，主要得益于共享内存通信和协程异步模型</p>
+</li>
+<li><p><strong>资源利用</strong>：动态栈管理机制在64任务场景下相比传统固定栈方案节省约53%内存</p>
+</li>
+</ol>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><ul>
+<li><strong>源代码仓库</strong>：<a href="https://github.com/Oveln/embassy_preempt" target="_blank" rel="noopener">Oveln/embassy_preempt</a> — 项目主仓库，包含所有模块源码</li>
+<li><strong>汇报仓库</strong>：<a href="https://github.com/Oveln/embassy_preempt_on_Visionfive2-2026-04-19" target="_blank" rel="noopener">Oveln/embassy_preempt_on_Visionfive2-2026-04-19</a> — VisionFive2平台适配的汇报材料</li>
+<li><strong>开发日志</strong>：项目开发过程中的提交记录和设计决策可通过上述仓库的 Git 提交历史查阅</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/Oveln/" rel="tag"># Oveln</a>
+              <a href="/blog/tags/RTOS/" rel="tag"># RTOS</a>
+              <a href="/blog/tags/Embassy-preempt/" rel="tag"># Embassy_preempt</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/04/26/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" rel="prev" title="2026开源社区实习总结">
+      <i class="fa fa-chevron-left"></i> 2026开源社区实习总结
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
