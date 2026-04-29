@@ -83,6 +83,9 @@ StarryOS 的按需加载系统组成部分：
 
 ![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p1.png)
 
+如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p1.png
+
+
 ### 3.2 模块生命周期状态机
 
 `ondemand-kmod` 使用六状态有限状态机（FSM）描述模块的生命周期：
@@ -106,6 +109,8 @@ StarryOS 的按需加载系统组成部分：
 **图 2** 为六状态生命周期状态机示意图。
 
 ![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p2.png)
+
+如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p2.png
 
 ### 3.3 安全卸载的三阶段算法
 
@@ -139,9 +144,14 @@ StarryOS 的按需加载系统组成部分：
 
 ![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p3.png)
 
+如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p3.png
+
 **图 4** 展示了 `Starryfuse` 内核驱动的分层架构。
 
 ![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p4.png)
+
+如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p4.png
+
 
 ---
 
@@ -510,9 +520,11 @@ starry:~#
 ---
 ## 7.相关链接
 
-项目工程仓库：https://github.com/DINGBROK423/StarryOS/tree/ondemand
-按需加载库：https://github.com/DINGBROK423/ondemand-kmod
-问题日志：https://github.com/DINGBROK423/ondemand-kmod/issues
+[项目工程仓库](https://github.com/DINGBROK423/StarryOS/tree/ondemand)
+[按需加载库](https://github.com/DINGBROK423/ondemand-kmod)
+[PPT 演示文件](https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/ppt/StarryOS%20%E6%8C%89%E9%9C%80%E5%8A%A0%E8%BD%BD%E5%86%85%E6%A0%B8%E6%A8%A1%E5%9D%97%E6%A1%86%E6%9E%B6%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0.pptx)
+[问题日志](https://github.com/DINGBROK423/ondemand-kmod/issues)
+[开发日志仓库](https://dingbrok423.github.io/development_log.html)
 
 ---
 
