@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="本次实习工作总结摘要本次实习围绕 x86 自动化测试体系构建、starry-vdso 完善、以及基于自定义 vDSO 接口的 fast path 设计与实现 三条主线展开。完成了从 PXE 自动化部署验证、CI 集成、多组织资源锁适配，到多架构 vDSO&#x2F;getcpu 支持、vvar 映射优化、自定义 fast path 加载与调用、eBPF→vDSO 数据通路打通等一系列工作。整体实现了 vDS">
+<meta property="og:type" content="article">
+<meta property="og:title" content="自动测试系统 与 starry-vdso 完善">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="本次实习工作总结摘要本次实习围绕 x86 自动化测试体系构建、starry-vdso 完善、以及基于自定义 vDSO 接口的 fast path 设计与实现 三条主线展开。完成了从 PXE 自动化部署验证、CI 集成、多组织资源锁适配，到多架构 vDSO&#x2F;getcpu 支持、vvar 映射优化、自定义 fast path 加载与调用、eBPF→vDSO 数据通路打通等一系列工作。整体实现了 vDS">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_1.jpg">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_2.jpg">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_3.jpg">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86getcpu.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/loongarchgetcpu.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/kvdso_api.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/kvdso_fast_path.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/fast_path.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/timer_callback_update.png">
+<meta property="article:published_time" content="2026-04-27T21:27:01.000Z">
+<meta property="article:modified_time" content="2026-04-29T01:54:14.440Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:HoshimiP">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_1.jpg">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>自动测试系统 与 starry-vdso 完善 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#本次实习工作总结"><span class="nav-number">1.</span> <span class="nav-text">本次实习工作总结</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#x86-自动化测试支持"><span class="nav-number">1.2.</span> <span class="nav-text">x86 自动化测试支持</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#starry-vdso-的完善"><span class="nav-number">1.3.</span> <span class="nav-text">starry-vdso 的完善</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#基于自定义-vDSO-接口的-fast-path-设计与实现"><span class="nav-number">1.4.</span> <span class="nav-text">基于自定义 vDSO 接口的 fast path 设计与实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关链接"><span class="nav-number">1.5.</span> <span class="nav-text">相关链接</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#项目工程仓库"><span class="nav-number">1.5.1.</span> <span class="nav-text">项目工程仓库</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#周报和工作总结"><span class="nav-number">1.5.2.</span> <span class="nav-text">周报和工作总结</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#参考"><span class="nav-number">1.5.3.</span> <span class="nav-text">参考</span></a></li></ol></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">760</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">681</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          自动测试系统 与 starry-vdso 完善
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-04-27 21:27:01" itemprop="dateCreated datePublished" datetime="2026-04-27T21:27:01+00:00">2026-04-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-04-29 01:54:14" itemprop="dateModified" datetime="2026-04-29T01:54:14+00:00">2026-04-29</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="本次实习工作总结"><a href="#本次实习工作总结" class="headerlink" title="本次实习工作总结"></a>本次实习工作总结</h1><h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本次实习围绕 x86 自动化测试体系构建、starry-vdso 完善、以及基于自定义 vDSO 接口的 fast path 设计与实现 三条主线展开。完成了从 PXE 自动化部署验证、CI 集成、多组织资源锁适配，到多架构 vDSO/getcpu 支持、vvar 映射优化、自定义 fast path 加载与调用、eBPF→vDSO 数据通路打通等一系列工作。整体实现了 vDSO 基础设施、以及低延迟 fast path 机制上的重要增强，为后续可插拔调度器、动态 eBPF 策略与用户态零系统调用访问奠定了基础。</p>
+<h2 id="x86-自动化测试支持"><a href="#x86-自动化测试支持" class="headerlink" title="x86 自动化测试支持"></a>x86 自动化测试支持</h2><ol>
+<li><p>验证了 x86 平台使用 pxe 进行自动测试部署的流程，并编写<a href="https://github.com/HoshimiP/internship-log/blob/main/notes/pxe_boot_validation.md" target="_blank" rel="noopener">验证报告</a></p>
+</li>
+<li><p>拆分 pxe 部署脚本，并与已有 <a href="https://github.com/HoshimiP/github-runners/tree/feat/pxe-setup" target="_blank" rel="noopener">github-runners</a> 结合，使其能够在 CI 中自动触发测试</p>
+</li>
+<li><p>验证了部署流程与多组织资源锁 runner-wrapper 的适配，在 ubuntu+qemu 环境成功触发资源锁并执行完整测试</p>
+<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_1.jpg" class="" title="alt text">
+<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_2.jpg" class="" title="alt text">
+<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_3.jpg" class="" title="alt text">
+</li>
+<li><p>由于本地环境限制（缺少物理开发板），将已完成部分交付给柏乔森老师负责真实硬件上的验证</p>
+</li>
+</ol>
+<h2 id="starry-vdso-的完善"><a href="#starry-vdso-的完善" class="headerlink" title="starry-vdso 的完善"></a>starry-vdso 的完善</h2><ol>
+<li>将 <a href="https://github.com/HoshimiP/starry-vdso" target="_blank" rel="noopener">starry-vdso</a> 接入 starryOS 验证时间相关函数已经能够走 vdso 路径 具体验证结果见<a href="https://github.com/HoshimiP/internship-log/blob/main/notes/vdso.md" target="_blank" rel="noopener">笔记</a></li>
+<li>修改了 x86 架构 getcpu 的初始化实现 为每个 cpu 分配独立 GDT 空间 解决多核场景下 CPU ID 获取不准确的问题<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86getcpu.png" class="" title="alt text"></li>
+<li>实现了 loongarch64 架构的 vdso_getcpu<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/loongarchgetcpu.png" class="" title="alt text">
+
+</li>
+</ol>
+<h2 id="基于自定义-vDSO-接口的-fast-path-设计与实现"><a href="#基于自定义-vDSO-接口的-fast-path-设计与实现" class="headerlink" title="基于自定义 vDSO 接口的 fast path 设计与实现"></a>基于自定义 vDSO 接口的 fast path 设计与实现</h2><ol>
+<li><p>使用 <a href="https://crates.io/crates/vdso_helper" target="_blank" rel="noopener">vdso-helper</a> 编译包含自定义 fast path 的 <code>.so</code> 文件，并完成在 StarryOS 中的加载与调用</p>
+<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/kvdso_api.png" class="" title="alt text">
+<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/kvdso_fast_path.png" class="" title="alt text">
+</li>
+<li><p>优化 starry-vdso 的 vvar 映射逻辑 使用户态可以正常通过 vdso基地址+偏移量 访问自定义 vdso 接口</p>
+</li>
+<li><p>在已有可加载模块 <code>modules/kebpf</code> 中增加 vdso 数据页的更新逻辑。当 eBPF 程序执行时，将结果从 map 写入 vvar，使用户态可以零系统调用读取结果，显著降低延迟</p>
+<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/fast_path.png" class="" title="alt text">
+</li>
+<li><p>在 <code>api/src/lib.rs</code> 处增加 vdso 数据页的更新逻辑，在 <code>register_timer_callback</code> 时同步更新 vvar 中的任务快照，确保 fast path 始终读取到最新状态</p>
+<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/timer_callback_update.png" class="" title="alt text">
+
+</li>
+</ol>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><h3 id="项目工程仓库"><a href="#项目工程仓库" class="headerlink" title="项目工程仓库"></a>项目工程仓库</h3><ul>
+<li>starry-vdso <a href="https://github.com/HoshimiP/starry-vdso" target="_blank" rel="noopener">https://github.com/HoshimiP/starry-vdso</a></li>
+<li>StarryOS/tree/vdso_for_ebpf <a href="https://github.com/HoshimiP/StarryOS/tree/vdso_for_ebpf" target="_blank" rel="noopener">https://github.com/HoshimiP/StarryOS/tree/vdso_for_ebpf</a></li>
+</ul>
+<h3 id="周报和工作总结"><a href="#周报和工作总结" class="headerlink" title="周报和工作总结"></a>周报和工作总结</h3><ul>
+<li>周报 <a href="https://github.com/HoshimiP/internship-log/blob/main/README.md" target="_blank" rel="noopener">README.md</a></li>
+<li>工作总结ppt <a href="https://docs.qq.com/slide/DWktBc2d4WEhkYnFM" target="_blank" rel="noopener">https://docs.qq.com/slide/DWktBc2d4WEhkYnFM</a></li>
+</ul>
+<h3 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h3><ul>
+<li>github-runners <a href="https://github.com/arceos-hypervisor/github-runners" target="_blank" rel="noopener">https://github.com/arceos-hypervisor/github-runners</a></li>
+<li>在 x86 物理机验证通过的自动测试文档 <a href="https://github.com/arceos-hypervisor/github-runners/blob/x86/docs/PXE%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md" target="_blank" rel="noopener">https://github.com/arceos-hypervisor/github-runners/blob/x86/docs/PXE%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md</a></li>
+<li>vdso-helper <a href="https://crates.io/crates/vdso_helper" target="_blank" rel="noopener">https://crates.io/crates/vdso_helper</a></li>
+<li>StarryOS 支持内核可加载模块和 ebpf 的分支 <a href="https://github.com/Starry-OS/StarryOS/tree/kmod" target="_blank" rel="noopener">https://github.com/Starry-OS/StarryOS/tree/kmod</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-HoshimiP/" rel="tag"># author:HoshimiP</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/04/27/Embassy-Preempt/" rel="prev" title="Embassy Preempt On VisionFive2 -- Oveln">
+      <i class="fa fa-chevron-left"></i> Embassy Preempt On VisionFive2 -- Oveln
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/04/28/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-rknpu%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/" rel="next" title="实习总结报告:rknpu技术报告">
+      实习总结报告:rknpu技术报告 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
