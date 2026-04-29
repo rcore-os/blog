@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">762</span>
+          <span class="site-state-item-count">763</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">687</span>
+        <span class="site-state-item-count">690</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,181 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/29/2025%E7%A7%8B%E5%86%AC%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-PassingThroughStarDust/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/04/29/2025%E7%A7%8B%E5%86%AC%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-PassingThroughStarDust/" class="post-title-link" itemprop="url">2025秋冬季OS训练营实习总结报告-PassingThroughStarDust</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2026-04-29 10:42:55 / Modified: 07:45:14" itemprop="dateCreated datePublished" datetime="2026-04-29T10:42:55+00:00">2026-04-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="StarryOS-SD-MMC-驱动-3-个月开发技术总结"><a href="#StarryOS-SD-MMC-驱动-3-个月开发技术总结" class="headerlink" title="StarryOS SD/MMC 驱动 3 个月开发技术总结"></a>StarryOS SD/MMC 驱动 3 个月开发技术总结</h2><h3 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h3><p>本报告记录了我在泉城实验室为期3个月的实习期间，围绕 StarryOS SD 卡驱动展开的主要开发与优化工作。实习期间，我深入分析了原有的 <code>simple-sdmmc</code> 驱动，针对其在功能、性能和兼容性方面的不足，进行了系统性的优化和扩展，最终形成了功能更完善、兼容性更强的 <code>simple-sdmmc-extended</code> 版本。该版本补全和优化了硬件初始化流程与时钟与电源管理，还引入了 DMA（直接内存访问）支持，显著提升了大容量数据传输的效率和系统资源利用率。在驱动开发的同时，我还设计并实现了一个自动化测试框架，用于系统性地验证 SD/MMC 驱动在不同平台和多种极端场景下的功能正确性、性能表现以及平台兼容性。测试框架涵盖了基本功能、性能基准、并发一致性、平台专用等多类测试，能够自动统计吞吐量、IOPS、错误数等关键指标，并输出详细日志，极大提升了驱动开发和回归验证的效率。</p>
+<hr>
+<h3 id="1-项目背景"><a href="#1-项目背景" class="headerlink" title="1. 项目背景"></a>1. 项目背景</h3><p>在 StarryOS 项目早期，为实现对 SD/MMC 存储设备的基本支持，设计并实现了 <code>simple-sdmmc</code> 驱动。该驱动采用了<strong>轮询（Polling）方式</strong>进行控制器状态检测和数据传输：</p>
+<ul>
+<li>驱动通过不断轮询硬件寄存器，判断命令是否完成、FIFO 是否可读写、数据传输是否结束等，无需依赖中断。</li>
+<li>轮询方式实现简单，便于在无操作系统或早期启动阶段使用，适合嵌入式、裸机等资源受限场景。</li>
+<li>该设计保证了驱动的确定性和可控性，但在高性能或多任务环境下，CPU 占用较高，后续版本逐步引入了 DMA、并发等优化。</li>
+</ul>
+<hr>
+<h3 id="2-simple-sdmmc-的优化"><a href="#2-simple-sdmmc-的优化" class="headerlink" title="2. simple-sdmmc 的优化"></a>2. simple-sdmmc 的优化</h3><h4 id="2-2-关键优化点"><a href="#2-2-关键优化点" class="headerlink" title="2.2 关键优化点"></a>2.2 关键优化点</h4><h5 id="2-2-1-硬件初始化流程完善"><a href="#2-2-1-硬件初始化流程完善" class="headerlink" title="2.2.1 硬件初始化流程完善"></a>2.2.1 硬件初始化流程完善</h5><p>具体的工作包括了：</p>
+<ul>
+<li><strong>时钟管理</strong>：<ul>
+<li>明确分步关闭/配置/开启时钟，确保卡片处于稳定状态</li>
+<li>多次发送 <code>ResetClock</code> 命令，保证控制器与卡片同步</li>
+</ul>
+</li>
+<li><strong>电源管理</strong>：<ul>
+<li>显式设置 <code>PWREN</code>，确保卡片上电</li>
+</ul>
+</li>
+<li><strong>延时与稳定性</strong>：<ul>
+<li>延长初始化等待周期，确保卡片在低频下充分稳定</li>
+</ul>
+</li>
+</ul>
+<p>硬件初始化的优化如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">优化前：</span><br><span class="line">  [关闭时钟]</span><br><span class="line">  → [发送 ResetClock 命令]</span><br><span class="line">  → [设置低速分频]</span><br><span class="line">  → [开启时钟]</span><br><span class="line">  → [再次发送 ResetClock]</span><br><span class="line">  → [设置数据宽度为1bit]</span><br><span class="line">  → [重置DMA]</span><br><span class="line">  → [发送 GoIdleState 命令]</span><br><span class="line">  → [发送 SendIfCond，检查卡片电压&#x2F;版本]</span><br><span class="line">  → [循环发送 AppCmd + SdSendOpCond，等待卡片上电完成]</span><br><span class="line">  → [发送 AllSendCid，读取卡片CID]</span><br><span class="line">  → [发送 SetRca，分配&#x2F;获取RCA地址]</span><br><span class="line">  → [发送 SendCsd，读取卡片CSD，解析容量&#x2F;特性]</span><br><span class="line">  → [选择卡片 SelectCard]</span><br><span class="line">  → [设置块长度&#x2F;计数]</span><br><span class="line">  → [卡片初始化完成，可进行数据读写]</span><br><span class="line"></span><br><span class="line">优化后：</span><br><span class="line">  [清理U-Boot遗留中断标志]</span><br><span class="line">  → [关闭时钟]</span><br><span class="line">  → [多次发送 ResetClock，确保同步]</span><br><span class="line">  → [设置&#x2F;开启时钟]</span><br><span class="line">  → [显式上电 PWREN]</span><br><span class="line">  → [延长等待，保证低频下稳定]</span><br><span class="line">  → [设置数据宽度&#x2F;分频&#x2F;其他参数]</span><br><span class="line">  → [发送 GoIdleState 命令]</span><br><span class="line">  → [发送 SendIfCond，检查卡片电压&#x2F;版本]</span><br><span class="line">  → [循环发送 AppCmd + SdSendOpCond，等待卡片上电完成]</span><br><span class="line">  → [发送 AllSendCid，读取卡片CID]</span><br><span class="line">  → [发送 SetRca，分配&#x2F;获取RCA地址]</span><br><span class="line">  → [发送 SendCsd，读取卡片CSD，解析容量&#x2F;特性]</span><br><span class="line">  → [选择卡片 SelectCard]</span><br><span class="line">  → [设置总线宽度&#x2F;高速模式（如支持）]</span><br><span class="line">  → [设置块长度&#x2F;计数]</span><br><span class="line">  → [（可选）切换到高速&#x2F;4bit模式]</span><br><span class="line">  → [卡片初始化完成，可进行数据读写]</span><br></pre></td></tr></table></figure>
+
+<h5 id="2-2-2-DMA-支持与寄存器抽象"><a href="#2-2-2-DMA-支持与寄存器抽象" class="headerlink" title="2.2.2 DMA 支持与寄存器抽象"></a>2.2.2 DMA 支持与寄存器抽象</h5><p>具体的工作包括了：</p>
+<ul>
+<li>新增描述符链数据结构 <code>IdmacDescriptor</code> 为 CPU 与 IDMAC 间的数据交换作支持。</li>
+<li>新增 <code>dma_enabled</code> 字段，初始化 IDMAC 控制器。</li>
+<li>优化寄存器访问抽象，提升代码可维护性与可移植性。</li>
+</ul>
+<h5 id="2-2-3-命令与数据传输流程增强"><a href="#2-2-3-命令与数据传输流程增强" class="headerlink" title="2.2.3 命令与数据传输流程增强"></a>2.2.3 命令与数据传输流程增强</h5><ul>
+<li>将原有 send_cmd 仅用于控制类/非数据命令，数据传输相关命令全部优化为 <code>send_cmd_idmac</code>，实现命令与数据路径分离。</li>
+<li><code>send_cmd_idmac</code> 针对 DMA/IDMAC 场景，自动完成物理地址转换、描述符配置、DMA 启动、状态与错误检查等，极大提升了大块数据传输的效率与健壮性。</li>
+<li>两者均增加了详细的超时与状态检查、错误日志，便于定位问题。</li>
+<li>兼容部分命令（如 <code>GoIdleState</code>）超时非致命的实际情况。</li>
+</ul>
+<p>命令与数据传输流程优化前后对比:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">优化前：</span><br><span class="line">  [设置块大小&#x2F;计数]</span><br><span class="line">  → [配置命令参数]</span><br><span class="line">  → [发送读命令]</span><br><span class="line">  → [等待命令完成]</span><br><span class="line">  → [轮询FIFO，逐字节读取数据]</span><br><span class="line">  → [检查&#x2F;清理中断状态]</span><br><span class="line">  → [返回数据]</span><br><span class="line"></span><br><span class="line">优化后：</span><br><span class="line">  [设置块大小&#x2F;计数]</span><br><span class="line">  → [配置命令参数]</span><br><span class="line">  → [选择数据传输模式（CPU轮询或IDMAC DMA）]</span><br><span class="line">  → [发送读命令]</span><br><span class="line">  → [等待命令&#x2F;数据完成，超时与错误检查]</span><br><span class="line">  → [CPU模式：轮询FIFO读取]</span><br><span class="line">  → [DMA模式：配置描述符，启动IDMAC，等待完成]</span><br><span class="line">  → [检查&#x2F;清理中断与DMA状态]</span><br><span class="line">  → [返回数据]</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-3-典型问题与解决方案"><a href="#2-3-典型问题与解决方案" class="headerlink" title="2.3 典型问题与解决方案"></a>2.3 典型问题与解决方案</h4><h5 id="2-3-1-U-Boot-遗留状态导致初始化失败"><a href="#2-3-1-U-Boot-遗留状态导致初始化失败" class="headerlink" title="2.3.1 U-Boot 遗留状态导致初始化失败"></a>2.3.1 U-Boot 遗留状态导致初始化失败</h5><ul>
+<li>现象：U-Boot 预设时钟/宽度，驱动未重置，导致卡片未能正常初始化</li>
+<li>解决：驱动启动时强制重配时钟、电源、数据宽度，确保硬件状态一致</li>
+</ul>
+<h5 id="2-3-2-GoIdleState-超时"><a href="#2-3-2-GoIdleState-超时" class="headerlink" title="2.3.2 GoIdleState 超时"></a>2.3.2 GoIdleState 超时</h5><ul>
+<li>现象：部分卡片在 CMD0 (GoIdleState) 阶段超时，但后续流程可继续</li>
+<li>解决：将 CMD0 超时视为可接受，后续命令继续执行</li>
+</ul>
+<h5 id="2-3-3-DMA-CPU-模式性能对比"><a href="#2-3-3-DMA-CPU-模式性能对比" class="headerlink" title="2.3.3 DMA/CPU 模式性能对比"></a>2.3.3 DMA/CPU 模式性能对比</h5><ul>
+<li>通过测试框架对比 DMA 与 CPU 直传模式，量化性能提升</li>
+</ul>
+<h4 id="2-4-优化效果"><a href="#2-4-优化效果" class="headerlink" title="2.4 优化效果"></a>2.4 优化效果</h4><ul>
+<li>驱动在 VisionFive2 等平台下可稳定初始化并识别大容量 SD 卡</li>
+<li>性能测试显示 DMA 模式下吞吐量显著提升</li>
+<li>代码结构更清晰，便于后续维护与扩展</li>
+</ul>
+<hr>
+<h3 id="3-测试框架设计与实现"><a href="#3-测试框架设计与实现" class="headerlink" title="3. 测试框架设计与实现"></a>3. 测试框架设计与实现</h3><h3 id="3-1-测试框架描述"><a href="#3-1-测试框架描述" class="headerlink" title="3.1 测试框架描述"></a>3.1 测试框架描述</h3><p>整个测试框架存储在 <code>sdmmc-tests</code> 项目中，通过分模块自动化验证 SD/MMC 驱动的各项能力，涵盖基本读写、边界与异常、性能基准、并发一致性、以及平台专用（如 VisionFive2）等多类测试。每类测试包含单块/多块读写、边界块访问、错误注入、顺序与随机性能、DMA/CPU对比、缓存一致性、多线程压力、时钟切换、中断延迟和大容量寻址等典型场景。测试框架会自动统计吞吐量、IOPS、错误数等指标，并输出详细日志，便于定位驱动在不同平台和极端条件下的功能与性能问题。所有测试均可一键批量运行，极大提升了驱动开发和回归验证的效率与可靠性。</p>
+<h3 id="3-2-测试分类与功能说明"><a href="#3-2-测试分类与功能说明" class="headerlink" title="3.2 测试分类与功能说明"></a>3.2 测试分类与功能说明</h3><p>当前 <code>sdmmc-tests</code> 测试框架将测试分为以下几大类，每类覆盖不同的驱动能力：</p>
+<ul>
+<li><p><strong>基本功能与正确性测试（basic/）</strong></p>
+<ul>
+<li><em>单块/多块读写</em>：验证驱动对单个和多个数据块的读写正确性。</li>
+<li><em>边界条件</em>：测试首块、末块、分区边界等特殊地址的访问，确保无越界和数据一致性。</li>
+<li><em>异常与错误处理</em>：如非法块号、错误缓冲区长度、超时等，验证驱动能否正确检测和报告错误。</li>
+</ul>
+</li>
+<li><p><strong>性能基准测试（benchmark/）</strong></p>
+<ul>
+<li><em>顺序吞吐量</em>：测量大块连续读写的最大带宽。</li>
+<li><em>随机访问性能</em>：评估随机读写的 IOPS 和延迟。</li>
+<li><em>DMA/CPU 模式对比</em>：对比 DMA 直传与 CPU 轮询两种模式下的性能差异，量化 DMA 优势。</li>
+</ul>
+</li>
+<li><p><strong>并发与一致性测试（concurrency/）</strong></p>
+<ul>
+<li><em>缓存一致性</em>：验证 DMA 传输下 CPU 缓存与物理内存的数据一致性，确保写后读、读后写无异常。</li>
+<li><em>并发压力</em>：模拟多线程/多任务下的交错读写，检验驱动在高并发场景下的稳定性和正确性。</li>
+</ul>
+</li>
+<li><p><strong>平台专用测试（visionfive2/）</strong></p>
+<ul>
+<li><em>SDIO 时钟切换</em>：动态切换多种时钟频率，验证驱动对不同速率的适配能力。</li>
+<li><em>中断延迟</em>：测量中断响应时间，评估驱动实时性。</li>
+<li><em>LBA48 支持</em>：测试大容量卡 (&gt;2TB) 的 48 位寻址能力。</li>
+</ul>
+</li>
+</ul>
+<p>每类测试均配有详细日志和统计信息，便于定位问题和量化性能。</p>
+<h3 id="3-3-测试框架设计要点"><a href="#3-3-测试框架设计要点" class="headerlink" title="3.3 测试框架设计要点"></a>3.3 测试框架设计要点</h3><ul>
+<li>统一的 <code>TestResult</code>/<code>TestError</code> 类型，便于错误归类与统计</li>
+<li><code>TestStats</code> 支持吞吐量、IOPS 等性能指标自动统计</li>
+<li>详细日志输出，便于定位问题</li>
+<li>支持特性开关（如 <code>vf2</code>）灵活适配不同硬件</li>
+</ul>
+<h3 id="3-4-运行方式"><a href="#3-4-运行方式" class="headerlink" title="3.4 运行方式"></a>3.4 运行方式</h3><ul>
+<li>可集成于 StarryOS 镜像，在真实硬件或 QEMU 上运行</li>
+<li>支持独立 cargo 运行，便于 API 层测试</li>
+</ul>
+<hr>
+<h2 id="相关仓库"><a href="#相关仓库" class="headerlink" title="相关仓库"></a>相关仓库</h2><ol>
+<li><a href="https://github.com/PassingThroughStarDust/StarryOS-dev-logs" target="_blank" rel="noopener">优化后的 StarryOS 代码与日志仓库</a></li>
+<li><a href="https://github.com/PassingThroughStarDust/simple-sdmmc-extended" target="_blank" rel="noopener">优化后的 simple-sdmmc 代码仓库</a></li>
+<li><a href="https://github.com/PassingThroughStarDust/sdmmc-tests" target="_blank" rel="noopener">测试集框架代码仓库</a></li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/28/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-rknpu%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +439,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -593,7 +768,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -716,7 +891,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
 
           
@@ -1098,7 +1273,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
 
           
@@ -1170,7 +1345,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
 
           
@@ -1468,7 +1643,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
 
           
@@ -1876,7 +2051,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1957,7 +2132,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
 
           
@@ -2046,7 +2221,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
+                <time title="Modified: 2026-04-29 07:45:14" itemprop="dateModified" datetime="2026-04-29T07:45:14+00:00">2026-04-29</time>
               </span>
 
           
@@ -2073,81 +2248,6 @@
 <h4 id="sys-mmap"><a href="#sys-mmap" class="headerlink" title="sys_mmap"></a>sys_mmap</h4><p>从文件中映射到内存中，分三步走，在虚拟地址空间找一个空闲虚拟页，借助 uspace.find_free_area，借助 uspace.map_alloc 进行预填充的分配，即完成虚实映射，然后将文件读到改页。<br>如果使用刚刚分配的虚拟地址可以读，但是会出现异常，比如权限不足，需要转到内核虚拟地址进行读写，这里通过 phys_to_virt 将物理地址转到内核到虚拟地址，随后通过 sys_read 这个 api 完成文件的读取。</p>
 <h4 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h4><p>自我感觉对于 rcore 的掌握还不到家，目前仅仅是通过了测例而已。</p>
 <p>rcore 的文档和代码常读常新，能加深操作系统的理解。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/16/%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/11/16/%E5%AD%A6%E4%B9%A0%E5%BF%83%E5%BE%97/" class="post-title-link" itemprop="url">学习心得</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-11-16 13:50:39" itemprop="dateCreated datePublished" datetime="2025-11-16T13:50:39+00:00">2025-11-16</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-04-29 02:33:47" itemprop="dateModified" datetime="2026-04-29T02:33:47+00:00">2026-04-29</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>听闻rCore是基于Rust实现的操作系统内核，我对此产生了兴趣并报名参加了训练营。经过三个阶段的系统学习，作为Rust语言的初学者，我掌握了Rust的基础语法特性，并深入复习了操作系统的相关概念。本文将记录我在完成第三阶段ArceOS的学习过程中,对几个较为感兴趣部分的实现理解与思考。</p>
-<h2 id="rename"><a href="#rename" class="headerlink" title="rename"></a>rename</h2><p>ArceOS的虚拟文件系统(VFS)中<code>rename</code>功能的设计充分体现了职责分离和安全性的设计理念。该部分的核心思路是VFS层通过最长匹配原则 (<code>find_fs_for_path</code>) 确定路径所属的文件系统，并妥善处理跨文件系统重命名和挂载点重命名等边界情况。</p>
-<p>VFS在此充当调度者的角色，负责将请求转发给正确的底层文件系统。而底层文件系统 (如ramfs) 则负责执行实际的重命名操作，通过Rust的读写锁机制确保重命名操作以及覆盖情况的原子性和并发安全性，这种分层设计不仅职责清晰,而且使VFS具有良好的灵活性和可扩展性。</p>
-<h2 id="mmap"><a href="#mmap" class="headerlink" title="mmap"></a>mmap</h2><p><code>sys_mmap</code>实现了Linux风格的内存映射机制，其核心流程围绕地址空间管理和文件/匿名映射展开，首先检查映射长度是否为零，并将长度强制对齐到4KB页大小。若指定了addr参数则要求其必须是页对齐的。</p>
-<p>当设置<code>MAP_FIXED</code>标志时,系统必须使用指定的固定地址，并校验该地址是否在合法的地址空间范围内。否则系统会在进程的地址空间中查找一块足够大的空闲区域 (通过<code>find_free_area</code>函数) 作为映射的起始虚拟地址。</p>
-<p>对于匿名映射<code>MAP_ANONYMOUS</code>，系统仅在地址空间中分配并映射物理页,不涉及文件操作。对于文件映射，系统先执行<code>map_alloc</code>建立映射关系,然后通过<code>sys_lseek</code>调整文件偏移量，接着同步读取部分数据到缓冲区，最后通过<code>aspace.write</code>将数据写入新映射的虚拟地址，完成初始数据的填充。</p>
-<p>整个设计的重点在于利用地址空间<code>aspace</code>抽象实现统一的虚拟内存管理和权限控制，这让我深刻理解了操作系统中抽象层的重要性。</p>
-<h2 id="Hypervisor"><a href="#Hypervisor" class="headerlink" title="Hypervisor"></a>Hypervisor</h2><p>Hypervisor位于操作系统和物理机之间，将CPU、内存、磁盘、网卡等硬件资源切分成独立份额，再封装成多台虚拟计算机，每个虚拟机运行各自的操作系统和应用程序，彼此之间互不干扰。</p>
-<p>在ArceOS的<code>simple_hv</code>练习中，需要实现了一个最小化的RISC-V虚拟机监视器，核心逻辑集中在<code>vmexit_handler</code>函数中，当客户机触发异常或SBI调用时，CPU自动陷入该函数，由宿主机快速处理并模拟所需功能。</p>
-<p><code>VirtualSupervisorEnvCall</code>是SBI调用的集中分发点，处理客户机OS的各种请求，包括<code>printf</code>输出、关机请求、时钟设置和SBI扩展探测等。其中<code>putchar</code>实时回显到宿主终端、<code>SetTimer</code>重写stimecmp寄存器，而<code>SRST_SHUTDOWN</code>在打印”Shutdown vm normally!”后停机。</p>
-<p>整套代码虽然不足百行,却完整串联了异常捕获→寄存器改写→SBI模拟→时钟注入→正常关机的hypervisor核心流程，为学习更深层次的多核虚拟化、扩展页表(EPT)、IOMMU等高级虚拟化技术打下了基础。</p>
 
       
     </div>

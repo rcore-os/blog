@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="StarryOS SD&#x2F;MMC 驱动 3 个月开发技术总结摘要本报告记录了我在泉城实验室为期3个月的实习期间，围绕 StarryOS SD 卡驱动展开的主要开发与优化工作。实习期间，我深入分析了原有的 simple-sdmmc 驱动，针对其在功能、性能和兼容性方面的不足，进行了系统性的优化和扩展，最终形成了功能更完善、兼容性更强的 simple-sdmmc-extended 版本。该版本补全和优化">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2025秋冬季OS训练营实习总结报告-PassingThroughStarDust">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/04/29/2025%E7%A7%8B%E5%86%AC%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-PassingThroughStarDust/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="StarryOS SD&#x2F;MMC 驱动 3 个月开发技术总结摘要本报告记录了我在泉城实验室为期3个月的实习期间，围绕 StarryOS SD 卡驱动展开的主要开发与优化工作。实习期间，我深入分析了原有的 simple-sdmmc 驱动，针对其在功能、性能和兼容性方面的不足，进行了系统性的优化和扩展，最终形成了功能更完善、兼容性更强的 simple-sdmmc-extended 版本。该版本补全和优化">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-04-29T10:42:55.000Z">
+<meta property="article:modified_time" content="2026-04-29T07:45:14.811Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="[object Object]">
+<meta property="article:tag" content="author:PassingThroughStarDust">
+<meta property="article:tag" content="SD&#x2F;MMC Driver">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="VisionFive2">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/04/29/2025%E7%A7%8B%E5%86%AC%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-PassingThroughStarDust/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2025秋冬季OS训练营实习总结报告-PassingThroughStarDust | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#StarryOS-SD-MMC-驱动-3-个月开发技术总结"><span class="nav-number">1.</span> <span class="nav-text">StarryOS SD&#x2F;MMC 驱动 3 个月开发技术总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#摘要"><span class="nav-number">1.1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-项目背景"><span class="nav-number">1.2.</span> <span class="nav-text">1. 项目背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-simple-sdmmc-的优化"><span class="nav-number">1.3.</span> <span class="nav-text">2. simple-sdmmc 的优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-关键优化点"><span class="nav-number">1.3.1.</span> <span class="nav-text">2.2 关键优化点</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-2-1-硬件初始化流程完善"><span class="nav-number">1.3.1.1.</span> <span class="nav-text">2.2.1 硬件初始化流程完善</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-2-2-DMA-支持与寄存器抽象"><span class="nav-number">1.3.1.2.</span> <span class="nav-text">2.2.2 DMA 支持与寄存器抽象</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-2-3-命令与数据传输流程增强"><span class="nav-number">1.3.1.3.</span> <span class="nav-text">2.2.3 命令与数据传输流程增强</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-典型问题与解决方案"><span class="nav-number">1.3.2.</span> <span class="nav-text">2.3 典型问题与解决方案</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#2-3-1-U-Boot-遗留状态导致初始化失败"><span class="nav-number">1.3.2.1.</span> <span class="nav-text">2.3.1 U-Boot 遗留状态导致初始化失败</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-3-2-GoIdleState-超时"><span class="nav-number">1.3.2.2.</span> <span class="nav-text">2.3.2 GoIdleState 超时</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-3-3-DMA-CPU-模式性能对比"><span class="nav-number">1.3.2.3.</span> <span class="nav-text">2.3.3 DMA&#x2F;CPU 模式性能对比</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-4-优化效果"><span class="nav-number">1.3.3.</span> <span class="nav-text">2.4 优化效果</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-测试框架设计与实现"><span class="nav-number">1.4.</span> <span class="nav-text">3. 测试框架设计与实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-测试框架描述"><span class="nav-number">1.5.</span> <span class="nav-text">3.1 测试框架描述</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-测试分类与功能说明"><span class="nav-number">1.6.</span> <span class="nav-text">3.2 测试分类与功能说明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-测试框架设计要点"><span class="nav-number">1.7.</span> <span class="nav-text">3.3 测试框架设计要点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-运行方式"><span class="nav-number">1.8.</span> <span class="nav-text">3.4 运行方式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关仓库"><span class="nav-number">2.</span> <span class="nav-text">相关仓库</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">763</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">690</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/29/2025%E7%A7%8B%E5%86%AC%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-PassingThroughStarDust/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2025秋冬季OS训练营实习总结报告-PassingThroughStarDust
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2026-04-29 10:42:55 / Modified: 07:45:14" itemprop="dateCreated datePublished" datetime="2026-04-29T10:42:55+00:00">2026-04-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="StarryOS-SD-MMC-驱动-3-个月开发技术总结"><a href="#StarryOS-SD-MMC-驱动-3-个月开发技术总结" class="headerlink" title="StarryOS SD/MMC 驱动 3 个月开发技术总结"></a>StarryOS SD/MMC 驱动 3 个月开发技术总结</h2><h3 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h3><p>本报告记录了我在泉城实验室为期3个月的实习期间，围绕 StarryOS SD 卡驱动展开的主要开发与优化工作。实习期间，我深入分析了原有的 <code>simple-sdmmc</code> 驱动，针对其在功能、性能和兼容性方面的不足，进行了系统性的优化和扩展，最终形成了功能更完善、兼容性更强的 <code>simple-sdmmc-extended</code> 版本。该版本补全和优化了硬件初始化流程与时钟与电源管理，还引入了 DMA（直接内存访问）支持，显著提升了大容量数据传输的效率和系统资源利用率。在驱动开发的同时，我还设计并实现了一个自动化测试框架，用于系统性地验证 SD/MMC 驱动在不同平台和多种极端场景下的功能正确性、性能表现以及平台兼容性。测试框架涵盖了基本功能、性能基准、并发一致性、平台专用等多类测试，能够自动统计吞吐量、IOPS、错误数等关键指标，并输出详细日志，极大提升了驱动开发和回归验证的效率。</p>
+<hr>
+<h3 id="1-项目背景"><a href="#1-项目背景" class="headerlink" title="1. 项目背景"></a>1. 项目背景</h3><p>在 StarryOS 项目早期，为实现对 SD/MMC 存储设备的基本支持，设计并实现了 <code>simple-sdmmc</code> 驱动。该驱动采用了<strong>轮询（Polling）方式</strong>进行控制器状态检测和数据传输：</p>
+<ul>
+<li>驱动通过不断轮询硬件寄存器，判断命令是否完成、FIFO 是否可读写、数据传输是否结束等，无需依赖中断。</li>
+<li>轮询方式实现简单，便于在无操作系统或早期启动阶段使用，适合嵌入式、裸机等资源受限场景。</li>
+<li>该设计保证了驱动的确定性和可控性，但在高性能或多任务环境下，CPU 占用较高，后续版本逐步引入了 DMA、并发等优化。</li>
+</ul>
+<hr>
+<h3 id="2-simple-sdmmc-的优化"><a href="#2-simple-sdmmc-的优化" class="headerlink" title="2. simple-sdmmc 的优化"></a>2. simple-sdmmc 的优化</h3><h4 id="2-2-关键优化点"><a href="#2-2-关键优化点" class="headerlink" title="2.2 关键优化点"></a>2.2 关键优化点</h4><h5 id="2-2-1-硬件初始化流程完善"><a href="#2-2-1-硬件初始化流程完善" class="headerlink" title="2.2.1 硬件初始化流程完善"></a>2.2.1 硬件初始化流程完善</h5><p>具体的工作包括了：</p>
+<ul>
+<li><strong>时钟管理</strong>：<ul>
+<li>明确分步关闭/配置/开启时钟，确保卡片处于稳定状态</li>
+<li>多次发送 <code>ResetClock</code> 命令，保证控制器与卡片同步</li>
+</ul>
+</li>
+<li><strong>电源管理</strong>：<ul>
+<li>显式设置 <code>PWREN</code>，确保卡片上电</li>
+</ul>
+</li>
+<li><strong>延时与稳定性</strong>：<ul>
+<li>延长初始化等待周期，确保卡片在低频下充分稳定</li>
+</ul>
+</li>
+</ul>
+<p>硬件初始化的优化如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">优化前：</span><br><span class="line">  [关闭时钟]</span><br><span class="line">  → [发送 ResetClock 命令]</span><br><span class="line">  → [设置低速分频]</span><br><span class="line">  → [开启时钟]</span><br><span class="line">  → [再次发送 ResetClock]</span><br><span class="line">  → [设置数据宽度为1bit]</span><br><span class="line">  → [重置DMA]</span><br><span class="line">  → [发送 GoIdleState 命令]</span><br><span class="line">  → [发送 SendIfCond，检查卡片电压&#x2F;版本]</span><br><span class="line">  → [循环发送 AppCmd + SdSendOpCond，等待卡片上电完成]</span><br><span class="line">  → [发送 AllSendCid，读取卡片CID]</span><br><span class="line">  → [发送 SetRca，分配&#x2F;获取RCA地址]</span><br><span class="line">  → [发送 SendCsd，读取卡片CSD，解析容量&#x2F;特性]</span><br><span class="line">  → [选择卡片 SelectCard]</span><br><span class="line">  → [设置块长度&#x2F;计数]</span><br><span class="line">  → [卡片初始化完成，可进行数据读写]</span><br><span class="line"></span><br><span class="line">优化后：</span><br><span class="line">  [清理U-Boot遗留中断标志]</span><br><span class="line">  → [关闭时钟]</span><br><span class="line">  → [多次发送 ResetClock，确保同步]</span><br><span class="line">  → [设置&#x2F;开启时钟]</span><br><span class="line">  → [显式上电 PWREN]</span><br><span class="line">  → [延长等待，保证低频下稳定]</span><br><span class="line">  → [设置数据宽度&#x2F;分频&#x2F;其他参数]</span><br><span class="line">  → [发送 GoIdleState 命令]</span><br><span class="line">  → [发送 SendIfCond，检查卡片电压&#x2F;版本]</span><br><span class="line">  → [循环发送 AppCmd + SdSendOpCond，等待卡片上电完成]</span><br><span class="line">  → [发送 AllSendCid，读取卡片CID]</span><br><span class="line">  → [发送 SetRca，分配&#x2F;获取RCA地址]</span><br><span class="line">  → [发送 SendCsd，读取卡片CSD，解析容量&#x2F;特性]</span><br><span class="line">  → [选择卡片 SelectCard]</span><br><span class="line">  → [设置总线宽度&#x2F;高速模式（如支持）]</span><br><span class="line">  → [设置块长度&#x2F;计数]</span><br><span class="line">  → [（可选）切换到高速&#x2F;4bit模式]</span><br><span class="line">  → [卡片初始化完成，可进行数据读写]</span><br></pre></td></tr></table></figure>
+
+<h5 id="2-2-2-DMA-支持与寄存器抽象"><a href="#2-2-2-DMA-支持与寄存器抽象" class="headerlink" title="2.2.2 DMA 支持与寄存器抽象"></a>2.2.2 DMA 支持与寄存器抽象</h5><p>具体的工作包括了：</p>
+<ul>
+<li>新增描述符链数据结构 <code>IdmacDescriptor</code> 为 CPU 与 IDMAC 间的数据交换作支持。</li>
+<li>新增 <code>dma_enabled</code> 字段，初始化 IDMAC 控制器。</li>
+<li>优化寄存器访问抽象，提升代码可维护性与可移植性。</li>
+</ul>
+<h5 id="2-2-3-命令与数据传输流程增强"><a href="#2-2-3-命令与数据传输流程增强" class="headerlink" title="2.2.3 命令与数据传输流程增强"></a>2.2.3 命令与数据传输流程增强</h5><ul>
+<li>将原有 send_cmd 仅用于控制类/非数据命令，数据传输相关命令全部优化为 <code>send_cmd_idmac</code>，实现命令与数据路径分离。</li>
+<li><code>send_cmd_idmac</code> 针对 DMA/IDMAC 场景，自动完成物理地址转换、描述符配置、DMA 启动、状态与错误检查等，极大提升了大块数据传输的效率与健壮性。</li>
+<li>两者均增加了详细的超时与状态检查、错误日志，便于定位问题。</li>
+<li>兼容部分命令（如 <code>GoIdleState</code>）超时非致命的实际情况。</li>
+</ul>
+<p>命令与数据传输流程优化前后对比:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">优化前：</span><br><span class="line">  [设置块大小&#x2F;计数]</span><br><span class="line">  → [配置命令参数]</span><br><span class="line">  → [发送读命令]</span><br><span class="line">  → [等待命令完成]</span><br><span class="line">  → [轮询FIFO，逐字节读取数据]</span><br><span class="line">  → [检查&#x2F;清理中断状态]</span><br><span class="line">  → [返回数据]</span><br><span class="line"></span><br><span class="line">优化后：</span><br><span class="line">  [设置块大小&#x2F;计数]</span><br><span class="line">  → [配置命令参数]</span><br><span class="line">  → [选择数据传输模式（CPU轮询或IDMAC DMA）]</span><br><span class="line">  → [发送读命令]</span><br><span class="line">  → [等待命令&#x2F;数据完成，超时与错误检查]</span><br><span class="line">  → [CPU模式：轮询FIFO读取]</span><br><span class="line">  → [DMA模式：配置描述符，启动IDMAC，等待完成]</span><br><span class="line">  → [检查&#x2F;清理中断与DMA状态]</span><br><span class="line">  → [返回数据]</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-3-典型问题与解决方案"><a href="#2-3-典型问题与解决方案" class="headerlink" title="2.3 典型问题与解决方案"></a>2.3 典型问题与解决方案</h4><h5 id="2-3-1-U-Boot-遗留状态导致初始化失败"><a href="#2-3-1-U-Boot-遗留状态导致初始化失败" class="headerlink" title="2.3.1 U-Boot 遗留状态导致初始化失败"></a>2.3.1 U-Boot 遗留状态导致初始化失败</h5><ul>
+<li>现象：U-Boot 预设时钟/宽度，驱动未重置，导致卡片未能正常初始化</li>
+<li>解决：驱动启动时强制重配时钟、电源、数据宽度，确保硬件状态一致</li>
+</ul>
+<h5 id="2-3-2-GoIdleState-超时"><a href="#2-3-2-GoIdleState-超时" class="headerlink" title="2.3.2 GoIdleState 超时"></a>2.3.2 GoIdleState 超时</h5><ul>
+<li>现象：部分卡片在 CMD0 (GoIdleState) 阶段超时，但后续流程可继续</li>
+<li>解决：将 CMD0 超时视为可接受，后续命令继续执行</li>
+</ul>
+<h5 id="2-3-3-DMA-CPU-模式性能对比"><a href="#2-3-3-DMA-CPU-模式性能对比" class="headerlink" title="2.3.3 DMA/CPU 模式性能对比"></a>2.3.3 DMA/CPU 模式性能对比</h5><ul>
+<li>通过测试框架对比 DMA 与 CPU 直传模式，量化性能提升</li>
+</ul>
+<h4 id="2-4-优化效果"><a href="#2-4-优化效果" class="headerlink" title="2.4 优化效果"></a>2.4 优化效果</h4><ul>
+<li>驱动在 VisionFive2 等平台下可稳定初始化并识别大容量 SD 卡</li>
+<li>性能测试显示 DMA 模式下吞吐量显著提升</li>
+<li>代码结构更清晰，便于后续维护与扩展</li>
+</ul>
+<hr>
+<h3 id="3-测试框架设计与实现"><a href="#3-测试框架设计与实现" class="headerlink" title="3. 测试框架设计与实现"></a>3. 测试框架设计与实现</h3><h3 id="3-1-测试框架描述"><a href="#3-1-测试框架描述" class="headerlink" title="3.1 测试框架描述"></a>3.1 测试框架描述</h3><p>整个测试框架存储在 <code>sdmmc-tests</code> 项目中，通过分模块自动化验证 SD/MMC 驱动的各项能力，涵盖基本读写、边界与异常、性能基准、并发一致性、以及平台专用（如 VisionFive2）等多类测试。每类测试包含单块/多块读写、边界块访问、错误注入、顺序与随机性能、DMA/CPU对比、缓存一致性、多线程压力、时钟切换、中断延迟和大容量寻址等典型场景。测试框架会自动统计吞吐量、IOPS、错误数等指标，并输出详细日志，便于定位驱动在不同平台和极端条件下的功能与性能问题。所有测试均可一键批量运行，极大提升了驱动开发和回归验证的效率与可靠性。</p>
+<h3 id="3-2-测试分类与功能说明"><a href="#3-2-测试分类与功能说明" class="headerlink" title="3.2 测试分类与功能说明"></a>3.2 测试分类与功能说明</h3><p>当前 <code>sdmmc-tests</code> 测试框架将测试分为以下几大类，每类覆盖不同的驱动能力：</p>
+<ul>
+<li><p><strong>基本功能与正确性测试（basic/）</strong></p>
+<ul>
+<li><em>单块/多块读写</em>：验证驱动对单个和多个数据块的读写正确性。</li>
+<li><em>边界条件</em>：测试首块、末块、分区边界等特殊地址的访问，确保无越界和数据一致性。</li>
+<li><em>异常与错误处理</em>：如非法块号、错误缓冲区长度、超时等，验证驱动能否正确检测和报告错误。</li>
+</ul>
+</li>
+<li><p><strong>性能基准测试（benchmark/）</strong></p>
+<ul>
+<li><em>顺序吞吐量</em>：测量大块连续读写的最大带宽。</li>
+<li><em>随机访问性能</em>：评估随机读写的 IOPS 和延迟。</li>
+<li><em>DMA/CPU 模式对比</em>：对比 DMA 直传与 CPU 轮询两种模式下的性能差异，量化 DMA 优势。</li>
+</ul>
+</li>
+<li><p><strong>并发与一致性测试（concurrency/）</strong></p>
+<ul>
+<li><em>缓存一致性</em>：验证 DMA 传输下 CPU 缓存与物理内存的数据一致性，确保写后读、读后写无异常。</li>
+<li><em>并发压力</em>：模拟多线程/多任务下的交错读写，检验驱动在高并发场景下的稳定性和正确性。</li>
+</ul>
+</li>
+<li><p><strong>平台专用测试（visionfive2/）</strong></p>
+<ul>
+<li><em>SDIO 时钟切换</em>：动态切换多种时钟频率，验证驱动对不同速率的适配能力。</li>
+<li><em>中断延迟</em>：测量中断响应时间，评估驱动实时性。</li>
+<li><em>LBA48 支持</em>：测试大容量卡 (&gt;2TB) 的 48 位寻址能力。</li>
+</ul>
+</li>
+</ul>
+<p>每类测试均配有详细日志和统计信息，便于定位问题和量化性能。</p>
+<h3 id="3-3-测试框架设计要点"><a href="#3-3-测试框架设计要点" class="headerlink" title="3.3 测试框架设计要点"></a>3.3 测试框架设计要点</h3><ul>
+<li>统一的 <code>TestResult</code>/<code>TestError</code> 类型，便于错误归类与统计</li>
+<li><code>TestStats</code> 支持吞吐量、IOPS 等性能指标自动统计</li>
+<li>详细日志输出，便于定位问题</li>
+<li>支持特性开关（如 <code>vf2</code>）灵活适配不同硬件</li>
+</ul>
+<h3 id="3-4-运行方式"><a href="#3-4-运行方式" class="headerlink" title="3.4 运行方式"></a>3.4 运行方式</h3><ul>
+<li>可集成于 StarryOS 镜像，在真实硬件或 QEMU 上运行</li>
+<li>支持独立 cargo 运行，便于 API 层测试</li>
+</ul>
+<hr>
+<h2 id="相关仓库"><a href="#相关仓库" class="headerlink" title="相关仓库"></a>相关仓库</h2><ol>
+<li><a href="https://github.com/PassingThroughStarDust/StarryOS-dev-logs" target="_blank" rel="noopener">优化后的 StarryOS 代码与日志仓库</a></li>
+<li><a href="https://github.com/PassingThroughStarDust/simple-sdmmc-extended" target="_blank" rel="noopener">优化后的 simple-sdmmc 代码仓库</a></li>
+<li><a href="https://github.com/PassingThroughStarDust/sdmmc-tests" target="_blank" rel="noopener">测试集框架代码仓库</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/object-Object/" rel="tag"># [object Object]</a>
+              <a href="/blog/tags/author-PassingThroughStarDust/" rel="tag"># author:PassingThroughStarDust</a>
+              <a href="/blog/tags/SD-MMC-Driver/" rel="tag"># SD/MMC Driver</a>
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/VisionFive2/" rel="tag"># VisionFive2</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/04/28/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-rknpu%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/" rel="prev" title="实习总结报告:rknpu技术报告">
+      <i class="fa fa-chevron-left"></i> 实习总结报告:rknpu技术报告
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
