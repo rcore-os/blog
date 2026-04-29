@@ -81,7 +81,8 @@ StarryOS 的按需加载系统组成部分：
 
 **图 1** 展示了按需加载系统的整体架构。图中上侧为用户态进程，下侧为内核态组件。用户态的首次访问沿 VFS 路径向下传播，若目标不存在则进入 `with_ondemand` 重试路径；框架层的 `registry` 与 `lifecycle` 负责状态转换；底层通过 `kmod-loader` 实际完成 ELF 加载。
 
-![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p1.png)
+
+{% asset_img p1.png "alt text" %}
 
 如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p1.png
 
@@ -108,7 +109,7 @@ StarryOS 的按需加载系统组成部分：
 
 **图 2** 为六状态生命周期状态机示意图。
 
-![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p2.png)
+{% asset_img p2.png "alt text" %}
 
 如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p2.png
 
@@ -142,13 +143,13 @@ StarryOS 的按需加载系统组成部分：
 
 **图 3** 展示了 FUSE 按需加载执行的完整时序。
 
-![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p3.png)
+{% asset_img p3.png "alt text" %}
 
 如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p3.png
 
 **图 4** 展示了 `Starryfuse` 内核驱动的分层架构。
 
-![alt text](./实习技术报告：StarryOS-内核模块按需加载与-FUSE-用户态文件系统驱动实现/p4.png)
+{% asset_img p4.png "alt text" %}
 
 如果图片显示失败，图片链接：https://github.com/DINGBROK423/ondemand-kmod/blob/main/doc/report_figures/p4.png
 
