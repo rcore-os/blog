@@ -239,7 +239,7 @@ submit 的生命周期状态（ready/running/complete）不是单独维护的枚
 
 下图展示单个 submit 从 ioctl 入队到 copy-back 返回的完整路径，以及多个并发 submit 线程如何通过独立 waiter 共享同一个 worker。
 
-{% asset_img ./实习总结报告-rknpu技术报告/sumit_life_cycle.svg Logo %}
+{% asset_img sumit_life_cycle.svg Logo %}
 
 ### 7.4 图二：Worker 主循环与多核派发
 
@@ -248,7 +248,7 @@ submit 的生命周期状态（ready/running/complete）不是单独维护的枚
 
 下图展示 worker 线程的主循环结构，以及 harvest 和 dispatch 如何交替推进多个 submit 的执行。
 
-{% asset_img ./实习总结报告-rknpu技术报告/worker_main.svg Logo %}
+{% asset_img worker_main.svg Logo %}
 
 
 ## 相关仓库
