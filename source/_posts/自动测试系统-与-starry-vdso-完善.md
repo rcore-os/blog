@@ -3,7 +3,6 @@ title: 自动测试系统 与 starry-vdso 完善
 date: 2026-04-27 21:27:01
 categories:
     - 实习总结报告
-    - report
 tags:
     - author:HoshimiP
 ---
