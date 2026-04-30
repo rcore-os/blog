@@ -1,6 +1,8 @@
 ---
 title: 实习技术报告：StarryOS 内核模块按需加载与 FUSE 用户态文件系统驱动实现
 date: 2026-04-25 13:41:50
+categories:
+    - 实习总结报告
 tags:
     - author:王一丁
     - 实习

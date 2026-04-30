@@ -1,6 +1,8 @@
 ---
 title: 自动测试系统 与 EEVDF 调度器实习三个月技术总结
 date: 2026-04-25 11:52:57
+categories:
+    - 实习总结报告
 tags:
   - author:yoinspiration
   - 自动测试系统

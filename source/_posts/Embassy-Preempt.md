@@ -1,6 +1,8 @@
 ---
 title: Embassy Preempt On VisionFive2 -- Oveln
 date: 2026-04-27 15:16:11
+categories:
+    - 实习总结报告
 tags:
   - Oveln
   - RTOS
