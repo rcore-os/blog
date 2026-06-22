@@ -7,6 +7,7 @@ tags:
     - author:SwedishDoveCooker
     - repo:embassy_preempt
     - 2026S
+    - AsyncOS
     - embassy_preempt
     - async-ffi
 ---
