@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">766</span>
+          <span class="site-state-item-count">767</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">72</span>
+        <span class="site-state-item-count">73</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">693</span>
+        <span class="site-state-item-count">699</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
 
           
@@ -577,6 +577,445 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/15/20260615-daivy2333-%E5%BC%82%E6%AD%A5%E4%B8%B2%E5%8F%A3%E9%A9%B1%E5%8A%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/15/20260615-daivy2333-%E5%BC%82%E6%AD%A5%E4%B8%B2%E5%8F%A3%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">StarryOS 异步串口驱动</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-15 16:40:29" itemprop="dateCreated datePublished" datetime="2026-06-15T16:40:29+00:00">2026-06-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="一、项目背景"><a href="#一、项目背景" class="headerlink" title="一、项目背景"></a>一、项目背景</h2><p>StarryOS 是一个面向 RISC-V 的 Rust 内核项目，构建在 ArceOS 组件化框架之上。串口（UART）是内核与外界交互最重要的通道之一，承担三类任务：内核启动日志、Shell 终端交互、用户态高性能数据传输。</p>
+<p>项目原本使用同步阻塞式的串口实现。这种方式有两个问题：第一，用户态 Shell 的输入/输出会因串口速率阻塞调用方；第二，写多字节时 CPU 持续轮询硬件 FIFO，效率低下。我们的训练营阶段初步目标，就是在保留同步内核日志通道的同时，从零为用户态 Shell 提供一条非阻塞、可中断驱动、CPU 高效的异步串口通路。</p>
+<p>约束条件贯穿整个阶段：不修改任何上游框架、内核抽象层、硬件抽象层、底层驱动库；异步机制只引入社区主流的轻量级原子唤醒原语（<a href="https://docs.embassy.dev/embassy-sync/git/default/struct.AtomicWaker.html" target="_blank" rel="noopener"><code>embassy_sync::AtomicWaker</code></a>），禁止引入完整的异步入库。</p>
+<hr>
+<h2 id="二、训练营其他阶段工作"><a href="#二、训练营其他阶段工作" class="headerlink" title="二、训练营其他阶段工作"></a>二、训练营其他阶段工作</h2><p>训练营分阶段推进，前三个任务为后续主线工作奠定了协程与调度器的实践基础。</p>
+<p><strong>进程、线程、协程的性能对比</strong>。在统一数据量下对比三种并发模型，通过预取缓存、纯文件读取、可配置负载四步控制变量法排除了网络和解析的混淆。核心结论：I/O 密集型场景下协程较线程快 48% 至 82%，CPU 密集型场景下三者差异在 6% 以内，进程内存开销比线程和协程高 100 至 400 倍，结论经两轮独立运行验证零反转。</p>
+<p><strong>用户态线程与协程的深入实践</strong>。实现了一个支持优先级调度的用户态绿色线程库，通过裸函数栈布局手工实现上下文切换，支持 x86-64 Linux、Windows、RISC-V 64 三平台，全部代码可在 stable Rust 上编译运行。配套整理了无栈协程原理、绿色线程实现、执行流状态变迁三篇分析文档。</p>
+<p><strong>调度器对比与异步运行时优化</strong>。构建爬虫框架接入自研绿色线程和 Tokio 异步运行时，量化了四组调度配置在满载 CPU 与中量 I/O 场景下的差异。优化了 Tokio 优先级分发器：将基于二叉堆的逐任务分发改造为基于三队列的批量分发，使优先级模式与默认模式的实际耗时差距从 1.83 秒缩小至 0.11 秒，差距缩小 94%。</p>
+<hr>
+<h2 id="三、主要工作"><a href="#三、主要工作" class="headerlink" title="三、主要工作"></a>三、主要工作</h2><p>本阶段工作按三条主线展开。</p>
+<h3 id="主线一：从零实现-kernel-层异步串口驱动"><a href="#主线一：从零实现-kernel-层异步串口驱动" class="headerlink" title="主线一：从零实现 kernel 层异步串口驱动"></a>主线一：从零实现 kernel 层异步串口驱动</h3><h4 id="3-1-寄存器层验证"><a href="#3-1-寄存器层验证" class="headerlink" title="3.1 寄存器层验证"></a>3.1 寄存器层验证</h4><p>NS16550 UART 芯片只有 8 字节寄存器空间（偏移 0 到 7）。在早期验证中，由于对寄存器布局理解不到位，我们曾误用一个过大的寄存器步长，导致访问越界、触发总线错误。问题排查一度被误判为内存映射权限问题，使整体进度阻塞了将近一周。最终通过在同一页表映射内对比不同步长的读取结果，确认了是寄存器步长配置错误而非系统级权限问题，从而扫清了整个方向的最大障碍。这一教训让我们确立了「先排查代码 bug、再考虑系统级问题」的调试原则。</p>
+<blockquote>
+<p><strong>根因定位</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L27-L30" target="_blank" rel="noopener"><code>uart_init.rs:27-30</code></a> — <code>UART_STRIDE = 1</code> 及 LoadFault 注释</p>
+</blockquote>
+<p>寄存器操作通过本地 fork 的 <a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener"><code>uart_16550</code></a> 驱动库完成（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/Cargo.toml#L106" target="_blank" rel="noopener"><code>kernel/Cargo.toml:106</code></a> <code>path = &quot;../../uart_16550&quot;</code>），而非直接依赖 crates.io 版本。该库封装了 NS16550 的 <a href="https://github.com/daivy2333/uart_16550/blob/main/src/backend/mmio.rs" target="_blank" rel="noopener"><code>MMIO 后端</code></a>、<a href="https://github.com/daivy2333/uart_16550/blob/main/src/spec.rs" target="_blank" rel="noopener"><code>寄存器定义</code></a>（IER/ISR/LSR 等）和<a href="https://github.com/daivy2333/uart_16550/blob/main/src/spec.rs" target="_blank" rel="noopener"><code>中断类型枚举</code></a>，为上层提供安全的寄存器读写 API。我们在本地 fork 上的主要改动是为其新增了 <code>set_ier()</code> 公开写方法，使 IER 操作统一走安全 API 而非裸 <code>write_volatile</code>（详见 §3.6 修复三），后续 Q12 阶段还为其补充了 <a href="https://github.com/daivy2333/uart_16550/blob/main/src/embedded_io.rs" target="_blank" rel="noopener"><code>embedded_io_async</code> trait 实现</a>。</p>
+<h4 id="3-2-驱动三件套"><a href="#3-2-驱动三件套" class="headerlink" title="3.2 驱动三件套"></a>3.2 驱动三件套</h4><p>我们用三件套构成了异步串口的核心机制：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>环形缓冲区</strong></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a></td>
+<td>SPSC 无锁结构，64 KiB 每方向，使用 <code>atomic_ring_buffer</code> + <code>PollSet</code> 唤醒</td>
+</tr>
+<tr>
+<td><strong>中断服务程序（ISR）</strong></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a></td>
+<td>25 行极简实现：读 ISR → 禁中断 → AtomicWaker::wake → 返回</td>
+</tr>
+<tr>
+<td><strong>后台搬运任务</strong></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a></td>
+<td>RX/TX copier loop，NAPI 风格轮询/中断动态切换（阈值 16）</td>
+</tr>
+</tbody></table>
+<p>关键设计是 ISR 只做唤醒而不做数据搬运，搬运工作交给后台任务，保持 ISR 极简。整套三件套约 500 行代码，全部位于内核自身模块。</p>
+<blockquote>
+<p><strong>完整实现</strong>：<a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/drivers" target="_blank" rel="noopener"><code>kernel/src/drivers/</code></a></p>
+</blockquote>
+<h4 id="3-3-虚拟文件系统集成"><a href="#3-3-虚拟文件系统集成" class="headerlink" title="3.3 虚拟文件系统集成"></a>3.3 虚拟文件系统集成</h4><p>我们将异步串口封装为标准设备节点，对接现有的设备注册框架，使异步串口与项目内其他设备采用完全一致的接入方式。</p>
+<ul>
+<li>设备注册：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs#L222-L230" target="_blank" rel="noopener"><code>dev/mod.rs:222-230</code></a> — <code>/dev/console</code> (5,1) 绑定 <code>ASYNC_TTY</code></li>
+<li>设备操作：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/device_ops.rs" target="_blank" rel="noopener"><code>device_ops.rs</code></a> — <code>TtyRead</code>/<code>TtyWrite</code> + <code>embedded_io_async</code> trait 实现</li>
+<li>终端绑定：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ntty_async.rs" target="_blank" rel="noopener"><code>ntty_async.rs</code></a> — 泛型 <code>Tty&lt;AsyncUartReader, AsyncUartWriter&gt;</code>，<code>ProcessMode::External</code> 消除 yield storm</li>
+</ul>
+<p>终端层通过泛型绑定替换了 reader 和 writer 两个 trait，整个终端栈因此无须修改即可切换到异步通路。</p>
+<blockquote>
+<p><strong>TTY 层实现</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code> 行规则模块</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs" target="_blank" rel="noopener"><code>tty/mod.rs</code> Tty 泛型结构</a></p>
+</blockquote>
+<h4 id="3-4-Shell-双向异步打通"><a href="#3-4-Shell-双向异步打通" class="headerlink" title="3.4 Shell 双向异步打通"></a>3.4 Shell 双向异步打通</h4><p>在接收方向上，中断唤醒后台搬运任务，搬运任务填充环形缓冲区，用户态 Shell 从缓冲区读取，整条链路无阻塞。在发送方向上，用户态写入环形缓冲区，后台搬运任务将其送入硬件 FIFO，内核日志通道与异步通道共享同一个 UART 硬件但互不冲突，实现了「内核日志同步输出、用户态 Shell 异步交互」的共存架构。</p>
+<blockquote>
+<p><strong>共存实现</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs#L222-L230" target="_blank" rel="noopener"><code>dev/mod.rs:222-230</code></a> 设备注册 | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/entry.rs#L23-L28" target="_blank" rel="noopener"><code>entry.rs:23-28</code></a> 启动初始化 | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> copier 与 Console 互斥读 FIFO</p>
+</blockquote>
+<hr>
+<h3 id="主线二：性能与正确性的多轮打磨"><a href="#主线二：性能与正确性的多轮打磨" class="headerlink" title="主线二：性能与正确性的多轮打磨"></a>主线二：性能与正确性的多轮打磨</h3><p>异步通路打通后，我们用了八轮迭代打磨性能和正确性。</p>
+<blockquote>
+<p><strong>性能对比报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/benchmark-report-async.md" target="_blank" rel="noopener"><code>benchmark-report-async.md</code></a> | <strong>手动测试报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/manual-qa-report.md" target="_blank" rel="noopener"><code>manual-qa-report.md</code></a> | <strong>Console vs Async 对比</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a></p>
+</blockquote>
+<h4 id="3-5-热路径优化（Q5-阶段）"><a href="#3-5-热路径优化（Q5-阶段）" class="headerlink" title="3.5 热路径优化（Q5 阶段）"></a>3.5 热路径优化（Q5 阶段）</h4><p>对中断处理路径做了五项核心优化：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>优化</th>
+<th>代码位置</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>IER 值缓存为原子变量</strong>，读改写→单次写入</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L99-L109" target="_blank" rel="noopener"><code>uart_init.rs:99-109</code></a></td>
+<td>消除 MMIO RMW 开销</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>RX/TX 独立锁</strong>，消除读写伪竞争</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> 分设 <code>RingBufRx</code>/<code>RingBufTx</code></td>
+<td>解除读写互斥</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>批量读写接口</strong>替代逐字节操作</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L32-L35" target="_blank" rel="noopener"><code>uart_init.rs:32-35</code></a> <code>NAPI_BATCH_SIZE=64</code></td>
+<td>减少锁获取次数</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>唤醒去重</strong>（will_wake 检查），避免无意义唤醒</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L41" target="_blank" rel="noopener"><code>async_driver.rs:41,61-65</code></a></td>
+<td>减少 CPU 空转</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>NAPI 中断合并</strong>：连续成功≥16次切轮询，高吞吐减 90%+ IRQ</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L46-L60" target="_blank" rel="noopener"><code>async_driver.rs:46-60</code></a></td>
+<td>大幅降低中断频率</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>以上 5 项优化的代码位置见表格中各行的链接，对应优化编号 O2/O25~O34。</p>
+</blockquote>
+<h4 id="3-6-三轮正确性修复（Q7-Q8-阶段）"><a href="#3-6-三轮正确性修复（Q7-Q8-阶段）" class="headerlink" title="3.6 三轮正确性修复（Q7~Q8 阶段）"></a>3.6 三轮正确性修复（Q7~Q8 阶段）</h4><table>
+<thead>
+<tr>
+<th>#</th>
+<th>缺陷</th>
+<th>修复</th>
+<th>代码位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>NAPI 退出缺陷</strong>：轮询模式计数器只增不减、空数据时无法重置 → CPU 空转</td>
+<td>总量为 0 时重置 <code>consecutive</code> 计数器</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a></td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>ISR 持锁</strong>：中断处理路径仍持有 <code>SpinNoIrq</code>，违反 ISR 极简原则</td>
+<td>移除 ISR 内所有锁，改用 <code>read_isr_unlocked</code>/<code>read_lsr_unlocked</code></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L72-L96" target="_blank" rel="noopener"><code>uart_init.rs:72-96</code></a></td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>IER 裸写绕过安全 API</strong>：<code>write_volatile</code> 裸地址写 IER，违反 MMIO 封装规则</td>
+<td>给底层驱动库新增 <code>set_ier()</code> 公开方法，统一所有写入路径</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L102-L109" target="_blank" rel="noopener"><code>uart_init.rs:102-109</code></a> + <a href="https://github.com/daivy2333/uart_16550/blob/main/src/lib.rs" target="_blank" rel="noopener"><code>uart_16550/src/lib.rs</code></a></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>以上 3 项修复的代码位置见表格中各行的链接。</p>
+</blockquote>
+<h4 id="3-7-多轮迭代优化（Q9-Q12-阶段）"><a href="#3-7-多轮迭代优化（Q9-Q12-阶段）" class="headerlink" title="3.7 多轮迭代优化（Q9~Q12 阶段）"></a>3.7 多轮迭代优化（Q9~Q12 阶段）</h4><p>在三轮正确性修复之上，我们又进行了五轮优化迭代：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>优化内容</th>
+<th>关键指标变化</th>
+<th>变更记录</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Q9</strong></td>
+<td>超时机制：VTIME 读超时复用 <code>axtask::future::timeout</code></td>
+<td>—</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a> VTIME 处理</td>
+</tr>
+<tr>
+<td><strong>Q10</strong></td>
+<td>数据路径优化：批量写入改造、缓冲容量扩充 3 倍、ldisc 锁粒度细化</td>
+<td>1B 延迟 145→122 µs（↓16%）</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a></td>
+</tr>
+<tr>
+<td><strong>Q11</strong></td>
+<td>终端与内存子系统一般性优化（mm/access、close_range、sendfile、tty unwrap）</td>
+<td>1B 延迟 122→118 µs；软件开销峰值↓40%</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs" target="_blank" rel="noopener"><code>tty/mod.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/mm" target="_blank" rel="noopener"><code>mm/</code></a></td>
+</tr>
+<tr>
+<td><strong>Q12</strong></td>
+<td>Embassy 路径 A：<code>atomic_ring_buffer</code> 无锁化、<code>embedded_io_async</code> 标准化、TC 硬件寄存器 tcdrain</td>
+<td>1B 延迟 P50=115.7 µs；软件开销↓31%（53.9→37.1 µs）；唤醒延迟 <del>200→</del>50 ns（8 点应用）</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/device_ops.rs" target="_blank" rel="noopener"><code>device_ops.rs</code></a> + <a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener"><code>uart_16550</code></a></td>
+</tr>
+<tr>
+<td><strong>Q6</strong></td>
+<td>⏳ 真板验证（VisionFive2）— 等待硬件</td>
+<td>—</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/Makefile" target="_blank" rel="noopener"><code>Makefile</code></a> vf2 目标</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Q12 性能回归测试</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/tests/benchmark.c" target="_blank" rel="noopener"><code>tests/benchmark.c</code></a> 用户态 benchmark 源码</p>
+</blockquote>
+<h4 id="3-8-已识别的反优化（排除的错误方向）"><a href="#3-8-已识别的反优化（排除的错误方向）" class="headerlink" title="3.8 已识别的反优化（排除的错误方向）"></a>3.8 已识别的反优化（排除的错误方向）</h4><p>我们对五类主流异步入库原语替换提案进行了评估，最终全部判定为反优化：</p>
+<table>
+<thead>
+<tr>
+<th>提案</th>
+<th>排除原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MPMC Channel 替换 SPSC Ring Buffer</td>
+<td>丢失无锁特性、引入不必要的间接层</td>
+</tr>
+<tr>
+<td>异步 Mutex 替换同步 SpinLock</td>
+<td>反而更慢且无法跨等待点持有</td>
+</tr>
+<tr>
+<td>Watch 包装单个 AtomicBool</td>
+<td>对单一标志而言过度设计</td>
+</tr>
+<tr>
+<td>Semaphore 做事件计数</td>
+<td>用错了工具</td>
+</tr>
+<tr>
+<td><code>select!</code> 宏替换手动 poll</td>
+<td>与 axtask 协程调度器不兼容</td>
+</tr>
+<tr>
+<td>通用分发结构替代静态 AtomicWaker</td>
+<td>唤醒目标固定且极少时，静态唤醒已是 O(1)，通用结构反引入开销</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>上述反优化判定的对照实现：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> SPSC 无锁方案（对应 OE1 Channel）、<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> AtomicWaker 静态唤醒（对应 OE2/OE3/通用分发结构）</p>
+</blockquote>
+<hr>
+<h3 id="主线三：方法论与经验沉淀"><a href="#主线三：方法论与经验沉淀" class="headerlink" title="主线三：方法论与经验沉淀"></a>主线三：方法论与经验沉淀</h3><p>核心原则：<strong>「先用轻量原语、复杂方案需评估改动范围与性能基准」</strong>。在评估五类异步入库原语替换提案后全部判定为反优化（详见 §3.8），避免后续在错误抽象上投入精力。整个阶段的工程决策与踩坑经验均已记录在项目文档体系中，此处不再展开。</p>
+<hr>
+<h2 id="四、量化成果与达到的效果"><a href="#四、量化成果与达到的效果" class="headerlink" title="四、量化成果与达到的效果"></a>四、量化成果与达到的效果</h2><h3 id="4-1-功能交付"><a href="#4-1-功能交付" class="headerlink" title="4.1 功能交付"></a>4.1 功能交付</h3><p>完成了从概念到内核虚拟机完整验证的异步串口栈：用户态 Shell 双向异步输入输出、标准事件轮询接口、非阻塞读取与 tcdrain 真异步、内核日志与用户态通道共存共享硬件。Shell 基本交互均工作正常。</p>
+<blockquote>
+<p><strong>手动 QA 报告</strong>（12 项测试全部 PASS，含真实终端输出证据）：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/manual-qa-report.md" target="_blank" rel="noopener"><code>manual-qa-report.md</code></a></p>
+</blockquote>
+<h3 id="4-2-性能数据"><a href="#4-2-性能数据" class="headerlink" title="4.2 性能数据"></a>4.2 性能数据</h3><blockquote>
+<p><strong>完整报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/benchmark-report-async.md" target="_blank" rel="noopener"><code>benchmark-report-async.md</code></a> | <strong>同步 vs 异步对比</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a></p>
+</blockquote>
+<p><strong>CPU 占用效率</strong>（统一数据量 10 万字节，端到端对比）：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>同步实现（Console）</th>
+<th>异步实现</th>
+<th>提升</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU 周期 / 字节</td>
+<td>3,835</td>
+<td>268（Q7）/ ~13（Q12）</td>
+<td>14.3× → 295×</td>
+</tr>
+<tr>
+<td>延迟中位数</td>
+<td>17.5 µs</td>
+<td>6.5 µs（Q7）/ 7.9 µs（Q12 无 tcdrain）</td>
+<td>2.2~2.7×</td>
+</tr>
+<tr>
+<td>P99 延迟</td>
+<td>324.5 µs</td>
+<td>43.1 µs</td>
+<td>7.5×</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>说明</strong>：上表中「268 cycles/byte」为 Q5/Q7 阶段数据（IER 缓存 + ISR 合并 + 批量 I/O 后），「~13 cycles/byte」为 Q12 阶段数据（<code>atomic_ring_buffer</code> 无锁化 + <code>embedded_io_async</code> 标准化后）。两个数据均来自 QEMU 实测，详见 <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a>。</p>
+</blockquote>
+<p><strong>环形缓冲区直测</strong>（绕过终端层，测量纯内核态通路）：每秒可搬运近 6 亿字节（RX 588,776 KB/s，TX 196,850 KB/s），延迟中位数 600 纳秒。</p>
+<p><strong>唤醒延迟</strong>：将异步唤醒从通用 <code>PollSet</code> 事件分发机制替换为静态 <code>AtomicWaker</code> 原子唤醒原语后，单次唤醒延迟从约 200 纳秒降至约 50 纳秒，提升约 4 倍。共有 8 处唤醒点应用了该优化（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> RX_WAKER/TX_WAKER/DRAIN_WAKER + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> copier 注册点）。</p>
+<p><strong>端到端预测</strong>（按 4096 字节数据量在真实硬件上估算）：吞吐量效率可达理论线速的 97.7%~97.9%，软件开销占比不足 2.3%；单字节平均延迟中，软件部分的开销约占三分之一（Q12 实测 37.1 µs）。</p>
+<p>需要说明的是，所有吞吐量数据在 QEMU 模拟器上<strong>不完全可信</strong>：QEMU 的 NS16550 设备模型不仿真真实的串口线延迟，因此真实硬件上的吞吐量会受 115200 波特率对应的每秒 11.5 KB 上限制约。可信的性能指标包括 CPU 周期占用、单字节延迟、唤醒延迟，这些在 QEMU 上也能准确反映。</p>
+<h3 id="4-3-代码与质量"><a href="#4-3-代码与质量" class="headerlink" title="4.3 代码与质量"></a>4.3 代码与质量</h3><ul>
+<li>新增代码约 500 行，全部位于 <a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/drivers" target="_blank" rel="noopener"><code>kernel/src/drivers/</code></a></li>
+<li>项目整体净增约 450 行（涉及 14 个内核侧文件 + 1 个底层驱动库文件）</li>
+<li>静态检查零错误零警告：编译器检查、代码风格检查、编译警告均清零</li>
+<li>死代码清理：移除 8 处确认无用的方法（共 76 行），保留 5 处预留接口</li>
+<li>多轮迭代全部通过完整的功能与性能回归测试</li>
+</ul>
+<hr>
+<h2 id="五、经验与教训"><a href="#五、经验与教训" class="headerlink" title="五、经验与教训"></a>五、经验与教训</h2><h3 id="5-1-根因复盘"><a href="#5-1-根因复盘" class="headerlink" title="5.1 根因复盘"></a>5.1 根因复盘</h3><p><strong>根因一：寄存器步长误用</strong>。NS16550 寄存器物理布局仅 8 字节，使用大于 1 的步长会导致寄存器访问超出硬件定义的范围。QEMU 模拟器对越界访问返回总线错误，在 RISC-V 上被解释为取指故障。在排查过程中，我们一度将故障归因于「内存映射权限不足」，并据此否决了多个上游修改方案。最终通过在同一页表映射内对比两种步长的访问结果，确认了真实根因是步长配置而非系统权限。</p>
+<blockquote>
+<p><strong>教训</strong>：硬件访问异常时，应优先排查寄存器布局与地址计算，再考虑页表权限等系统级问题。</p>
+<p><strong>代码证据</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L27-L30" target="_blank" rel="noopener"><code>uart_init.rs:27-30</code></a></p>
+</blockquote>
+<p><strong>根因二：非阻塞标志三入口未穷举</strong>。非阻塞读取标志需要从用户态一路传播到行规则模块。我们最初只在 ioctl 这一个入口做了处理，遗漏了文件打开和 fcntl 两个入口，导致用户在某些调用路径下设置了非阻塞标志却仍然阻塞等待。</p>
+<blockquote>
+<p><strong>教训</strong>：跨层状态传播必须穷举所有可能的入口路径，一个遗漏就意味着功能不完整。</p>
+<p><strong>三入口代码位置</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/syscall/fs/fd_ops.rs#L105-L107" target="_blank" rel="noopener"><code>fd_ops.rs:105-107</code> open</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/syscall/fs/fd_ops.rs#L280-L283" target="_blank" rel="noopener"><code>fd_ops.rs:280-283</code> fcntl</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs#L177-L179" target="_blank" rel="noopener"><code>tty/mod.rs:177-179</code> ioctl</a></p>
+</blockquote>
+<h3 id="5-2-可复用的设计模式"><a href="#5-2-可复用的设计模式" class="headerlink" title="5.2 可复用的设计模式"></a>5.2 可复用的设计模式</h3><p>以下九条设计模式在本项目中经过验证，未来可复用：</p>
+<ol>
+<li><strong>环形缓冲区 + 中断处理 + 后台搬运任务三件套</strong>：ISR 只唤醒、后台做数据搬运（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a>）</li>
+<li><strong>标准化设备注册框架</strong>：所有设备走同一接入路径（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs" target="_blank" rel="noopener"><code>dev/mod.rs</code></a>）</li>
+<li><strong>终端层通过读写 trait 泛型绑定</strong>：实现终端栈与具体驱动的解耦（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ntty_async.rs" target="_blank" rel="noopener"><code>ntty_async.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a>）</li>
+<li><strong>中断合并与轮询模式动态切换</strong>：高吞吐场景自动减少中断次数（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L32-L60" target="_blank" rel="noopener"><code>async_driver.rs:32-35,46-60</code></a>）</li>
+<li><strong>批量读写接口替代逐字节操作</strong>：减少系统调用开销（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L32-L35" target="_blank" rel="noopener"><code>uart_init.rs:32-35</code></a>）</li>
+<li><strong>本地游标追踪已发送位置</strong>：避免内核日志与用户态输出交错（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> TX copier 游标逻辑）</li>
+<li><strong>静态原子唤醒替代通用事件分发</strong>：固定唤醒目标场景下的最优选择（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> AtomicWaker）</li>
+<li><strong>中断处理极简原则</strong>：全程只读标志寄存器、关闭中断、唤醒、返回（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> 25 行实现）</li>
+<li><strong>寄存器值缓存为原子变量</strong>：读改写转化为单次写入（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L99-L109" target="_blank" rel="noopener"><code>uart_init.rs:99-109</code></a> <code>CACHED_IER</code>）</li>
+</ol>
+<h3 id="5-3-后续方向"><a href="#5-3-后续方向" class="headerlink" title="5.3 后续方向"></a>5.3 后续方向</h3><p>后续可能会参加实习继续完成向老师指出的后续方向：在真开发板上尝试（VisionFive2）、独立成 crate 用于多个 OS、完善驱动的文档；如果可能，对 I2C、SPI 驱动进行异步改进，看看尤予阳的工作并进行分析；尝试基于当前uart的异步实现总结异步开发范式（如果能做到）</p>
+<hr>
+<h2 id="六、工作仓库"><a href="#六、工作仓库" class="headerlink" title="六、工作仓库"></a>六、工作仓库</h2><table>
+<thead>
+<tr>
+<th>仓库</th>
+<th>链接</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>StarryOS（主仓库）</td>
+<td><a href="https://github.com/daivy2333/StarryOS" target="_blank" rel="noopener">https://github.com/daivy2333/StarryOS</a></td>
+</tr>
+<tr>
+<td>uart_16550（串口驱动库）</td>
+<td><a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener">https://github.com/daivy2333/uart_16550</a></td>
+</tr>
+<tr>
+<td>embassy（fork）</td>
+<td><a href="https://github.com/daivy2333/embassy" target="_blank" rel="noopener">https://github.com/daivy2333/embassy</a></td>
+</tr>
+<tr>
+<td>学习开发仓库</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport" target="_blank" rel="noopener">https://github.com/daivy2333/2026sOsReport</a></td>
+</tr>
+</tbody></table>
+<p>各阶段学习产出文档位于 <code>2026sOsReport</code> 仓库下：</p>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>链接</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>爬虫任务（任务一）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务一/docs/爬虫任务.md" target="_blank" rel="noopener"><code>产出/任务一/docs/爬虫任务.md</code></a></td>
+</tr>
+<tr>
+<td>绿色线程实验（任务二）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务二/green-thread/priority-extension.md" target="_blank" rel="noopener"><code>产出/任务二/green-thread/priority-extension.md</code></a></td>
+</tr>
+<tr>
+<td>优先级爬虫实验（任务三）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务三/docs/优先级调度在满负载下的效果分析.md" target="_blank" rel="noopener"><code>产出/任务三/docs/优先级调度在满负载下的效果分析.md</code></a></td>
+</tr>
+<tr>
+<td>异步数据库练习</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/一些别的/异步数据库练习.md" target="_blank" rel="noopener"><code>产出/一些别的/异步数据库练习.md</code></a></td>
+</tr>
+<tr>
+<td>六月第一周（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/六月第一周.md" target="_blank" rel="noopener"><code>reports/六月第一周.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W20（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W20.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W20.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W21（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W21.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W21.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W22（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W22.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W22.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W23（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W23.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W23.md</code></a></td>
+</tr>
+</tbody></table>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>转眼训练营就到结束的时候，还记得我参加这个完全就是为了提升自己的能力，我觉得算是初步达到了目的，不管是搜寻资料、总结信息的能力，还是编程开发的分支、工具管理能力，还是形而上的抽象知识实际运用起来的动手能力，甚至是紧跟时代的 AI 工具使用的能力，这些都在解决训练营难题的过程中得到了有效的提升，就有种从只会读书的学生转变成了能解决问题的学生的感觉，参加训练营真是受益匪浅。<br>我个人对于ai工具的想法，是挺乐观的，因为这是大趋势，我也是某种程度上的受益者。总的而言，ai是一个放大器、加速器，能在具体任务里面帮我加倍、加速的完成任务，这本身就需要我去掌握一些深度学习、提示词工程和理解运用专业知识（比如操作系统那些知识）的能力。所以，我认为是因为我本来就有点基础有点能力，在加上训练营的训练培养，才能用好ai，才能在老师的指导下完成当前这些工作。<br>感觉参与训练营之后，学校的课程作业都变得异常简单。感谢操作系统训练营，感谢向老师在项目阶段给的指导。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/29/2025%E7%A7%8B%E5%86%AC%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-PassingThroughStarDust/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -608,7 +1047,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -789,7 +1228,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -906,7 +1345,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1238,7 +1677,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1361,7 +1800,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1752,7 +2191,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1833,7 +2272,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2148,7 +2587,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+                <time title="Modified: 2026-06-22 14:39:20" itemprop="dateModified" datetime="2026-06-22T14:39:20+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2515,143 +2954,6 @@
 <td>EEVDF 调度器实现与验证脚本所在个人分支</td>
 </tr>
 </tbody></table>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/21/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E6%9D%A8%E5%AD%A6%E8%81%AA/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/04/21/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-%E6%9D%A8%E5%AD%A6%E8%81%AA/" class="post-title-link" itemprop="url">2026春夏开源操作系统训练营总结-杨学聪</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-04-21 15:58:24" itemprop="dateCreated datePublished" datetime="2026-04-21T15:58:24+00:00">2026-04-21</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/summary/" itemprop="url" rel="index"><span itemprop="name">summary</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>现在是我第5次参加操作系统训练营了。我第一次接触Rust和参加操作系统训练营是2024年初。经过漫长时间的学习和消化，我意识到了自己接受新事物的速度还是比较慢的。在学习的旅途中，我遇到了很多志同道合之人——有些人擅长理论推导，有些人喜欢折腾底层汇编，还有些人总能在我卡住的时候扔来一个关键链接。这种氛围让我觉得，慢一点也没关系，只要还在往前走。</p>
-<p>以下是我参加训练营的经历、感悟和收获。</p>
-<h2 id="Rust-and-Programming-Language"><a href="#Rust-and-Programming-Language" class="headerlink" title="Rust and Programming Language"></a>Rust and Programming Language</h2><p>在此之前，除了汇编语言，我只用过C系列的编程语言（C, C++ 和 C#）编写项目和代码。按照原理来说，很多编程语言都可以实现操作系统，至少只要实现了LLVM的前端，就能得到对应的后端二进制代码。但是近年来，使用Rust进行操作系统和嵌入式开发变成了新的趋势。</p>
-<p>最初，我无法想象“内存安全性”会是怎样的情况。毕竟C++的智能指针已经宣称解决了大部分问题，可实际项目里引用计数循环、悬垂指针照样防不胜防。但接触了Rust之后，我发现Rust不仅仅是一种简单的语言。Rust在编译时就能检查代码，考虑到多线程的使用、内存泄漏以及整体的优化等问题。它不是在运行时给你抛出一个段错误，而是在你保存文件的那一刻就告诉你：“这里有问题，而且我连怎么改都建议好了。”这种安全感，让人安心。在语法上，Rust的一些设计和Scala、C#非常相像，比如模式匹配、闭包的写法，还有那种“表达式无处不在”的风格，一开始不太习惯，但写了几周之后回头看C++的?:三目运算符，总觉得少了点灵活。</p>
-<p>第一点、Rust的标准库非常好。与标准C/C++库相比，Rust的标准库应用更加简洁，对字符串的支持非常省心。C等传统语言对Unicode编码的支持并不友好，也缺少统一的标准，而Rust则很好地解决了这个问题。我印象很深的一次经历：在做训练营的某个文件系统实验时，需要解析一个包含中文路径的用户输入。用C写的话，我得纠结是UTF-8还是GBK，还得手动处理字节长度；而在Rust里，std::path::Path和String直接就把这些事情理得清清楚楚。这种“不用自己造轮子，而且轮子还是圆的”的体验，大大降低了编写操作系统外围工具的心智负担。</p>
-<p>第二点、Rust在类型上有创新。例如切片和引用，切片不仅包含起始地址，还有数据长度，这让Rust函数在很多时候可以简化传参，例如，其他语言传递基址还需要包含一个尺寸量，像memset、memcpy这类函数，但是包含数据长度可以少传一个参数，直接当成“Array”使用。这样做有一个特点（不能说是缺点），就是Rust的字符串与C互操作时需要在末尾添加NULL终止符，否则无法正确解析ASCIZ字符串。我在写内核的串口驱动时，就经常需要做这种转换——Rust的&amp;str传到C的printf风格函数之前，得手动as_ptr()再加个\0，稍微有点啰嗦，但习惯了也就变成了肌肉记忆。默认，Rust变量和引用都是不可变的，这让我在写代码时更加注重变量的可写性。对于很大部分人而言，写代码的时候很少注意变量的可写性，导致以后想给一个接口的参数换为const的时候需要付出很多的修改。采用不可变性这一特性促使我在编写代码时声明更多的变量，从而使代码更具可读性。以前写C++的时候，我习惯把一个变量反复重用——一个int i既能当循环下标，又能存中间结果，最后还得存个标志位。现在回过头看，那简直就是“变量的一生被反复蹂躏”。Rust逼着我给每个新状态起一个新名字，代码反而变得像流水账一样清晰。</p>
-<p>第三点、unsafe关键字。与C#一样，Rust也有一个“unsafe”关键字，用于标记那些无法由编译器保证安全性的代码。这使我们能够插入特殊代码，解决可能存在的执行问题。在做操作系统训练营的过程中，我发现unsafe其实是一个很好的设计——它把“危险的角落”用高亮笔圈了出来。比如直接操作页表、读写外设寄存器、或者调用一段手写的汇编启动代码，这些必须放进unsafe块里。我在写内核的内存分配器时，整个模块只有三处unsafe：一处是操作裸指针，一处是调用内联汇编刷TLB，还有一处是绕过借用检查器来初始化静态变量。剩下的几百行代码都享受着编译器的保护。相比C++，Rust的unsafe就像是给你一张地图，上面标注了“此处有地雷”，你只要小心这几块区域，其他地方的草可以放心踩。</p>
-<p>第四点、Rust 有一种非常独特的所有权系统。与 C 系列语言有所不同。所有权系统能帮助我们避免内存泄漏或多重引用的问题。在其他语言中，我们可能会忘记考虑变量使用的相关机制。在内核的编写中，野指针是非常致命的存在。在长期的C++开发中，我已经屡次领教过野指针带来的问题，往往是忘记使用 memset 或者没有使用构造函数导致的问题。</p>
-<p>第五点、Rust 有着非常独特的trait。这种特性可以使代码更加灵活且可复用。我对这个特性的第一感觉是没有C++的虚表和继承的功能更方便。但是Rust提供的 impl 机制可以比较自由地增加方法，并且可以指定方法在哪个特性中实现。比C#中的partial 机制还要更美妙一些。受到Rust的影响，我在写C++代码时也用trait来命名一些公共接口。</p>
-<p>第六点、使用panic和Result处理异常。在C++的世界里，异常处理一直是个让人又爱又恨的话题，这个机制需要专门的开关支持，在内核编程基本没人用。noexcept又不够精细，导致你永远不知道一个函数到底会冒出什么幺蛾子。我见过不少C++项目，最后干脆禁用异常（-fno-exceptions），所有函数返回错误码，然后调用方用一堆if去判断。Rust的做法让我眼前一亮：它把“可能出错的操作”分成了两类。一类是“NMI型问题”，用<code>panic!</code>；另一类是“小问题，调用方可以处理”，用<code>Result&lt;T, E&gt;</code>。</p>
-<h2 id="Architecture"><a href="#Architecture" class="headerlink" title="Architecture"></a>Architecture</h2><p>我尝试在 x86, RISCV, ARM 架构上实现裸机程序。</p>
-<ul>
-<li>x86 算是现代计算机架构的鼻祖，也是目前使用最为广泛的架构。从我们身边的台式机、笔记本，到数据中心的服务器，x86 几乎无处不在。它的历史包袱很重，从16位的8086一路延伸到64位的x86_64，里面塞满了各种兼容模式、分段机制、中断描述符表的复杂规则。这是我从小接触的架构。</li>
-<li>RISCV 是一种开源的指令集架构，目前很多开源项目都在使用RISCV架构。</li>
-<li>ARM 是一种商业的指令集架构，在嵌入式单片机、移动设备手机平板等电子设备上使用广泛。</li>
-</ul>
-<p>我发现了RISCV有以下优势：</p>
-<p>第一、RISCV 是一种开源的指令集架构，注定了生产使用的成本更低。x86和ARM的授权费用高，而且还有各种专利壁垒。这种低成本不仅仅体现在钱上，更体现在试错成本上。我们可以在模拟器里随便改指令集，完全不用考虑商业兼容性。这对于我们这些写操作系统的人来说，意味着底层的行为是完全透明、可预期的。</p>
-<p>第二、RISC-V的32位与64位指令集架构高度相似。这一点，x86与ARM均未实现。RISC-V的32位（RV32）与64位（RV64）在分页机制上仅存在细微差异，而ARM的不同运行模式（如32位与64位）之间的分页技术则差异显著。x86的32位与64位架构在分段模型、寻址方式及指令使用等方面均表现出较大差异，导致跨位宽兼容的实现复杂度显著上升。这种相似性不仅体现在分页技术上，还贯穿于异常处理、控制状态寄存器（CSR）布局以及原子操作指令中。对于操作系统开发者而言，这意味着同一套内核代码可以通过条件编译（如根据 __riscv_xlen 宏）平滑地适配两种位宽，无需重写核心的页表遍历、上下文切换或系统调用入口逻辑。反观x86-64，其兼容32位模式时需要启用兼容子模式（compatibility mode），并且段寄存器、门描述符格式以及中断栈帧布局均与纯64位模式存在结构性差异，这迫使许多操作系统（如Linux）在x86上维护两套独立的低级入口代码。RISC-V通过设计上的统一性，显著降低了多平台内核的维护成本。</p>
-<p>第三、RISCV的M态陷入默认是关闭分页的。这一点设计真的很好，可以直接使用恒等映射，这样在内核态和用户态切换时，不需要做任何的映射操作，直接使用恒等映射即可。而x86和ARM则需要在用户态和内核态切换时想办法转到内核页面。但是，RISCV的S态陷入默认是开启分页的。M态关闭分页的特性使得最低特权级的固件（如引导加载程序或安全监视器）能够完全绕过虚拟地址转换，直接以物理地址访问内存。这一设计简化了启动阶段的早期初始化流程：在设置页表之前，M态代码即可完成内存检测、设备树解析或安全服务调用，无需预先建立任何地址映射。x86架构则缺乏类似的干净抽象——即使是在系统管理模式（SMM）下，处理器仍然处于实模式或保护模式的分页语境中，开发者必须小心处理段基址与分页的相互作用，稍有不慎便会引发三重故障。与之相对，RISC-V的S态默认开启分页则是为了保障常规操作系统的运行效率：内核与用户进程共享统一的虚拟地址空间，通过页表隔离权限。但这一设计也带来了额外的约束——在S态下直接访问未映射的物理地址需要临时切换页表或使用恒等映射区域，否则会触发页错误。</p>
-<h2 id="Experience-and-Another-Design"><a href="#Experience-and-Another-Design" class="headerlink" title="Experience and Another Design"></a>Experience and Another Design</h2><p>今年的训练营，给我的最大挑战的是ArceOS环境的配置。我试过调整Toolchain的版本，也试过修改单个依赖的版本，都失败了。最终，我决定采用最新的工具版本，针对其中的一些版本适配问题，我会将一些依赖的内容固定到仓库中。</p>
-<p>与之前几期相比，Rustlings 后又增加一个阶段。主要涉及了多线程下的Rust应用，功能很实用。rCore 的前几个章节有略微的改动。</p>
-<hr>
-<p><em><code>print_with_color</code>作业</em>：</p>
-<p>一开始要实现一个彩色打印功能，与rCore一开始实现的一样。原理都是 Linux 上面的终端支持。我实现的是绿色的，用这个颜色的原因是其他例程pass时也是用绿色输出的。</p>
-<p>这个终端颜色的原理也让我将其用作其他程序的Logging输出。</p>
-<p><em><code>sys_mmap</code>作业</em>：</p>
-<p>这个作业让我对内存管理有了更深的理解。将文件内容映射为内存页，这个设计很好。让我掌握到了匿名映射，按需分配等概念，以后可以自己从头实现试一试。</p>
-<p><em><code>support_hashmap, ramfs_rename</code>作业</em>：</p>
-<p>要注意到修改Cargo.toml文件里依赖和版本</p>
-<p>我使用 C++ 设计中另一个类组件化的微内核（mecocoa）。设计思路和经历如下</p>
-<h3 id="IO系统"><a href="#IO系统" class="headerlink" title="IO系统"></a>IO系统</h3><p>IO 系统是我最早着手实现的部分之一，也是经历重构次数最多的模块。最初只是想做一个能显示字符的文本控制台，后来逐步加入了图形界面、TTY 虚拟终端、键盘鼠标输入以及窗口管理。</p>
-<p>系统支持多个虚拟终端（VTTY），每个终端拥有自己的输入输出队列。当一个进程调用 INNC 等待键盘输入时，它的 PID 会被加入等待序列。主循环 serv_cons_loop 会轮询所有阻塞进程对应的 TTY 输入队列，一旦有字符到达就唤醒该进程并发送消息。这个设计简单直观，但轮询效率不高，而且没有优先级区分。</p>
-<p>键盘中断服务程序将扫描码转换成 keyboard_event_t 结构，然后调用 hand_kboard 放入当前焦点 TTY 的输入队列。鼠标消息同样经过 hand_mouse 处理。这种消息化设计使得输入源与消费端解耦，后续若要支持触摸屏或远程输入，只需增加对应的消息产生者即可。</p>
-<p>当前的消息轮询模型效率低下，未来要解决这些问题。</p>
-<h3 id="图形处理"><a href="#图形处理" class="headerlink" title="图形处理"></a>图形处理</h3><p>图形处理模块是 IO 系统的上层延伸，负责鼠标光标绘制、窗口图层管理、基本绘图原语以及双缓冲刷新。其设计围绕图层管理器与底层图形输出接口展开，实现了从像素绘制到窗口交互的初步功能。针对不同显存布局，实现了两种主要的图形输出类，分别处理 ARGB 与 ABGR 两种字节序。基本绘图接口（画点、画矩形、批量画点）直接操作显存地址，通过帧缓冲基址加坐标偏移计算目标位置。对于 24bpp RGB 格式也有实现。矩形绘制中尝试了批量写入优化，例如在地址对齐时使用 32 位宽赋值代替逐字节写入。</p>
-<p>图形子系统的图层管理。 LayerManager 管理多个 SheetTrait 对象，每个窗口或控件都是一个图层。我实现了双缓冲（enable_2buffer），通过后缓冲 sheet_buffer 减少显存直接操作带来的撕裂和闪烁。光标 Cursor 作为独立图层，可以响应鼠标移动事件并更新位置。此外还实现了简单的 Form 和控件（Label、TextBox），虽然功能简陋，但至少证明了窗口模型的可行性。双缓冲开启后，所有绘图操作先写入后缓冲（系统内存中的颜色数组），定期刷新函数检查“是否需要刷新”标志和“脏矩形”区域，将受影响的矩形区域通过真实的图形输出接口复制到显存。刷新频率由系统时钟控制。脏矩形坐标在刷新前会进行裁剪，防止越界。</p>
-<p>图形服务函数运行在单独的任务中，从图形消息队列中取出消息，目前只处理鼠标消息并调用上述鼠标处理函数。这种设计将图形输入与主控制台服务解耦。</p>
-<p>目前的局限性有：</p>
-<ul>
-<li>光标形状是固定尺寸的字符数组，无法动态加载不同光标样式（如箭头、手型）。</li>
-<li>每次鼠标移动或点击都遍历所有图层进行坐标命中测试，图层数量增加时开销线性增长。</li>
-<li>层管理器的事件回调仅实现了鼠标拖拽窗口（检测到左键按下时设置移动标志），但未处理窗口释放、边界限制、与其他控件的交互（如按钮点击）</li>
-</ul>
-<h3 id="任务管理与调度系统"><a href="#任务管理与调度系统" class="headerlink" title="任务管理与调度系统"></a>任务管理与调度系统</h3><p>调度系统是内核的核心组件之一，负责管理进程与线程的生命周期、优先级调度、同步与通信。经过多次重构，当前版本实现了一个 O(1) 优先级的混合调度器，据说是Linux 2.x用的是这个方案，区分实时任务与分时任务，并支持多核基础架构（多核部分尚未启用）。优势是基于位图的快速队列选择： 每个优先级对应一个就绪队列（双向链表）。调度器维护一个 32 位位图，每一位表示对应优先级队列是否非空。选择下一个任务时，通过 __builtin_ctz（数尾零指令）直接找到最高优先级的非空队列，然后取出队首线程。</p>
-<p>系统区分 ProcessBlock（进程）与 ThreadBlock（线程）。每个进程至少拥有一个主线程，可额外创建更多线程。进程拥有独立的页表、文件描述符表、堆区边界、TTY 焦点及图形窗口引用；线程则持有运行上下文、栈空间、优先级、时间片及阻塞原因。这种分离使得资源管理更加清晰，也为未来引入多线程应用打下了基础。</p>
-<p>系统提供了基于消息的进程间通信原语（msg_send / msg_recv），支持阻塞发送与接收。每个线程可记录等待的发送目标或接收来源，并挂起直到消息到达。</p>
-<p>关于M态会不会发生抢占，这个与架构有关。x86是可以的，但是 riscv 的  ecall 好像会自动关闭中断，对此我决定手动打开中断。所以M态是会发生抢占的。</p>
-<h3 id="内存管理"><a href="#内存管理" class="headerlink" title="内存管理"></a>内存管理</h3><p>内存管理模块承担了物理页分配、内核堆管理、页表映射及分段机制初始化等职责。该模块需要适配多种引导环境（BIOS、GRUB、UEFI）和不同架构（x86 32位、x86_64、RISC‑V），是系统底层的基础设施之一。</p>
-<p>系统预留一个覆盖 0 至 4G 物理地址空间的位图.位图结构支持标记页的占用与释放、查询连续空闲页以及设置可用范围。然后实现了一个简单内存池，内核启动后从物理页分配器获取一块连续内存（如 16KB），将其加入内存池作为初始堆空间。后续的 new/malloc 调用均通过默认分配器转发至该内存池。这种设计将内核自身的动态内存需求与物理页管理解耦。</p>
-<p>尽管当前内存管理模块尚不完善，它已经成功支持了内核启动、多进程创建、图形缓冲区分配等基本功能。能够正确解析 GRUB 的内存映射并分配出可用的页帧。</p>
-<p>用户堆功能当前尚未实现。</p>
-<h3 id="消息机制"><a href="#消息机制" class="headerlink" title="消息机制"></a>消息机制</h3><p>消息机制是进程间通信与硬件事件通知的核心基础设施。该模块分为两个层次：一是全局系统消息队列，用于处理来自中断的异步事件（键盘、鼠标、定时器、xHCI、帧缓冲刷新）；二是基于线程阻塞的同步进程间通信（IPC），支持任意进程间的消息发送与接收，并能够将硬件中断转化为特定线程的消息。</p>
-<p>系统维护一个全局的环形队列，专门存放由中断处理程序产生的硬件事件（如鼠标、键盘、定时器、xHCI、刷新）。独立的任务不断从此队列中取出消息并分发给对应的驱动或图形子系统。进程间的普通 IPC 则通过发送与接收系统调用实现，使用另一套基于线程控制块的阻塞队列机制。这种分离保证了硬件事件不会被进程间通信阻塞，降低了中断响应延迟。</p>
-<p>同步 IPC 基于线程阻塞与唤醒。 发送线程调用发送接口时，若接收线程当前正阻塞在接收接口上且匹配发送者或允许任意来源，则立即复制消息数据并唤醒接收线程；否则发送线程自身被阻塞，挂入接收线程的发送等待队列，同时标记阻塞原因为“等待发送”，并记录目标线程。接收线程调用接收接口时，若其发送队列非空且与指定的发送者匹配，则取出队首消息，复制数据后唤醒发送线程；否则接收线程阻塞，标记“等待接收”，记录期望的发送者。这种设计实现了内核中的同步消息传递，无需额外的共享内存。由于发送方和接收方可能位于不同的进程（拥有不同的页表），消息数据不能直接用指针访问。模块提供了跨页表复制函数，根据两个进程的页表将源虚拟地址转换为物理地址（或直接映射地址），再复制到目标虚拟地址。该函数在 RISC-V 与 x86 上分别适配了分页机制，并支持降级到内核页表。</p>
-<p>发送接口在阻塞前会检测发送等待链中是否存在循环等待（例如 A 等待 B，B 等待 C，C 等待 A）。若检测到潜在死锁，函数返回错误而不阻塞，避免了系统挂死。虽然检测算法简单（仅遍历单链），但对于单核场景下有限的通信深度已足够。</p>
-<h3 id="文件管理与虚拟文件系统"><a href="#文件管理与虚拟文件系统" class="headerlink" title="文件管理与虚拟文件系统"></a>文件管理与虚拟文件系统</h3><p>文件管理模块构建了一个虚拟文件系统（VFS）层，用于统一管理不同底层文件系统，并为进程提供标准的文件操作接口（打开、读写、关闭、删除等）。</p>
-<p>系统维护一个全局根目录项，所有文件和子目录均以双向链表形式组织在父目录项之下。路径解析时通过线性查找子目录项，命中则直接返回，未命中时触发底层文件系统的搜索回调，并在返回后动态创建新的目录项和索引节点加入缓存。这种“按需建立”的缓存策略减少了内存占用。</p>
-<p>系统实现了一个特殊的设备文件系统，并默认挂载在 /dev 目录下。该文件系统在初始化时自动创建 /dev/tty0 至 /dev/tty3 四个设备节点，其内部处理字段存储 TTY 索引号。读写操作通过 IPC 消息转发给对应的 TTY 服务进程，将文件接口转换为进程间通信。</p>
-<p>目前只适配了 FAT12/16/32 几种文件系统。</p>
-<h3 id="系统调用与处理程序"><a href="#系统调用与处理程序" class="headerlink" title="系统调用与处理程序"></a>系统调用与处理程序</h3><p>采用了一种通用简单的设计方案，限制是每个系统调用的参数数量不能大于3.</p>
-<p>支持 INT/GATE/SYSCALL/ECALL 指令导致的系统调用。</p>
-<h2 id="End"><a href="#End" class="headerlink" title="End"></a>End</h2><p>我的操作系统开发之旅才刚刚开始，未来还有很长的路要走。从最初对Rust内存安全性的懵懂，到如今能在三种架构间对比分页与陷入行为，这五次训练营的经历让我逐渐摸到了系统编程的门槛。然而，每一次深入都揭示出更多未知的领域——异步运行时在内核中的整合、多核间的缓存一致性协议、实时调度算法的确定性验证，这些课题仍在远方等待。RISC-V的开源特性降低了实验门槛，但生态的成熟度尚需时日；x86的庞大兼容层虽令人敬畏，却也暴露出历史设计的沉重代价。前方的道路并非坦途，但正因如此，每一次编译通过、每一个页表正确遍历、每一次异常被精准捕获，都成为继续前行的理由。或许，<strong>操作系统的魅力就在于它永远无法被彻底“完成”</strong>。</p>
-<p>Dosconio,<br>21, April 2026.</p>
 
       
     </div>
