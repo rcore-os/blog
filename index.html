@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">765</span>
+          <span class="site-state-item-count">766</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">691</span>
+        <span class="site-state-item-count">693</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,350 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/18/20260618-xianxw-SD%E9%A9%B1%E5%8A%A8%E5%BC%82%E6%AD%A5%E5%8C%96/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/18/20260618-xianxw-SD%E9%A9%B1%E5%8A%A8%E5%BC%82%E6%AD%A5%E5%8C%96/" class="post-title-link" itemprop="url">20260618-xianxw-SD驱动异步化</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-18 12:11:46" itemprop="dateCreated datePublished" datetime="2026-06-18T12:11:46+00:00">2026-06-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="SDMMC-驱动异步化技术总结"><a href="#SDMMC-驱动异步化技术总结" class="headerlink" title="SDMMC 驱动异步化技术总结"></a>SDMMC 驱动异步化技术总结</h1><p>本报告主要记录了我在2026春夏季开源操作系统训练营在 StarryOS 上开发 SDMMC 块设备驱动以及实现异步读写的全过程，包括最终完整的调用链路、同步与异步双通道设计思路以及遇到的相关技术细节。</p>
+<hr>
+<h2 id="一、-项目当前整体内容及当前完整调用链路"><a href="#一、-项目当前整体内容及当前完整调用链路" class="headerlink" title="一、 项目当前整体内容及当前完整调用链路"></a>一、 项目当前整体内容及当前完整调用链路</h2><h3 id="1-1-项目当前整体内容"><a href="#1-1-项目当前整体内容" class="headerlink" title="1.1 项目当前整体内容"></a>1.1 项目当前整体内容</h3><p>当前项目的开发分为两个流程,首先是原代码的复现工作,在复现过程中进行了部分的小段更改,其次是异步化改造工作,异步化改造主要对<code>axtask</code> 和 <code>simple-sdmmc</code>两个模块进行更改,同步的流程保持不变,异步的流程基于同步流程进行改造,最终改造后的调用链路如下:</p>
+<h3 id="1-2-驱动完整调用链路"><a href="#1-2-驱动完整调用链路" class="headerlink" title="1.2 驱动完整调用链路"></a>1.2 驱动完整调用链路</h3><p>支持两种调用链路，分别适配之前的同步调用与现代的异步协程调度：</p>
+<h4 id="1-2-1-同步通道完整调用链路-Synchronous-Flow"><a href="#1-2-1-同步通道完整调用链路-Synchronous-Flow" class="headerlink" title="1.2.1 同步通道完整调用链路 (Synchronous Flow)"></a>1.2.1 同步通道完整调用链路 (Synchronous Flow)</h4><p>同步通道核心是通过阻塞当前 OS 线程来等待硬件中断。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    autonumber</span><br><span class="line">    participant VFS as 虚拟文件系统 &#x2F; 块设备层</span><br><span class="line">    participant SdMmc as SdMmc 驱动 (同步接口)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant WaitQueue as OS 任务等待队列 (WaitQueue)</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    VFS -&gt;&gt; SdMmc: read_block(block_id, buf)</span><br><span class="line">    SdMmc -&gt;&gt; HW: 配置 DMA 描述符，启动 DMA 传输</span><br><span class="line">    SdMmc -&gt;&gt; WaitQueue: wait_timeout_until() 阻塞当前线程</span><br><span class="line">    Note over WaitQueue: 线程状态设为 Blocked&lt;br&#x2F;&gt;让出 CPU，被移出就绪队列</span><br><span class="line">    HW --&gt;&gt; ISR: 传输完成，触发硬件中断</span><br><span class="line">    ISR -&gt;&gt; SdMmc: 捕获中断，更新原子标志</span><br><span class="line">    ISR -&gt;&gt; WaitQueue: notify_one() 唤醒阻塞线程</span><br><span class="line">    WaitQueue -&gt;&gt; SdMmc: 线程恢复运行，执行数据拷贝与清理</span><br><span class="line">    SdMmc -&gt;&gt; VFS: 返回读取到的数据</span><br></pre></td></tr></table></figure>
+
+<p><strong>详细调用步骤分解：</strong></p>
+<ol>
+<li><strong>入口发起</strong>：上层文件系统/内核调用 <code>SdMmc::read_block(block_id, buf)</code> 或 <code>write_block</code>。</li>
+<li><strong>DMA 缓冲区准备</strong>：驱动配置传输大小，并获取物理上连续的一致性 DMA 缓存区。如果是写操作，将用户 <code>buf</code> 中的数据拷贝进 DMA 缓存。</li>
+<li><strong>进入 <code>send_cmd_idmac</code></strong>：<ul>
+<li><strong>创建描述符</strong>：分配一个 DMA 描述符 <code>IdmacDescriptor</code>，配置缓冲区物理地址与大小，并将描述符地址写入 <code>dbaddr</code> 寄存器。</li>
+<li><strong>重置标志位</strong>：将全局原子变量 <code>IDMAC_DONE_FLAG</code> 和 <code>IDMAC_ERROR_FLAG</code> 置为 <code>false</code>。</li>
+<li><strong>启动硬件</strong>：向 <code>cmdarg</code> 和 <code>cmd</code> 寄存器写入指令，并写入 <code>pldmnd</code> 寄存器，启动 SDMMC 硬件及内部 DMA 传输。</li>
+</ul>
+</li>
+<li><strong>线程阻塞等待</strong>：<ul>
+<li><strong>驱动调用</strong>：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">IDMAC_WAIT_QUEUE.wait_timeout_until(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>), </span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire)</span><br><span class="line">)</span><br></pre></td></tr></table></figure></li>
+<li><strong>底层动作</strong>：当前线程被放入等待队列，状态修改为 <code>Blocked</code>（阻塞态），当前 CPU 切换上下文去运行其他就绪线程。此时 CPU 没有任何忙等轮询。</li>
+</ul>
+</li>
+<li><strong>硬件中断触发与唤醒</strong>：<ul>
+<li>当 DMA 数据传输完毕，SD/MMC 控制器触发物理中断。</li>
+<li>CPU 跳转至中断服务程序（ISR）：<code>SdMmc::handle_interrupt()</code>。</li>
+<li>ISR 中更新状态：<code>IDMAC_DONE_FLAG.store(true)</code> 并调用 <code>IDMAC_WAIT_QUEUE.notify_one()</code>。</li>
+<li>调度器收到唤醒通知，将原阻塞线程放回就绪队列，并恢复其执行。</li>
+</ul>
+</li>
+<li><strong>收尾与返回</strong>：<ul>
+<li>线程恢复执行后，从 <code>wait_timeout_until</code> 返回，读取响应寄存器 <code>resp</code> 验证传输正确性。</li>
+<li>释放描述符内存，清理中断标志。</li>
+<li>如果是读操作，把数据从一致性 DMA 缓存拷贝回用户 <code>buf</code>，返回上层。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h4 id="1-2-2-异步通道完整调用链路-Asynchronous-Flow"><a href="#1-2-2-异步通道完整调用链路-Asynchronous-Flow" class="headerlink" title="1.2.2 异步通道完整调用链路 (Asynchronous Flow)"></a>1.2.2 异步通道完整调用链路 (Asynchronous Flow)</h4><p>异步通道专门为协程并发设计，其核心是通过 Rust Future 挂起协程，释放 OS 线程去运行其他任务，等待硬件中断精准唤醒。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    autonumber</span><br><span class="line">    participant App as 异步应用 &#x2F; 协程执行器 (Executor)</span><br><span class="line">    participant SdMmc as SdMmc 驱动 (异步接口)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant WaitQueue as 任务等待队列 (WaitQueue)</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    App -&gt;&gt; SdMmc: read_block_async(block_id, buf).await</span><br><span class="line">    SdMmc -&gt;&gt; HW: 配置 DMA 描述符，启动 DMA 传输</span><br><span class="line">    SdMmc -&gt;&gt; WaitQueue: wait_timeout_until_async().await 注册挂起</span><br><span class="line">    Note over WaitQueue: 创建 EventListener 并绑定 Waker&lt;br&#x2F;&gt;协程返回 Pending，让出执行权</span><br><span class="line">    Note over App: 协程挂起，Executor 调度同一线程下的其他协程</span><br><span class="line">    HW --&gt;&gt; ISR: 传输完成，触发硬件中断</span><br><span class="line">    ISR -&gt;&gt; SdMmc: 捕获中断，更新原子标志</span><br><span class="line">    ISR -&gt;&gt; WaitQueue: notify_one() 唤醒监听者</span><br><span class="line">    WaitQueue -&gt;&gt; App: 触发 waker.wake()，协程重新进入就绪队列</span><br><span class="line">    App -&gt;&gt; SdMmc: 执行器再次 poll 推进协程</span><br><span class="line">    SdMmc -&gt;&gt; SdMmc: 拷贝 DMA 缓冲区数据</span><br><span class="line">    SdMmc -&gt;&gt; App: 异步读取完成，返回数据</span><br></pre></td></tr></table></figure>
+
+<p><strong>详细调用步骤分解：</strong></p>
+<ol>
+<li><strong>入口发起</strong>：上层异步调用器 <code>.await</code> 执行 <code>SdMmc::read_block_async(block_id, buf)</code> 或 <code>write_block_async</code>。</li>
+<li><strong>DMA 缓冲区准备</strong>：与同步相同，配置大小，如果是写操作则将数据拷入 DMA 一致性内存中。</li>
+<li><strong>调用并 <code>.await</code> 执行 <code>send_cmd_idmac_async</code></strong>：<ul>
+<li><strong>描述符配置</strong>：构建 <code>IdmacDescriptor</code> 描述符，关联缓冲区物理地址并写入 <code>dbaddr</code>。</li>
+<li><strong>重置原子标志</strong>：重置 <code>IDMAC_DONE_FLAG</code> 与 <code>IDMAC_ERROR_FLAG</code>。</li>
+<li><strong>启动硬件</strong>：写入 <code>cmdarg</code> 和 <code>cmd</code> 寄存器启动命令，并写入 <code>pldmnd</code> 唤醒 DMA。</li>
+</ul>
+</li>
+<li><strong>协程挂起 (Yield)</strong>：<ul>
+<li><strong>驱动执行到异步等待处</strong>：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">IDMAC_WAIT_QUEUE.wait_timeout_until_async(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>), </span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire)</span><br><span class="line">).<span class="keyword">await</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>底层动作</strong>：<ul>
+<li>该异步等待返回一个 Future 状态机。</li>
+<li>当执行器第一次 <code>poll</code> 该 Future 时，通过 <code>event-listener</code> 在栈上创建一个监听节点，将当前协程的 <code>Waker</code> 登记并挂载到 <code>IDMAC_WAIT_QUEUE</code> 中。</li>
+<li>检查条件不满足，返回 <code>Poll::Pending</code>。</li>
+<li>执行器（Executor）将此协程移出活跃调度链表，底层的 OS 线程立刻去执行其他协程。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>中断精准唤醒</strong>：<ul>
+<li>硬件传输完毕触发物理中断，CPU 进入 <code>SdMmc::handle_interrupt()</code>。</li>
+<li>中断程序将 <code>IDMAC_DONE_FLAG</code> 原子设为 <code>true</code>。</li>
+<li>调用 <code>IDMAC_WAIT_QUEUE.notify_one()</code> 找到链表里登记的协程 <code>Waker</code>，调用 <code>waker.wake()</code>。</li>
+<li>执行器把该协程重新放入就绪队列。</li>
+</ul>
+</li>
+<li><strong>协程恢复与完成</strong>：<ul>
+<li>执行器再次 <code>poll</code> 该协程，此时条件满足，<code>wait_timeout_until_async</code> 返回 <code>Poll::Ready</code>。</li>
+<li>协程退出 <code>.await</code>，读取并验证寄存器，释放描述符。</li>
+<li>读操作将数据从 DMA 缓冲搬运至用户 <code>buf</code>。异步读取结束。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="二、-初次复现代码的具体改动"><a href="#二、-初次复现代码的具体改动" class="headerlink" title="二、 初次复现代码的具体改动"></a>二、 初次复现代码的具体改动</h2><h3 id="2-1-整体代码结构分析-src-目录"><a href="#2-1-整体代码结构分析-src-目录" class="headerlink" title="2.1 整体代码结构分析 (src 目录)"></a>2.1 整体代码结构分析 (<code>src</code> 目录)</h3><p>以下是原代码 <code>src</code> 目录下的核心文件职责与作用分工：</p>
+<table>
+<thead>
+<tr>
+<th align="left">文件名称</th>
+<th align="left">核心职责</th>
+<th align="left">具体作用描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">[lib.rs]</td>
+<td align="left">驱动模块入口</td>
+<td align="left">统一导出子模块，向外部公开核心驱动结构体 <code>SdMmc</code>。</td>
+</tr>
+<tr>
+<td align="left">[sdmmc.rs]</td>
+<td align="left">传输与控制逻辑</td>
+<td align="left">实现 <code>SdMmc</code> 生命周期与初始化配置流程（时钟配置、卡检测、OCR 协商、CID/CSD 获取等）；提供块读写接口 <code>read_block</code> 和 <code>write_block</code>（支持自动判定 DMA/PIO 模式）；实现具体命令发送函数 <code>send_cmd</code> 与 <code>send_cmd_idmac</code>；提供硬件中断处理函数 <code>handle_interrupt</code> 用于接收控制器和内部 DMA 的状态并反馈给等待任务。</td>
+</tr>
+<tr>
+<td align="left">[regs.rs]</td>
+<td align="left">底类寄存器定义</td>
+<td align="left">映射并定义控制器的寄存器块（<code>RegisterBlock</code>）布局，并利用 <code>bitfield-struct</code> 宏安全地建模各个寄存器的位域字段（如 <code>Ctrl</code>、<code>BMod</code>、<code>IdIntEn</code>、<code>IdSts</code>、<code>RIntSts</code> 等），保证寄存器读写的类型安全。</td>
+</tr>
+<tr>
+<td align="left">[cmd.rs]</td>
+<td align="left">命令与数据传输构建</td>
+<td align="left">定义 SD/MMC 命令枚举 <code>Command</code>（如 <code>GoIdleState</code>、<code>AppCmd</code>、<code>ReadSingleBlock</code> 等），构建出寄存器所需的命令控制字和参数值，并定义数据传输方向结构 <code>DataXfer</code>。</td>
+</tr>
+<tr>
+<td align="left">[dma.rs]</td>
+<td align="left">DMA 内存与描述符管理</td>
+<td align="left">定义符合 IDMAC 硬件接口要求的 DMA 描述符 <code>IdmacDescriptor</code> 结构；提供物理连续且对齐 of DMA 一致性内存的申请（<code>alloc_coherent</code>）与释放（<code>dealloc_coherent</code>）接口。</td>
+</tr>
+<tr>
+<td align="left">[utils.rs]</td>
+<td align="left">元数据解析辅助工具</td>
+<td align="left">定义并解析 CID（卡识别寄存器）与 CSD（卡特定数据寄存器），用于计算块设备的总容量、卡片块数量以及获取生产元数据。</td>
+</tr>
+</tbody></table>
+<hr>
+<hr>
+<h3 id="2-3-复现代码的具体改动"><a href="#2-3-复现代码的具体改动" class="headerlink" title="2.3 复现代码的具体改动"></a>2.3 复现代码的具体改动</h3><p>通过对旧版本 (<code>root-simple-sdmmc-extended</code>) 与新版本 (<code>retry-simple-sdmmc-extended-dma</code>) 进行深度代码比对，新版本在保持与旧版本时序对齐的同时，在以下几个关键维度进行了深入的修复与改善：</p>
+<blockquote>
+<p>[!WARNING]</p>
+<h4 id="1-内存泄漏与异常安全-Critical"><a href="#1-内存泄漏与异常安全-Critical" class="headerlink" title="1. 内存泄漏与异常安全 (Critical)"></a>1. 内存泄漏与异常安全 (Critical)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：如果在“第二阶段（命令响应等待）”中发生了超时，函数会直接返回 <code>None</code> 退出，而<strong>未能释放</strong>通过 <code>alloc_coherent</code> 申请的 <code>dma_desc_info</code> 物理连续内存。这在硬件超时或出错时会导致严重的系统内存泄漏。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：在此类所有异常分支（如超时、命令错误）中均补齐了 <code>dealloc_coherent</code> 释放操作，彻底消除了内存泄漏隐患，保证了底层的异常安全。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>[!IMPORTANT]</p>
+<h4 id="2-PIO-模式下-FIFO-地址访问-Bug-修复-Correctness"><a href="#2-PIO-模式下-FIFO-地址访问-Bug-修复-Correctness" class="headerlink" title="2. PIO 模式下 FIFO 地址访问 Bug 修复 (Correctness)"></a>2. PIO 模式下 FIFO 地址访问 Bug 修复 (Correctness)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：在数据传输循环中，使用 <code>fifo_base.byte_add(offset).read_volatile()</code>。这错误地将数据读写的字节偏移量（<code>offset</code>）加在了寄存器地址上。由于 FIFO 寄存器属于单一端口物理映射，偏移会导致读取非法的内存空间。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：完全修复了此 Bug。数据传输始终对固定的 <code>fifo_base</code> 地址执行 <code>read_volatile()</code>/<code>write_volatile()</code>，完全符合硬件规范。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>[!IMPORTANT]</p>
+<h4 id="3-跨上下文错误传递机制-IDMAC-ERROR-FLAG-Robustness"><a href="#3-跨上下文错误传递机制-IDMAC-ERROR-FLAG-Robustness" class="headerlink" title="3. 跨上下文错误传递机制 IDMAC_ERROR_FLAG (Robustness)"></a>3. 跨上下文错误传递机制 <code>IDMAC_ERROR_FLAG</code> (Robustness)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：未定义任何全局错误同步标志位。当中断服务程序（ISR）捕获了致命总线错误（<code>FBE</code>）、描述符不可用（<code>DU</code>）或卡错误（<code>CES</code>），也无法安全地向主线程传递该错误信号，导致主线程在发生硬件故障时只能“假死”直至超时。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：引入了全局原子变量 <code>pub static IDMAC_ERROR_FLAG: AtomicBool = AtomicBool::new(false);</code>。<ul>
+<li><strong>职责</strong>：在 <code>handle_interrupt</code> (中断侧) 捕获硬件异常后，通过 <code>store(true, Release)</code> 原子地设置标志。</li>
+<li><strong>优势</strong>：在 <code>send_cmd_idmac</code> (主线程侧) 配合 <code>load(Acquire)</code> 进行检查。该机制利用底层 CPU 的缓存一致性协议，在无锁（Lock-free）且不引起死锁的前提下，将硬件级的故障快速、安全地通知给主线程，构成了驱动安全降级与错误恢复的通信基石。</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>[!TIP]</p>
+<h4 id="4-防御性状态轮询-Efficiency"><a href="#4-防御性状态轮询-Efficiency" class="headerlink" title="4. 防御性状态轮询 (Efficiency)"></a>4. 防御性状态轮询 (Efficiency)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：数据传输等待缺乏灵敏的中断级错误响应，在出错时只能依靠强行等待 5 秒超时来退出。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：在数据传输的第三阶段，引入了相较于初始基准状态的防御性错误校验（实时检测新发生的 <code>new_fbe</code>/<code>new_ces</code>/<code>new_du</code> 等），一旦检测到错误即刻跳出循环并释放资源，将故障恢复延迟缩短到微秒级。</li>
+</ul>
+</blockquote>
+<h4 id="5-数据结构与注释清理-Code-Health"><a href="#5-数据结构与注释清理-Code-Health" class="headerlink" title="5. 数据结构与注释清理 (Code Health)"></a>5. 数据结构与注释清理 (Code Health)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：<code>SdMmc</code> 结构体内部保留了大量前期调试残留的、被注释掉的未实现字段（如 <code>support_dma_64bit_address</code>、<code>sg_cpu</code> 等），代码冗余严重。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：彻底清理了这些冗余字段，使核心数据结构非常精简。同时，补充了详实的中文注释，解释了并发原子操作以及休眠唤醒逻辑。</li>
+</ul>
+<h4 id="6-调试日志降噪-Code-Health"><a href="#6-调试日志降噪-Code-Health" class="headerlink" title="6. 调试日志降噪 (Code Health)"></a>6. 调试日志降噪 (Code Health)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：在卡片初始化和时钟配置阶段，大量使用 <code>warn!</code> 级别输出过程日志，在操作系统正常启动时会产生大量无用日志垃圾。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：将正常的硬件状态快照和初始化过程日志降级为 <code>debug!</code> / <code>trace!</code>，仅在真正发生严重异常时才输出警告，使得内核终端输出更加整洁。</li>
+</ul>
+<hr>
+<h2 id="三、-完善异步机制的代码改动"><a href="#三、-完善异步机制的代码改动" class="headerlink" title="三、 完善异步机制的代码改动"></a>三、 完善异步机制的代码改动</h2><p>我的这次改造涉及模块 <code>axtask</code> 和 <code>simple-sdmmc</code> 两个组件，采用了<strong>同步与异步双独立通道</strong>的设计模式：</p>
+<h3 id="3-1-具体的改造内容"><a href="#3-1-具体的改造内容" class="headerlink" title="3.1 具体的改造内容"></a>3.1 具体的改造内容</h3><h4 id="3-1-1-axtask-模块：WaitQueue-异步等待扩展"><a href="#3-1-1-axtask-模块：WaitQueue-异步等待扩展" class="headerlink" title="3.1.1 axtask 模块：WaitQueue 异步等待扩展"></a>3.1.1 <code>axtask</code> 模块：WaitQueue 异步等待扩展</h4><p>在 <code>wait_queue.rs</code> 中，为底层基于 <code>event-listener</code> 的挂起队列 <code>WaitQueue</code> 扩展了 4 个非阻塞的异步等待方法，允许协程进行 <code>.await</code> 挂起而不阻塞底层 OS 线程：</p>
+<ul>
+<li><code>wait_async()</code>：异步等待事件通知。</li>
+<li><code>wait_until_async(condition)</code>：异步等待直到满足特定条件。</li>
+<li><code>wait_timeout_async(dur)</code>：异步等待带超时机制。</li>
+<li><code>wait_timeout_until_async(dur, condition)</code>：异步等待直到满足条件或超时（本项目核心依赖项）。</li>
+</ul>
+<h4 id="3-1-2-simple-sdmmc-驱动：非轮询化同步通道"><a href="#3-1-2-simple-sdmmc-驱动：非轮询化同步通道" class="headerlink" title="3.1.2 simple-sdmmc 驱动：非轮询化同步通道"></a>3.1.2 <code>simple-sdmmc</code> 驱动：非轮询化同步通道</h4><p>在同步 DMA 发送接口 <code>send_cmd_idmac</code> 中，<strong>彻底移除了原有的 CPU 忙轮询循环</strong>（原循环通过不断调用 <code>axtask::yield_now()</code> 轮询原子标志，浪费大量 CPU 周期并且无法真正让线程进入 Blocked 状态）：</p>
+<h5 id="修改前：忙轮询-CPU-忙等待"><a href="#修改前：忙轮询-CPU-忙等待" class="headerlink" title="修改前：忙轮询 (CPU 忙等待)"></a>修改前：忙轮询 (CPU 忙等待)</h5><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> !IDMAC_DONE_FLAG.load(Ordering::Acquire) &#123;</span><br><span class="line">    <span class="keyword">if</span> axhal::time::wall_time() &gt;= deadline &#123; ... &#125;</span><br><span class="line">    axtask::yield_now(); <span class="comment">// 忙等待，任务仍留在就绪队列</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="修改后：挂起阻塞-让出-CPU"><a href="#修改后：挂起阻塞-让出-CPU" class="headerlink" title="修改后：挂起阻塞 (让出 CPU)"></a>修改后：挂起阻塞 (让出 CPU)</h5><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> dma_irq_timed_out = IDMAC_WAIT_QUEUE.wait_timeout_until(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>),</span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire),</span><br><span class="line">); <span class="comment">// 真正的线程阻塞，被移出就绪队列</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>同步读写映射</strong>：<code>read_block</code> 和 <code>write_block</code> 保持同步签名，并在内部直接调用该同步的 <code>send_cmd_idmac</code> 接口。当调用发生时，当前 OS 线程会被挂起进入睡眠状态，直到 DMA 中断到来触发 <code>IDMAC_WAIT_QUEUE.notify_one()</code> 或超时。</li>
+</ul>
+<h4 id="3-1-3-simple-sdmmc-驱动：原生异步协程通道"><a href="#3-1-3-simple-sdmmc-驱动：原生异步协程通道" class="headerlink" title="3.1.3 simple-sdmmc 驱动：原生异步协程通道"></a>3.1.3 <code>simple-sdmmc</code> 驱动：原生异步协程通道</h4><p>在 [sdmmc.rs] 中全面引入了原生的异步协程读写逻辑：</p>
+<ul>
+<li><strong><code>send_cmd_idmac_async</code> (异步 DMA 发送核心)</strong>：新建异步 DMA 命令发送接口。在等待 DMA 中断时，调用 <code>.wait_timeout_until_async(...).await</code> 将当前协程注册挂起。此过程<strong>完全不阻塞底层的 OS 线程</strong>，线程可以立刻去运行同一个线程内的其他协程。</li>
+<li><strong><code>read_block_async</code> 与 <code>write_block_async</code> (异步读写接口)</strong>：新增两个公共异步方法。它们通过 <code>.await</code> 挂起等待 <code>send_cmd_idmac_async</code> 执行完成。一旦中断触发唤醒，协程继续在用户态被 poll 推进，完成后续 of DMA 缓冲区数据搬运工作。</li>
+</ul>
+<hr>
+<h3 id="3-2-架构模式对比与优劣分析"><a href="#3-2-架构模式对比与优劣分析" class="headerlink" title="3.2 架构模式对比与优劣分析"></a>3.2 架构模式对比与优劣分析</h3><p>在开发过程中，我对两种主流的“同步/异步共存”设计模式进行了对比，最终选择了性能最优的<strong>独立双通道设计</strong>：</p>
+<table>
+<thead>
+<tr>
+<th align="left">维度</th>
+<th align="left">方案 A：统一异步内核 + <code>block_on</code> 包装（已废弃）</th>
+<th align="left">方案 B：独立双通道设计（当前采用）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>具体实现</strong></td>
+<td align="left">同步的 <code>read_block</code> 内部直接调用 <code>block_on(read_block_async)</code>。</td>
+<td align="left">同步与异步各走一套底层的 <code>send_cmd_idmac</code> 接口。</td>
+</tr>
+<tr>
+<td align="left"><strong>代码复用性</strong></td>
+<td align="left"><strong>高</strong>。DMA 的设置和拷贝逻辑只写了一遍，没有冗余。</td>
+<td align="left"><strong>较低</strong>。同步路径和异步路径 of DMA 配置结构存在重复。</td>
+</tr>
+<tr>
+<td align="left"><strong>同步路径性能</strong></td>
+<td align="left"><strong>略低</strong>。每次同步调用都需要额外付出创建协程 Waker、Pin 状态机以及运行 <code>block_on</code> 循环的 CPU 额外开销。</td>
+<td align="left"><strong>极致（最高）</strong>。同步读写直接调用 <code>send_cmd_idmac</code>，为纯同步函数调用，没有任何运行时的额外损耗。</td>
+</tr>
+<tr>
+<td align="left"><strong>异步路径并发</strong></td>
+<td align="left"><strong>高</strong>。协程非阻塞挂起。</td>
+<td align="left"><strong>高</strong>。协程非阻塞挂起。</td>
+</tr>
+<tr>
+<td align="left"><strong>错误调试难度</strong></td>
+<td align="left"><strong>高</strong>。同步调用栈中会混入异步状态机的匿名类型与 runtime 调用栈。</td>
+<td align="left"><strong>极低</strong>。同步调用栈就是普通的底层寄存器和锁操作，易于定位。</td>
+</tr>
+</tbody></table>
+<p><strong>结论</strong>：在操作系统内核和设备驱动开发中，<strong>性能和低确定性延迟是第一优先级</strong>。因此，方案 B 虽然带来了少量的 DMA 配置逻辑重复，但保证了同步路径的极限吞吐量，是更为妥当的系统级驱动重构设计。</p>
+<hr>
+<h2 id="四、-完整的异步读-写执行流"><a href="#四、-完整的异步读-写执行流" class="headerlink" title="四、 完整的异步读/写执行流"></a>四、 完整的异步读/写执行流</h2><p>以异步读取 <code>read_block_async</code> 为例，下面详细展示其整体的事件传播与状态转换链路：</p>
+<h3 id="4-1-协程-Waker-唤醒机制与-event-listener-的绑定"><a href="#4-1-协程-Waker-唤醒机制与-event-listener-的绑定" class="headerlink" title="4.1 协程 Waker 唤醒机制与 event_listener 的绑定"></a>4.1 协程 Waker 唤醒机制与 <code>event_listener</code> 的绑定</h3><p>当底层没有数据到来或 DMA 未完成时，协程必须挂起。唤醒机制的底层运转如下：</p>
+<ul>
+<li><strong>挂起与登记</strong>：<ol>
+<li>协程在 <code>wait_timeout_until_async</code> 的 <code>.await</code> 处被执行器 <code>poll</code> 时，会在栈上构造一个 <code>EventListener</code>。</li>
+<li><code>EventListener</code> 将自身以链表节点的形式注册到全局 <code>IDMAC_WAIT_QUEUE</code> 中。</li>
+<li><code>event-listener</code> 会在 poll 过程中获取当前协程上下文的 <code>Waker</code>（由上层执行器传入），并将其克隆并绑定到该监听器节点上。</li>
+<li>如果等待的条件（例如 <code>IDMAC_DONE_FLAG</code>）尚未满足，则 poll 返回 <code>Poll::Pending</code>。执行器接收到 <code>Pending</code> 后，会把当前协程移出活跃就绪链表，暂停对其调度。</li>
+</ol>
+</li>
+<li><strong>中断精准唤醒</strong>：<ol>
+<li>DMA 数据传输完成，硬件触发物理中断，CPU 强行中断当前线程并跳转到 <code>SdMmc::handle_interrupt()</code> 中断服务程序（ISR）。</li>
+<li>ISR 中，驱动清除硬件中断状态并原子 store 将 <code>IDMAC_DONE_FLAG</code> 设为 <code>true</code>。</li>
+<li>接着调用 <code>IDMAC_WAIT_QUEUE.notify_one(true)</code>。</li>
+<li><code>notify_one</code> 会在等待队列链表中找到该协程对应的 <code>EventListener</code>，提取出其中的 <code>Waker</code>，并调用 <code>waker.wake()</code>。</li>
+<li>此时，该协程状态被标记为就绪，重新放回执行器的就绪调度队列中。</li>
+</ol>
+</li>
+</ul>
+<h3 id="4-2-原子变量的协作"><a href="#4-2-原子变量的协作" class="headerlink" title="4.2 原子变量的协作"></a>4.2 原子变量的协作</h3><p>在多核或中断可能抢占的环境下，使用原子变量来进行状态标志通信至关重要：</p>
+<ul>
+<li><strong><code>IDMAC_DONE_FLAG: AtomicBool</code></strong>：标明 DMA 传输是否成功结束。在触发 DMA 传输前置为 <code>false</code>，在硬件中断成功接收到完成信号时置为 <code>true</code>。</li>
+<li><strong><code>IDMAC_ERROR_FLAG: AtomicBool</code></strong>：标明硬件（如控制器或 DMA）是否发生了致命错误。在中断处理函数检测到错误位（如 FBE、DU、CES）时置为 <code>true</code>。</li>
+<li><strong>内存顺序（Ordering）</strong>：使用 <code>Ordering::Acquire</code> and <code>Ordering::Release</code> 保证多核/中断上下文之间的数据可见性与指令重排安全。</li>
+</ul>
+<h3 id="4-3-完整的调用与运转链路-Execution-Flow"><a href="#4-3-完整的调用与运转链路-Execution-Flow" class="headerlink" title="4.3 完整的调用与运转链路 (Execution Flow)"></a>4.3 完整的调用与运转链路 (Execution Flow)</h3><p>以异步读取 <code>read_block_async</code> 为例，完整的调用与运转链路如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant App as 上层应用&#x2F;执行器</span><br><span class="line">    participant Drv as SDMMC 驱动 (SdMmc)</span><br><span class="line">    participant WQ as 任务等待队列 (WaitQueue)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    App-&gt;&gt;Drv: 1. read_block_async().await 发起读取</span><br><span class="line">    Drv-&gt;&gt;Drv: 2. 映射配置一致性 DMA 描述符与缓冲区</span><br><span class="line">    Drv-&gt;&gt;HW: 3. 写寄存器，触发 DMA 传输</span><br><span class="line">    Drv-&gt;&gt;WQ: 4. wait_timeout_until_async() 异步等待</span><br><span class="line">    Note over WQ: 创建 EventListener&lt;br&#x2F;&gt;将 Waker 注册到等待队列</span><br><span class="line">    WQ--&gt;&gt;App: 5. 返回 Poll::Pending 挂起协程</span><br><span class="line">    Note over App: 执行器切走，CPU 运行其它任务</span><br><span class="line">    Note over HW: DMA 硬件自动搬运数据到内存...</span><br><span class="line">    HW--&gt;&gt;ISR: 6. 传输完成触发物理中断</span><br><span class="line">    ISR-&gt;&gt;ISR: 7. 清理中断位，设置原子标志 DONE&#x3D;true</span><br><span class="line">    ISR-&gt;&gt;WQ: 8. notify_one() 唤醒监听者</span><br><span class="line">    Note over WQ: 获取对应的 Waker，调用 waker.wake()</span><br><span class="line">    WQ--&gt;&gt;App: 9. 协程重新放入就绪队列</span><br><span class="line">    App-&gt;&gt;Drv: 10. 执行器再次 poll 协程</span><br><span class="line">    Drv-&gt;&gt;WQ: 11. 重新检测 DONE 状态，发现满足条件</span><br><span class="line">    WQ--&gt;&gt;Drv: 12. 退出异步等待，返回</span><br><span class="line">    Drv-&gt;&gt;Drv: 13. 从 DMA 缓冲区拷贝数据至用户缓冲区</span><br><span class="line">    Drv--&gt;&gt;App: 14. 异步读取圆满完成，返回数据</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="五、-当前存在的问题"><a href="#五、-当前存在的问题" class="headerlink" title="五、 当前存在的问题"></a>五、 当前存在的问题</h2><p>由于我最终采用了物理隔离的同步和异步双通道设计（即独立的同步与异步底层接口），目前导致了以下两组函数在底层的 <strong>DMA 物理缓冲区分配</strong>、<strong>IDMAC 描述符链装配</strong>、以及<strong>读写的前后置数据同步搬运</strong>上存在约 <strong>80%</strong> 的代码逻辑重复：</p>
+<ul>
+<li><code>send_cmd_idmac</code> (同步) 与 <code>send_cmd_idmac_async</code> (异步)</li>
+<li><code>read_block</code> (同步) 与 <code>read_block_async</code> (异步)</li>
+<li><code>write_block</code> (同步) 与 <code>write_block_async</code> (异步)</li>
+</ul>
+<p>后续如果我要继续冗余代码的重构,大概就是把三个部分改造为辅助函数:</p>
+<h3 id="DMA-配置助手化"><a href="#DMA-配置助手化" class="headerlink" title="DMA 配置助手化"></a>DMA 配置助手化</h3><p>将当前冗余的一致性内存分配、<code>IdmacDescriptor</code> 结构体物理填充（包含控制字、缓冲区大小、缓冲区地址配置等）抽离为独立的公共辅助函数，例如：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">prepare_dma_desc</span></span>(...) -&gt; <span class="built_in">Result</span>&lt;DmaDescInfo, DmaError&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="读写前后置操作抽象"><a href="#读写前后置操作抽象" class="headerlink" title="读写前后置操作抽象"></a>读写前后置操作抽象</h3><p>将读操作的后置数据搬运拷贝（从物理连续的一致性 DMA 缓存拷贝至用户 buffer）、写操作的前置数据填充（从用户 buffer 拷贝至一致性 DMA 缓存）以及 DMA 一致性内存的释放生命周期管理，抽象出统一的辅助清理函数。</p>
+<h3 id="保持通道隔离并调用辅助函数"><a href="#保持通道隔离并调用辅助函数" class="headerlink" title="保持通道隔离并调用辅助函数"></a>保持通道隔离并调用辅助函数</h3><p>重构后，同步读写和异步读写只需在入口与出口分别调用上述公共抽象逻辑，而其核心等待与挂起机制（即同步直接阻塞 VS 异步协程挂起）依然维持完全隔离，在彻底消灭冗余代码的同时，完美保留同步路径的极限吞吐量性能。</p>
+<hr>
+<h2 id="六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答"><a href="#六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答" class="headerlink" title="六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答"></a>六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答</h2><p>首先其实无论时同步还是异步,他们的底层都是一样的中断处理函数,都是一样设置状态标记（<code>IDMAC_DONE_FLAG</code>/<code>IDMAC_ERROR_FLAG</code>），然后唤醒等待的任务/协程<br>只是在硬件读写处理前，我们必须使用<strong>互斥锁（Mutex）</strong>来进行并发保护，且唤醒后在系统调度上存在核心差异：</p>
+<h3 id="1-硬件互斥锁定与防死锁设计"><a href="#1-硬件互斥锁定与防死锁设计" class="headerlink" title="1. 硬件互斥锁定与防死锁设计"></a>1. 硬件互斥锁定与防死锁设计</h3><p>由于 SDMMC 硬件是单通道独占设备，我们在发起 DMA 读写前必须获取驱动锁：</p>
+<ul>
+<li><strong>同步端</strong>：在获取互斥锁（如 <code>SpinNoIrq</code> 或操作系统互斥量）后，如果等待中断，会挂起当前线程。此时其他尝试获取锁的线程会被排队，直至前一个线程在中断中被唤醒并释放锁。</li>
+<li><strong>异步端</strong>：为了防止协程挂起时导致底层线程“死锁”，我们不能在 <code>.await</code> 期间持有物理自旋锁。上层对接时使用<strong>异步互斥锁（Async Mutex）</strong>，当一个协程挂起时，它会主动把锁让出来，允许同一物理线程内的其他协程正常运行。</li>
+</ul>
+<h3 id="2-中断唤醒的多态分发（Waker-多态）"><a href="#2-中断唤醒的多态分发（Waker-多态）" class="headerlink" title="2. 中断唤醒的多态分发（Waker 多态）"></a>2. 中断唤醒的多态分发（Waker 多态）</h3><p>在中断触发并调用 <code>notify_one</code> 时，底层通过 Rust 标准库 <code>Waker</code> 的虚函数表实现多态性，自动完成同步与异步的区分唤醒：</p>
+<ul>
+<li><strong>同步的 Waker</strong>：对应 <code>AxWaker</code>。其 <code>wake()</code> 实现会通知操作系统的调度器，直接将对应的<strong>物理线程</strong>状态改为 <code>Runnable</code>，从而在中断返回后可以通过内核调度器触发抢占式切换，物理线程恢复运行并拷贝数据。</li>
+<li><strong>异步的 Waker</strong>：对应协程执行器的 Waker。其 <code>wake()</code> 实现仅仅是将<strong>协程状态机</strong>标为 Ready 放入执行器的就绪链表。中断返回后物理线程不阻塞，由执行器随后 poll 推进协程状态。</li>
+</ul>
+<p>相关的仓库地址</p>
+<ul>
+<li><a href="https://github.com/PassingThroughStarDust/starry-sdmmc-dma-temp/tree/main" target="_blank" rel="noopener">余泽铖原代码仓库</a></li>
+<li><a href="https://github.com/xianxw/SDMMC" target="_blank" rel="noopener">我初次复现的代码仓库</a></li>
+<li><a href="https://github.com/xianxw/RETRY-SDMMC/tree/main" target="_blank" rel="noopener">异步化完成后的代码仓库</a></li>
+<li><a href="https://github.com/xianxw/Asyncos/tree/main/%E6%8A%A5%E5%91%8A" target="_blank" rel="noopener">训练营六周周报</a></li>
+<li><a href="https://github.com/xianxw/Asyncos/tree/main" target="_blank" rel="noopener">训练营其他阶段的工作</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/29/2025%E7%A7%8B%E5%86%AC%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-PassingThroughStarDust/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +608,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:46" itemprop="dateModified" datetime="2026-06-15T03:39:46+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -445,7 +789,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:46" itemprop="dateModified" datetime="2026-06-15T03:39:46+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -562,7 +906,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:47" itemprop="dateModified" datetime="2026-06-15T03:39:47+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -894,7 +1238,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:47" itemprop="dateModified" datetime="2026-06-15T03:39:47+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1017,7 +1361,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:46" itemprop="dateModified" datetime="2026-06-15T03:39:46+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1408,7 +1752,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:46" itemprop="dateModified" datetime="2026-06-15T03:39:46+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1489,7 +1833,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:47" itemprop="dateModified" datetime="2026-06-15T03:39:47+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1804,7 +2148,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:47" itemprop="dateModified" datetime="2026-06-15T03:39:47+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2221,7 +2565,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:46" itemprop="dateModified" datetime="2026-06-15T03:39:46+00:00">2026-06-15</time>
+                <time title="Modified: 2026-06-22 14:37:49" itemprop="dateModified" datetime="2026-06-22T14:37:49+00:00">2026-06-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2309,87 +2653,6 @@
 <h2 id="End"><a href="#End" class="headerlink" title="End"></a>End</h2><p>我的操作系统开发之旅才刚刚开始，未来还有很长的路要走。从最初对Rust内存安全性的懵懂，到如今能在三种架构间对比分页与陷入行为，这五次训练营的经历让我逐渐摸到了系统编程的门槛。然而，每一次深入都揭示出更多未知的领域——异步运行时在内核中的整合、多核间的缓存一致性协议、实时调度算法的确定性验证，这些课题仍在远方等待。RISC-V的开源特性降低了实验门槛，但生态的成熟度尚需时日；x86的庞大兼容层虽令人敬畏，却也暴露出历史设计的沉重代价。前方的道路并非坦途，但正因如此，每一次编译通过、每一个页表正确遍历、每一次异常被精准捕获，都成为继续前行的理由。或许，<strong>操作系统的魅力就在于它永远无法被彻底“完成”</strong>。</p>
 <p>Dosconio,<br>21, April 2026.</p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/12/15/2025%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8F%B2%E5%96%86%E5%85%83/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/12/15/2025%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8F%B2%E5%96%86%E5%85%83/" class="post-title-link" itemprop="url">2025秋冬季开源操作系统训练营一二阶段总结-史喆元</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-12-15 16:20:37" itemprop="dateCreated datePublished" datetime="2025-12-15T16:20:37+00:00">2025-12-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-15 03:39:46" itemprop="dateModified" datetime="2026-06-15T03:39:46+00:00">2026-06-15</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>这是我第二次报名这个训练营但是相当于是第一次参加了,因为第一次报名是在2024年的秋冬季,那时候我刚大一刚刚接触到计算机,感觉很有意思就报名了但是那时候连使用Github对我来说都极其困难且刚进入大学没有适应繁多的课程,<br>我便决定先放弃,潜修一年有了些许微波的基础后再来试一试。我总是喜欢去了解一些东西的底层,所以我对操作系统算是有一总执念吧,让我再次来到这里。但由于本人比较愚笨,学习速度极慢,再加上早八到晚十的课程,所以进度相较于其他优秀学院慢了许多,但贵在坚持嘛……</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2025/12/15/2025%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8F%B2%E5%96%86%E5%85%83/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 
