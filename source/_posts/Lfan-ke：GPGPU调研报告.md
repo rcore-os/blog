@@ -19,6 +19,9 @@ categories:
 tags:
   - author:Lfan-ke
   - repo:https://github.com/Lfan-ke/arceos-stage4.git
+  - 2025S
+  - AsyncOS
+
 mathjax: true
 mermaid.js: true
 mermaid: enable:true theme:default

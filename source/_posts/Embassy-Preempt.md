@@ -7,6 +7,8 @@ tags:
   - Oveln
   - RTOS
   - Embassy_preempt
+  - 2025A
+  - AsyncOS
 ---
 # Embassy Preempt
 
