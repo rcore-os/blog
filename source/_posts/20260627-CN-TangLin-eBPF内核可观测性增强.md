@@ -222,6 +222,8 @@ JIT编译器采用统一的两遍编译（Two-Pass）架构，框架代码位于
 
 三个JIT PR目前均处于CLOSED状态，代码完整存在于`feat/ebpf-jit-*-*`分支中但未合入upstream/dev。AArch64分支（`feat/ebpf-jit-3-aarch64`）基过旧（692 commits behind upstream/dev），需要重新适配。当前upstream/dev使用`rbpf::EbpfVmRaw::jit_compile()`作为JIT实现路径。
 
+RISC-V 64 和 AArch64 JIT 后端已作为独立 PR 提交到上游 `qmonnet/rbpf` 仓库：[qmonnet/rbpf#152](https://github.com/qmonnet/rbpf/pull/152)（OPEN）。
+
 ### 主线五：工程质量持续改进（Training Camp后期，进行中）
 
 这一阶段的工作按照"小步快跑、聚焦单一改动"的原则，从初始14个小粒度PR合并为3个关联度更高的当前开放PR（另有#1414被#1412完整取代后关闭）。
@@ -418,6 +420,7 @@ kbpf-basic crate未实现helper #14 (`bpf_get_current_pid_tgid`)和#16 (`bpf_get
 | 汇报Slide仓库 | https://github.com/CN-TangLin/tgoskits/tree/dev/slides |
 | Blog提交PR | https://github.com/rcore-os/blog/pull/891 |
 | 项目进展记录（Issue） | https://github.com/rcore-os/tgoskits/issues/642 |
+| rbpf 上游 JIT PR | https://github.com/qmonnet/rbpf/pull/152 |
 
 ### 当前开放PR（3个，均已APPROVED）
 
