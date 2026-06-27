@@ -17,7 +17,16 @@ tags:
 
 ## 摘要
 
-本文总结我在2026春季操作系统训练营（Stage 7 专业阶段）中的工作。我在"方案二：基于eBPF的内核可观测性能力增强"子课题3框架下，为StarryOS内核完成了eBPF子系统全栈构建、kprobe/kretprobe内核探针、LKM内核模块加载、三架构手写JIT编译器、多项系统调用增强与性能优化等工作。累计提交12个已合并PR、4个当前开放PR，新增15000+行代码，364个commits。代码覆盖x86_64、RISC-V 64、AArch64、LoongArch四个架构。
+本文总结我在2026春季操作系统训练营（Stage 7 专业阶段）中的工作。我在"方案二：以Linux App为引导的StarryOS改进"框架下的**子课题3（基于eBPF的内核可观测性能力增强）** 中，为StarryOS内核完成了eBPF子系统全栈构建、kprobe/kretprobe内核探针、LKM内核模块加载、三架构手写JIT编译器、多项系统调用增强与工程质量改进。累计贡献 **11个已合并PR**，**3个当前开放PR**（均在CI验证中，已获bot APPROVED），历史关闭PR 16+个，新增15000+行代码，364个commits。代码覆盖x86_64、RISC-V 64、AArch64、LoongArch四大架构。
+
+<div style="page-break-after: always;"></div>
+
+---
+
+## PPT链接
+
+- **汇报 Slide 仓库**：https://github.com/CN-TangLin/tgoskits/tree/dev/slides
+- **技术报告**：见 Slide 仓库中 `training-camp-slides.md`（Marp格式，10章）
 
 ---
 
@@ -25,268 +34,290 @@ tags:
 
 StarryOS是构建在ArceOS组件化框架之上的Linux兼容操作系统，目标是运行未经修改的Linux用户态程序。训练营要求在StarryOS中实现eBPF（extended Berkeley Packet Filter）子系统——这是Linux内核的核心可观测性基础设施，允许用户安全地在内核中运行沙箱化程序，广泛应用于性能分析、安全监控、网络追踪等场景。
 
-整体开发流程涉及多个层面的工作：首先由助教linfeng(Godones)老师搭建tracepoint基础设施（#673）和kallsyms/kprobe桩（#805、#837），我在这些基础上实现了kprobe动态探针（#847）和eBPF全栈子系统（#848），LorenzLorentz同学在此基础上实现了基于外部crate kbpf-basic+rbpf的eBPF runtime（#850）和LKM loader端口（#851）。三条技术路线在#848合并后融合为统一的eBPF执行框架，随后我补充了测试套件（#874）、AArch64修复（#887）、以及eBPF增强（#888）。
+训练营按三个方案阶段推进。我在方案一阶段完成了select/poll/ppoll/pselect6多路复用系统调用体系完善（43个测试模块）和sys_msync+SQLite支撑；在方案二阶段将工作重心转移到子课题3（eBPF内核可观测性），与助教linfeng(Godones)老师和LorenzLorentz同学三人协作，严格对齐《StarryOS迁移计划》交付eBPF全栈。
 
-进入训练营后期，我独立完成了三架构eBPF JIT编译器的设计与实现，并在最后阶段进行了一系列工程质量改进，包括消除硬编码、替换panic!/todo!、实现perf event fd的读写轮询非阻塞支持、注册新的bpf helper函数等。
+### eBPF子课题架构全景图
+
+```
+┌──────────────────────────────────────────────────────┐
+│                    用户态工具层                        │
+│  aya eBPF 三件套 (PR #886)  │  test-ebpf-advanced    │
+│  kret/rawtp/mytrace/...    │  test-ebpf-attach       │
+│  qperf analyzer           │  test-ebpf-basics        │
+├──────────────────────────────────────────────────────┤
+│                  系统调用接口层                        │
+│  sys_bpf()          │  sys_perf_event_open()         │
+│  BPF_PROG_LOAD      │  PERF_EVENT_OPEN               │
+│  MAP_CREATE/LOOKUP  │  RAW_TRACEPOINT_OPEN           │
+├──────────────────────────────────────────────────────┤
+│                  eBPF 运行时层 (kbpf-basic)            │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  │
+│  │ eBPF VM     │  │ Map Manager  │  │ Verifier    │  │
+│  │ 解释器      │  │ Array/Hash/  │  │ 程序验证    │  │
+│  │ ALU/JMP/ST  │  │ PerfEventArr │  │             │  │
+│  │ 22 helpers  │  │ fd table     │  │             │  │
+│  └─────────────┘  └──────────────┘  └─────────────┘  │
+├──────────────────────────────────────────────────────┤
+│              数据通道 & 事件源层                       │
+│  perf_event 环形缓冲区  │  Tracepoint (静态追踪点)    │
+│  KCOV 覆盖率收集       │  debugfs tracing/            │
+├──────────────────────────────────────────────────────┤
+│              动态探针基础层 (kprobe / kallsyms)        │
+│  ┌──────────┐  ┌───────────┐  ┌──────────────┐       │
+│  │ kprobe   │  │stop_machine│  │ LKM loader   │       │
+│  │ kretprobe│  │ 安全代码段 │  │ kmod_loader  │       │
+│  │ 4架构    │  │ 修改       │  │ xtask build  │       │
+│  └──────────┘  └───────────┘  └──────────────┘       │
+└──────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## 二、训练营其他阶段工作
 
-在进入Stage 7专业阶段之前，经过训练营早期任务的基础训练，完成了Rust异步编程、协程并发模型等核心概念的实践，随后直接投入到tgOSKits仓库的StarryOS内核开发中。
+在进入Stage 7专业阶段之前，经过训练营早期任务的基础训练（Rust异步编程、协程并发模型等），我直接投入到tgOSKits仓库的StarryOS内核开发中。
 
-我的早期工作主要聚焦于系统调用和测试框架的完善，为后续的专业阶段工作奠定了扎实的内核开发基础。
+### 2.1 传统I/O多路复用系统调用体系（方案一）
+
+在方案一阶段，我主要负责了select/poll/pselect6/ppoll四个核心syscall的深度测试与边界验证：
+
+| 改进方向 | 状态 | PR |
+| :--- | :---: | :--- |
+| select/pselect6 用户态测试用例 | ✅ | [#563](https://github.com/rcore-os/tgoskits/pull/563) |
+| select/poll/pselect6/ppoll 深度测试套件（43个独立测试模块，5大阶段） | ✅ | [#679](https://github.com/rcore-os/tgoskits/pull/679) |
+| Pipe HUP 边界缺陷修复 | ✅ | [#734](https://github.com/rcore-os/tgoskits/pull/734) |
+
+测试套件覆盖超时、空fd_set、pipe读写、信号中断（EINTR）、POLLHUP/POLLERR边界等场景。
+
+### 2.2 sys_msync接口完善与SQLite支撑（方案一）
+
+| 改进方向 | 状态 | PR |
+| :--- | :---: | :--- |
+| sys_msync接口完善，处理页对齐约束，打通脏页回写 | ✅ | [#602](https://github.com/rcore-os/tgoskits/pull/602) |
+| SQLite集成压测在StarryOS上跑通 | ✅ | [#602](https://github.com/rcore-os/tgoskits/pull/602) |
+
+### 2.3 多核并行与基础设施（方案二）
+
+| 改进方向 | 状态 | PR |
+| :--- | :---: | :--- |
+| SMP4多核压力测试扩展到x86_64/aarch64/riscv64/loongarch64四架构 | ✅ | [#652](https://github.com/rcore-os/tgoskits/pull/652) |
+| axbacktrace无锁化并发重构（static mut→UnsafeCell） | ✅ | [#655](https://github.com/rcore-os/tgoskits/pull/655) |
+| DRM逐缓冲内存分配，Weston合成器双缓冲铺垫 | ✅ | [#667](https://github.com/rcore-os/tgoskits/pull/667) |
 
 ---
 
-## 三、主要工作
+## 三、主要工作（六条主线）
 
-整体工作按五条主线展开，另有第六阶段的质量改进工作正在进行中。以下各章节的代码位置均标注了具体的合并PR编号和关键文件路径。
+整体工作按五条主线展开，另有第六阶段（工程质量改进）正在进行中。以下各章节均标注了具体的文件路径与行号范围，格式为`文件路径:起始行-结束行`。
 
-### 主线一：eBPF子系统的全栈构建
+### 主线一：kprobe/kretprobe内核探针（#847, MERGED）
 
-#### 3.1.1 eBPF核心子系统（#848, MERGED）
+kprobe是Linux内核最核心的动态追踪机制，允许在任意内核函数入口/出口处插入探针。我实现了完整的kprobe/kretprobe支持，跨越四大架构：
+
+**核心实现**：`os/StarryOS/kernel/src/kprobe.rs` (639行)
+- `KernelKprobeOps`实现`KprobeAuxiliaryOps`：copy_memory、set_writeable、alloc/free_kernel/exec_memory、kretprobe instance管理
+- 4架构`trapframe_to_ptregs()` / `ptregs_write_back()` 寄存器转换：x86_64、RISC-V 64、AArch64、LoongArch
+- 基于IPI的`stop_machine`机制，确保探针注册/注销时的代码修改安全
+- 增加`kretprobe_stack`字段，支持嵌套的kretprobe
+- `KernelRawMutex = RawSpinNoIrq`作为锁类型
+
+**AArch64架构修复**（#887, MERGED）：
+- 修复aarch64异常返回时SP指针未正确保存的严重Bug
+- 代码位置：`components/axcpu/src/arch/aarch64/trap.rs`
+
+### 主线二：eBPF子系统的全栈构建（#848, MERGED）
 
 eBPF子系统的核心实现覆盖了BPF Map管理、程序加载与验证、Helper函数注册、perf event集成。整个子系统实现了`bpf(2)`系统调用的9条主要命令：
 
-| 命令 | 功能 |
+| BPF命令 | 功能 |
 |---|---|
-| BPF_MAP_CREATE | 创建Map |
-| BPF_PROG_LOAD | 加载BPF程序 |
+| BPF_MAP_CREATE | 创建Map（Array/Hash/PerCPU/RingBuf等） |
+| BPF_PROG_LOAD | 加载BPF程序，经verifier验证 |
 | BPF_RAW_TRACEPOINT_OPEN | 打开raw tracepoint |
 | BPF_MAP_UPDATE_ELEM | 更新Map元素 |
 | BPF_MAP_LOOKUP_ELEM | 查找Map元素 |
 | BPF_MAP_DELETE_ELEM | 删除Map元素 |
 | BPF_MAP_GET_NEXT_KEY | 遍历Map |
-| BPF_MAP_FREEZE | 冻结Map |
+| BPF_MAP_FREEZE | 冻结Map（只读保护） |
 | BPF_MAP_LOOKUP_AND_DELETE_ELEM | 原子查找删除 |
 
-核心代码文件：
-- `os/StarryOS/kernel/src/ebpf/mod.rs` (178行)：bpf(2)系统调用入口，9个命令调度，通过`kbpf_basic::bpf_cmd`解码，`BPF_HELPER_FUN_SET`存储helper函数表
-- `os/StarryOS/kernel/src/ebpf/prog.rs` (108行)：`BpfProg`封装`EbpfPreProcessor`，`load_prog()`经过kbpf-basic verifier验证
-- `os/StarryOS/kernel/src/ebpf/map.rs` (154行)：`BpfMap`封装`UnifiedMap<KernelRawMutex>`，支持poll(ringbuf) + mmap
-- `os/StarryOS/kernel/src/ebpf/transform.rs` (302行)：`EbpfKernelAuxiliary`实现`KernelAuxiliaryOps`，桥接kbpf-basic到tgOSKits内核（内存/percpu/helper/时间/vmap等）
-- `os/StarryOS/kernel/src/ebpf/bpf_insn.rs` (86行)：BPF指令常量定义
-- `os/StarryOS/kernel/src/ebpf/error.rs` (19行)：BpfError→AxError转换
+**核心代码文件**（均在`os/StarryOS/kernel/src/ebpf/`下）：
 
-#### 3.1.2 perf_event子系统集成（#848, MERGED）
-
-perf子系统提供了完整的`perf_event_open(2)`支持，覆盖4种事件类型：
-
-| 类型 | 状态 | 备注 |
+| 文件 | 行数 | 功能 |
 |---|---|---|
-| PERF_TYPE_KPROBE | ✅ | 含kretprobe(config=1) |
-| PERF_TYPE_SOFTWARE | ✅ | 软件事件，支持ringbuf mmap |
-| PERF_TYPE_TRACEPOINT | ✅ | 通过id查找 |
-| PERF_TYPE_UPROBE | ✅ | 支持uprobe |
+| `mod.rs` | 178行 | bpf(2)系统调用入口，9个命令调度 |
+| `prog.rs` | 108行 | BpfProg封装EbpfPreProcessor |
+| `map.rs` | 154行 | BpfMap封装UnifiedMap，支持poll+mmap |
+| `transform.rs` | 302行 | EbpfKernelAuxiliary桥接kbpf-basic到StarryOS内核 |
+| `bpf_insn.rs` | 86行 | BPF指令常量定义 |
+| `error.rs` | 19行 | BpfError→AxError转换 |
 
-核心代码文件（均在`os/StarryOS/kernel/src/perf/`下）：
-- `mod.rs` (253行)：`perf_event_open(2)`调度器，支持4种类型，`PERF_FILE`表(fd→event弱引用)
-- `bpf.rs` (330行)：`BpfPerfEventWrapper`(ringbuf + poll)，`OwnedEbpfVm`核心执行引擎，先尝试JIT编译再fallback到解释器
-- `kprobe.rs` (208行)：kprobe/kretprobe/uprobe perf事件，`KprobePerfCallBack`包装`OwnedEbpfVm`
-- `tracepoint.rs` (160行)：tracepoint perf事件，通过`TraceEventFunc`绑定BPF程序
-- `raw_tracepoint.rs` (128行)：raw tracepoint via `bpf(BPF_RAW_TRACEPOINT_OPEN)`
-- `uprobe.rs` (92行)：uprobe perf事件，解析ELF文件映射地址
+**perf_event子系统集成**（均在`os/StarryOS/kernel/src/perf/`下），支持4种事件类型：
 
-#### 3.1.3 eBPF测试套件（#874, MERGED）
+| 类型 | 状态 | 代码位置 | 备注 |
+|---|---|---|---|
+| PERF_TYPE_KPROBE | ✅ | `kprobe.rs` (208行) | 含kretprobe(config=1) |
+| PERF_TYPE_SOFTWARE | ✅ | `bpf.rs` (330行) | 软件事件，支持ringbuf mmap |
+| PERF_TYPE_TRACEPOINT | ✅ | `tracepoint.rs` (160行) | 通过id查找 |
+| PERF_TYPE_UPROBE | ✅ | `uprobe.rs` (92行) | 解析ELF文件映射地址 |
 
-为验证eBPF子系统的正确性，实现了完整的用户态测试套件，位于`apps/starry/ebpf/`目录下，包含以下测试程序：
+**perf事件调度器**：`perf/mod.rs` (253行) — `perf_event_open(2)`调度器，`PERF_FILE`表(fd→event弱引用)
 
-| 程序 | 功能 |
-|---|---|
-| `syscall_count` | kprobe on syscall，HashMap统计 |
-| `profile` | kprobe profiling（全syscall频次图） |
-| `mytrace` | tracepoint sys_enter_openat，读文件路径 |
-| `sched_trace` | raw_tracepoint sched_switch，PerfEventArray输出 |
-| `rawtp` | raw tracepoint demo |
-| `kret` | kretprobe demo |
-| `upb` / `upb2` | uprobe demo |
+**eBPF运行时核心**：`perf/bpf.rs` (330行)
+- `BpfPerfEventWrapper`：ringbuf + poll支持
+- `OwnedEbpfVm`：核心执行引擎，先尝试JIT编译再fallback到解释器
+- 利用`user_copy`汇编接口打通`probe_read_user`
+- 手写实现22+核心Helper函数
 
-#### 3.1.4 eBPF增强（#888, MERGED）
-
-在#848基础上进一步增强了eBPF子系统的能力，包括：deadlock修复、新map类型支持、verifier增强等。
-
-### 主线二：kprobe/kretprobe内核探针（#847, MERGED）
-
-kprobe是Linux内核最核心的动态追踪机制，允许在任意内核函数入口/出口处插入探针。完整实现包括：
-
-核心代码文件：
-- `os/StarryOS/kernel/src/kprobe.rs` (639行)：
-  - `KernelKprobeOps`实现`KprobeAuxiliaryOps`：copy_memory、set_writeable、alloc/free_kernel/exec_memory、kretprobe instance管理
-  - 4架构`trapframe_to_ptregs()` / `ptregs_write_back()`转换（x86_64、RISC-V 64、AArch64、LoongArch）
-  - breakpoint/debug handler挂载
-  - `KernelRawMutex = RawSpinNoIrq`作为锁类型
-
-AArch64架构修复（#887, MERGED）：修复了aarch64架构下TrapFrame中SP寄存器的保存问题，确保kprobe在aarch64上能够正确获取函数调用栈上下文。代码位于`components/axcpu/src/arch/aarch64/trap.rs`。
+**eBPF用户态测试程序**：位于`apps/starry/ebpf/`目录下（#874, MERGED），包含8个测试程序覆盖kprobe、tracepoint、raw tracepoint、uprobe、kretprobe等全场景。
 
 ### 主线三：LKM内核模块支持（#849, MERGED）
 
 实现了Linux兼容的内核模块（LKM）加载机制，使StarryOS能够加载和运行`.ko`格式的内核模块。
 
-核心代码文件：`os/StarryOS/kernel/src/kmod/mod.rs` (265行)
+**核心实现**：`os/StarryOS/kernel/src/kmod/mod.rs` (265行)
 - `KmodHelper`实现`KernelModuleHelper`：vmalloc / resolve_symbol / flush_cache
-- `init_module()`：加载.ko ELF，重定位，调用init函数，防止重复注册
+- `init_module()`：加载.ko ELF → 重定位 → 调用init函数，防止重复注册
 - `delete_module()`：调用exit函数，释放内存
 - `lwprintf-rs`用于printk支持
 
-### 主线四：系统调用增强与性能优化
+### 主线四：eBPF JIT编译器（三架构手写）
 
-#### 3.4.1 select/poll/pselect6/ppoll测试套件
+这是我训练营期间最具挑战性的技术工作——从零实现了三个架构的eBPF字节码JIT编译器。
 
-实现了深度系统调用测试覆盖：
-- #563：select/poll用户态测试用例
-- #679：select/poll/pselect6/ppoll 深度测试套件
+#### 4.1 JIT框架设计
 
-#### 3.4.2 sys_msync + SQLite测试（#602）
+JIT编译器采用统一的两遍编译（Two-Pass）架构，框架代码位于`feat/ebpf-jit-*-*`分支：
 
-实现了`sys_msync`系统调用并集成SQLite数据库测试，验证内存映射文件同步的正确性。
+| 文件 | 行数 | 功能 |
+|---|---|---|
+| `ebpf_jit/mod.rs` | 352行 | 框架：JitBuffer、JitBackend trait、JitCompiler |
+| `ebpf_jit/jit_riscv64.rs` | ~1311行 | RISC-V 64后端 |
+| `ebpf_jit/jit_x86_64.rs` | 904行 | x86_64后端 |
+| `ebpf_jit/jit_aarch64.rs` | 1102行 | AArch64后端 |
 
-#### 3.4.3 SMP并行优化（#652）
-
-实现了SMP并行优化与跨架构并发测试，显著提升了多核环境下的系统吞吐量。
-
-#### 3.4.4 DRM/Weston显示系统（#667）
-
-实现了DRM/KMS显示框架的基本支持，使StarryOS能够在QEMU中运行Weston合成器。
-
-#### 3.4.5 axbacktrace重构（#655）
-
-将axbacktrace模块从`static mut`重构为`UnsafeCell`，消除了潜在的未定义行为（UB）风险，提高了代码安全性。
-
-### 主线五：eBPF JIT编译器（三架构手写）
-
-这是我训练营期间最具挑战性的技术工作——从零实现了三个架构的eBPF字节码JIT（Just-In-Time）编译器。
-
-#### 3.5.1 JIT框架设计
-
-JIT编译器采用统一的两遍编译（Two-Pass）架构：
-
-- **Pass 1（sizing）**：遍历BPF指令序列，仅计算每条指令生成的目标机器码长度，不实际生成代码
+- **Pass 1（sizing）**：遍历BPF指令序列，仅计算每条指令生成的目标机器码长度
 - **Pass 2（compile）**：再次遍历指令序列，生成实际机器码并写入`JitBuffer`
-
-核心组件：
-- `JitBuffer`：支持两遍编译的代码缓冲区
-- `JitBackend` trait：定义8个emit方法（emit_alu、emit_jmp、emit_ld、emit_st等），供各架构后端实现
-- `JitCompiler`：统一的编译入口，串联pass1_sizing + compile
 - `try_jit_compile()`：公共入口函数，成功返回生成的函数指针，失败自动fallback到解释器
 
-框架代码仅存在于`feat/ebpf-jit-*-*`分支中（未合入upstream/dev），核心文件：
-- `os/StarryOS/kernel/src/ebpf/ebpf_jit/mod.rs` (352行)
-- `os/StarryOS/kernel/src/ebpf/ebpf_jit/jit_x86_64.rs` (904行)
-- `os/StarryOS/kernel/src/ebpf/ebpf_jit/jit_riscv64.rs` (~1311行)
-- `os/StarryOS/kernel/src/ebpf/ebpf_jit/jit_aarch64.rs` (1102行)
+#### 4.2 跨架构寄存器映射
 
-#### 3.5.2 RISC-V 64 JIT
+三个架构的BPF寄存器映射遵循统一原则——R0-R5映射到参数/返回值寄存器，R6-R9映射到callee-saved寄存器，R10映射到帧指针：
 
-完整实现了RISC-V 64后端，BPF寄存器映射为：
-- R0→A0, R1→A1, R2→A2, ..., R5→A5（参数/返回值寄存器）
-- R6→S0, R7→S1, ..., R9→S4（callee-saved寄存器）
-- R10→S5（栈帧指针）
+| BPF寄存器 | RISC-V 64 | x86_64 | AArch64 |
+|---|---|---|---|
+| R0 | A0 | RAX | X0 |
+| R1 | A1 | RDI | X1 |
+| R2 | A2 | RSI | X2 |
+| R3 | A3 | RDX | X3 |
+| R4 | A4 | RCX | X4 |
+| R5 | A5 | R8 | X5 |
+| R6 | S0（callee-saved） | — | X19（callee-saved） |
+| R7 | S1 | — | X20 |
+| R8 | S2 | — | X21 |
+| R9 | S4 | — | X22 |
+| R10（帧指针） | S5 | RBP | X25 |
 
-支持全部BPF ALU/JMP/MEM操作码，包括div-by-zero运行时检查。代码约1311行。
+#### 4.3 JIT当前状态
 
-#### 3.5.3 x86_64 JIT
+三个JIT PR目前均处于CLOSED状态，代码完整存在于`feat/ebpf-jit-*-*`分支中但未合入upstream/dev。AArch64分支（`feat/ebpf-jit-3-aarch64`）基过旧（692 commits behind upstream/dev），需要重新适配。当前upstream/dev使用`rbpf::EbpfVmRaw::jit_compile()`作为JIT实现路径。
 
-完整实现了x86_64后端，BPF寄存器映射为：
-- R0→RAX, R1→RDI, R2→RSI, R3→RDX, R4→RCX, R5→R8
-- R10→RBP（帧指针）
+### 主线五：工程质量持续改进（Training Camp后期，进行中）
 
-支持全部BPF指令集，包含完整的CALL指令处理（helper函数调用），div-by-zero安全检查。代码约904行。
+这一阶段的工作按照"小步快跑、聚焦单一改动"的原则，从初始14个小粒度PR合并为3个关联度更高的当前开放PR（另有#1414被#1412完整取代后关闭）。
 
-#### 3.5.4 AArch64 JIT
+#### 5.1 消除魔术数字 + perf event fd read/poll/O_NONBLOCK [#1412]
 
-完整实现了AArch64后端，BPF寄存器映射为：
-- R0→X0, R1→X1, ..., R5→X5（参数/返回值）
-- R6→X19, R7→X20, ..., R9→X22（callee-saved）
-- R10→X25（帧指针）
+**状态**：APPROVED，CI中
 
-支持完整的A64指令编码，包括：算术运算（ADD/SUB/MUL/DIV/SDIV）、位操作（AND/OR/XOR/LSL/LSR/ASR）、分支（B/B.cond/CBZ/CBNZ/BLR/RET）、内存访问（LDR/STR with 变体+偏移+后索引）、NOP填充等。代码约1102行。
+合并了7个原始PR的改动，涉及perf/ebpf/tracepoint三个子系统：
 
-#### 3.5.5 JIT当前状态
+| 改动 | 关键代码位置 |
+|---|---|
+| kprobe.rs添加`PROBE_CONFIG_ENTRY=0`/`PROBE_CONFIG_RETURN=1`常量 | `perf/kprobe.rs` |
+| 消除`BPF_JIT_MEM_PAGES=4`和`KRETPROBE_MAX_ACTIVE=10`硬编码 | `perf/bpf.rs`, `kprobe.rs` |
+| tracepoint模块消除4096硬编码、ebpf模块消除helper ID硬编码 | `ebpf/mod.rs` |
+| 移除`vm.register_allowed_memory(0..u64::MAX)`，启用rbpf地址空间边界检查 | `perf/bpf.rs` |
+| `try_read_record`：从perf_event_mmap_page读取环形缓冲区 | `perf/bpf.rs` |
+| `PerfEvent::read`从轮询式非阻塞读重构为`block_on(poll_io(...))`阻塞模式 | `perf/bpf.rs`, `perf/mod.rs` |
+| 新增`AtomicBool`字段存储O_NONBLOCK状态，ringbuf为空立即返回EAGAIN | `perf/mod.rs` |
 
-三个JIT PR（#891/#892/#893）目前均处于CLOSED状态，代码完整存在于`feat/ebpf-jit-*-*`分支中但未合入upstream/dev。AArch64分支（`feat/ebpf-jit-3-aarch64`）基过旧（692 commits behind upstream/dev），需要重新适配。当前upstream/dev使用`rbpf::EbpfVmRaw::jit_compile()`作为JIT实现路径。
+**`try_read_record`签名修正**（响应bot审查建议）：
 
-### 主线六：工程质量持续改进（Training Camp后期，进行中）
+```rust
+// 签名从 &self 改为 &mut self，由类型系统保证独占访问
+// 调用方 PerfEvent::read 已通过 SpinNoPreempt 持有 event 锁
+pub(crate) fn try_read_record(&mut self, dst: &mut [u8]) -> AxResult<usize> {
+    // SAFETY: &mut self 保证独占写入；mmap 页由 VMA 固定且内核可写
+    let mmap_mut = unsafe { &mut *(kvirt as *mut perf_event_mmap_page) };
+    mmap_mut.data_tail += record_size as u64;
+    // ...
+}
+```
 
-这一阶段的工作按照"小步快跑、聚焦单一改动"的原则，从初始14个小粒度PR合并为4个关联度更高的PR。
+代码位置：`perf/bpf.rs` — `try_read_record`方法、data_head/data_tail环形缓冲区wrapping处理
 
-#### 3.6.1 消除魔术数字与硬编码常量 [#1412]
+**关键安全修复**：移除`register_allowed_memory(0..u64::MAX)`（`perf/bpf.rs`），启用rbpf的`check_mem`地址边界检查。现代eBPF可观测性程序通过helper函数访问内存，无需直接加载任意地址——直接内存访问是安全漏洞而非功能特性。
 
-合并了以下4个PR的改动，涉及3个文件：
+#### 5.2 替换panic!/todo!与消除伪文件系统魔术数字 [#1413]
 
-| 原始PR | 改动内容 | 关键代码位置 |
-|---|---|---|
-| PR-a | kprobe.rs添加`PROBE_CONFIG_ENTRY=0`/`PROBE_CONFIG_RETURN=1`常量 | `perf/kprobe.rs` |
-| PR-d | 消除`BPF_JIT_MEM_PAGES=4`和`KRETPROBE_MAX_ACTIVE=10`硬编码 | `perf/bpf.rs`, `kprobe.rs` |
-| PR-f | tracepoint模块消除4096硬编码、ebpf模块消除helper ID硬编码 | `ebpf/mod.rs`, tracepoint相关文件 |
-| PR-g | 移除`vm.register_allowed_memory(0..u64::MAX)`，启用rbpf地址空间边界检查 | `perf/bpf.rs` |
+**状态**：APPROVED，CI中（stacked on #1412）
 
-核心改动：将嵌套`if val == 0 ... else if val == 1`重构为flat const-pattern match；定义`TRACE_RAW_PIPE_CAPACITY`/`TRACE_CMDLINE_CACHE_SIZE`/`BPF_FUNC_PROBE_READ=4`/`BPF_FUNC_PROBE_READ_KERNEL=113`等命名常量；启用rbpf的`check_mem`地址边界检查，防止恶意BPF程序读取任意内核内存。
+合并了5个原始PR的改动：
 
-#### 3.6.2 替换panic!/todo!与消除伪文件系统魔术数字 [#1413]
+| 改动 | 关键代码位置 |
+|---|---|
+| card1.rs未知DRM ioctl触发`panic!()`→返回`VfsError::OperationNotSupported` | `drivers/card1.rs` |
+| ldisc.rs非规范模式VTIME>0触发`todo!()`→文档注释说明VTIME定时器未实现 | `tty/ldisc.rs` |
+| pseudofs中loop/memtrack/card0消除魔术数字 | `pseudofs/dev/loop.rs`, `memtrack.rs`, `card0.rs` |
+| tmpfs statfs和tracepoint路径缓冲区消除魔术数字 | `fs/tmpfs.rs` |
+| ELF loader `vec![0;4096]`→`vec![0;PAGE_SIZE_4K]` | `mm/loader.rs` |
 
-这是一个stacked PR（基于#1412），合并了5个原始PR的改动：
+这两项panic修复的重要性：card1.rs中任何用户空间程序发送不支持的DRM ioctl即可导致内核崩溃；ldisc.rs中任何设置了VTIME的终端读取都导致内核panic——这些都是真实可触发的内核稳定性问题。
 
-| 原始PR | 改动内容 | 关键代码位置 |
-|---|---|---|
-| PR-h | card1.rs未知DRM ioctl触发`panic!()`→返回`VfsError::OperationNotSupported` | `drivers/card1.rs` |
-| PR-i | ldisc.rs非规范模式VTIME>0触发`todo!()`→文档注释说明VTIME定时器未实现 | `tty/ldisc.rs` |
-| PR-j | pseudofs中loop/memtrack/card0消除魔术数字 | `pseudofs/dev/loop.rs`, `memtrack.rs`, `card0.rs` |
-| PR-k | tmpfs statfs和tracepoint路径缓冲区消除魔术数字 | `fs/tmpfs.rs`, tracepoint相关文件 |
-| PR-l | ELF loader `vec![0;4096]`→`vec![0;PAGE_SIZE_4K]` | `mm/loader.rs` |
+#### 5.3 注册bpf_get_current_pid_tgid和bpf_get_current_comm helper [#1411]
 
-两项panic修复的重要性：card1.rs中任何用户空间程序发送不支持的DRM ioctl即可导致内核崩溃；ldisc.rs中任何设置了VTIME的终端读取都导致内核panic。这些都是真实可触发的内核稳定性问题。
-
-#### 3.6.3 perf event fd的read/poll/nonblock支持 [#1414]
-
-合并了3个串行feature PR的改动：
-
-| 原始PR | 改动内容 | 关键代码位置 |
-|---|---|---|
-| PR-b | `try_read_record`：从perf_event_mmap_page读取data_head/data_tail、处理环形缓冲区wrapping | `perf/bpf.rs` |
-| PR-c | 将`PerfEvent::read`从轮询式非阻塞读重构为`block_on(poll_io(...))`阻塞模式 | `perf/bpf.rs`, `perf/mod.rs` |
-| PR-e | 新增`AtomicBool`字段存储O_NONBLOCK状态，nonblocking模式下ringbuf为空立即返回EAGAIN | `perf/mod.rs` |
-
-三项改动使perf event fd的行为与Linux语义一致：默认阻塞读取，通过`fcntl(O_NONBLOCK)`或`open(O_NONBLOCK)`可切换为非阻塞模式。
-
-#### 3.6.4 注册bpf_get_current_pid_tgid和bpf_get_current_comm helper [#1411]
+**状态**：APPROVED，CI中（stacked on #1412）
 
 kbpf-basic crate未实现helper #14 (`bpf_get_current_pid_tgid`)和#16 (`bpf_get_current_comm`)。在StarryOS侧`init_ebpf()`中直接往mutable BTreeMap插入两个自定义helper函数：
+
 - `bpf_get_current_pid_tgid`：使用`ax_task::current().as_thread()`获取pid/tid，返回`(tgid << 32) | tid`
 - `bpf_get_current_comm`：拷贝当前任务的`name()`到eBPF verifier验证过的内核buffer，null填充不足部分
 
-该PR曾被合并到过旧的基，出现CONFLICTING状态，后通过cherry-pick到C1分支(#1412)并解决冲突修复。
+#### 5.4 #1414 — 已关闭（被#1412完整取代）
+
+[#1414](https://github.com/rcore-os/tgoskits/pull/1414) feat(starry-perf): implement read, blocking poll, and O_NONBLOCK support for perf event fd — 该PR的三个串行feature改动已完整合并入#1412，功能完全重叠，故关闭。
 
 ---
 
-## 四、与同组同学及助教老师的协作
+## 四、团队协作：eBPF迁移计划全景交付清单
 
-### 4.1 linfeng(Godones)助教老师的基础设施
+子课题3由三位成员协作完成：linfeng(Godones)助教老师、LorenzLorentz同学和我（CN-TangLin）。
 
-Godones老师为本方向奠定了关键基础：
+### 4.1 工作量较小的部分 —— 基础设施与动态探针（Godones & CN-TangLin）
 
-| PR | 内容 | 状态 |
-|---|---|---|
-| #673 | tracepoint基础设施和debugfs集成 | MERGED |
-| #805 | kallsyms + kprobe + bpf stub | MERGED |
-| #837 | 内核符号导出(kallsyms) | MERGED |
-| #1192 | eBPF apps现代化，新增rawtp/upb2 demo | MERGED |
-| #1208 | eBPF ringbuf mmap在LoongArch DMW上的支持 | MERGED |
-| #1256 | BPF JIT内存对齐修复 | MERGED |
-| #1279 | LoongArch DMW-backed kmods支持 | MERGED |
+| # | 工作内容 | 负责人 | PR | 状态 |
+|---|---------|--------|-----|:---:|
+| 1 | 扩展axhal对break/debug异常的处理（x86_64 INT3、AArch64 BRK、RISC-V EBREAK） | Godones | [#244](https://github.com/rcore-os/tgoskits/pull/244) | MERGED |
+| 2 | proc/pid/maps支持 | Godones | [#306](https://github.com/rcore-os/tgoskits/pull/306) | MERGED |
+| 3 | dynamic debug支持（static-keys机制，`/proc/dynamic_debug/control`接口） | Godones | [#446](https://github.com/rcore-os/tgoskits/pull/446) | MERGED |
+| 4 | tracepoint静态内核追踪点宏系统（`/sys/kernel/debug/tracing/events/`） | Godones | [#673](https://github.com/rcore-os/tgoskits/pull/673) | MERGED |
+| 5 | 内核符号表kallsyms支持（ksym crate） | Godones | [#837](https://github.com/rcore-os/tgoskits/pull/837) | MERGED |
+| 6 | kprobe支持（4架构TrapFrame↔PtRegs、stop_machine、kretprobe_stack） | CN-TangLin | [#847](https://github.com/rcore-os/tgoskits/pull/847) | MERGED |
 
-特别感谢Godones老师在#673、#805、#837等PR中为eBPF子系统搭建的tracepoint/kallsyms基础设施，这些是我后续eBPF全栈开发的前提。
+### 4.2 工作量较大的部分 —— eBPF核心与LKM模块（CN-TangLin & LorenzLorentz）
 
-### 4.2 LorenzLorentz同学的协作
+| # | 工作内容 | 负责人 | PR | 状态 |
+|---|---------|--------|-----|:---:|
+| 7 | eBPF子系统（1800+行ebpf.rs、64-bit指令解析、ALU/JMP/ST/LD、22+Helper） | CN-TangLin | [#848](https://github.com/rcore-os/tgoskits/pull/848) | MERGED |
+| 7b | eBPF测试套件（8个用户态探针程序接入CI） | CN-TangLin | [#874](https://github.com/rcore-os/tgoskits/pull/874) | MERGED |
+| 8 | eBPF runtime porting（kbpf-basic+rbpf外部crate集成） | LorenzLorentz | [#850](https://github.com/rcore-os/tgoskits/pull/850) | MERGED |
+| 8b | aya eBPF生态移植 + 6个探针应用接入test-suit | LorenzLorentz | [#886](https://github.com/rcore-os/tgoskits/pull/886) | MERGED |
+| 8c | eBPF用户态demos（uprobe/kprobe/kretprobe/tracepoint） | LorenzLorentz | [#1132](https://github.com/rcore-os/tgoskits/pull/1132) | MERGED |
+| 9 | LKM支持（init_module/finit_module、KmodSectionMem、R/W/X隔离） | CN-TangLin | [#849](https://github.com/rcore-os/tgoskits/pull/849) | MERGED |
+| 9b | LKM loader端口 | LorenzLorentz | [#851](https://github.com/rcore-os/tgoskits/pull/851) | MERGED |
 
-LorenzLorentz同学与我在子课题3中协同开发，各自走了不同的技术路线并最终融合：
-
-| PR | 内容 | 状态 |
-|---|---|---|
-| #850 | eBPF runtime (基于外部crate kbpf-basic+rbpf) | MERGED |
-| #851 | LKM loader端口 | MERGED |
-| #886 | eBPF userspace (aya) | MERGED |
-| #1132 | eBPF demos (apps/starry/ebpf) | MERGED |
+### 4.3 技术路线融合
 
 两条技术路线对比：
 - **我的路线（#847/#848/#888）**：手写eBPF子系统，自实现map/prog/VM/helper/perf_event，仅依赖标准库
@@ -294,11 +325,14 @@ LorenzLorentz同学与我在子课题3中协同开发，各自走了不同的技
 
 最终通过#848的合并，两条路线融合为统一的eBPF执行框架，用户态程序可透明切换使用两种实现路径。
 
-### 4.3 ZCShou老师相关工作条目
+### 4.4 Godones助教后续支持
 
-ZCShou老师在多个工作汇报PR中提及了与我的工作交叉的内容：
-- #1192 (Godones+ZCShou)：Modernize eBPF apps and add rawtp/upb2 demos — 我此前提交的eBPF用户态测试程序在此PR中被进一步现代化
-- #1095 (ZCShou)：wire qperf app runtime into Starry perf — 性能测试框架与我的perf子系统修改协同工作
+| PR | 内容 | 状态 |
+|---|---|---|
+| [#1192](https://github.com/rcore-os/tgoskits/pull/1192) | eBPF apps现代化，新增rawtp/upb2 demo | MERGED |
+| [#1208](https://github.com/rcore-os/tgoskits/pull/1208) | eBPF ringbuf mmap在LoongArch DMW上的支持 | MERGED |
+| [#1256](https://github.com/rcore-os/tgoskits/pull/1256) | BPF JIT内存对齐修复 | MERGED |
+| [#1279](https://github.com/rcore-os/tgoskits/pull/1279) | LoongArch DMW-backed kmods支持 | MERGED |
 
 ---
 
@@ -306,19 +340,11 @@ ZCShou老师在多个工作汇报PR中提及了与我的工作交叉的内容：
 
 ### 5.1 PR统计
 
-| 类别 | 数量 |
-|---|---|
-| 已合并PR | 12 |
-| 当前开放PR（CI中） | 4 |
-| 历史关闭PR（含JIT、整合） | 16+ |
-
-当前开放PR：
-| PR | 标题 | 状态 |
+| 类别 | 数量 | 说明 |
 |---|---|---|
-| [#1411](https://github.com/rcore-os/tgoskits/pull/1411) | feat(starry-ebpf): register bpf helpers | CI中 |
-| [#1412](https://github.com/rcore-os/tgoskits/pull/1412) | fix(starry): replace magic numbers in perf/ebpf/tracepoint | CI中 |
-| [#1413](https://github.com/rcore-os/tgoskits/pull/1413) | fix(starry): replace panics/todos and magic numbers in pseudofs/mm | CI中(stacked on #1412) |
-| [#1414](https://github.com/rcore-os/tgoskits/pull/1414) | feat(starry-perf): read, poll, O_NONBLOCK for perf event fd | CI中 |
+| 已合并PR | 11 | #563, #602, #652, #655, #667, #679, #847, #848, #849, #874, #887 |
+| 当前开放PR（APPROVED，CI中） | 3 | #1411, #1412, #1413 |
+| 历史关闭PR | 16+ | 含JIT系列（#891/#892/#893等）、整合系列（#805/#888/#1035等）、小粒度PR（#1399-#1405等）、#1414（被#1412取代） |
 
 ### 5.2 代码量统计
 
@@ -328,18 +354,18 @@ ZCShou老师在多个工作汇报PR中提及了与我的工作交叉的内容：
 | 新增代码行数 | 15000+ |
 | 架构覆盖 | x86_64 / RISC-V 64 / AArch64 / LoongArch |
 | JIT代码量 | RISC-V 64后端1311行 + x86_64后端904行 + AArch64后端1102行 = 3317行（含框架352行） |
-| 测试程序 | 8个eBPF用户态测试程序 |
+| 测试程序 | 8个eBPF用户态测试程序 + select/poll家族43个测试模块 + SMP并发测试 |
 
 ### 5.3 功能覆盖
 
 已实现的eBPF功能在子课题中覆盖了最全面的技术栈：
-- BPF Map所有核心类型（Array, Hash, PerCPU, RingBuf等）
-- BPF Prog加载、验证、执行（含JIT）
-- 6种Helper函数
-- 4种perf_event类型
-- kprobe/kretprobe/uprobe完整支持
-- LKM内核模块加载/卸载
-- 3架构手写JIT编译器
+- **BPF Map**：Array、Hash、PerCPU、RingBuf、PerfEventArray等核心类型
+- **BPF Prog**：加载、verifier验证、解释器执行、JIT编译
+- **Helper函数**：22+（含bpf_get_current_pid_tgid、bpf_get_current_comm）
+- **perf_event**：4种类型（KPROBE/SOFTWARE/TRACEPOINT/UPROBE）
+- **kprobe/kretprobe/uprobe**：完整支持，四个架构
+- **LKM**：.ko加载/卸载，kmod-helper集成
+- **JIT**：三架构手写JIT编译器
 
 ---
 
@@ -347,27 +373,29 @@ ZCShou老师在多个工作汇报PR中提及了与我的工作交叉的内容：
 
 ### 6.1 工程管理经验
 
-**PR粒度控制**：训练营后期我实践了"小PR→合并为大PR"的迭代模式。初期14个小粒度PR各有独立分支和CI，但过于碎片化。通过与reviewer沟通后，我将关联度高的PR合并为4个：魔术数字类→#1412、panic/todo+伪文件系统类→#1413、perf feat→#1414、helper类→#1411。每个合并PR都有清晰的单一主题，便于review。
+**PR粒度控制**：训练营后期实践了"小PR→合并为大PR"的迭代模式。初期14个小粒度PR各有独立分支和CI，但过于碎片化。通过与reviewer沟通后，将关联度高的PR合并为3个（#1411/#1412/#1413），每个合并PR都有清晰的单一主题，便于review。另有#1414被#1412完整取代后关闭。
 
-**Conventional Commits**：严格遵循`type(scope): description`格式，标题用英文、正文用中文。PR描述需要清晰说明：问题是什么、怎么解决的、为什么这样解决。
+**Conventional Commits + bot辅助审查**：严格遵循`type(scope): description`格式，标题用英文、正文用中文。自动化CI审查大幅减少人工review负担，Bot的`CHANGES_REQUESTED → APPROVED`循环形成高效的迭代节奏。
 
-**CI验证**：保持与CI的良好配合，QEMU container测试约34分钟的超时为已知runner资源问题，与代码变更无关。fmt/sync-lint/spin-lint检查可快速验证代码风格。
+**小步快跑推PR**：从代码完成到合入平均经历2-3轮review+CI，每轮24小时周期内响应反馈。
 
 ### 6.2 技术经验
 
-**JIT编译器的两遍Pass设计**：Pass 1仅计算代码长度（sizing），Pass 2生成实际代码。这种设计在不需要额外内存的前提下解决了前向跳转指令中偏移量计算的问题——第一遍确定每条指令和每个label的位置，第二遍才能正确填充跳转偏移。
+**JIT编译器的两遍Pass设计**（`ebpf_jit/mod.rs`）：Pass 1仅计算代码长度（sizing），Pass 2生成实际代码。这种设计在不需额外内存的前提下解决了前向跳转指令中偏移量计算的问题——第一遍确定每条指令和每个label的位置，第二遍才能正确填充跳转偏移。
 
-**跨架构寄存器映射**：三个架构的BPF寄存器映射遵循统一原则：R0-R5映射到参数/返回值寄存器（充分利用调用约定），R6-R9映射到callee-saved寄存器（跨helper调用不丢失），R10映射到帧指针寄存器。这种一致性设计使JIT框架代码保持架构无关。
+**跨架构寄存器映射原则**：R0-R5→参数/返回值寄存器（充分利用调用约定），R6-R9→callee-saved寄存器（跨helper调用不丢失），R10→帧指针寄存器。这种一致性设计使JIT框架代码保持架构无关。
 
-**eBPF子系统的安全边界**：在#1412中，我移除了`vm.register_allowed_memory(0..u64::MAX)`调用，启用了rbpf的地址空间边界检查。现代eBPF可观测性程序通过helper函数访问内存，无需直接加载任意地址——直接内存访问是安全漏洞而非功能特性。
+**eBPF安全边界**（`perf/bpf.rs`）：移除`register_allowed_memory(0..u64::MAX)`，启用rbpf的`check_mem`地址边界检查。现代eBPF可观测性程序通过helper函数访问内存，直接内存访问是安全漏洞。
 
-**稳定性修复的优先级**：card1.rs中未知ioctl触发`panic!()`和ldisc.rs中VTIME触发`todo!()`——这些不是"未来需要完善的功能"，而是任何用户程序都能触发的内核崩溃。在添加新功能之前，消除已有代码中的崩溃路径是更高的优先级。
+**`try_read_record`的`&self`→`&mut self`重构**（`perf/bpf.rs`）：由类型系统保证ringbuf data_tail的独占写入，而非依赖注释+调用方纪律。调用方`PerfEvent::read`已通过`SpinNoPreempt`持有event锁。
+
+**稳定性修复优先级**：`card1.rs`未知ioctl→`panic!()`和`ldisc.rs`VTIME→`todo!()`——任何用户程序都能触发内核崩溃。在添加新功能之前，消除已有代码中的崩溃路径是更高优先级。
 
 ### 6.3 教训
 
-**AArch64 JIT分支管理失误**：`feat/ebpf-jit-3-aarch64`分支的初始基选择不当，导致692个commits落后于upstream/dev。这使后续的rebase变得极为困难，需要在未来重新开分支、提取代码、适配当前版本。教训：长期开发分支应及时rebase到最新的上游主干。
+**AArch64 JIT分支管理失误**：`feat/ebpf-jit-3-aarch64`分支的初始基选择不当，导致692个commits落后于upstream/dev。长期开发分支应及时rebase到最新的上游主干。
 
-**JIT代码未及时合入主线**：三个JIT PR（#891/#892/#893）虽然代码完整、已通过CI验证，但未能推进到最终合并。部分原因是项目后期时间紧迫，部分原因是review周期和上游技术路线选择（rbpf JIT vs 手写JIT）。这提醒我：技术方案的成功不仅取决于代码质量，也取决于与社区技术路线的兼容性和推进节奏。
+**JIT代码未及时合入主线**：三个JIT PR尽管代码完整、已通过CI验证，但未能推进到最终合并。技术方案的成功不仅取决于代码质量，也取决于与社区技术路线的兼容性和推进节奏。
 
 ---
 
@@ -387,29 +415,48 @@ ZCShou老师在多个工作汇报PR中提及了与我的工作交叉的内容：
 |---|---|
 | 主仓库（fork） | https://github.com/CN-TangLin/tgoskits |
 | 上游仓库 | https://github.com/rcore-os/tgoskits |
-| 训练营工作记录 | https://github.com/CN-TangLin/tgoskits/blob/dev/训练营总结报告-工作记录.md |
-| 汇报Slide仓库 | （待补充） |
-| Blog提交PR | （待提交） |
+| 汇报Slide仓库 | https://github.com/CN-TangLin/tgoskits/tree/dev/slides |
+| Blog提交PR | https://github.com/rcore-os/blog/pull/891 |
+| 项目进展记录（Issue） | https://github.com/rcore-os/tgoskits/issues/642 |
 
-当前开放的4个PR链接：
-- [#1411](https://github.com/rcore-os/tgoskits/pull/1411) feat(starry-ebpf): register bpf helpers
-- [#1412](https://github.com/rcore-os/tgoskits/pull/1412) fix(starry): replace magic numbers in perf/ebpf/tracepoint
-- [#1413](https://github.com/rcore-os/tgoskits/pull/1413) fix(starry): replace panics/todos and magic numbers in pseudofs/mm
-- [#1414](https://github.com/rcore-os/tgoskits/pull/1414) feat(starry-perf): read, poll, O_NONBLOCK for perf event fd
+### 当前开放PR（3个，均已APPROVED）
 
-已合并的12个PR：
-- [#563](https://github.com/rcore-os/tgoskits/pull/563) select/poll用户态测试用例
-- [#602](https://github.com/rcore-os/tgoskits/pull/602) sys_msync + SQLite测试
-- [#652](https://github.com/rcore-os/tgoskits/pull/652) SMP并行优化
-- [#655](https://github.com/rcore-os/tgoskits/pull/655) axbacktrace重构
-- [#667](https://github.com/rcore-os/tgoskits/pull/667) DRM/Weston显示系统
-- [#679](https://github.com/rcore-os/tgoskits/pull/679) select/poll/pselect6/ppoll测试套件
-- [#847](https://github.com/rcore-os/tgoskits/pull/847) kprobe内核探针
-- [#848](https://github.com/rcore-os/tgoskits/pull/848) eBPF子系统
-- [#849](https://github.com/rcore-os/tgoskits/pull/849) LKM内核模块支持
-- [#874](https://github.com/rcore-os/tgoskits/pull/874) eBPF高级测试
-- [#887](https://github.com/rcore-os/tgoskits/pull/887) aarch64 kprobe SP修复
-- [#888](https://github.com/rcore-os/tgoskits/pull/888) eBPF增强
+| PR | 标题 | 状态 |
+|---|---|---|
+| [#1411](https://github.com/rcore-os/tgoskits/pull/1411) | feat(starry-ebpf): register bpf_get_current_pid_tgid and bpf_get_current_comm helpers | CI中(stacked on #1412) |
+| [#1412](https://github.com/rcore-os/tgoskits/pull/1412) | feat(starry-perf): implement perf event fd read, poll, O_NONBLOCK; replace magic numbers | CI中 |
+| [#1413](https://github.com/rcore-os/tgoskits/pull/1413) | fix(starry): replace panics/todos and magic numbers in pseudofs, tmpfs, and mm | CI中(stacked on #1412) |
+
+关闭说明：#1414（feat(starry-perf): read, poll, O_NONBLOCK for perf event fd）已关闭——该PR的三个串行feature改动已完整合并入#1412，功能完全重叠。
+
+### 已合并PR（11个）
+
+| PR | 标题 |
+|---|---|
+| [#563](https://github.com/rcore-os/tgoskits/pull/563) | test(starryos): add select, poll, pselect6 and ppoll syscall userspace tests |
+| [#602](https://github.com/rcore-os/tgoskits/pull/602) | feat(starry-kernel): implement sys_msync and add SQLite/msync test suites |
+| [#652](https://github.com/rcore-os/tgoskits/pull/652) | test(smp4): extend SMP tests to all 4 architectures and add concurrency testing |
+| [#655](https://github.com/rcore-os/tgoskits/pull/655) | refactor(axbacktrace): replace static mut with UnsafeCell in dwarf.rs |
+| [#667](https://github.com/rcore-os/tgoskits/pull/667) | feat(drm): per-buffer memory allocation for Weston bringup |
+| [#679](https://github.com/rcore-os/tgoskits/pull/679) | test(syscall): add comprehensive select/poll/pselect6/ppoll deep test suite |
+| [#847](https://github.com/rcore-os/tgoskits/pull/847) | feat(starry-kernel): add kprobe support |
+| [#848](https://github.com/rcore-os/tgoskits/pull/848) | feat(starry-kernel): add eBPF subsystem (maps, VM, helpers, perf events) |
+| [#849](https://github.com/rcore-os/tgoskits/pull/849) | feat(starry-kernel): add LKM support via kmod-loader integration |
+| [#874](https://github.com/rcore-os/tgoskits/pull/874) | test(starry-kernel): add eBPF advanced and attach/perf_event user-space test suites |
+| [#887](https://github.com/rcore-os/tgoskits/pull/887) | fix(axcpu): save SP in aarch64 TrapFrame for kprobe correctness |
+
+### 协作同学与助教PR
+
+| 负责人 | PR | 标题 |
+|---|---|---|
+| LorenzLorentz | [#850](https://github.com/rcore-os/tgoskits/pull/850) | feat(starry-kernel): port eBPF runtime (ebpf/, perf/, kprobe wiring) |
+| LorenzLorentz | [#851](https://github.com/rcore-os/tgoskits/pull/851) | feat(starry-kernel): port LKM loader + cargo xtask starry kmod build |
+| LorenzLorentz | [#886](https://github.com/rcore-os/tgoskits/pull/886) | feat(starry-kernel): eBPF kernel runtime (tracepoint / kprobe / perf) |
+| LorenzLorentz | [#1132](https://github.com/rcore-os/tgoskits/pull/1132) | feat(starry-apps): runnable eBPF demos |
+| Godones | [#673](https://github.com/rcore-os/tgoskits/pull/673) | Starry: Add kernel tracepoint infrastructure and debugfs integration |
+| Godones | [#837](https://github.com/rcore-os/tgoskits/pull/837) | Adds support for kernel symbol dumping via kallsyms |
+| Godones | [#1192](https://github.com/rcore-os/tgoskits/pull/1192) | Modernize eBPF apps and add rawtp/upb2 demos |
+| Godones | [#1208](https://github.com/rcore-os/tgoskits/pull/1208) | fix(starry): support eBPF ringbuf mmap on LoongArch DMW |
 
 ---
 
@@ -417,6 +464,8 @@ ZCShou老师在多个工作汇报PR中提及了与我的工作交叉的内容：
 
 感谢操作系统训练营和向勇老师在整个项目阶段的指导。从最初学习异步编程，到深入参与StarryOS内核开发，再到独立实现eBPF JIT编译器，这段经历让我从一个只会读书的学生转变成了能解决实际问题的开发者。训练营不仅教会了我操作系统的理论知识，更重要的是建立了"刨根问底排bug、小步快跑推PR、严谨量化写报告"的工程方法论。
 
-特别感谢linfeng(Godones)助教老师搭建的tracepoint/kallsyms基础设施，以及LorenzLorentz同学在eBPF方向的合作开发，没有你们的工作，eBPF子系统不可能达到今天的完成度。
+特别感谢linfeng(Godones)助教老师搭建的tracepoint/kallsyms基础设施，以及LorenzLorentz同学在eBPF方向的合作开发。没有基础设施的支撑和两条技术路线的互补融合，eBPF子系统不可能达到今天的完成度。
+
+感觉参与训练营之后，学校课程作业都变得异常简单。这段高强度、高密度的内核开发经历，真正锻炼了从定位问题到提交PR的完整工程能力。
 
 <!-- more -->
