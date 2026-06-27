@@ -41,7 +41,7 @@ tags:
 4. 尽量做最小范围的修改，并在 PR 中说明本次覆盖范围和未覆盖范围。在与AI协作的同时也明确告诉AI改动的边界，避免对未覆盖范围做出不必要的假设。
 5. 在 x86_64、aarch64、riscv64、loongarch64 等 StarryOS 支持的架构上运行目标测试，避免只在单一架构上验证。
 
-这个工作方式可以让每个 PR 的目标比较明确，也便于 review。但它的局限也很明显：如果问题本身牵涉很广，比如完整 Docker、完整 nginx 或完整 cgroup controller，那么单个 PR 只能推进其中一个小范围的垂直功能，不能把它包装成“已经完整支持”，而且过于谨慎的态度会导致开发进度偏慢，连累到其他相关模块的同学的工作。对此，我所遇到的cgroup v2的PR冲突就是一个教训。
+这个工作方式可以让每个 PR 的目标比较明确，也便于 review。但它的局限也很明显：如果问题本身牵涉很广，比如完整 Docker、完整 nginx 或完整 cgroup controller，那么单个 PR 只能推进其中一个小范围的垂直功能，不能把它包装成“已经完整支持”，而且过于谨慎的态度会导致开发进度偏慢，影响到其他相关模块的同学的工作。对此，我所遇到的cgroup v2的PR冲突就是一个教训。
 
 ### 3.2 主线一：信号测试、futex 与 robust-list 语义修复
 
@@ -55,7 +55,7 @@ tags:
 
 #### 3.2.1 `starry-signal` 跨架构 restore 测试修复
 
-> 这份工作是我在正式开始项目阶段前选取的个issue中报告的小bug练练手，体验一下社区协作的感觉
+> 这份工作是我在正式开始项目阶段前选取的一个issue中报告的小bug练练手，体验一下社区协作的感觉
 
 [#468](https://github.com/rcore-os/tgoskits/pull/468) 是一个规模较小但比较典型的修复。原测试在调用 `restore()` 前无条件调整栈指针，这个行为符合 x86_64 handler 通过栈上 restorer 和 `ret` 返回时会消耗 8 字节的情况，但并不适用于 aarch64、riscv64、loongarch64 等架构。
 
@@ -74,7 +74,7 @@ tags:
 - `FUTEX_WAIT_BITSET` / `FUTEX_WAKE_BITSET` 对 `val3 == 0` 的参数校验。
 - robust-list owner death 对用户态 futex word 的 Linux ABI 更新方式。
 
-为了验证这些行为，我新增了 `test-futex-robust-list` 测例，直接使用 C 语言 raw `syscall()` 调用，尽量避免 glibc 或 pthread 封装掩盖内核行为。该 PR 后 focused case 在多个架构上通过，测试达到 `64 pass, 0 fail`。
+为了验证这些行为，我新增了 `test-futex-robust-list` 测例，直接使用 C 语言 raw `syscall()` 调用，尽量避免 glibc 或 pthread 封装掩盖内核行为。该 PR 后 case 在多个架构上通过，测试达到 `64 pass, 0 fail`。
 
 #### 3.2.3 futex / robust-list 继续完善
 
@@ -140,7 +140,7 @@ cgroup 方向主要包括：
 
 因此我在 [#582](https://github.com/rcore-os/tgoskits/issues/582) 中采用了 slice 化的计划：避免直接提交一个上千行的大PR，而是按 `mount cgroup2 -> root interface files -> hierarchy -> cgroup.procs membership -> /proc/[pid]/cgroup -> fork/exit -> pids controller` 的路径逐步推进，每个PR控制在一千行以内，一个PR实现一个小范围的垂直功能。
 
-在这个方向的工作过程中，无论是在与AI协作还是在撰写PR body，涉及到新增 cgroup 文件时，要说明它是真实语义、只读兼容，还是未支持并返回错误。尽量避免“写入成功但没有实际效果”的 fake success。
+在这个方向的工作过程中，无论是在与AI协作还是在撰写PR body，涉及到新增 cgroup 文件时，都要说明它是真实语义、只读兼容，还是未支持并返回错误。尽量避免“写入成功但没有实际效果”的 fake success。
 
 #### 3.4.2 cgroup2 root 文件支持
 
@@ -167,7 +167,7 @@ cgroup 方向主要包括：
 
 #### 3.4.4 #1045 的状态
 
-[#1045](https://github.com/rcore-os/tgoskits/pull/1045) 是我基于 [#1015](https://github.com/rcore-os/tgoskits/pull/1015) 继续提交的后续 PR，目标是实现 `cgroup.procs` 进程迁移、fork 继承、退出清理和 `/proc/[pid]/cgroup` 视图。这个 PR 曾经过 review，并处理过一些同步和锁序问题；后续因为存在增量功能更多、更完整的 PR，以及与其他维护者工作重叠与冲突，在与其他维护者进行沟通后，于 2026-06-05 被我关闭，没有合入上游。
+[#1045](https://github.com/rcore-os/tgoskits/pull/1045) 是我基于 [#1015](https://github.com/rcore-os/tgoskits/pull/1015) 继续提交的后续 PR，目标是实现 `cgroup.procs` 进程迁移、fork 继承、退出清理和 `/proc/[pid]/cgroup` 视图。这个 PR 曾经过 review，并处理过一些同步和锁序问题；后续因为存在增量功能更多、更完整的 PR，以及与其他维护者工作重叠与冲突，在与其他维护者进行沟通后，后续由我关闭，没有合入上游。
 
 PR [#1045](https://github.com/rcore-os/tgoskits/pull/1045) 经过了我一个星期的学习和打磨，但最终因为和其他同学的冲突而没能真正合并，让我不可避免地感到有些沮丧。不过更重要的是它让我意识到：在一个快速变化的社区仓库里，技术实现只是开源协作的一部分。及时同步上游进展、确认任务边界、避免和其他人的 PR 产生长期冲突，是非常重要的，这既可以避免不必要的重复劳动，也可以在交流的过程中打磨方案。
 
@@ -185,7 +185,7 @@ PR [#1045](https://github.com/rcore-os/tgoskits/pull/1045) 经过了我一个星
 | [#989](https://github.com/rcore-os/tgoskits/pull/989) | 添加 cgroup2 初始 root 文件支持和 `cgroup-basic` 测试 | Merged |
 | [#1015](https://github.com/rcore-os/tgoskits/pull/1015) | 支持 cgroup2 hierarchy 的 `mkdir` / `rmdir` 基础能力 | Merged |
 
-按 GitHub PR 统计口径，这 7 个已合并 PR 共涉及 17 个提交、50 个变更文件，合计 `+4007/-224` 行。这个统计包含测试代码、QEMU 配置、支撑代码和必要的文档式 PR 描述。
+按 GitHub PR 统计口径，这 7 个已合并 PR 共涉及 17 个提交、50 个变更文件，合计 `+4007/-224` 行。这个统计包含测试代码、QEMU 配置、支撑代码。
 
 另有 [#1045](https://github.com/rcore-os/tgoskits/pull/1045) 曾提交 cgroup2 process migration 和 `/proc/[pid]/cgroup` 支持。该 PR 尚未合入；截至本文撰写时，它已关闭且未合并。
 
@@ -204,7 +204,7 @@ PR [#1045](https://github.com/rcore-os/tgoskits/pull/1045) 经过了我一个星
 
 但很显然，AI无法实现我们向它许下的所有愿望。涉及内核状态、锁顺序、生命周期和错误码时，最终仍然需要自己确认。比如 cgroup membership 的 live count、process table 与 cgroup tree 的锁顺序、`ProcessData::Drop` 和 wait reap 的关系等问题，在前几次的协作中AI都没有发现，只有在多次review下才暴露出来。因此，AI 更像一个高效的辅助 reviewer，而不是可以替代工程判断的实现者。如果在使用AI的过程中放弃思考，那么产出的代码会变成技术债务，而非技术资产，由技术债堆积起来的繁荣泡沫，总有要破灭的一天。
 
-当然，最重要的收获当然是对OS的认识和项目协作了。在交流中老师强调“小步快跑”，我的体验也基本如此。小 PR 更容易 review，也更容易在 CI 和 QEMU 测试中定位问题。然而小步推进并不意味着没有协作成本。上文提到的 [#1045](https://github.com/rcore-os/tgoskits/pull/1045) 就是一个例子，给讨厌与陌生人打交道的我上了一课。
+当然，最重要的收获当然是对OS的认识和项目协作了。在交流中老师强调“小步快跑”，我的体验也基本如此。小 PR 更容易 review，也更容易在 CI 和 QEMU 测试中定位问题。然而小步推进并不意味着没有协作成本。上文提到的 [#1045](https://github.com/rcore-os/tgoskits/pull/1045) 就是一个例子，给不喜欢与陌生人打交道的我上了一课。
 
 ## 六、未完成边界
 
@@ -249,8 +249,8 @@ PR [#1045](https://github.com/rcore-os/tgoskits/pull/1045) 经过了我一个星
 
 ## 七、工作仓库
 
-本次成果公开整理在：[rcore-os/tgoskits#582](https://github.com/rcore-os/tgoskits/issues/582)
-本地工作仓库：[LetsWalkInLine/tgoskits](https://github.com/LetsWalkInLine/tgoskits/tree/local/dev)
+- 过程追踪issue整理在：[rcore-os/tgoskits#582](https://github.com/rcore-os/tgoskits/issues/582)
+- 开发分支：[LetsWalkInLine/tgoskits](https://github.com/LetsWalkInLine/tgoskits/tree/local/dev)
 
 ## 八、总结
 
