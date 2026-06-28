@@ -1,11 +1,11 @@
 ---
-title: rCore学习笔记
+title: 'Lfan-ke: rCore学习笔记'
 date: 2025-05-04 13:14:52
 categories:
+    - Leo Cheng
     - 补完计划
 tags:
-    - author:Lfan-ke
-    - author-alias:heke/heke1228
+    - author:heke1228
     - repo:https://github.com/LearningOS/2025s-rcore-Lfan-ke
 mathjax: true
 ---
