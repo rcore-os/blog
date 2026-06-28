@@ -16,7 +16,7 @@ tags:
 
 <!-- more -->
 
-**作者**：Mr. why（silicalet）  
+**作者**：王浩旸（silicalet）  
 **仓库**：[rcore-os/tgoskits](https://github.com/rcore-os/tgoskits)  
 **个人 fork**：[silicalet/tgoskits](https://github.com/silicalet/tgoskits)
 
