@@ -17,7 +17,7 @@ tags:
 
 ## 摘要
 
-本阶段工作围绕 StarryOS 的 Linux 兼容性展开。前期先补齐 `eventfd2`、`signalfd4`、`utimensat` 等 syscall 语义测试；随后以 Alpine Git 作为真实 Linux app，逐步验证并改进 Git 本地操作、`git://` remote、HTTPS smart HTTP remote，以及 Git SSH 场景中暴露出的 socket QoS 行为。
+本阶段工作围绕 StarryOS 的 Linux 兼容性展开，主要分成两条线：第一条是补齐 `eventfd2`、`signalfd4`、`utimensat` 等 syscall 语义测试，并在测试过程中修复内核兼容问题；第二条是以 Alpine Git 作为真实 Linux app，逐步验证并改进 Git 本地操作、`git://` remote、HTTPS smart HTTP remote，以及 Git SSH 场景中暴露出的 socket QoS 行为。
 
 选择 Git 的原因并不是要实现 Git 本身，而是 Git 足够真实、复杂、可确定化测试：本地分支与对象操作会压测文件系统 rename/ref 更新；remote 操作会经过 socket、TCP loopback、pack/ref 传输；HTTPS 会引入 OpenSSL/Python `ssl`；SSH 会触发 OpenSSH 对 socket option 的依赖。通过这条路径，StarryOS 暴露并修复了 loongarch64 LASX 用户态状态保存恢复、socket QoS option、`recvmsg` control message 写回等实际兼容性问题，同时为文件系统 rename 语义补齐了 Git 侧回归覆盖。
 
@@ -67,15 +67,15 @@ flowchart LR
 
 ### 2.1 方案一：syscall 测例与语义完善
 
-方案一阶段主要补齐 syscall 语义测试，并在测试过程中修复 StarryOS 的兼容性问题。
+方案一阶段主要补齐 syscall 语义测试，并在测试过程中修复 StarryOS 的兼容性问题。这一部分不是 Git 方向的附属工作，而是先用相对明确的 syscall 语义建立测试方法：从 Linux 行为出发写源码级测例，再把失败缩小到 flag 校验、权限判断、用户态指针写回或信号信息填充等具体内核逻辑。
 
-| PR | 内容 |
-| --- | --- |
-| [#670](https://github.com/rcore-os/tgoskits/pull/670) | 新增 `eventfd2` syscall 测例，覆盖 flag、普通/信号量模式、非阻塞、溢出、fork 继承等语义 |
-| [#683](https://github.com/rcore-os/tgoskits/pull/683) | 新增 `signalfd4` 测例，并修复 `ssi_pid` / `ssi_uid` 硬编码问题 |
-| [#763](https://github.com/rcore-os/tgoskits/pull/763) | 新增 `utimensat` 测例，并修复 flag 校验、`AT_EMPTY_PATH` 权限等语义问题 |
+| PR | 覆盖语义 | 修复与价值 |
+| --- | --- | --- |
+| [#670](https://github.com/rcore-os/tgoskits/pull/670) | `eventfd2` 的 flag、普通计数器/信号量模式、非阻塞、溢出、fork 继承等行为 | 补齐事件通知类 fd 的源码级测例，覆盖计数读写和阻塞/非阻塞边界 |
+| [#683](https://github.com/rcore-os/tgoskits/pull/683) | `signalfd4` 的信号接收、mask、返回信息字段等行为 | 修复 `ssi_pid` / `ssi_uid` 硬编码问题，使信号来源信息更接近 Linux 语义 |
+| [#763](https://github.com/rcore-os/tgoskits/pull/763) | `utimensat` 的时间戳更新、flag 校验、`AT_EMPTY_PATH` 等行为 | 修复 flag 校验和 `AT_EMPTY_PATH` 权限相关语义，补齐文件时间戳接口回归 |
 
-这一阶段让我熟悉了 StarryOS 的 syscall 分发、用户态指针访问、测试套件组织方式，也为后续定位 Git 暴露的问题打下基础。
+这三组 syscall 测例有两个作用：一方面直接补齐 StarryOS 的 Linux 兼容性测试面；另一方面也让我熟悉了 syscall 分发、用户态内存访问、错误码返回、测试套件组织方式。后面做 Git 时，定位问题的方式基本延续了这套流程：先观察真实应用失败，再把失败收缩成一个可验证的内核语义点。
 
 ### 2.2 方案二：Git app 支持
 
