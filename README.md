@@ -63,7 +63,20 @@ tags:
 > - 注意，"author:" 与你的 githubID之 间不要留有空格。
 > - 文中出现的'<'和'>'只是为了标识变量，实际操作时候应该移除它们。
 
+### 开源操作系统训练营报告的分类/标签约定
 
+文件名：
+- `时间-作者-标题.md`：例如`20260621-xyongcn-异步系统调用.md`
+
+分类：
+- OSTraining
+
+标签：
+- author:<your_github_id>
+- repo:<rcore-os-repo_you_worked_on>
+- 时间信息：如2025A、2026S
+- 项目信息：如AsyncOS、StarryOS、AxVisor
+- 报告技术信息：如驱动、网卡、调度器、系统调用、IPC、内存管理
 
 ## 数学公式支持
 
