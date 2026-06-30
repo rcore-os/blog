@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">769</span>
+          <span class="site-state-item-count">770</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">707</span>
+        <span class="site-state-item-count">711</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,531 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-SongShiQ-StarryOS%E4%BF%AE%E5%A4%8D%E4%B8%8Ecgroupv2%E6%A8%A1%E5%9D%97%E5%8C%96%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%A4%8D%E7%9B%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/27/20260627-SongShiQ-StarryOS%E4%BF%AE%E5%A4%8D%E4%B8%8Ecgroupv2%E6%A8%A1%E5%9D%97%E5%8C%96%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%A4%8D%E7%9B%98/" class="post-title-link" itemprop="url">StarryOS 修复与cgroup v2 模块化的设计、实现与工程复盘</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-27 00:00:00" itemprop="dateCreated datePublished" datetime="2026-06-27T00:00:00+00:00">2026-06-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/summary/" itemprop="url" rel="index"><span itemprop="name">summary</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="StarryOS-修复与-cgroup-v2-模块化的设计、实现与工程复盘"><a href="#StarryOS-修复与-cgroup-v2-模块化的设计、实现与工程复盘" class="headerlink" title="StarryOS 修复与 cgroup v2 模块化的设计、实现与工程复盘"></a>StarryOS 修复与 cgroup v2 模块化的设计、实现与工程复盘</h1><blockquote>
+<p>作者:宋红 | 上游:rcore-os/tgoskits | fork:SongShiQ/tgoskits<br>训练营:2026 春季开源操作系统训练营(项目阶段八周:2026-05-13 ~ 2026-06-28)</p>
+</blockquote>
+<hr>
+<h2 id="一、摘要-项目背景与目标"><a href="#一、摘要-项目背景与目标" class="headerlink" title="一、摘要 / 项目背景与目标"></a>一、摘要 / 项目背景与目标</h2><p>我在 2026 春季 OS 训练营的<strong>项目阶段</strong>里,在 <strong>StarryOS</strong>上做了一些真实的开源贡献，也谨以此文记录我在本次训练营中的工作与感悟。</p>
+<p><strong>项目主体</strong>沿导师”项目总览”给出的三方向递进:</p>
+<ul>
+<li><strong>方案一(打基础)</strong>:选 syscall,走”读 man 手册 → 写用户态测例 → 在 StarryOS 跑、定位 assert 失败 → 修内核”的全流程;</li>
+<li><strong>方案二(主线)</strong>:通过添加配置让真实 Linux 应用(sqlite3 / busybox / llama.cpp / 动态链接程序)在 StarryOS 上跑起来,用真实应用反推 OS 缺陷;</li>
+<li><strong>方案三(扩展)</strong>:cgroup v2 资源控制子系统——这是压轴,计划设计一个<strong>可扩展的控制器框架</strong>,让 pids/cpu/memory/cpuset/io 五个控制器各自独立、可配置、可插拔。</li>
+</ul>
+<hr>
+<h2 id="二、分阶段工作脉络"><a href="#二、分阶段工作脉络" class="headerlink" title="二、分阶段工作脉络"></a>二、分阶段工作脉络</h2><p>本次训练营的工作任务分八周逐级展开,每一阶段都为下一阶段打地基:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">基础阶段(前置铺垫,简述)</span><br><span class="line">  rCore 闯关 &#x2F; ArceOS 先导 &#x2F; Rust &#x2F; Docker —— 建立&quot;什么是 syscall&#x2F;进程&#x2F;文件系统&quot;的基本认知</span><br><span class="line">        │</span><br><span class="line">        ▼</span><br><span class="line">方案一:syscall 兼容(第一~二周)</span><br><span class="line">  #656 dup&#x2F;fcntl&#x2F;flock 修 5 个内核 bug —— &quot;读 man→写测例→定位→修内核&quot;全流程跑通</span><br><span class="line">  #778 dup2&#x2F;close_range&#x2F;ioctl 测例重构 —— 测例本身是最经济的回归保护</span><br><span class="line">        │</span><br><span class="line">        ▼</span><br><span class="line">方案二:真实应用兼容(第三~四周)</span><br><span class="line">  #895 sqlite3 多架构压力测试 &#x2F; #993 busybox 高副作用 applet</span><br><span class="line">  #1006 llama.cpp Alpine&#x2F;musl &#x2F; #1041 musl 动态链接 &#x2F; #1048 glibc 动态链接</span><br><span class="line">  #1033 riscv64 static-pie ELF loader 段错误修复(从 llama.cpp 暴露的深层 bug)</span><br><span class="line">        │</span><br><span class="line">        ▼</span><br><span class="line">方案三:cgroup v2 模块化(第四~八周,压轴)</span><br><span class="line">  #1107 写死 match → #1156 迭代仍耦合 →(读 Asterinas SysTree)→</span><br><span class="line">  #1234 工厂注册表独立 crate → #1379 L4 资源管控 + manager 接口</span><br></pre></td></tr></table></figure>
+
+<p>递进关系也展现了我能力成长的路径:syscall的修复教会了我读内核调用链,测例体系让我组建了”先 Linux 基线再 StarryOS”的工作流,处理sqlite这类真实应用让我理解了ELF loader 这样的深层 bug,而 cgroup 使我完成了从”会改代码”到”会设计架构”的跃迁。</p>
+<hr>
+<h2 id="三、主要工作的详细展开"><a href="#三、主要工作的详细展开" class="headerlink" title="三、主要工作的详细展开"></a>三、主要工作的详细展开</h2><p>每个 PR 按闭环结构展开:<strong>任务目标 → 实现描述 → 测试方法与环境 → 测试结果与数据 → 结论与链接</strong>。</p>
+<h3 id="3-1-方案一-syscall-兼容性"><a href="#3-1-方案一-syscall-兼容性" class="headerlink" title="3.1 方案一:syscall 兼容性"></a>3.1 方案一:syscall 兼容性</h3><h4 id="PR-656-—-dup-fcntl-flock-兼容性修复-首个-merged"><a href="#PR-656-—-dup-fcntl-flock-兼容性修复-首个-merged" class="headerlink" title="PR #656 — dup/fcntl/flock 兼容性修复(首个 merged)"></a>PR #656 — dup/fcntl/flock 兼容性修复(首个 merged)</h4><ul>
+<li><strong>任务目标</strong>:<code>test_dup_v2.c</code> 的 78 个断言里有 5 个 FAIL,修掉这组内核 bug。</li>
+<li><strong>实现描述</strong>:<ul>
+<li>fcntl 未识别 cmd 原本返 <code>Ok(0)</code> 兜底 → 改返 <code>EINVAL</code>(错误码即契约);</li>
+<li><code>F_DUPFD</code> 忽略 arg → 新增 <code>dup_fd_min(arg)</code>,从 arg 起在 fd 表线性搜空位;</li>
+<li><code>O_APPEND</code> 不生效 → 在 ax-fs <code>File</code> 加 <code>append: AtomicBool</code>,write 路径检查并主动 seek-EOF;</li>
+<li>flock/F_SETLK 空存根 → 接上 dev 已合入的 <code>lock.rs</code> dispatch。</li>
+</ul>
+</li>
+<li><strong>测试方法与环境</strong>:aarch64 QEMU,先在 glibc Docker 跑 Linux 基线确认规范理解正确,再上 StarryOS。</li>
+<li><strong>结果与数据</strong>:dup-fcntl <strong>106 个断言</strong>,Linux 基线 100% PASS,StarryOS aarch64 75/78(3 个为 ax-fs 设计层限制,诚实标注不在本 PR 范围)。修复 syscall 5 个。</li>
+<li><strong>结论与链接</strong>:+671/-49,12 文件,7 commits,4 reviews,CI 19✓。<a href="https://github.com/rcore-os/tgoskits/pull/656" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/656</a></li>
+<li><strong>代码锚点</strong>:<code>kernel/src/syscall/fs/fd_ops.rs</code>、<code>kernel/src/file/fs.rs</code>。</li>
+</ul>
+<h4 id="PR-778-—-dup2-close-range-ioctl-测例重构-纯测试-PR"><a href="#PR-778-—-dup2-close-range-ioctl-测例重构-纯测试-PR" class="headerlink" title="PR #778 — dup2/close_range/ioctl 测例重构(纯测试 PR)"></a>PR #778 — dup2/close_range/ioctl 测例重构(纯测试 PR)</h4><ul>
+<li><strong>任务目标</strong>:把 #656 的 800 行单文件 <code>test_dup_v2.c</code> 拆成可维护的 parts 化骨架,并为新 syscall 补测例。</li>
+<li><strong>实现描述</strong>:<code>test_framework.h</code> 加 <code>CHECK_RET</code>/<code>CHECK_ERR_SAVED</code> 宏;800 行拆成 Part 01–26;新写 test-dup2(7 parts×36 断言)、test-close-range(5 parts×49 断言)、test-ioctl(4 parts×11 断言)。</li>
+<li><strong>测试结果</strong>:Linux 基线 <strong>202 PASS / 0 FAIL / 8 observe / 1 skip</strong>(observe = 规范允许的合理变体,不当 FAIL)。StarryOS QEMU 因 <code>tokio pipe</code> 已知问题阻塞,诚实标注非测试逻辑问题、不伪造通过率。</li>
+<li><strong>结论</strong>:+2347/-419,31 文件,6 commits,4 reviews,CI 20✓,1 天合并。<strong>4 套测例 / 42 parts / 202 断言</strong>。<a href="https://github.com/rcore-os/tgoskits/pull/778" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/778</a></li>
+</ul>
+<h3 id="3-2-方案二-真实应用兼容与测试体系"><a href="#3-2-方案二-真实应用兼容与测试体系" class="headerlink" title="3.2 方案二:真实应用兼容与测试体系"></a>3.2 方案二:真实应用兼容与测试体系</h3><h4 id="PR-895-—-sqlite3-CLI-多架构压力测试"><a href="#PR-895-—-sqlite3-CLI-多架构压力测试" class="headerlink" title="PR #895 — sqlite3 CLI 多架构压力测试"></a>PR #895 — sqlite3 CLI 多架构压力测试</h4><ul>
+<li><strong>任务目标</strong>:让 Alpine 发行版的 <code>sqlite3</code> CLI(musl 完整栈)在 StarryOS 四架构跑通。</li>
+<li><strong>实现描述</strong>:smoke 组 S0–S4(进程能起、IO 通路在)+ deep 组 S5–S8(DELETE journal/COMMIT/ROLLBACK、WAL 持久化、500 行 + integrity_check、64KiB BLOB 重开);<code>apk add --no-cache sqlite</code> 触发 Alpine 包安装。</li>
+<li><strong>测试结果</strong>:aarch64/x86_64/riscv64/loongarch64 smoke+deep 全 PASS;SQLite 3.51.2,QEMU 10.2.1。<strong>2 组 / 9 测试点 / 4 架构 ×2 = 8 toml</strong>。</li>
+<li><strong>关键调试故事</strong>:loongarch64 我一开始把内存提到 2G,reviewer 质疑”其他架构 512M 你为啥 2G”,定位后发现是 apk-curl 既有问题,不是 sqlite3 需要——改回 512M、timeout 提到 600s 解决。<strong>这是被 review 教会”先定位问题再调参”的典型。</strong></li>
+<li><strong>结论</strong>:+592/-0,16 文件,11 commits(4 个 Merge dev),10 reviews,CI 23✓。<a href="https://github.com/rcore-os/tgoskits/pull/895" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/895</a></li>
+</ul>
+<h4 id="PR-993-—-busybox-7-高副作用-applet-安全失败测试"><a href="#PR-993-—-busybox-7-高副作用-applet-安全失败测试" class="headerlink" title="PR #993 — busybox 7 高副作用 applet 安全失败测试"></a>PR #993 — busybox 7 高副作用 applet 安全失败测试</h4><ul>
+<li><strong>任务目标</strong>:测 insmod/fdflush/raidautorun/killall5/rdev/setlogcons/resize 这类”真做会破坏环境”的 applet。</li>
+<li><strong>实现描述</strong>:不测真实行为,测<strong>错误处理路径</strong>——给不存在的设备/模块,验返回非零 + 合理错误信息(<code>rc≠124</code> 非 timeout,进一步 <code>rc≠0</code> 且输出含 “No such”/“not found” 等)。resize 输出终端转义序列污染 EXIT 解析 → 重定向 <code>/dev/null</code> 只取 RC;为防 util-linux CI timeout 误判,单独提 commit 调高 timeout + 加 completion marker(先观测再调参)。</li>
+<li><strong>结论</strong>:+103/-2,4 文件,3 commits,3 reviews 全批准,CI 23✓,1 天合并。新增 7 applet 测试。crontab/crond 因 daemon hang 诚实留 follow-up。<a href="https://github.com/rcore-os/tgoskits/pull/993" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/993</a></li>
+</ul>
+<h4 id="PR-1006-—-llama-cpp-Alpine-musl-兼容性迁移"><a href="#PR-1006-—-llama-cpp-Alpine-musl-兼容性迁移" class="headerlink" title="PR #1006 — llama.cpp Alpine/musl 兼容性迁移"></a>PR #1006 — llama.cpp Alpine/musl 兼容性迁移</h4><ul>
+<li><strong>任务目标</strong>:让大模型推理运行时 llama.cpp 在三架构跑通(mmap/浮点/内存压力更大)。</li>
+<li><strong>实现描述</strong>:<code>CMAKE_CROSSCOMPILING=ON</code>+<code>CMAKE_C_COMPILER_WORKS=ON</code> 跳过交叉编译 <code>try_run</code>;QEMU TCG 不支持 RVV → <code>-DGGML_RVV=OFF</code>;x86_64 加 <code>-cpu max</code>;riscv64 static-pie 段错误 → 当时用非 PIE 静态链接规避(这正是 #1033 的根因首次暴露)。</li>
+<li><strong>测试结果</strong>:三架构 tok/s 基线(aarch64 1.39 / x86_64 0.60 / riscv64 0.72),SmolLM2-135M Q4_0。loongarch64 工具链 404、mmap 未验证、aarch64 L5 kretprobe panic 全部诚实写入 PR body。</li>
+<li><strong>结论</strong>:+240/-2,12 文件,9 commits,2 reviews,CI 23✓。<a href="https://github.com/rcore-os/tgoskits/pull/1006" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1006</a></li>
+</ul>
+<h4 id="PR-1041-—-musl-动态链接-smoke-test-3-架构"><a href="#PR-1041-—-musl-动态链接-smoke-test-3-架构" class="headerlink" title="PR #1041 — musl 动态链接 smoke test(3 架构)"></a>PR #1041 — musl 动态链接 smoke test(3 架构)</h4><ul>
+<li><strong>任务目标</strong>:验证 ELF loader 的 INTERP 段加载(<code>ld-musl-*.so.1</code>)与 NEED 依赖解析——动态链接是”像 Linux 一样”的关键。</li>
+<li><strong>实现描述</strong>:最小程序 <code>dynamic-test.c</code>(跑不起来就说明 INTERP 加载本身有问题);<code>readelf -l</code> 提取 INTERP 按 basename 安装 ld-musl;riscv64 加 <code>-Wl,--strip-debug</code>(lld 不支持 RISC-V debug relocation),x86_64 加 <code>-cpu max</code>。</li>
+<li><strong>结论</strong>:+309/-0,10 文件,7 commits(最多 review 的 PR 之一,7 轮,主要命名规范),CI 24✓。<a href="https://github.com/rcore-os/tgoskits/pull/1041" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1041</a></li>
+</ul>
+<h4 id="PR-1048-—-glibc-动态链接测试-3-架构"><a href="#PR-1048-—-glibc-动态链接测试-3-架构" class="headerlink" title="PR #1048 — glibc 动态链接测试(3 架构)"></a>PR #1048 — glibc 动态链接测试(3 架构)</h4><ul>
+<li><strong>任务目标</strong>:glibc 比 musl 严苛得多(ld-linux 复杂、pthread 依赖 NPTL、regex 依赖 locale),跑通说明 ELF loader 与 syscall 兼容已相当成熟。</li>
+<li><strong>实现描述</strong>:4 子测试逐步深入——glibc-smoke(基础)/proc-self-exe(readlink <code>/proc/self/exe</code>)/pthread(clone/tls/futex)/regex(POSIX 正则);额外加 Debian rootfs 变体(glibc INTERP 与 Alpine musl 不同,toml 分开)。</li>
+<li><strong>结论</strong>:+437/-1,16 文件,9 commits,4 reviews,CI 24✓。<a href="https://github.com/rcore-os/tgoskits/pull/1048" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1048</a></li>
+</ul>
+<h3 id="3-3-方案二深层-OS-bug-根因修复"><a href="#3-3-方案二深层-OS-bug-根因修复" class="headerlink" title="3.3 方案二深层:OS bug 根因修复"></a>3.3 方案二深层:OS bug 根因修复</h3><h4 id="PR-1033-—-riscv64-static-pie-ELF-loader-段错误修复"><a href="#PR-1033-—-riscv64-static-pie-ELF-loader-段错误修复" class="headerlink" title="PR #1033 — riscv64 static-pie ELF loader 段错误修复"></a>PR #1033 — riscv64 static-pie ELF loader 段错误修复</h4><ul>
+<li><strong>任务目标</strong>:#1006 暴露的 riscv64 static-pie(Type=DYN)二进制直接段错误,这是 ELF loader 根因 bug——修好它意味着 StarryOS 能正确加载现代 Linux 发行版默认的 PIE 二进制。</li>
+<li><strong>调试与实现</strong>(7 commits 逐层递进):<ol>
+<li>QEMU 捕获 segfault 地址 → 反查 ELF 程序头 → 发现 relocation 目标在未映射区;</li>
+<li>新增 <code>vaddr_to_file_offset()</code>(搜 PT_LOAD 段算 <code>segment_offset+(vaddr-segment_vaddr)</code>)替代错误的 <code>checked_sub(base)</code>;</li>
+<li>加 <code>populate_area()</code> 确保 relocation 写入前页面已映射;</li>
+<li>修 <code>R_RISCV_64</code>/<code>R_RISCV_JUMP_SLOT</code>,<code>st_value==0</code> 未定义符号跳过不覆写 GOT,<code>R_RISCV_COPY</code> 计数跳过;</li>
+<li>加 <code>static-pie-test</code> 回归测试 + busybox 回归确认不影响非 PIE 路径。</li>
+</ol>
+</li>
+<li><strong>结论</strong>:+402/-0,6 文件,7 commits,4 reviews,CI 25✓。<strong>修复 1 个 OS bug,影响 riscv64 所有 PIE 二进制加载</strong>。<a href="https://github.com/rcore-os/tgoskits/pull/1033" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1033</a></li>
+</ul>
+<h3 id="3-4-方案三-cgroup-v2-模块化"><a href="#3-4-方案三-cgroup-v2-模块化" class="headerlink" title="3.4 方案三:cgroup v2 模块化"></a>3.4 方案三:cgroup v2 模块化</h3><p>cgroup 是技术深度最高、最能体现”学习→构建→反思→重做”的工作,在第五章与第六章详写:</p>
+<ul>
+<li><strong>#1107</strong>:cgroup v2 核心框架 + pids/cpu 控制器,但<strong>写死在 CgroupNode 的 match 分支</strong>——加控制器要改核心结构。</li>
+<li><strong>#1156</strong>:在用户已有基础上迭代(try_fork CAS、bandwidth throttling 框架),10 轮 review、7 次 CHANGES_REQUESTED,<strong>仍非模块化</strong>,主动关闭。</li>
+<li><strong>#1234</strong>:读 Asterinas SysTree 后重构为 <strong>ax-cgroup 独立 crate</strong>(工厂注册表 + CgroupController trait),5 控制器、~18 属性、6 设计巧思。当前 OPEN,CHANGES_REQUESTED。</li>
+<li><strong>#1379</strong>:在 #1234 框架上把控制器从”状态正确”推进到”逻辑闭环 + 可测 + systemd/docker 可探测”,10 commits,Draft,base=dev 独立(与 #1234 平行,非 stack)。</li>
+</ul>
+<hr>
+<h2 id="四、量化成果与效果"><a href="#四、量化成果与效果" class="headerlink" title="四、量化成果与效果"></a>四、量化成果与效果</h2><h3 id="4-1-总览量化表"><a href="#4-1-总览量化表" class="headerlink" title="4.1 总览量化表"></a>4.1 总览量化表</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>数据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PR 总数</td>
+<td>12(8 merged + 2 主动关闭 +#1234 OPEN + #1379 Draft)</td>
+</tr>
+<tr>
+<td>代码贡献(merged 合计)</td>
+<td>+5101 / -473,107 文件,59 commits</td>
+</tr>
+<tr>
+<td>review 往返(merged 合计)</td>
+<td>38 reviews</td>
+</tr>
+<tr>
+<td>CI(merged 合计)</td>
+<td>181 ✓ + 193 跳过(架构无关)</td>
+</tr>
+<tr>
+<td>测试断言(syscall/测试类)</td>
+<td>202 个(Linux 基线全 PASS)</td>
+</tr>
+<tr>
+<td>架构覆盖</td>
+<td>aarch64 / riscv64 / x86_64 / loongarch64</td>
+</tr>
+<tr>
+<td>修复 syscall</td>
+<td>7(dup/dup2/dup3/fcntl/flock/close_range/ioctl)</td>
+</tr>
+<tr>
+<td>OS bug 根因修复</td>
+<td>1(riscv64 static-pie ELF relocation)</td>
+</tr>
+<tr>
+<td>Linux app 适配</td>
+<td>5(sqlite3/busybox/llama.cpp/musl-dynamic/glibc-dynamic)</td>
+</tr>
+<tr>
+<td>cgroup 控制器</td>
+<td>5(pids/cpu/memory/cpuset/io)</td>
+</tr>
+<tr>
+<td>cgroup 属性</td>
+<td>~18 个</td>
+</tr>
+<tr>
+<td>cgroup 设计巧思</td>
+<td>6 个</td>
+</tr>
+<tr>
+<td>cgroup host 单测</td>
+<td><strong>8 模块 / 41 测试函数</strong>(全部 <code>cargo test -p ax-cgroup</code> 通过)</td>
+</tr>
+<tr>
+<td>cgroup 新增代码(goal 分支)</td>
+<td>+1401 行,22 文件,10 commits(vs feat/cgroup-unified-rebased)</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-cgroup-三次尝试的架构演进"><a href="#4-2-cgroup-三次尝试的架构演进" class="headerlink" title="4.2 cgroup 三次尝试的架构演进"></a>4.2 cgroup 三次尝试的架构演进</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>#1107</th>
+<th>#1156</th>
+<th>#1234</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>架构</td>
+<td>内嵌 match 分支</td>
+<td>内嵌,迭代改进</td>
+<td>独立 crate + 工厂注册表</td>
+</tr>
+<tr>
+<td>控制器数</td>
+<td>2(pids/cpu)</td>
+<td>2(pids/cpu)</td>
+<td>5(pids/cpu/memory/cpuset/io)</td>
+</tr>
+<tr>
+<td>可扩展性</td>
+<td>加控制器改核心</td>
+<td>加控制器改核心</td>
+<td>实现 trait + 注册 1 行</td>
+</tr>
+<tr>
+<td>与内核耦合</td>
+<td>强耦合</td>
+<td>强耦合</td>
+<td>依赖倒置(CgroupProvider)</td>
+</tr>
+<tr>
+<td>Review 轮次</td>
+<td>1</td>
+<td>10(7 改)</td>
+<td>38(20 改)</td>
+</tr>
+<tr>
+<td>状态</td>
+<td>主动关闭</td>
+<td>主动关闭</td>
+<td>OPEN(进行中)</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-数据的可信边界"><a href="#4-3-数据的可信边界" class="headerlink" title="4.3 数据的可信边界"></a>4.3 数据的可信边界</h3><ul>
+<li><strong>可信指标</strong>:断言数、PASS/FAIL 数、CI ✓ 数、代码行数/文件数/commit 数——均可溯源到 PR 或 <code>git</code>/<code>gh</code> 实测。</li>
+<li><strong>不完全可信</strong>:llama.cpp 的 tok/s 在 QEMU TCG 上是数量级参考,不代表真实硬件性能。</li>
+<li><strong>未验证项</strong>:cgroup 端到端 QEMU 四架构未全绿;L4 真实资源管控(cpu.max 调度跳过、memory 页分配器 charge、io 块层限流)未端到端验证——详见第六章诚实缺口。</li>
+</ul>
+<hr>
+<h2 id="五、cgroup构建详述"><a href="#五、cgroup构建详述" class="headerlink" title="五、cgroup构建详述"></a>五、cgroup构建详述</h2><h3 id="5-1-工厂注册表统一框架-整个项目的技术核心"><a href="#5-1-工厂注册表统一框架-整个项目的技术核心" class="headerlink" title="5.1 工厂注册表统一框架(整个项目的技术核心)"></a>5.1 工厂注册表统一框架(整个项目的技术核心)</h3><p><strong>解决的耦合</strong>:#1107/#1156 把每个控制器的逻辑写死在 <code>CgroupNode</code> 的 <code>match controller_name</code> 分支里,加一个控制器就要改核心数据结构,违反开闭原则，我参考了Linux和星绽os的实现，对starryos的cgroup部分做了框内核风格的设计，以追求cgroup与内核的解耦，也能更符合starryos的模块化设计理念。</p>
+<p><strong>框架设计</strong>:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ax-cgroup(#![no_std],OS 无关独立 crate)</span><br><span class="line">├── controller.rs:  CgroupController trait + CgroupControllerFactory trait + FACTORY_REGISTRY</span><br><span class="line">├── core.rs:        CgroupNode 层次树</span><br><span class="line">├── pids&#x2F;cpu&#x2F;memory&#x2F;cpuset&#x2F;io.rs:  5 控制器各实现同一 trait</span><br><span class="line">├── provider.rs:    CgroupProvider trait(依赖倒置)</span><br><span class="line">└── lib.rs:         membership + fork&#x2F;exit&#x2F;migrate 事务 + 属性统一分发</span><br></pre></td></tr></table></figure>
+
+<p><strong>扩展成本</strong>:全局 <code>FACTORY_REGISTRY</code> 存 <code>Arc&lt;dyn CgroupControllerFactory&gt;</code>,启动时 5 行注册;新增一个控制器 = 实现 <code>CgroupController</code> trait + 加 <strong>1 行</strong>注册。VFS 层不认识任何具体控制器,只按 <code>&quot;控制器.属性&quot;</code> 命名约定统一分发。</p>
+<h3 id="5-2-六个设计巧思"><a href="#5-2-六个设计巧思" class="headerlink" title="5.2 六个设计巧思"></a>5.2 六个设计巧思</h3><ol>
+<li><strong>依赖倒置(CgroupProvider trait)</strong>:ax-cgroup 是 no_std OS 无关组件,但 migrate/exit 需要查”进程是不是僵尸”。定义 <code>CgroupProvider</code> trait(is_zombie/get_cgroup/set_cgroup/current_uid),内核实现 <code>KernelCgroupProvider</code>,组件反过来调内核。意义:组件可独立发布、可单测、可跨 OS 复用、对于多人并行开发友好。</li>
+<li><strong>RAII 两阶段提交</strong>:fork 时先扣 pids 配额,但子进程 spawn 可能失败 → <code>begin_fork()</code> 返回 <code>CgroupForkGuard</code>,spawn 成功才 <code>commit()</code>,否则 <code>Drop</code> 自动 <code>uncharge_path</code> 回滚。编译器保证任何提前退出路径都不泄漏。</li>
+<li><strong>最近公共祖先(LCA)扣费</strong>:migrate 时只对两条 path-to-root 各自独有的前缀段扣/退费,公共段不动。避免”迁移到兄弟 cgroup 时父节点配额瞬时翻倍”的假超限。</li>
+<li><strong>CAS 无锁计数</strong>:<code>try_charge_local</code> 用 <code>compare_exchange</code> 循环——先读 current,<code>&gt;=max</code> 则拒,否则 CAS+1。消除 TOCTOU 窗口,多核同时 fork 不会突破上限。</li>
+<li><strong>属性名一次解析</strong>:<code>parse_attr_name(&quot;pids.max&quot;) → (&quot;pids&quot;,&quot;max&quot;)</code>,只切第一个 <code>.</code>,一处定义三处复用;<code>cpuset.cpus.effective</code> 也正确(suffix 保留 <code>cpus.effective</code>)。</li>
+<li><strong>domain 控制器与”无内部进程”规则</strong>:cgroup v2 约束”内部节点不能既有子 cgroup 又有进程”(针对 domain 控制器)。用 <code>is_domain()</code> 布尔位 + <code>write_subtree_control</code> 启用前检查实现。</li>
+</ol>
+<h3 id="5-3-host-侧测试体系-测试驱动架构验证"><a href="#5-3-host-侧测试体系-测试驱动架构验证" class="headerlink" title="5.3 host 侧测试体系(测试驱动架构验证)"></a>5.3 host 侧测试体系(测试驱动架构验证)</h3><p>8 个测试模块 / 41 个测试函数,全部在开发机经 <code>cargo test -p ax-cgroup</code> 运行,不依赖 QEMU。MockProvider 替代内核 provider:</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>覆盖</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>roundtrip(297 行)</td>
+<td>5 控制器全部属性 write→read-back,含 EINVAL/EPERM 错误码语义</td>
+</tr>
+<tr>
+<td>cpu_logic</td>
+<td>weight→nice 映射单调性、BandwidthState 状态机(quota/consume/reset)</td>
+</tr>
+<tr>
+<td>cpuset_logic</td>
+<td>effective_intersect 纯函数 + 层次 recompute</td>
+</tr>
+<tr>
+<td>memory_charge</td>
+<td>charge/uncharge 对称、超限拒绝+events++、migrate 搬运、层次扣费</td>
+</tr>
+<tr>
+<td>delegation</td>
+<td>权限规则(root/uid/delegation)、subtree_control 门控、pids.events 计数</td>
+</tr>
+<tr>
+<td>manager_iface</td>
+<td>cgroup.events populated 跟踪子树、cgroup.stat 后代计数、memory.stat key</td>
+</tr>
+<tr>
+<td>parse</td>
+<td>属性名解析、内存值解析(“1K”/“512M”)</td>
+</tr>
+<tr>
+<td>mock</td>
+<td>MockProvider(per-pid 分配/zombie/UID 模拟)</td>
+</tr>
+</tbody></table>
+<h3 id="5-4-ELF-loader-修复"><a href="#5-4-ELF-loader-修复" class="headerlink" title="5.4 ELF loader 修复"></a>5.4 ELF loader 修复</h3><p>见 3.3。<code>vaddr_to_file_offset()</code> 正确处理 PIE 虚拟地址到文件偏移转换,<code>populate_area()</code> 确保 relocation 写入前页面已映射,影响 riscv64 所有 PIE 二进制。</p>
+<hr>
+<h2 id="六、出错调试与根因复盘"><a href="#六、出错调试与根因复盘" class="headerlink" title="六、出错调试与根因复盘"></a>六、出错调试与根因复盘</h2><h3 id="6-1-cgroup-三次尝试-最有价值的试错"><a href="#6-1-cgroup-三次尝试-最有价值的试错" class="headerlink" title="6.1 cgroup 三次尝试:最有价值的试错"></a>6.1 cgroup 三次尝试:最有价值的试错</h3><p><strong>#1107/#1156 为何关闭</strong>:把控制器写死在 match 分支里,加一个控制器就要改核心结构。#1156 经 10 轮 review、7 次 CHANGES_REQUESTED,reviewer 的反馈越来越集中在”架构不对”。同时我也意识到<strong>老师更想要的是组件化/可配置的 cgroup</strong>,而不是”能跑就行”，再回看这两个实现都停留在深耦合的简单cgroup，这种架构非常不利于后续controller开发和优化。</p>
+<p><strong>转折点——读 Asterinas(星绽)SysTree</strong>:#1156 关闭后我借助ai的帮助花两天快速学习 Asterinas 的 SysTree 框架以及框内核的设计思想，学到:SysTree 是 Model(数据)、VFS 是 View、Controller 是逻辑的 MVC 模式;每个控制器实现同一 SubControl trait,通过工厂注册;全局 registry 存工厂(而不是实例)。<strong>这是整个训练营最大的”学习→构建”转折</strong>——从”写代码能跑”到”设计架构可扩展”。</p>
+<p><strong>教训</strong>:这次的开发经历也让我感慨良多，系统设计，架构先行。在系统开发中应该先想清楚”加一个新控制器要改几处代码”,再动手写。代码能跑不等于架构对，同时也开阔了我的眼界，以前操作系统书上只学过宏内核与微内核，这次领略到了框内核的魅力。</p>
+<h3 id="6-2-典型并发-bug-的根因"><a href="#6-2-典型并发-bug-的根因" class="headerlink" title="6.2 典型并发 bug 的根因"></a>6.2 典型并发 bug 的根因</h3><table>
+<thead>
+<tr>
+<th>bug</th>
+<th>现象</th>
+<th>根因</th>
+<th>修复</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TOCTOU 竞态</td>
+<td><code>can_fork()</code>+<code>fork()</code> 两步,多核同时通过检查后都递增,current 超 max</td>
+<td>检查与递增非原子</td>
+<td><code>try_fork()</code> CAS 单原子操作</td>
+</tr>
+<tr>
+<td>exit 下溢</td>
+<td><code>current</code> 为 0 时 <code>fetch_sub(1)</code> 下溢成负</td>
+<td>无下界保护</td>
+<td><code>fetch_update</code> 处理 <code>current==0</code> 不再减</td>
+</tr>
+<tr>
+<td>procs 写入污染</td>
+<td>PID 不存在时仍 push 进 procs 列表</td>
+<td>缺存在性检查</td>
+<td>返回<code>ESRCH</code></td>
+</tr>
+<tr>
+<td>config 破 CI</td>
+<td><code>.cargo/config.toml</code> include 从可选改必选,缺文件 CI 失败</td>
+<td>include 写法错误</td>
+<td>恢复<code>optional=true</code></td>
+</tr>
+</tbody></table>
+<h3 id="6-3-host-段错误根因"><a href="#6-3-host-段错误根因" class="headerlink" title="6.3 host 段错误根因"></a>6.3 host 段错误根因</h3><p>cgroup host 单测一启动就 SIGSEGV。我没有盲目加 <code>#[allow]</code> 绕过,而是定位到 <code>SpinNoIrq</code> 依赖 <code>kernel_guard</code> 的特权 IRQ 指令(<code>cli</code>/<code>sti</code>)在 host 上非法。按仓库已有范式(仿 starry-process)在 dev-dependency 启用 <code>ax-kspin/host-test</code> feature 解决。<strong>根因定位优于绕过。</strong></p>
+<h3 id="6-4-CI-慢-→-多分支开发"><a href="#6-4-CI-慢-→-多分支开发" class="headerlink" title="6.4 CI 慢 → 多分支开发"></a>6.4 CI 慢 → 多分支开发</h3><p>CI 特别慢(每次 push 等很久),因而我学会了同时维护 <code>feat/cgroup-unified</code>(cpuset+registry)和 <code>pr/cgroup-modularize</code>(PR 提交)两个分支,用 <code>git stash</code> 在分支间切换。<strong>确实提高了效率。</strong></p>
+<h3 id="6-5-被判定为反优化的方向"><a href="#6-5-被判定为反优化的方向" class="headerlink" title="6.5 被判定为反优化的方向"></a>6.5 被判定为反优化的方向</h3><ul>
+<li><strong>不上半成品 L4 强制逻辑</strong>:cpu.max 若让调度器跳过 throttled 任务但没处理 busy-spin,会引入忙等;memory 若 charge 失败直接杀进程,会误杀。所以宁可停在”扣费 + 置标志”,把”调度器消费标志”留作清晰接入点。</li>
+<li><strong>不为测试改可见性</strong>:parse/format 是模块私有函数,我没有为了测试改成 <code>pub</code>(污染公共 API),而是通过 factory <code>new_instance()→write_attr/read_attr</code> 的真实公共路径做端到端 round-trip。</li>
+</ul>
+<hr>
+<h2 id="七、可复用设计模式与后续方向"><a href="#七、可复用设计模式与后续方向" class="headerlink" title="七、可复用设计模式与后续方向"></a>七、可复用设计模式与后续方向</h2><h3 id="7-1-可复用经验"><a href="#7-1-可复用经验" class="headerlink" title="7.1 可复用经验"></a>7.1 可复用经验</h3><ul>
+<li><strong>跨实现测例纪律</strong>:先 Linux 基线 100% PASS 再上 StarryOS,才能区分”规范理解错”还是”内核没实现”;<code>observe</code> 标合理变体不当 FAIL。</li>
+<li><strong>先观测再调参</strong>:#895 loongarch 内存、#993 util-linux timeout 都是”先加 timing/completion marker 观测,再定位根因,最后才调参”。</li>
+<li><strong>工厂注册表 + trait 解耦</strong>:加扩展项 = 实现 trait + 注册 1 行,VFS/调用方不认识具体实现。</li>
+<li><strong>依赖倒置守 no_std 边界</strong>:OS 无关组件经 provider trait 回调内核,而非直接依赖内核。</li>
+</ul>
+<h3 id="7-2-L1–L4-分层诚实评估"><a href="#7-2-L1–L4-分层诚实评估" class="headerlink" title="7.2 L1–L4 分层诚实评估"></a>7.2 L1–L4 分层诚实评估</h3><table>
+<thead>
+<tr>
+<th>层</th>
+<th>含义</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>L1 属性 I/O 闭环</td>
+<td>每属性能读/写/校验</td>
+<td>✅ 5/5 控制器</td>
+</tr>
+<tr>
+<td>L2 统一注册框架</td>
+<td>trait + factory + registry</td>
+<td>✅ 完全达成</td>
+</tr>
+<tr>
+<td>L3 内核集成接线</td>
+<td>mount/fork/exit/migrate 事务</td>
+<td>✅ 框架达成,pids 真正生效</td>
+</tr>
+<tr>
+<td>L4 真实资源管控</td>
+<td>限制作用于调度/内存/IO</td>
+<td>pids 全闭环;cpu<strong>半闭环</strong>;memory/cpuset/io 留接入点</td>
+</tr>
+</tbody></table>
+<p><strong>cpu.max 半闭环的准确状态</strong>(不夸大):goal 分支自建 <code>ax_task::set_tick_hook</code>/<code>throttled</code> API,tick hook 已注册(<code>cgroup/mod.rs::init</code>),每 tick 按 <code>cpu.max</code> 配额扣费、耗尽即置 <code>throttled</code> 标志、跨周期复位——<strong>扣费与标志已生效</strong>;仅差调度器 <code>pick_next_task</code> 读 <code>is_throttled()</code> 跳过任务这一环。所以是”准闭环”,不是 pids 那种完全闭环。</p>
+<h3 id="7-3-后续方向-开放式"><a href="#7-3-后续方向-开放式" class="headerlink" title="7.3 后续方向(开放式)"></a>7.3 后续方向(开放式)</h3><ul>
+<li>接通 cpu L4 最后一环:调度器消费节流标志;</li>
+<li>memory charge 接页分配器 <code>alloc_frame</code>;</li>
+<li>io 接块层 QoS(等 rdif-block queue layer);</li>
+<li>cgroup 端到端 QEMU 四架构跑出控制台 PASS;</li>
+<li>goal 分支 10 个 commit 经 #1379 择机转正式 PR;ax-cgroup 合入 dev。</li>
+</ul>
+<hr>
+<h2 id="八、仓库与文档链接清单"><a href="#八、仓库与文档链接清单" class="headerlink" title="八、仓库与文档链接清单"></a>八、仓库与文档链接清单</h2><table>
+<thead>
+<tr>
+<th>项</th>
+<th>链接/位置</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>上游主仓库</td>
+<td><a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>我的 fork</td>
+<td><a href="https://github.com/SongShiQ/tgoskits" target="_blank" rel="noopener">https://github.com/SongShiQ/tgoskits</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>PR#656 syscall dup/fcntl/flock</td>
+<td>/pull/656</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#778 dup2/close_range/ioctl 测例</td>
+<td>/pull/778</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#895 sqlite3 多架构</td>
+<td>/pull/895</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#993 busybox applet</td>
+<td>/pull/993</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#1006 llama.cpp</td>
+<td>/pull/1006</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#1033 riscv64 static-pie 修复</td>
+<td>/pull/1033</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#1041 musl 动态链接</td>
+<td>/pull/1041</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#1048 glibc 动态链接</td>
+<td>/pull/1048</td>
+<td>merged</td>
+</tr>
+<tr>
+<td>PR#1107 cgroup 首次尝试</td>
+<td>/pull/1107</td>
+<td>CLOSED(主动关闭)</td>
+</tr>
+<tr>
+<td>PR#1156 cgroup 迭代</td>
+<td>/pull/1156</td>
+<td>CLOSED(主动关闭)</td>
+</tr>
+<tr>
+<td>PR#1234 ax-cgroup 独立 crate</td>
+<td>/pull/1234</td>
+<td>OPEN</td>
+</tr>
+<tr>
+<td>PR#1379 cgroup L4 + manager 接口</td>
+<td>/pull/1379</td>
+<td>Draft</td>
+</tr>
+<tr>
+<td>ax-cgroup 组件源码</td>
+<td><code>components/ax-cgroup/</code></td>
+<td>—</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="九、个人心得体会"><a href="#九、个人心得体会" class="headerlink" title="九、个人心得体会"></a>九、个人心得体会</h2><h3 id="9-1-VibeCoding拙见"><a href="#9-1-VibeCoding拙见" class="headerlink" title="9.1 VibeCoding拙见"></a>9.1 VibeCoding拙见</h3><p>时至今日，大语言模型已经深度进入代码生成、问题求解、系统搭建和交互设计的各个环节。我认为，用codex、claude code cli 等  <strong>coding agent 进行软件开发的本质是多人接力协作开发</strong> 。实际上与LLM的每轮对话就是与一个全新的”人”在对话，而与coding agent的每轮对话就是与一个 能看到历史接力情况的 “人”对话。</p>
+<p><strong>一、概念完整性，新增的代码能不能与代码库中已有代码相洽。</strong></p>
+<p>“概念的完整性要求设计必须由一个人,或者非常少数互有默契的人员来实现。”——《人月神话》。</p>
+<p>在我看来，coding agent本质上可以看成多人接力协作，而如何让人们劲往一处使用，历史早就已经给出答案：纲领。在开发初始可以首先与agent协同探讨出整体的开发”纲领”，简洁，凝练的阐述设计思路，同时最重要的是开发过程中这个纲领性文档的维护一定不能放任Agent自由修改，如果交给agent去做，与它不曾存在过别无二致。</p>
+<p> <strong>实际践行</strong> ：对于阶段性目标规划、实现方案等文档在产出时一定要对文档通读并内化，即便是由ai执笔，也应该要看明白整个文档思路。利用xhigh或更高思考等级的coding agent review 出建议修改点之后，利用轻量模型快速应答的特性厘清每一个建议点和设计思路，避免跑偏和过度设计，这样在以后自然而然就能培养起Technical Taste。纲领性文档确定后，在开发过程中尽可能避免二次修改了，仅允许人工增补。</p>
+<p><strong>二、vibe coding 时项目随着开发进行复杂度不断上升，逐渐失控的问题。</strong></p>
+<p>在大型项目开发过程中，随着人手的增加，项目的开发效率并非一直提高，甚至过多的人手投入会导致项目进度滞后。我认为这也正是大家都深有体会的vibe coding的痛点，本质上还是因为coding agent是多人接力协作，这导致vibe coding时，当前窗口发了几轮提示词，约等于让几个”人”投入了当前项目，所以项目的复杂度会越来越大逐渐不可控。</p>
+<p><strong>**实际践行</strong>：** 重视提示词工程。比如说现在要让ai帮我做一件事，这件事又涉及a、b、c三个步骤，不要先让ai做a，做完了跟ai说继续做b。而是，一段提示词里交代明白。前者相当于三个人协作完成了一件事。重视任务拆解。有了上述直觉，任务拆解显得尤为重要，让ai完成的这一件事的粒度大小要把控好，当粒度过大时，就需要具体的施行文档对agent做进一步约束。</p>
+<p><strong>三、coding agent能不能代码写好，核心在于”单一职责”。</strong></p>
+<p>在实际开发中，面对任务给的一份初始需求，通常的做法就是先转成研发可用、ai可读的prd。接着，将prd转成trd。最后，按照trd实现。那么将prd转trd的环节是有多种做法的：1. 一份prd直接转一份trd，这一份trd中拆多个task。2. 一份prd转多个trd切片，每个切片是按照”单一职责”从prd中拆解出来的，单个切片内的task数恰到好处。</p>
+<p><strong>**实际践行</strong>：** 我在开发中多次采用了第二种做法，尤其是在构建cgroup时，不仅隔绝上下文，同时也能提高开发效果，prd按照单一职责去拆成多个trd切片，开发时一个session完成一个切片的实现，下一个切片开新的session实现。</p>
+<p><strong>四、方向可以让coding agent定，但掌舵的一定是人。</strong></p>
+<p>coding agent本质上是多人接力协作开发，项目主线一旦交给了coding agent，等于说交给了一群”人”，走偏是必然的。 随着coding agent与LLM越来越强大，代码能力相对来说变得不那么重要了，软件工程直觉才是做好vibe coing的关键。如何培养软件工程直觉、工程思维？这里也向大家抛出一个问题。</p>
+<p><strong>五、ai写的代码人一定要看。</strong></p>
+<p>这点大家都清楚，但痛点在于人怎么去review coding agent写的代码？</p>
+<p><strong>**实际践行</strong>：** 从系统视角和用户视角去入手解释新增代码做了什么？让agent基于新增代码说一说具体给系统带来了什么新的能力？对系统有什么增益？如果从双视角看都没有太大问题，就可以进入代码走读。代码走读一定要基于起始基点出发，基点的数据流串起了代码的生命线，看看数据最初从哪入？长什么样？顺着数据流去走读代码。</p>
+<p><strong>六、很多时候会发现coding agent给的方案是脱离代码库实际实现风格的、甚至是脱离架构风格的、是不符合概念完整性的。</strong></p>
+<p>我认为根本原因在于coding agent在写方案时没有彻底领悟已有代码风格，这一步要在构建之初就要严格约束，不然后期构建会逐渐放大实现代码时的问题，实现时轻易就写出了破坏系统概念完整性的代码。</p>
+<p><strong>**实际践行</strong>    ：** 开发者应该总结出一套通用的skill用于构建codegraph，开发风格的构建是因人而异且自我迭代的，核心点就是利用prompt约束ai，让它首先利用codegraph充分获取代码库已有代码事实，确定已经熟悉并立下不得破坏的约束后再进行后续的trd详细撰写。</p>
+<h3 id="9-2-致谢"><a href="#9-2-致谢" class="headerlink" title="9.2 致谢"></a>9.2 致谢</h3><p>寒来暑往，三个月的时光转瞬即逝，还记得初入训练营时的兴奋和忐忑，彼时我还没想到我能学习并实践出这么多的知识与能力。深深感谢陈老师在项目阶段对我的指导，陈老师对我的鼓励给了我莫大的动力，让我继续钻研os组件化的构建。也感谢操作系统训练营，让我从只懂原理纸上谈兵的学生，变成了真正能够驾驭ai去解决实际问题的学生，这段历程将会是我求学生涯上最宝贵的经历之一。</p>
+<p>长风破浪会有时，我的求学之路还在继续，这段经历带给我的远不止是工程上的实践，与ai协作的能力、开发思维的培养更是我在本次训练营收获到的硕果，真心祝愿操作系统训练营越办越好，再次感谢陈渝老师的引路与教诲。桃李不言，下自成蹊。祝陈老师科研顺遂，岁岁常安，在操作系统与开源教育的探索中再谱华章。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/21/20260621-xisanlou-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%9F%BA%E4%BA%8E%E5%8D%8F%E7%A8%8B%E5%BC%82%E6%AD%A5%E6%9C%BA%E5%88%B6%E7%9A%84%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E9%A9%B1%E5%8A%A8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +789,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3345,7 +3870,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3480,7 +4005,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
 
           
@@ -3824,7 +4349,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4263,7 +4788,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4444,7 +4969,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4561,7 +5086,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4893,7 +5418,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -5016,7 +5541,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
+                <time title="Modified: 2026-06-30 01:28:24" itemprop="dateModified" datetime="2026-06-30T01:28:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -5358,87 +5883,6 @@
 <li><strong>开发日志</strong>：项目开发过程中的提交记录和设计决策可通过上述仓库的 Git 提交历史查阅</li>
 </ul>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/26/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/04/26/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">2026开源社区实习总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-04-26 20:55:51" itemprop="dateCreated datePublished" datetime="2026-04-26T20:55:51+00:00">2026-04-26</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-23 14:27:24" itemprop="dateModified" datetime="2026-06-23T14:27:24+00:00">2026-06-23</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="AxVisor-中统一-eBPF-Tracing-系统的设计与实现"><a href="#AxVisor-中统一-eBPF-Tracing-系统的设计与实现" class="headerlink" title="AxVisor 中统一 eBPF Tracing 系统的设计与实现"></a>AxVisor 中统一 eBPF Tracing 系统的设计与实现</h1><h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文总结了在 AxVisor 中构建统一 eBPF tracing 系统的阶段性工作。系统面向 VMM、Guest Kernel 和 Guest Userspace 三个执行层次，目标是把分散的事件源接入同一条程序装载、命中处理、运行时执行和事件输出链路中。实现过程中，先建立了 tracepoint、runtime、map、helper 和统一事件流等基础设施，再逐步扩展到 <code>hprobe/hretprobe</code>、<code>guest-kprobe/kretprobe</code> 与 <code>guest-uprobe/uretprobe</code>。其中，userspace tracing 重点解决了对象元数据装载、运行期激活、实例管理和生命周期回收等问题。最终形成了一套可以继续扩展、并已具备联调与验收路径的 tracing 基础框架。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2026/04/26/2026%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 
