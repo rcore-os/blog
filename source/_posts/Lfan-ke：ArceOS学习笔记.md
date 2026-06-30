@@ -1,20 +1,22 @@
 ---
-title: 穿越操作系统的迷雾
+title: 'Lfan-ke: 穿越操作系统的迷雾'
 date: 2025-05-29 10:38:44
 categories:
+    - Leo Cheng
+    - 补完计划
     - ArceOS
     - 阶段三
     - 2025S
-    - 补完计划
 tags:
-    - author:Lfan-ke
+    - author:逸仙fan
+    - alias:禾可
     - repo:https://github.com/LearningOS/2025s-arceos-Lfan-ke
 mathjax: true
 mermaid.js: true
 mermaid:
     enable:true
     theme:default
-descriptions: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲来二期操作系统训练营、YSYX学习计划、DeepSeek补充、底层补完计划、部分博客与第三方内容……
+description: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲来二期操作系统训练营、YSYX学习计划、DeepSeek补充、底层补完计划、部分博客与第三方内容……
 ---
 
 # Lfan-ke：第三阶段总结报告
@@ -129,13 +131,13 @@ endmodule
 
 `虚拟化-Hypervisor`和`仿真器-Emulator`的区别
 
-| **\**        | **虚拟化**          | **仿真器**   |  
-|:----------:  |:-------------------:|:----------:|  
-|指令集        | 与宿主机相同         | 与宿主机不同  |  
-|性能          | 接近原生             | 显著下降|  
-|硬件依赖      | 需要相同架构         |  可跨架构   | 
-|常见工具      | VMware/KVM/Hyper-V   |  QEMU/Wine/Spike  |  
-|应用场景      | 云计算，多系统隔离   |  跨平台兼容  | 
+| **\**        | **虚拟化**          | **仿真器**   |
+|:----------:  |:-------------------:|:----------:|
+|指令集        | 与宿主机相同         | 与宿主机不同  |
+|性能          | 接近原生             | 显著下降|
+|硬件依赖      | 需要相同架构         |  可跨架构   |
+|常见工具      | VMware/KVM/Hyper-V   |  QEMU/Wine/Spike  |
+|应用场景      | 云计算，多系统隔离   |  跨平台兼容  |
 |详细举例      | 阿里云ECS的CPU核数实际上是vCPU | QEMU |
 
 ---
