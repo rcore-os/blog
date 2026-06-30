@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="一、项目背景2026 春季开源操作系统训练营的项目阶段提供了多个实践方向。我参加的是项目一：宏内核 StarryOS。这个方向的核心任务是在已有 StarryOS &#x2F; tgoskits 代码基础上，围绕 Linux 兼容性、真实应用运行和系统调用语义完善做增量改进。 从项目页给出的任务组织方式来看，StarryOS 的改进可以从单个 syscall 或 bugfix 入手，也可以从真实 Linux">
+<meta property="og:type" content="article">
+<meta property="og:title" content="20260627-LetsWalkInLine-2026春季训练营总结报告：围绕 StarryOS Linux 兼容性的若干修复与探索">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/06/27/20260627-LetsWalkInLine-2026%E6%98%A5%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A%EF%BC%9A%E5%9B%B4%E7%BB%95-StarryOS-Linux-%E5%85%BC%E5%AE%B9%E6%80%A7%E7%9A%84%E8%8B%A5%E5%B9%B2%E4%BF%AE%E5%A4%8D%E4%B8%8E%E6%8E%A2%E7%B4%A2/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="一、项目背景2026 春季开源操作系统训练营的项目阶段提供了多个实践方向。我参加的是项目一：宏内核 StarryOS。这个方向的核心任务是在已有 StarryOS &#x2F; tgoskits 代码基础上，围绕 Linux 兼容性、真实应用运行和系统调用语义完善做增量改进。 从项目页给出的任务组织方式来看，StarryOS 的改进可以从单个 syscall 或 bugfix 入手，也可以从真实 Linux">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-06-27T16:17:09.000Z">
+<meta property="article:modified_time" content="2026-06-30T01:59:56.804Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="2026S">
+<meta property="article:tag" content="author:LetsWalkInLine">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;LetsWalkInLine&#x2F;tgoskits">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/06/27/20260627-LetsWalkInLine-2026%E6%98%A5%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A%EF%BC%9A%E5%9B%B4%E7%BB%95-StarryOS-Linux-%E5%85%BC%E5%AE%B9%E6%80%A7%E7%9A%84%E8%8B%A5%E5%B9%B2%E4%BF%AE%E5%A4%8D%E4%B8%8E%E6%8E%A2%E7%B4%A2/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>20260627-LetsWalkInLine-2026春季训练营总结报告：围绕 StarryOS Linux 兼容性的若干修复与探索 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、项目背景"><span class="nav-number">1.</span> <span class="nav-text">一、项目背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、训练营先导阶段的学习"><span class="nav-number">2.</span> <span class="nav-text">二、训练营先导阶段的学习</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、主要工作"><span class="nav-number">3.</span> <span class="nav-text">三、主要工作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-工作方法"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 工作方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-主线一：信号测试、futex-与-robust-list-语义修复"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 主线一：信号测试、futex 与 robust-list 语义修复</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-1-starry-signal-跨架构-restore-测试修复"><span class="nav-number">3.2.1.</span> <span class="nav-text">3.2.1 starry-signal 跨架构 restore 测试修复</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-2-futex-robust-list-第一阶段修复"><span class="nav-number">3.2.2.</span> <span class="nav-text">3.2.2 futex &#x2F; robust-list 第一阶段修复</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-3-futex-robust-list-继续完善"><span class="nav-number">3.2.3.</span> <span class="nav-text">3.2.3 futex &#x2F; robust-list 继续完善</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-主线二：nginx-smoke-暴露出的-socket-兼容性问题"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 主线二：nginx smoke 暴露出的 socket 兼容性问题</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-1-FIOASYNC-与-socket-owner-状态"><span class="nav-number">3.3.1.</span> <span class="nav-text">3.3.1 FIOASYNC 与 socket owner 状态</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-2-TCP-socket-FIONREAD"><span class="nav-number">3.3.2.</span> <span class="nav-text">3.3.2 TCP socket FIONREAD</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-主线三：cgroup2-初始支持与后续探索"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 主线三：cgroup2 初始支持与后续探索</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-4-1-为什么转向-cgroup"><span class="nav-number">3.4.1.</span> <span class="nav-text">3.4.1 为什么转向 cgroup</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-4-2-cgroup2-root-文件支持"><span class="nav-number">3.4.2.</span> <span class="nav-text">3.4.2 cgroup2 root 文件支持</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-4-3-cgroup2-hierarchy-的-mkdir-rmdir"><span class="nav-number">3.4.3.</span> <span class="nav-text">3.4.3 cgroup2 hierarchy 的 mkdir &#x2F; rmdir</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-4-4-1045-的状态"><span class="nav-number">3.4.4.</span> <span class="nav-text">3.4.4 #1045 的状态</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、量化成果与达到的效果"><span class="nav-number">4.</span> <span class="nav-text">四、量化成果与达到的效果</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、一些感想和收获"><span class="nav-number">5.</span> <span class="nav-text">五、一些感想和收获</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、未完成边界"><span class="nav-number">6.</span> <span class="nav-text">六、未完成边界</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-futex-robust-list"><span class="nav-number">6.1.</span> <span class="nav-text">6.1 futex &#x2F; robust-list</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-nginx"><span class="nav-number">6.2.</span> <span class="nav-text">6.2 nginx</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-cgroup"><span class="nav-number">6.3.</span> <span class="nav-text">6.3 cgroup</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#七、工作仓库"><span class="nav-number">7.</span> <span class="nav-text">七、工作仓库</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#八、总结"><span class="nav-number">8.</span> <span class="nav-text">八、总结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">782</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">733</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-LetsWalkInLine-2026%E6%98%A5%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A%EF%BC%9A%E5%9B%B4%E7%BB%95-StarryOS-Linux-%E5%85%BC%E5%AE%B9%E6%80%A7%E7%9A%84%E8%8B%A5%E5%B9%B2%E4%BF%AE%E5%A4%8D%E4%B8%8E%E6%8E%A2%E7%B4%A2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          20260627-LetsWalkInLine-2026春季训练营总结报告：围绕 StarryOS Linux 兼容性的若干修复与探索
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-27 16:17:09" itemprop="dateCreated datePublished" datetime="2026-06-27T16:17:09+00:00">2026-06-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 01:59:56" itemprop="dateModified" datetime="2026-06-30T01:59:56+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="一、项目背景"><a href="#一、项目背景" class="headerlink" title="一、项目背景"></a>一、项目背景</h2><p>2026 春季开源操作系统训练营的项目阶段提供了多个实践方向。我参加的是项目一：宏内核 StarryOS。这个方向的核心任务是在已有 StarryOS / tgoskits 代码基础上，围绕 Linux 兼容性、真实应用运行和系统调用语义完善做增量改进。</p>
+<p>从项目页给出的任务组织方式来看，StarryOS 的改进可以从单个 syscall 或 bugfix 入手，也可以从真实 Linux app 的运行路径入手，再逐步扩展到更完整的系统能力。我的工作基本涉及到了这两类：</p>
+<ol>
+<li>从 syscall 测例出发修复 futex、robust-list 等基础 ABI 语义；</li>
+<li>从 nginx smoke 测试和后续 Docker 前置能力出发，修复 socket ioctl 和 cgroup2 的早期支持问题。</li>
+</ol>
+<p>这些工作由若干个相对独立的小 PR 组成，它们都遵循同一个流程：先用用户态可观察行为暴露 StarryOS 与 Linux ABI 的差异，再通过较小范围的内核修改和测试用例把差异收敛下来。</p>
+<a id="more"></a>
+
+<h2 id="二、训练营先导阶段的学习"><a href="#二、训练营先导阶段的学习" class="headerlink" title="二、训练营先导阶段的学习"></a>二、训练营先导阶段的学习</h2><p>在进入项目阶段之前，我主要完成了 rCore 和 ArceOS 相关学习和实验。专业阶段阅读 rCore 时，我重点记录了几个操作系统核心抽象和机制，包括进程、虚拟内存、文件、设备、系统调用接口，以及上下文切换、中断和页表等内容。</p>
+<p>这一阶段的学习涉及到的细节内容此处就不展开赘述了。在学习的过程中，我遇到的最大的困难是理解rcore的文件系统这一章节内容，相比于其他章节，文件系统这一部分内容的抽象嵌套深度是最深的，课后实验做起来也最费时间。面对好几层的抽象设计，我一度感到迷茫，好在有ai的帮忙，我才逐渐理解了文件系统的设计思路和实现细节。</p>
+<h2 id="三、主要工作"><a href="#三、主要工作" class="headerlink" title="三、主要工作"></a>三、主要工作</h2><h3 id="3-1-工作方法"><a href="#3-1-工作方法" class="headerlink" title="3.1 工作方法"></a>3.1 工作方法</h3><p>项目阶段里我一以贯之地采用了同一种工作方式：</p>
+<ol>
+<li>先找到一个用户态可观察的问题，例如某个 syscall 返回错误、某个 Linux app 在固定路径失败，或者某个 pseudo filesystem 文件行为不符合预期。</li>
+<li>尽量把问题缩小成一个 focused C 测例或 QEMU case，不依赖大型应用的整体启动结果。</li>
+<li>对照 Linux ABI 或已有代码设计，确认应当修复的是错误码、状态更新、生命周期，还是 VFS / task / socket 等模块之间的协作关系。</li>
+<li>尽量做最小范围的修改，并在 PR 中说明本次覆盖范围和未覆盖范围。在与AI协作的同时也明确告诉AI改动的边界，避免对未覆盖范围做出不必要的假设。</li>
+<li>在 x86_64、aarch64、riscv64、loongarch64 等 StarryOS 支持的架构上运行目标测试，避免只在单一架构上验证。</li>
+</ol>
+<p>这个工作方式可以让每个 PR 的目标比较明确，也便于 review。但它的局限也很明显：如果问题本身牵涉很广，比如完整 Docker、完整 nginx 或完整 cgroup controller，那么单个 PR 只能推进其中一个小范围的垂直功能，不能把它包装成“已经完整支持”，而且过于谨慎的态度会导致开发进度偏慢，影响到其他相关模块的同学的工作。对此，我所遇到的cgroup v2的PR冲突就是一个教训。</p>
+<h3 id="3-2-主线一：信号测试、futex-与-robust-list-语义修复"><a href="#3-2-主线一：信号测试、futex-与-robust-list-语义修复" class="headerlink" title="3.2 主线一：信号测试、futex 与 robust-list 语义修复"></a>3.2 主线一：信号测试、futex 与 robust-list 语义修复</h3><p>这一部分的工作主要包括三个 PR：</p>
+<ul>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/468" target="_blank" rel="noopener">rcore-os/tgoskits#468</a>：修复 <code>starry-signal</code> restore 测试中的跨架构栈假设。</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/545" target="_blank" rel="noopener">rcore-os/tgoskits#545</a>：修复 futex wait / requeue / robust-list owner death 的基础语义。</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/657" target="_blank" rel="noopener">rcore-os/tgoskits#657</a>：进一步完善 futex / robust-list 的 Linux ABI 基础语义。</li>
+</ul>
+<p>下文将做详细介绍。</p>
+<h4 id="3-2-1-starry-signal-跨架构-restore-测试修复"><a href="#3-2-1-starry-signal-跨架构-restore-测试修复" class="headerlink" title="3.2.1 starry-signal 跨架构 restore 测试修复"></a>3.2.1 <code>starry-signal</code> 跨架构 restore 测试修复</h4><blockquote>
+<p>这份工作是我在正式开始项目阶段前选取的一个issue中报告的小bug练练手，体验一下社区协作的感觉</p>
+</blockquote>
+<p><a href="https://github.com/rcore-os/tgoskits/pull/468" target="_blank" rel="noopener">#468</a> 是一个规模较小但比较典型的修复。原测试在调用 <code>restore()</code> 前无条件调整栈指针，这个行为符合 x86_64 handler 通过栈上 restorer 和 <code>ret</code> 返回时会消耗 8 字节的情况，但并不适用于 aarch64、riscv64、loongarch64 等架构。</p>
+<p>这个问题本质上是测试把 x86_64 的特殊返回路径当成了所有架构的通用行为。修复方式也比较克制：提取 helper，并且只在 <code>target_arch = &quot;x86_64&quot;</code> 时调整 <code>sp</code>，其他架构保持 <code>sp</code> 指向真实 <code>SignalFrame</code> 起点。</p>
+<p>这个 PR 的价值在于消除了一个跨架构测试假设，避免后续开发者在 aarch64 等架构上被错误测试误导。</p>
+<h4 id="3-2-2-futex-robust-list-第一阶段修复"><a href="#3-2-2-futex-robust-list-第一阶段修复" class="headerlink" title="3.2.2 futex / robust-list 第一阶段修复"></a>3.2.2 futex / robust-list 第一阶段修复</h4><p><a href="https://github.com/rcore-os/tgoskits/pull/545" target="_blank" rel="noopener">#545</a> 处理的是 StarryOS futex 和 robust-list 相关的一组基础兼容性问题。futex 这类接口表面上只是一个 syscall，但它背后影响 pthread condition variable、robust mutex、语言运行时和更复杂用户态程序的同步行为，是一个较为核心和复杂的系统调用。</p>
+<p>这一阶段主要修复了：</p>
+<ul>
+<li><code>FUTEX_WAIT</code> 超时或中断后的 waiter 清理问题。</li>
+<li><code>FUTEX_REQUEUE</code> 后 waiter 身份在目标队列中的冲突问题。</li>
+<li><code>FUTEX_WAIT_BITSET</code> / <code>FUTEX_WAKE_BITSET</code> 对 <code>val3 == 0</code> 的参数校验。</li>
+<li>robust-list owner death 对用户态 futex word 的 Linux ABI 更新方式。</li>
+</ul>
+<p>为了验证这些行为，我新增了 <code>test-futex-robust-list</code> 测例，直接使用 C 语言 raw <code>syscall()</code> 调用，尽量避免 glibc 或 pthread 封装掩盖内核行为。该 PR 后 case 在多个架构上通过，测试达到 <code>64 pass, 0 fail</code>。</p>
+<h4 id="3-2-3-futex-robust-list-继续完善"><a href="#3-2-3-futex-robust-list-继续完善" class="headerlink" title="3.2.3 futex / robust-list 继续完善"></a>3.2.3 futex / robust-list 继续完善</h4><p><a href="https://github.com/rcore-os/tgoskits/pull/657" target="_blank" rel="noopener">#657</a> 是 <a href="https://github.com/rcore-os/tgoskits/pull/545" target="_blank" rel="noopener">#545</a> 的后续，重点从“修复明显错误”推进到“整理基础语义”。这个 PR 增加了 futex command / option bits 的集中解析，补充了 <code>FUTEX_PRIVATE_FLAG</code>、<code>FUTEX_CLOCK_REALTIME</code> 合法性、private/shared key、requeue cleanup 元数据、robust-list pending entry 和坏链/环链等边界处理。</p>
+<p>对应的 <code>test-futex-robust-list</code> 也扩展到 <code>146 pass, 0 fail</code>,使得基础 wait/wake、bitset、requeue、robust-list owner death 和一批错误码行为具备了可回归的测试覆盖。</p>
+<p>在 PR 中我也明确保留了未完成范围，例如 PI futex、<code>FUTEX_WAKE_OP</code>、futex2、完整 signal interruption / restart、shared futex key 的完整生命周期审计等。这些内容复杂度明显更高，不适合在这个 PR 中承诺。对于和Linux行为完全一样的futex全家桶的实现，我也没有继续往下推进，因为可以预见这是一个较为复杂和具有较大破坏性的工作，可能会影响到其他模块的稳定性。</p>
+<h3 id="3-3-主线二：nginx-smoke-暴露出的-socket-兼容性问题"><a href="#3-3-主线二：nginx-smoke-暴露出的-socket-兼容性问题" class="headerlink" title="3.3 主线二：nginx smoke 暴露出的 socket 兼容性问题"></a>3.3 主线二：nginx smoke 暴露出的 socket 兼容性问题</h3><p>这一部分的工作主要包括：</p>
+<ul>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/796" target="_blank" rel="noopener">rcore-os/tgoskits#796</a>：支持 nginx worker channel 初始化依赖的 socket <code>FIOASYNC</code> / owner 状态。</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/869" target="_blank" rel="noopener">rcore-os/tgoskits#869</a>：支持 TCP socket <code>FIONREAD</code>，并补充 nginx smoke 测试入口。</li>
+</ul>
+<p>针对nginx的适配工作，下文是详细介绍。</p>
+<h4 id="3-3-1-FIOASYNC-与-socket-owner-状态"><a href="#3-3-1-FIOASYNC-与-socket-owner-状态" class="headerlink" title="3.3.1 FIOASYNC 与 socket owner 状态"></a>3.3.1 <code>FIOASYNC</code> 与 socket owner 状态</h4><p>在排查 nginx 运行路径时，我发现 nginx worker 启动过程中会通过 <code>socketpair(AF_UNIX, SOCK_STREAM)</code> 创建 worker channel，并对 channel fd 设置非阻塞、异步通知和 owner 相关状态。StarryOS 当时缺少 <code>ioctl(FIOASYNC)</code> 支持，导致 nginx 初始化路径在用户态直接失败。</p>
+<p>因此，<a href="https://github.com/rcore-os/tgoskits/pull/796" target="_blank" rel="noopener">#796</a> 的目标是补齐 nginx 当前路径需要的最小状态语义：</p>
+<ul>
+<li><code>ioctl(FIOASYNC)</code> 能从用户态读取开关并更新 socket async 状态。</li>
+<li><code>F_GETFL</code> 能反映 <code>FASYNC</code> / <code>O_ASYNC</code> 状态。</li>
+<li><code>F_SETFL</code> 能同步处理 async 位，同时保留 <code>O_NONBLOCK</code> 等已有状态。</li>
+<li>socket 支持 <code>F_SETOWN</code> / <code>F_GETOWN</code> owner 状态。</li>
+<li>对空指针、非法 fd 等错误路径返回明确 errno。</li>
+</ul>
+<p>这个 PR 新增了 <code>bug-nginx-fioasync</code> 测例，用一个较小的用户态程序覆盖 nginx worker channel 所需的行为，避免每次都只通过完整 nginx 启动结果判断修复是否有效。</p>
+<h4 id="3-3-2-TCP-socket-FIONREAD"><a href="#3-3-2-TCP-socket-FIONREAD" class="headerlink" title="3.3.2 TCP socket FIONREAD"></a>3.3.2 TCP socket <code>FIONREAD</code></h4><p><a href="https://github.com/rcore-os/tgoskits/pull/869" target="_blank" rel="noopener">#869</a> 继续来自 nginx smoke 的排查。基础 nginx 链路已经能完成安装、配置检查、单进程启动、master/worker、reload/quit、静态 GET/HEAD、sendfile 大文件、Range、小 POST 和多次短连接。后续异常集中在 sendfile 配置下的超限 POST：客户端发送超过 <code>client_max_body_size</code> 的 body 时，nginx 没有返回预期 413，而是出现 empty reply。</p>
+<p>日志中能看到 nginx 在 request body 路径上调用了 <code>ioctl(FIONREAD)</code>，而 StarryOS 对 TCP socket 返回了类似 <code>ENOTTY</code> 的错误。这个错误会让 nginx 的对应路径失败。</p>
+<p><a href="https://github.com/rcore-os/tgoskits/pull/869" target="_blank" rel="noopener">#869</a> 因此实现了 TCP stream socket 的 <code>FIONREAD</code>：</p>
+<ul>
+<li>accepted TCP socket 初始返回 0。</li>
+<li>client 写入数据后，server 端返回 receive queue 中完整未读字节数。</li>
+<li>server 部分读取后，返回剩余未读字节数。</li>
+<li>读空后返回 0。</li>
+<li>listening socket 上的 <code>FIONREAD</code> 返回 <code>EINVAL</code>。</li>
+<li>空指针返回 <code>EFAULT</code>。</li>
+</ul>
+<p>这个 PR 同时新增了 <code>bug-nginx-fionread-socket</code> 和 <code>nginx-smoke</code> 相关测试入口。修复后，原先由 <code>FIONREAD</code> 阻塞的超限 POST 路径能够推进到预期 413。</p>
+<p>这里同样需要明确边界：PR 没有实现 UDP、RAW、AF_UNIX datagram 的 <code>FIONREAD</code>，没有实现 Linux AIO syscall family，也没有解决 nginx keep-alive 两连请求等后续 smoke 暴露的问题。它只是解决了一个具体、可复现、可验证的阻塞点。</p>
+<h3 id="3-4-主线三：cgroup2-初始支持与后续探索"><a href="#3-4-主线三：cgroup2-初始支持与后续探索" class="headerlink" title="3.4 主线三：cgroup2 初始支持与后续探索"></a>3.4 主线三：cgroup2 初始支持与后续探索</h3><p>cgroup 方向主要包括：</p>
+<ul>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/989" target="_blank" rel="noopener">rcore-os/tgoskits#989</a>：添加 cgroup2 初始 root 文件支持。</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1015" target="_blank" rel="noopener">rcore-os/tgoskits#1015</a>：支持 cgroup2 hierarchy 的 <code>mkdir</code> / <code>rmdir</code>。</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1045" target="_blank" rel="noopener">rcore-os/tgoskits#1045</a>：提交过 cgroup2 process migration 和 <code>/proc/[pid]/cgroup</code> 支持，但最终关闭，未合并。</li>
+</ul>
+<h4 id="3-4-1-为什么转向-cgroup"><a href="#3-4-1-为什么转向-cgroup" class="headerlink" title="3.4.1 为什么转向 cgroup"></a>3.4.1 为什么转向 cgroup</h4><p>因为平时看了一些unikernel和container相关的论文，在 nginx 方向推进一段时间后，我开始调研 cgroup 支持情况。cgroup 是 Docker、systemd 和更完整 Linux 发行版兼容路径中的关键基础设施之一。cgroup 提供了进程分组、资源限制、监控和隔离的能力。在我的工作正式开展之前，StarryOS 对 cgroup 的支持几乎等于一片空白，仅有一些其他模块的 stub 或者 fake 接口。</p>
+<p>因此我在 <a href="https://github.com/rcore-os/tgoskits/issues/582" target="_blank" rel="noopener">#582</a> 中采用了 slice 化的计划：避免直接提交一个上千行的大PR，而是按 <code>mount cgroup2 -&gt; root interface files -&gt; hierarchy -&gt; cgroup.procs membership -&gt; /proc/[pid]/cgroup -&gt; fork/exit -&gt; pids controller</code> 的路径逐步推进，每个PR控制在一千行以内，一个PR实现一个小范围的垂直功能。</p>
+<p>在这个方向的工作过程中，无论是在与AI协作还是在撰写PR body，涉及到新增 cgroup 文件时，都要说明它是真实语义、只读兼容，还是未支持并返回错误。尽量避免“写入成功但没有实际效果”的 fake success。</p>
+<h4 id="3-4-2-cgroup2-root-文件支持"><a href="#3-4-2-cgroup2-root-文件支持" class="headerlink" title="3.4.2 cgroup2 root 文件支持"></a>3.4.2 cgroup2 root 文件支持</h4><p><a href="https://github.com/rcore-os/tgoskits/pull/989" target="_blank" rel="noopener">#989</a> 是 cgroup 支持的第一阶段。它的目标是让 StarryOS 能显式挂载最小 cgroup2，并暴露 root cgroup 下的基础 interface files：</p>
+<ul>
+<li>支持 <code>mount(&quot;none&quot;, target, &quot;cgroup2&quot;, 0, NULL)</code>。</li>
+<li>暴露 <code>cgroup.procs</code>、<code>cgroup.controllers</code>、<code>cgroup.subtree_control</code>。</li>
+<li>root <code>cgroup.procs</code> 能读到当前活跃进程 PID 列表。</li>
+<li>在没有真实 controller 前，<code>cgroup.controllers</code> 和 <code>cgroup.subtree_control</code> 保持为空。</li>
+<li>未实现写操作返回明确错误。</li>
+<li>cgroup v1 <code>mount -t cgroup</code> 继续返回 <code>ENODEV</code>。</li>
+</ul>
+<p>这个 PR 新增了 <code>cgroup-basic</code> 测例，在四个平台 QEMU 上达到 <code>11 pass, 0 fail</code>。它不实现 cgroup 层级、controller、进程迁移、<code>/proc/[pid]/cgroup</code>、pids/cpu/memory controller 或 cgroup namespace。</p>
+<h4 id="3-4-3-cgroup2-hierarchy-的-mkdir-rmdir"><a href="#3-4-3-cgroup2-hierarchy-的-mkdir-rmdir" class="headerlink" title="3.4.3 cgroup2 hierarchy 的 mkdir / rmdir"></a>3.4.3 cgroup2 hierarchy 的 <code>mkdir</code> / <code>rmdir</code></h4><p><a href="https://github.com/rcore-os/tgoskits/pull/1015" target="_blank" rel="noopener">#1015</a> 在 <a href="https://github.com/rcore-os/tgoskits/pull/989" target="_blank" rel="noopener">#989</a> 基础上继续推进，目标是支持 child cgroup 的创建、查找和删除。这个 PR 引入了全局 cgroup tree，维护 cgroup id、父子关系、child 名称映射和基础路径查询，并让 cgroup2fs 的目录操作真实修改这棵 tree。</p>
+<p>实现中还遇到 VFS 动态目录和缓存之间的关系问题。cgroup2fs 目录不是静态目录，它的 child 会随着 <code>mkdir</code> / <code>rmdir</code> 变化。如果直接复用 per-instance dentry cache，容易出现删除后仍能从旧句柄看到 stale child 的问题。因此该 PR 将 <code>CgroupDir::is_cacheable()</code> 设为 <code>false</code>，并补充了 <code>has_children()</code> hook，让空目录删除只统计真实 child cgroup，而不是被 interface files 阻塞。</p>
+<p>对应的 <code>cgroup-basic</code> 扩展到 <code>43 pass, 0 fail</code>，覆盖 child / nested 创建、重复创建、非空 parent 删除失败、空目录删除成功、删除后 lookup/stat 失败、普通文件创建 / hard link / symlink / rename 的失败行为等。</p>
+<p>这个 PR 仍不实现 per-process membership、<code>cgroup.procs</code> 迁移、fork/exit 继承与清理、<code>/proc/[pid]/cgroup</code> 或 controller。它的定位是 hierarchy 基础。</p>
+<h4 id="3-4-4-1045-的状态"><a href="#3-4-4-1045-的状态" class="headerlink" title="3.4.4 #1045 的状态"></a>3.4.4 #1045 的状态</h4><p><a href="https://github.com/rcore-os/tgoskits/pull/1045" target="_blank" rel="noopener">#1045</a> 是我基于 <a href="https://github.com/rcore-os/tgoskits/pull/1015" target="_blank" rel="noopener">#1015</a> 继续提交的后续 PR，目标是实现 <code>cgroup.procs</code> 进程迁移、fork 继承、退出清理和 <code>/proc/[pid]/cgroup</code> 视图。这个 PR 曾经过 review，并处理过一些同步和锁序问题；后续因为存在增量功能更多、更完整的 PR，以及与其他维护者工作重叠与冲突，在与其他维护者进行沟通后，后续由我关闭，没有合入上游。</p>
+<p>PR <a href="https://github.com/rcore-os/tgoskits/pull/1045" target="_blank" rel="noopener">#1045</a> 经过了我一个星期的学习和打磨，但最终因为和其他同学的冲突而没能真正合并，让我不可避免地感到有些沮丧。不过更重要的是它让我意识到：在一个快速变化的社区仓库里，技术实现只是开源协作的一部分。及时同步上游进展、确认任务边界、避免和其他人的 PR 产生长期冲突，是非常重要的，这既可以避免不必要的重复劳动，也可以在交流的过程中打磨方案。</p>
+<h2 id="四、量化成果与达到的效果"><a href="#四、量化成果与达到的效果" class="headerlink" title="四、量化成果与达到的效果"></a>四、量化成果与达到的效果</h2><p>截至 2026-05-31 比赛提交时，我在 <code>rcore-os/tgoskits</code> 主仓库共有 7 个已合并 PR：</p>
+<table>
+<thead>
+<tr>
+<th>PR</th>
+<th>主题</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/468" target="_blank" rel="noopener">#468</a></td>
+<td>修复 <code>starry-signal</code> restore 测试中的跨架构栈假设</td>
+<td>Merged</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/545" target="_blank" rel="noopener">#545</a></td>
+<td>修复 futex wait / requeue / robust-list owner death 基础语义</td>
+<td>Merged</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/657" target="_blank" rel="noopener">#657</a></td>
+<td>进一步完善 futex / robust-list Linux ABI 基础语义</td>
+<td>Merged</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/796" target="_blank" rel="noopener">#796</a></td>
+<td>支持 nginx 初始化依赖的 socket <code>FIOASYNC</code> / owner 状态</td>
+<td>Merged</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/869" target="_blank" rel="noopener">#869</a></td>
+<td>支持 TCP socket <code>FIONREAD</code>，修复 nginx 超限 POST 阻塞点</td>
+<td>Merged</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/989" target="_blank" rel="noopener">#989</a></td>
+<td>添加 cgroup2 初始 root 文件支持和 <code>cgroup-basic</code> 测试</td>
+<td>Merged</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1015" target="_blank" rel="noopener">#1015</a></td>
+<td>支持 cgroup2 hierarchy 的 <code>mkdir</code> / <code>rmdir</code> 基础能力</td>
+<td>Merged</td>
+</tr>
+</tbody></table>
+<p>按 GitHub PR 统计口径，这 7 个已合并 PR 共涉及 17 个提交、50 个变更文件，合计 <code>+4007/-224</code> 行。这个统计包含测试代码、QEMU 配置、支撑代码。</p>
+<p>另有 <a href="https://github.com/rcore-os/tgoskits/pull/1045" target="_blank" rel="noopener">#1045</a> 曾提交 cgroup2 process migration 和 <code>/proc/[pid]/cgroup</code> 支持。该 PR 尚未合入；截至本文撰写时，它已关闭且未合并。</p>
+<p>除 tgoskits 主仓库外，我还在 <code>arceos-org/axcpu</code> 提交过两个相关 PR：</p>
+<ul>
+<li><a href="https://github.com/arceos-org/axcpu/pull/28" target="_blank" rel="noopener">arceos-org/axcpu#28</a></li>
+<li><a href="https://github.com/arceos-org/axcpu/pull/30" target="_blank" rel="noopener">arceos-org/axcpu#30</a></li>
+</ul>
+<p>这两个 PR 是同一 RISC-V FP/SIMD 上下文切换修复分别合入 <code>dev</code> 和 <code>main</code> 的记录，问题来源与下游 StarryOS 在 riscv64 + RustSBI 下的启动问题有关。它们不是 tgoskits 主仓库成果，因此这里只作为社区相关贡献补充说明。</p>
+<h2 id="五、一些感想和收获"><a href="#五、一些感想和收获" class="headerlink" title="五、一些感想和收获"></a>五、一些感想和收获</h2><p>本次训练营毫无疑问是关于OS的，也的确让我对OS拥有了更加深入的理解。但在工作的过程中，我认为我收获最大的反而是如何与AI Agent协作进行大规模工程的局部理解和开发以及如何参与社区协作。</p>
+<p>在整篇文章涉及的scope里，我在相关工作中所花费的token总数为5.45亿，从GitHub copilot学生订阅，到中转站，到最后订阅ChatGPT Plus，为了获取强大的AI而八仙过海各显神通。也是在这个过程中让我慢慢固定了spec驱动的TDD开发工作流，然而毫无疑问，在训练营之外面对其他的工作时，需要不断的更新和锻炼使用AI的能力，让AI更好的服务于我，而不是取代我。</p>
+<p>但很显然，AI无法实现我们向它许下的所有愿望。涉及内核状态、锁顺序、生命周期和错误码时，最终仍然需要自己确认。比如 cgroup membership 的 live count、process table 与 cgroup tree 的锁顺序、<code>ProcessData::Drop</code> 和 wait reap 的关系等问题，在前几次的协作中AI都没有发现，只有在多次review下才暴露出来。因此，AI 更像一个高效的辅助 reviewer，而不是可以替代工程判断的实现者。如果在使用AI的过程中放弃思考，那么产出的代码会变成技术债务，而非技术资产，由技术债堆积起来的繁荣泡沫，总有要破灭的一天。</p>
+<p>当然，最重要的收获当然是对OS的认识和项目协作了。在交流中老师强调“小步快跑”，我的体验也基本如此。小 PR 更容易 review，也更容易在 CI 和 QEMU 测试中定位问题。然而小步推进并不意味着没有协作成本。上文提到的 <a href="https://github.com/rcore-os/tgoskits/pull/1045" target="_blank" rel="noopener">#1045</a> 就是一个例子，给不喜欢与陌生人打交道的我上了一课。</p>
+<h2 id="六、未完成边界"><a href="#六、未完成边界" class="headerlink" title="六、未完成边界"></a>六、未完成边界</h2><p>这里单独列出我的工作后续可以/应该完成但我尚未完成的内容（可能最新状态已经被其他人实现或完成了）。</p>
+<h3 id="6-1-futex-robust-list"><a href="#6-1-futex-robust-list" class="headerlink" title="6.1 futex / robust-list"></a>6.1 futex / robust-list</h3><p>我的已合并工作覆盖了基础 wait/wake、bitset、requeue、普通 robust-list owner death 等语义，但尚未实现或完整审计：</p>
+<ul>
+<li>PI futex，例如 <code>FUTEX_LOCK_PI</code>、<code>FUTEX_UNLOCK_PI</code>、<code>FUTEX_WAIT_REQUEUE_PI</code>。</li>
+<li><code>FUTEX_WAKE_OP</code>。</li>
+<li>futex2 / <code>futex_waitv</code>。</li>
+<li>更完整的 signal restart / interruption 细节。</li>
+<li>shared futex key 在文件映射、COW、unmap/remap、inode 生命周期下的完整性。</li>
+</ul>
+<h3 id="6-2-nginx"><a href="#6-2-nginx" class="headerlink" title="6.2 nginx"></a>6.2 nginx</h3><p>我的工作修复的是 nginx smoke 暴露出的两个具体 socket ioctl 阻塞点：</p>
+<ul>
+<li><code>FIOASYNC</code> / socket owner 状态。</li>
+<li>TCP socket <code>FIONREAD</code>。</li>
+</ul>
+<p>尚未完成：</p>
+<ul>
+<li>完整 <code>SIGIO</code> 投递。</li>
+<li>UDP / RAW / AF_UNIX datagram 的 <code>FIONREAD</code>。</li>
+<li>Linux AIO syscall family。</li>
+<li>nginx keep-alive 两连请求等后续 smoke 暴露的问题。</li>
+<li>完整 nginx 生产级兼容性。</li>
+</ul>
+<h3 id="6-3-cgroup"><a href="#6-3-cgroup" class="headerlink" title="6.3 cgroup"></a>6.3 cgroup</h3><p>我的已合并工作只能描述为 cgroup2 初始支持和 hierarchy 基础能力。尚未完成：</p>
+<ul>
+<li>per-process cgroup membership 的合入。</li>
+<li>写 <code>cgroup.procs</code> 迁移进程的上游合入。</li>
+<li>fork/clone 继承、exit 清理的上游合入。</li>
+<li><code>/proc/[pid]/cgroup</code> 的上游合入。</li>
+<li>pids/cpu/memory/io/cpuset controller。</li>
+<li>cgroup namespace、<code>clone3.cgroup</code>、<code>CLONE_INTO_CGROUP</code>。</li>
+<li>systemd / Docker 完整兼容。</li>
+</ul>
+<h2 id="七、工作仓库"><a href="#七、工作仓库" class="headerlink" title="七、工作仓库"></a>七、工作仓库</h2><ul>
+<li>过程追踪issue整理在：<a href="https://github.com/rcore-os/tgoskits/issues/582" target="_blank" rel="noopener">rcore-os/tgoskits#582</a></li>
+<li>开发分支：<a href="https://github.com/LetsWalkInLine/tgoskits/tree/local/dev" target="_blank" rel="noopener">LetsWalkInLine/tgoskits</a></li>
+</ul>
+<h2 id="八、总结"><a href="#八、总结" class="headerlink" title="八、总结"></a>八、总结</h2><p>总的来说，这次训练营项目阶段，我的贡献比较分散，计划聚焦的cgroup方向没能完全走下去，但在信号、futex、socket ioctl 和 cgroup2 mount / hierarchy 等方面都做了力所能及的贡献，也算是收获与遗憾并存吧。</p>
+<ul>
+<li>修正了一个跨架构 signal restore 测试假设。</li>
+<li>推进了 futex / robust-list 的基础 Linux ABI 语义。</li>
+<li>修复了 nginx smoke 暴露出的两个 socket ioctl 阻塞点。</li>
+<li>为 cgroup2 mount、root interface files 和 hierarchy 建立了初始实现与测试。</li>
+</ul>
+<p>这些工作虽然都只是 StarryOS 持续演进中的一小部分，但它们对应真实问题、公开 PR、review 过程和可复核测试。对我个人来说，更重要的收获是：开始从“完成实验”转向“在真实社区仓库里围绕问题、测试、边界和协作节奏做增量开发”。</p>
+<p>这次经历也让我更清楚地意识到，对于操作系统这种复杂工程来说，能把一个小语义讲清楚、测清楚、合进去，对我来说是一个很大的进步了。即使后续不再继续沿同一方向投入，这些测试、PR 和问题边界仍然是可以被复查和继续利用的工作记录。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/2026S/" rel="tag"># 2026S</a>
+              <a href="/blog/tags/author-LetsWalkInLine/" rel="tag"># author:LetsWalkInLine</a>
+              <a href="/blog/tags/repo-https-github-com-LetsWalkInLine-tgoskits/" rel="tag"># repo:https://github.com/LetsWalkInLine/tgoskits</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/27/20260627-SongShiQ-StarryOS%E4%BF%AE%E5%A4%8D%E4%B8%8Ecgroupv2%E6%A8%A1%E5%9D%97%E5%8C%96%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%A4%8D%E7%9B%98/" rel="prev" title="StarryOS 修复与cgroup v2 模块化的设计、实现与工程复盘">
+      <i class="fa fa-chevron-left"></i> StarryOS 修复与cgroup v2 模块化的设计、实现与工程复盘
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/28/docker%E5%AE%9E%E7%8E%B0/" rel="next" title="docker实现">
+      docker实现 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
