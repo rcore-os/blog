@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="一、项目背景StarryOS是基于ArceOS模块基础的Linux兼容OS。实现了绝大多数的linux syscall，并可以运行很多linux用户软件。本次训练营项目阶段，我通过添加测试，下载使用真实linux应用，与linux kernel对比等等方式，丰富和完善了starry的功能。  二、主要任务本次训练营，我的工作主要分为了三个阶段来进行。 2.1 阶段一：socket数据面（Data">
+<meta property="og:type" content="article">
+<meta property="og:title" content="20260628-周宇聪-StarryOS内核修复和应用支持">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="一、项目背景StarryOS是基于ArceOS模块基础的Linux兼容OS。实现了绝大多数的linux syscall，并可以运行很多linux用户软件。本次训练营项目阶段，我通过添加测试，下载使用真实linux应用，与linux kernel对比等等方式，丰富和完善了starry的功能。  二、主要任务本次训练营，我的工作主要分为了三个阶段来进行。 2.1 阶段一：socket数据面（Data">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/ffplay.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/doom.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/calc.png">
+<meta property="article:published_time" content="2026-06-28T02:32:56.000Z">
+<meta property="article:modified_time" content="2026-06-30T02:01:36.097Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:zyc107109102">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;rcore-os&#x2F;tgoskits&#x2F;issues&#x2F;577">
+<meta property="article:tag" content="&lt;2026S&gt;">
+<meta property="article:tag" content="&lt;StarryOS&gt;">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/ffplay.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>20260628-周宇聪-StarryOS内核修复和应用支持 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、项目背景"><span class="nav-number">1.</span> <span class="nav-text">一、项目背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、主要任务"><span class="nav-number">2.</span> <span class="nav-text">二、主要任务</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-阶段一：socket数据面（Data-Plane）syscall测例与语义完善"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 阶段一：socket数据面（Data Plane）syscall测例与语义完善</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-1-syscall簇功能介绍"><span class="nav-number">2.1.1.</span> <span class="nav-text">2.1.1 syscall簇功能介绍</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-2-测试的添加过程"><span class="nav-number">2.1.2.</span> <span class="nav-text">2.1.2 测试的添加过程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-1-3-测试过程中，进行的源码修复"><span class="nav-number">2.1.3.</span> <span class="nav-text">2.1.3 测试过程中，进行的源码修复</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-axerrno模块增强"><span class="nav-number">2.1.3.1.</span> <span class="nav-text">(1) axerrno模块增强</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-sendto系统调用修复"><span class="nav-number">2.1.3.2.</span> <span class="nav-text">(2) sendto系统调用修复</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-recvmsg截断状态跟踪"><span class="nav-number">2.1.3.3.</span> <span class="nav-text">(3) recvmsg截断状态跟踪</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-UDP模块-MSG-MORE-Corking"><span class="nav-number">2.1.3.4.</span> <span class="nav-text">(4) UDP模块 MSG_MORE Corking</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#5-UDP-recv改进"><span class="nav-number">2.1.3.5.</span> <span class="nav-text">(5) UDP recv改进</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#6-Socket标志位扩展"><span class="nav-number">2.1.3.6.</span> <span class="nav-text">(6) Socket标志位扩展</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#7-Raw-Socket修复"><span class="nav-number">2.1.3.7.</span> <span class="nav-text">(7) Raw Socket修复</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-阶段二：一些小中型应用的测例添加和内核修复"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 阶段二：一些小中型应用的测例添加和内核修复</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-1-pip（python包管理器）"><span class="nav-number">2.2.1.</span> <span class="nav-text">2.2.1 pip（python包管理器）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-2-mosquitto（MQTT协议的物联网设备通信软件）"><span class="nav-number">2.2.2.</span> <span class="nav-text">2.2.2 mosquitto（MQTT协议的物联网设备通信软件）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-3-ffmpeg（音视频处理软件）"><span class="nav-number">2.2.3.</span> <span class="nav-text">2.2.3 ffmpeg（音视频处理软件）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-2-4-app的适配过程中的内核修复"><span class="nav-number">2.2.4.</span> <span class="nav-text">2.2.4 app的适配过程中的内核修复</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-rsext4-delete-dir-递归删除"><span class="nav-number">2.2.4.1.</span> <span class="nav-text">(1) rsext4 delete_dir 递归删除</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-xattr-系统调用缺失"><span class="nav-number">2.2.4.2.</span> <span class="nav-text">(2) xattr 系统调用缺失</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-socket-option-缺失"><span class="nav-number">2.2.4.3.</span> <span class="nav-text">(3) socket option 缺失</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-rename缓存失效导致uninstall失败"><span class="nav-number">2.2.4.4.</span> <span class="nav-text">(4) rename缓存失效导致uninstall失败</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#5-删除文件时索引偏移导致删除出错"><span class="nav-number">2.2.4.5.</span> <span class="nav-text">(5) 删除文件时索引偏移导致删除出错</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-阶段三：基于Wayland协议的图形界面的完善和应用测例的添加"><span class="nav-number">2.3.</span> <span class="nav-text">2.3 阶段三：基于Wayland协议的图形界面的完善和应用测例的添加</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-1-ffplay（ffmgeg的播放器，基于sdl2）"><span class="nav-number">2.3.1.</span> <span class="nav-text">2.3.1 ffplay（ffmgeg的播放器，基于sdl2）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-2-doomgeneric（doom1993的开源实现，基于sdl2）"><span class="nav-number">2.3.2.</span> <span class="nav-text">2.3.2 doomgeneric（doom1993的开源实现，基于sdl2）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-3-qt-calc（计算器应用，基于qt6）"><span class="nav-number">2.3.3.</span> <span class="nav-text">2.3.3 qt-calc（计算器应用，基于qt6）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-3-4-app的适配过程中的内核修复"><span class="nav-number">2.3.4.</span> <span class="nav-text">2.3.4 app的适配过程中的内核修复</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#1-修复构建系统axbuild的软连接复制问题"><span class="nav-number">2.3.4.1.</span> <span class="nav-text">(1) 修复构建系统axbuild的软连接复制问题</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#2-实现真正的PRIME-dma-buf"><span class="nav-number">2.3.4.2.</span> <span class="nav-text">(2) 实现真正的PRIME dma-buf</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-修复输入事件传递"><span class="nav-number">2.3.4.3.</span> <span class="nav-text">(3) 修复输入事件传递</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#4-DRM-stride-修复"><span class="nav-number">2.3.4.4.</span> <span class="nav-text">(4) DRM stride 修复</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、达到的收获和效果"><span class="nav-number">3.</span> <span class="nav-text">三、达到的收获和效果</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-socket调用相关的语义基本对齐linux"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 socket调用相关的语义基本对齐linux</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-多个有价值应用适配starry，并且修复了多个内核bug"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 多个有价值应用适配starry，并且修复了多个内核bug</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Wayland对opengl-cpu模拟模式的支持，对鼠标键盘输入的支持，对desktop-shell的支持"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 Wayland对opengl cpu模拟模式的支持，对鼠标键盘输入的支持，对desktop-shell的支持</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-Wayland路径目前可运行大部分主流图形库"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 Wayland路径目前可运行大部分主流图形库</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、学习到的知识和经验"><span class="nav-number">4.</span> <span class="nav-text">四、学习到的知识和经验</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-我学会了多人合作开发代码的基本流程。"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 我学会了多人合作开发代码的基本流程。</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-我学会了与ai合作进行代码开发的基本工作流程。"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 我学会了与ai合作进行代码开发的基本工作流程。</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-我对操作系统理论的理解更进一步。"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 我对操作系统理论的理解更进一步。</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-我了解了为内核适配软件的基本方法。"><span class="nav-number">4.4.</span> <span class="nav-text">4.4 我了解了为内核适配软件的基本方法。</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-5-我了解了操作系统图形化界面产生的基本原理。"><span class="nav-number">4.5.</span> <span class="nav-text">4.5 我了解了操作系统图形化界面产生的基本原理。</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、总结"><span class="nav-number">5.</span> <span class="nav-text">五、总结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、pr列表"><span class="nav-number">6.</span> <span class="nav-text">六、pr列表</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#总计13个pr提交"><span class="nav-number">6.1.</span> <span class="nav-text">总计13个pr提交</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">783</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">737</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          20260628-周宇聪-StarryOS内核修复和应用支持
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-28 02:32:56" itemprop="dateCreated datePublished" datetime="2026-06-28T02:32:56+00:00">2026-06-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="一、项目背景"><a href="#一、项目背景" class="headerlink" title="一、项目背景"></a>一、项目背景</h2><p>StarryOS是基于ArceOS模块基础的Linux兼容OS。实现了绝大多数的linux syscall，并可以运行很多linux用户软件。本次训练营项目阶段，我通过添加测试，下载使用真实linux应用，与linux kernel对比等等方式，丰富和完善了starry的功能。</p>
+<hr>
+<h2 id="二、主要任务"><a href="#二、主要任务" class="headerlink" title="二、主要任务"></a>二、主要任务</h2><p>本次训练营，我的工作主要分为了三个阶段来进行。</p>
+<h3 id="2-1-阶段一：socket数据面（Data-Plane）syscall测例与语义完善"><a href="#2-1-阶段一：socket数据面（Data-Plane）syscall测例与语义完善" class="headerlink" title="2.1 阶段一：socket数据面（Data Plane）syscall测例与语义完善"></a>2.1 阶段一：socket数据面（Data Plane）syscall测例与语义完善</h3><h4 id="2-1-1-syscall簇功能介绍"><a href="#2-1-1-syscall簇功能介绍" class="headerlink" title="2.1.1 syscall簇功能介绍"></a>2.1.1 syscall簇功能介绍</h4><p>此syscall簇共有四个子syscall。</p>
+<ol>
+<li><code>sendto</code> - 向指定地址发送数据报。主要用于udp协议</li>
+<li><code>recvfrom</code> - 接收数据报并获取源地址</li>
+<li><code>sendmsg</code> - 发送高级消息（Scatter/Gather + 控制信息）</li>
+<li><code>recvmsg</code> - 接收高级消息（状态回填 + 截断检测）</li>
+</ol>
+<h4 id="2-1-2-测试的添加过程"><a href="#2-1-2-测试的添加过程" class="headerlink" title="2.1.2 测试的添加过程"></a>2.1.2 测试的添加过程</h4><p>我与大模型合作，阅读了linux接口文档，根据所有的输出语义，生成了syscall的测试。结果76个测试中，错误了34个。大部分的socket处理不符合语义。详细阅读了源码，我发现了几个重大的问题，并且逐个进行修复。</p>
+<h4 id="2-1-3-测试过程中，进行的源码修复"><a href="#2-1-3-测试过程中，进行的源码修复" class="headerlink" title="2.1.3 测试过程中，进行的源码修复"></a>2.1.3 测试过程中，进行的源码修复</h4><h5 id="1-axerrno模块增强"><a href="#1-axerrno模块增强" class="headerlink" title="(1) axerrno模块增强"></a>(1) axerrno模块增强</h5><ul>
+<li><strong>文件</strong>: <code>components/axerrno/src/lib.rs</code></li>
+<li><strong>新增错误类型</strong>:<ul>
+<li><code>DestAddrRequired</code> (EDESTADDRREQ) - 目标地址必需</li>
+<li><code>MessageTooLong</code> (EMSGSIZE) - 消息太长</li>
+</ul>
+</li>
+<li><strong>用途</strong>: 支持更精确的socket错误返回</li>
+</ul>
+<h5 id="2-sendto系统调用修复"><a href="#2-sendto系统调用修复" class="headerlink" title="(2) sendto系统调用修复"></a>(2) sendto系统调用修复</h5><ul>
+<li><strong>文件</strong>: <code>os/StarryOS/kernel/src/syscall/net/io.rs</code></li>
+<li><strong>修复内容</strong>:<ul>
+<li>修复地址参数处理逻辑：<code>addr=NULL</code>时返回None（不管addrlen），<code>addrlen=0</code>时返回EINVAL</li>
+<li>简化send flags处理：使用<code>SendFlags::from_bits_retain(flags)</code>直接解析所有标志位</li>
+<li>支持更多MSG_*标志（MSG_MORE, MSG_OOB, MSG_DONTROUTE等）</li>
+</ul>
+</li>
+</ul>
+<h5 id="3-recvmsg截断状态跟踪"><a href="#3-recvmsg截断状态跟踪" class="headerlink" title="(3) recvmsg截断状态跟踪"></a>(3) recvmsg截断状态跟踪</h5><ul>
+<li><strong>文件</strong>: <code>os/StarryOS/kernel/src/syscall/net/io.rs</code></li>
+<li><strong>新增功能</strong>:<ul>
+<li>添加<code>truncated_out</code>参数跟踪消息截断状态</li>
+<li>在recvmsg成功后正确设置<code>msg.msg_flags</code>（包含MSG_TRUNC标志）</li>
+</ul>
+</li>
+</ul>
+<h5 id="4-UDP模块-MSG-MORE-Corking"><a href="#4-UDP模块-MSG-MORE-Corking" class="headerlink" title="(4) UDP模块 MSG_MORE Corking"></a>(4) UDP模块 MSG_MORE Corking</h5><ul>
+<li><strong>文件</strong>: <code>os/arceos/modules/axnet-ng/src/udp.rs</code></li>
+<li><strong>实现功能</strong>:<ul>
+<li>支持MSG_MORE标志：缓冲多个sendto调用的数据</li>
+<li>在不带MSG_MORE的调用时一次性发送合并的数据</li>
+<li>Cork状态捕获首次MSG_MORE调用的端点地址（Linux语义）</li>
+<li>限制cork缓冲区大小（UDP_TX_BUF_LEN）防止内存溢出</li>
+</ul>
+</li>
+</ul>
+<h5 id="5-UDP-recv改进"><a href="#5-UDP-recv改进" class="headerlink" title="(5) UDP recv改进"></a>(5) UDP recv改进</h5><ul>
+<li><strong>修复</strong>: 移除未绑定socket的NotConnected检查（允许bind后立即recv）</li>
+<li><strong>功能</strong>: 支持truncated状态跟踪</li>
+</ul>
+<h5 id="6-Socket标志位扩展"><a href="#6-Socket标志位扩展" class="headerlink" title="(6) Socket标志位扩展"></a>(6) Socket标志位扩展</h5><ul>
+<li><strong>文件</strong>: <code>os/arceos/modules/axnet-ng/src/socket.rs</code></li>
+<li><strong>新增SendFlags</strong>:<ul>
+<li><code>OOB</code> (0x01) - 带外数据</li>
+<li><code>DONTROUTE</code> (0x04) - 不经过网关</li>
+<li><code>EOR</code> (0x80) - 记录终止</li>
+<li><code>CONFIRM</code> (0x800) - 链路层邻居确认</li>
+<li><code>NOSIGNAL</code> (0x4000) - 抑制SIGPIPE</li>
+<li><code>MORE</code> (0x8000) - cork/合并发送</li>
+</ul>
+</li>
+<li><strong>新增RecvOptions字段</strong>:<ul>
+<li><code>truncated</code> - 跟踪消息截断状态</li>
+</ul>
+</li>
+</ul>
+<h5 id="7-Raw-Socket修复"><a href="#7-Raw-Socket修复" class="headerlink" title="(7) Raw Socket修复"></a>(7) Raw Socket修复</h5><ul>
+<li><strong>文件</strong>: <code>os/arceos/modules/axnet-ng/src/raw.rs</code></li>
+<li><strong>修复内容</strong>:<ul>
+<li>添加对MSG_OOB标志的检查（返回OperationNotSupported）</li>
+<li>添加对MSG_DONTROUTE的TODO注释</li>
+<li>添加对truncated状态的TODO注释</li>
+</ul>
+</li>
+</ul>
+<p>修复了这些问题后，绝大多数的返回值全部符合linux语义。可以说大部分跟tcp和udp协议相关的传输问题都根本上解决了。</p>
+<h3 id="2-2-阶段二：一些小中型应用的测例添加和内核修复"><a href="#2-2-阶段二：一些小中型应用的测例添加和内核修复" class="headerlink" title="2.2 阶段二：一些小中型应用的测例添加和内核修复"></a>2.2 阶段二：一些小中型应用的测例添加和内核修复</h3><p>这里我也学习了很久，好在有其他同学的帮助，并且可以参考别人的测试架构。我也构建了smoke normal stress三层次的测试架构。逐步测试和完善应该有的功能。</p>
+<h4 id="2-2-1-pip（python包管理器）"><a href="#2-2-1-pip（python包管理器）" class="headerlink" title="2.2.1 pip（python包管理器）"></a>2.2.1 pip（python包管理器）</h4><p>测试了pip的各项功能，创建venv环境的能力，以及下载更新等管理py包的能力。</p>
+<h4 id="2-2-2-mosquitto（MQTT协议的物联网设备通信软件）"><a href="#2-2-2-mosquitto（MQTT协议的物联网设备通信软件）" class="headerlink" title="2.2.2 mosquitto（MQTT协议的物联网设备通信软件）"></a>2.2.2 mosquitto（MQTT协议的物联网设备通信软件）</h4><p>MQTT协议用于低带宽物联网设备通信。这里测试了日常使用的各项功能。</p>
+<blockquote>
+<p><strong>可能存在问题</strong>：当前容器内测试没法走网络模拟两个机子的通信。自己创建了一个server和client测试，识别到在一个ip就会直接loopback。需要补充真实板测来模拟结果。</p>
+</blockquote>
+<h4 id="2-2-3-ffmpeg（音视频处理软件）"><a href="#2-2-3-ffmpeg（音视频处理软件）" class="headerlink" title="2.2.3 ffmpeg（音视频处理软件）"></a>2.2.3 ffmpeg（音视频处理软件）</h4><p>用于测试starryos的大规模mmap，流媒体处理，音视频解码能力。使用python自建server来抓取流媒体信息来测试一些操作</p>
+<h4 id="2-2-4-app的适配过程中的内核修复"><a href="#2-2-4-app的适配过程中的内核修复" class="headerlink" title="2.2.4 app的适配过程中的内核修复"></a>2.2.4 app的适配过程中的内核修复</h4><p>我通过apk包管理器从仓库下载并且运行，然后捕捉错误。同时借助本机linux环境验证和寻找错误。最后锁定了几个内核bug。<br>通过修复了以下几个重要内核错误，最终实现了三个app的支持。</p>
+<h5 id="1-rsext4-delete-dir-递归删除"><a href="#1-rsext4-delete-dir-递归删除" class="headerlink" title="(1) rsext4 delete_dir 递归删除"></a>(1) rsext4 delete_dir 递归删除</h5><p><strong>文件</strong>: <code>components/rsext4/src/file/delete.rs</code></p>
+<p><strong>问题</strong>: <code>rmdir</code>会直接递归删除所有的文件。根源是系统会调用<code>delete_dir</code>函数，这个函数是递归删除文件树。（等价<code>rm -rf</code>）这是linux绝不允许的。（linux的标准应该是内核不能有递归删除功能，所有递归删除应该在用户态。因为直接删除所有文件还没提醒非常不安全）</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>新增<code>is_dir_empty()</code>函数，检查目录是否为空</li>
+<li>在<code>delete_dir</code>函数中添加空目录检查，非空目录返回<code>ENOTEMPTY</code></li>
+<li>添加<code>Ext4Error::not_empty()</code>构造函数</li>
+</ul>
+<p><strong>相关文件</strong>:</p>
+<ul>
+<li><code>components/rsext4/src/error/mod.rs</code> - 添加错误类型</li>
+<li><code>components/rsext4/src/file/mod.rs</code> - 导出<code>is_dir_empty</code></li>
+<li><code>components/rsext4/src/lib.rs</code> - 导出<code>is_dir_empty</code></li>
+<li><code>os/arceos/modules/axfs-ng/.../inode.rs</code> - VFS层添加检查</li>
+<li><code>os/arceos/modules/axfs/src/fs/ext4fs.rs</code> - 旧VFS层添加检查</li>
+</ul>
+<p><strong>测试</strong>: 新增<code>bug-ext4-dir-ops</code>测试套件，包含87个断言，覆盖4种架构</p>
+<h5 id="2-xattr-系统调用缺失"><a href="#2-xattr-系统调用缺失" class="headerlink" title="(2) xattr 系统调用缺失"></a>(2) xattr 系统调用缺失</h5><p><strong>文件</strong>: <code>os/StarryOS/kernel/src/syscall/fs/ctl.rs</code></p>
+<p><strong>问题</strong>: <code>pip</code>会将要删除的文件从用户文件夹移动到<code>/tmp</code>文件夹，作为”临时回收站”。而他使用了<code>rename</code>来实现移动。但是，<code>/root</code>文件夹是<code>rsext4</code>系统，而<code>/tmp</code>是<code>tmpfs</code>系统，存在跨文件系统移动文件夹，于是返回<code>EXDEV</code>。从而使用复制黏贴到目标文件夹，然后再删除源文件夹这种手段。但是复制的时候，会复制文件的拓展属性。这里就调用了<code>xattr</code>族（这里是<code>listxattr</code>，列出附加属性）。而且必须且无法避免。</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>新增12个xattr系统调用存根函数</li>
+<li><code>listxattr</code>系列：返回0（空列表）</li>
+<li><code>getxattr</code>系列：返回<code>ENODATA</code></li>
+<li><code>setxattr</code>/<code>removexattr</code>系列：返回<code>EOPNOTSUPP</code></li>
+</ul>
+<p><strong>相关文件</strong>:</p>
+<ul>
+<li><code>os/StarryOS/kernel/src/syscall/mod.rs</code> - 添加12个系统调用分发表项</li>
+<li>覆盖4种架构：x86_64, aarch64, riscv64, loongarch64</li>
+</ul>
+<p><strong>测试</strong>: 新增<code>test-xattr</code>测试套件，包含10个测试检查点</p>
+<h5 id="3-socket-option-缺失"><a href="#3-socket-option-缺失" class="headerlink" title="(3) socket option 缺失"></a>(3) socket option 缺失</h5><p><strong>文件</strong>: <code>os/arceos/modules/axnet-ng/src/general.rs</code></p>
+<p><strong>问题</strong>: Python 3.12的<code>ssl.SSLSocket._create()</code>调用<code>getsockopt(SO_TYPE)</code>来验证socket类型。StarryOS没有实现这个选项，导致TLS握手失败，阻塞了<code>pip install</code>。</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>在<code>GeneralOptions</code>结构体中添加<code>domain</code>和<code>protocol</code>字段</li>
+<li>修改构造函数为<code>GeneralOptions::new(socket_type: i32, domain: i32, protocol: i32)</code></li>
+<li><code>getsockopt</code>返回存储的值；<code>setsockopt</code>返回<code>ENOPROTOOPT</code>（只读，符合Linux语义）</li>
+</ul>
+<p><strong>相关文件</strong>:</p>
+<ul>
+<li><code>os/arceos/modules/axnet-ng/src/options.rs</code> - 添加<code>SocketType</code>、<code>SocketProtocol</code>、<code>SocketDomain</code>枚举变体</li>
+<li><code>os/arceos/modules/axnet-ng/src/opt.rs</code> - 添加<code>SO_TYPE</code>/<code>SO_PROTOCOL</code>/<code>SO_DOMAIN</code>映射</li>
+<li><code>os/arceos/modules/axnet-ng/src/tcp.rs</code>、<code>udp.rs</code>、<code>raw.rs</code> - 更新构造调用</li>
+<li><code>os/arceos/modules/axnet-ng/src/unix/dgram.rs</code>、<code>unix/stream.rs</code>、<code>vsock/stream.rs</code> - 传递正确的三元组</li>
+</ul>
+<p><strong>测试</strong>: 新增<code>test-sockopt</code>测试套件，包含9个测试用例，覆盖TCP和UDP socket</p>
+<h5 id="4-rename缓存失效导致uninstall失败"><a href="#4-rename缓存失效导致uninstall失败" class="headerlink" title="(4) rename缓存失效导致uninstall失败"></a>(4) rename缓存失效导致uninstall失败</h5><p><strong>文件</strong>: <code>components/axfs-ng-vfs/src/node/dir.rs</code></p>
+<p><strong>问题</strong>: 当<code>DirNode::rename</code>通过<code>mem::take</code>转移子目录缓存时，每个子<code>DirEntry</code>的内部<code>Reference.parent</code>强引用仍然指向旧的父目录的<code>DirEntry</code>对象。后续通过新路径进行的<code>unlink</code>等操作会解析到错误的父目录，导致<code>ENOENT</code>错误。</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>移除<code>rename</code>函数中的子目录缓存转移逻辑</li>
+<li>保留挂载点转移逻辑</li>
+<li>子目录条目现在通过延迟查找从磁盘加载，确保<code>Reference.parent</code>指向正确的父目录</li>
+</ul>
+<p><strong>相关文件</strong>:</p>
+<ul>
+<li><code>components/axfs-ng-vfs/src/node/dir.rs</code> - 修改<code>DirNode::rename</code>函数</li>
+</ul>
+<p><strong>测试</strong>: 新增7个测试用例，包括<code>test_rename_then_unlink</code>、<code>test_rename_file_then_delete_old_path</code>等，模拟pip卸载模式</p>
+<h5 id="5-删除文件时索引偏移导致删除出错"><a href="#5-删除文件时索引偏移导致删除出错" class="headerlink" title="(5) 删除文件时索引偏移导致删除出错"></a>(5) 删除文件时索引偏移导致删除出错</h5><p><strong>文件</strong>: <code>components/rsext4/src/file/delete.rs</code>、<code>components/rsext4/src/file/inode.rs</code></p>
+<p><strong>问题</strong>: <code>read_dir</code>使用逻辑索引（只计算未删除的条目），当<code>rm -rf</code>在连续的<code>getdents64</code>调用之间删除条目时，逻辑索引发生偏移，导致后续条目被跳过。</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li><code>delete.rs</code>: 修改<code>remove_dentry_in_dir_block</code>函数，只清零被删除条目的<code>inode</code>字段，保留<code>rec_len</code>不变</li>
+<li><code>inode.rs</code>: 修改<code>read_dir</code>函数，手动遍历原始目录块数据，包括已删除的条目（<code>inode==0</code>），累积物理字节偏移</li>
+</ul>
+<p><strong>相关文件</strong>:</p>
+<ul>
+<li><code>components/rsext4/src/file/delete.rs</code> - 修改删除逻辑</li>
+<li><code>components/rsext4/src/file/inode.rs</code> - 修改目录读取逻辑</li>
+</ul>
+<p><strong>测试</strong>: 新增2个测试用例：<code>test_readdir_offset_after_delete</code>和<code>test_rm_rf_pattern</code>，使用原始<code>SYS_getdents64</code>系统调用</p>
+<h3 id="2-3-阶段三：基于Wayland协议的图形界面的完善和应用测例的添加"><a href="#2-3-阶段三：基于Wayland协议的图形界面的完善和应用测例的添加" class="headerlink" title="2.3 阶段三：基于Wayland协议的图形界面的完善和应用测例的添加"></a>2.3 阶段三：基于Wayland协议的图形界面的完善和应用测例的添加</h3><p>在我进入这个阶段时，wayland已经初步支持好了。可以显示样例程序。我随即想要适配一下实际应用。这里遇到很大困难，全网关于此内容的学习资料实在太少。只有官方文档，少数中文博客。视频仅有b站plct实验室有相关内容。在适配的过程中，一半时间大概都是理论学习还有与ai对接内容。这段时间我的学习能力真的遇到极大挑战</p>
+<h4 id="2-3-1-ffplay（ffmgeg的播放器，基于sdl2）"><a href="#2-3-1-ffplay（ffmgeg的播放器，基于sdl2）" class="headerlink" title="2.3.1 ffplay（ffmgeg的播放器，基于sdl2）"></a>2.3.1 ffplay（ffmgeg的播放器，基于sdl2）</h4><p>视频播放器的适配。主要用于验证sdl2。同时sdl2必须适配opengl组件（它需要gl一个返回值才能正常工作），所以我一并适配了mesa GL库，用llvmpipe模式来进行cpu模拟渲染。</p>
+<p>效果：可以以每秒5到10帧播放视频</p>
+<img src="/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/ffplay.png" class="" title="ffplay播放视频测试">
+
+<h4 id="2-3-2-doomgeneric（doom1993的开源实现，基于sdl2）"><a href="#2-3-2-doomgeneric（doom1993的开源实现，基于sdl2）" class="headerlink" title="2.3.2 doomgeneric（doom1993的开源实现，基于sdl2）"></a>2.3.2 doomgeneric（doom1993的开源实现，基于sdl2）</h4><p>doom是非常著名的游戏，开发者非常为之着迷。有句话：有cpu有屏幕就能跑doom。</p>
+<p>我基于sdl2进行了一个移植。一并修复和验证了鼠标键盘输入的问题。</p>
+<p>效果：可以利用键盘鼠标进行游戏。</p>
+<img src="/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/doom.png" class="" title="sdl2下doom运行测试">
+
+<h4 id="2-3-3-qt-calc（计算器应用，基于qt6）"><a href="#2-3-3-qt-calc（计算器应用，基于qt6）" class="headerlink" title="2.3.3 qt-calc（计算器应用，基于qt6）"></a>2.3.3 qt-calc（计算器应用，基于qt6）</h4><p>以上两个都是基于sdl2库，我选择qt作为下一个测试的库。</p>
+<p>alpain仓库里qt应用不多，我选择了qt-calc来适配。验证qt应用能否正常运行，同时也验证了desktop-shell的运行（堆叠桌面）</p>
+<p>效果：可以点击计算结果，并且应用是窗口化的，可以随意移动窗口</p>
+<img src="/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/calc.png" class="" title="qt计算器测试">
+
+<h4 id="2-3-4-app的适配过程中的内核修复"><a href="#2-3-4-app的适配过程中的内核修复" class="headerlink" title="2.3.4 app的适配过程中的内核修复"></a>2.3.4 app的适配过程中的内核修复</h4><h5 id="1-修复构建系统axbuild的软连接复制问题"><a href="#1-修复构建系统axbuild的软连接复制问题" class="headerlink" title="(1) 修复构建系统axbuild的软连接复制问题"></a>(1) 修复构建系统axbuild的软连接复制问题</h5><p><strong>文件</strong>: <code>scripts/axbuild/src/rootfs/inject.rs</code></p>
+<p><strong>问题</strong>: 原先的build阶段，没法把软连接文件（xxxx.so.1等等）复制进starry。我修复了更改逻辑。现在可以成功复制，避免出现缺少文件的情况</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>新增<code>is_symlink()</code>分支，检测符号链接并生成<code>debugfs symlink</code>命令</li>
+<li>采用两遍遍历策略：第一遍处理目录和常规文件，第二遍创建符号链接</li>
+<li>修复<code>debugfs symlink</code>参数顺序（v1.47.0实际语法与man page不一致）</li>
+<li>相对符号链接目标转换为绝对客户机路径</li>
+</ul>
+<p><strong>相关文件</strong>:</p>
+<ul>
+<li><code>scripts/axbuild/src/rootfs/inject.rs</code> - 修改<code>collect_overlay_debugfs_commands</code>函数</li>
+</ul>
+<p><strong>测试</strong>: 新增<code>symlinks_are_emitted_after_regular_files</code>测试，覆盖ldconfig风格的符号链接链</p>
+<h5 id="2-实现真正的PRIME-dma-buf"><a href="#2-实现真正的PRIME-dma-buf" class="headerlink" title="(2) 实现真正的PRIME dma-buf"></a>(2) 实现真正的PRIME dma-buf</h5><p><strong>文件</strong>: <code>os/StarryOS/kernel/src/pseudofs/dev/card0.rs</code></p>
+<p><strong>问题</strong>: 原先的实现，PRIME_HANDLE_TO_FD是身份映射，在真实场景会导致为定义行为，这也是gl库段错误的根本原因。现在实现注册真正的fd</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>新增<code>DmaBufGem</code>结构体，包含物理地址范围、引用计数页面和大小</li>
+<li>修改<code>handle_prime_handle_to_fd</code>函数，查找dumb表中的句柄，构造<code>DmaBufGem</code>，注册真正的内核fd对象</li>
+<li>修改<code>handle_prime_fd_to_handle</code>函数，使用<code>downcast_ref::&lt;DmaBufGem&gt;()</code>进行类型安全导入</li>
+<li>在<code>DmaBufGem</code>上实现<code>device_mmap</code>方法，添加边界检查</li>
+</ul>
+<p><strong>相关文件</strong>:</p>
+<ul>
+<li><code>os/StarryOS/kernel/src/pseudofs/dev/drm.rs</code> - 添加<code>DRM_CAP_PRIME</code>常量和处理函数</li>
+</ul>
+<p><strong>安全改进</strong>:</p>
+<ul>
+<li>类型安全：<code>downcast_ref</code>拒绝非dma-buf类型的fd</li>
+<li>命名空间隔离：fd号不再直接转换为GEM句柄</li>
+<li>引用计数：<code>Arc::clone</code>防止并发<code>DESTROY_DUMB</code>或<code>close(fd)</code>导致的use-after-free</li>
+</ul>
+<h5 id="3-修复输入事件传递"><a href="#3-修复输入事件传递" class="headerlink" title="(3) 修复输入事件传递"></a>(3) 修复输入事件传递</h5><p><strong>文件</strong>: <code>os/StarryOS/kernel/src/pseudofs/dev/event.rs</code></p>
+<p><strong>问题</strong>: 解决鼠标/键盘事件无法从内核 evdev 到达 Weston/Qt 的问题。原先内核能接受输入事件，但是传到weston就丢失了。原来是IRQ不触发，libinput 用的是 epoll_wait，需要被唤醒才会去读。</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>新增<code>has_waiters: AtomicBool</code>字段，跟踪是否有进程在等待</li>
+<li>新增<code>start_polling()</code>方法，作为后台轮询任务</li>
+<li>修改<code>register_irq()</code>方法，无条件调用<code>start_polling()</code>作为后备方案</li>
+<li>修改<code>Pollable::register()</code>方法，设置<code>has_waiters = true</code></li>
+</ul>
+<p><strong>自适应频率</strong>:</p>
+<ul>
+<li>有等待者时（libinput在<code>epoll_wait</code>中）：100Hz轮询（10ms间隔）</li>
+<li>无等待者时（无人读取设备）：5Hz轮询（200ms间隔）</li>
+</ul>
+<p><strong>安全分析</strong>:</p>
+<ul>
+<li>锁顺序：释放内部锁后再调用<code>wake()</code>，无死锁风险</li>
+<li>内存顺序：正确使用<code>Ordering::Acquire/Release</code></li>
+<li>竞态条件安全：与IRQ处理程序共享<code>Mutex&lt;Inner&gt;</code></li>
+</ul>
+<h5 id="4-DRM-stride-修复"><a href="#4-DRM-stride-修复" class="headerlink" title="(4) DRM stride 修复"></a>(4) DRM stride 修复</h5><p><strong>文件</strong>: <code>os/StarryOS/kernel/src/pseudofs/dev/card0.rs</code></p>
+<p><strong>问题</strong>: <code>present_fb()</code> 原先使用 flat memcpy，假设源 buffer 和 axdisplay scanout 的 stride 完全一致。当 GL 渲染器使用的 buffer stride 与 scanout 不同时，每一行偏移若干像素，产生十几段稳定的斜撕裂线（pixman 模式无此问题）。</p>
+<p><strong>修复内容</strong>:</p>
+<ul>
+<li>在<code>Framebuffer</code>结构体中添加<code>stride: u32</code>字段</li>
+<li>修改<code>handle_addfb2</code>函数，从dumb buffer的pitch值存储stride</li>
+<li>重写<code>present_fb</code>函数，支持stride感知的帧缓冲区呈现：<ul>
+<li>stride匹配（快速路径）：零开销的平面<code>memcpy</code></li>
+<li>stride不匹配（安全路径）：逐行复制，带防御性边界检查</li>
+</ul>
+</li>
+</ul>
+<p><strong>边界检查</strong>:</p>
+<ul>
+<li><code>dst_limit = info.fb_size / info.stride.max(1)</code> - 防止除零和边界溢出</li>
+<li><code>bytes_per_row = (src_stride as usize).min(info.stride)</code> - 确保源端不溢出</li>
+<li><code>rows.min(dst_limit)</code> - 确保复制不超过目标容量</li>
+</ul>
+<hr>
+<h2 id="三、达到的收获和效果"><a href="#三、达到的收获和效果" class="headerlink" title="三、达到的收获和效果"></a>三、达到的收获和效果</h2><h3 id="3-1-socket调用相关的语义基本对齐linux"><a href="#3-1-socket调用相关的语义基本对齐linux" class="headerlink" title="3.1 socket调用相关的语义基本对齐linux"></a>3.1 socket调用相关的语义基本对齐linux</h3><p>修复前，大部分socket相关的syscall语义错误。经过修复后完善了starry的网络栈，网络能力得到了很大的加强。</p>
+<h3 id="3-2-多个有价值应用适配starry，并且修复了多个内核bug"><a href="#3-2-多个有价值应用适配starry，并且修复了多个内核bug" class="headerlink" title="3.2 多个有价值应用适配starry，并且修复了多个内核bug"></a>3.2 多个有价值应用适配starry，并且修复了多个内核bug</h3><p>修复多个bug，且适配了多个linux app。这些app都是实际生产常用的，证明了starryos实用能力。</p>
+<h3 id="3-3-Wayland对opengl-cpu模拟模式的支持，对鼠标键盘输入的支持，对desktop-shell的支持"><a href="#3-3-Wayland对opengl-cpu模拟模式的支持，对鼠标键盘输入的支持，对desktop-shell的支持" class="headerlink" title="3.3 Wayland对opengl cpu模拟模式的支持，对鼠标键盘输入的支持，对desktop-shell的支持"></a>3.3 Wayland对opengl cpu模拟模式的支持，对鼠标键盘输入的支持，对desktop-shell的支持</h3><p>通过内核修复，wayland协议已经可以通过opengl库的llvmpipe（cpu模拟）来实现渲染。相比以前的pixman渲染，虽然都还是cpu渲染，但增强了拓展能力（sdl2和qt6都需要经过gl库进行检查，否则会直接崩溃）。而且理论上只要增加gpu支持，就可以使用硬件加速。因为starry可能在rk3588等有gpu的板子运行，还是很有必要的，后续也可以加入virgl的支持。键盘鼠标的事件之前无法传递到weston。修复后，点击就可以响应了。同时也支持了desptop-shell桌面环境，可以使用堆叠窗口。</p>
+<blockquote>
+<p><strong>总结</strong>：现在的StarryOS的桌面环境，已经很接近Linux桌面。可以使用堆叠桌面，使用键鼠交互，使用基于主流图形库的应用。</p>
+</blockquote>
+<h3 id="3-4-Wayland路径目前可运行大部分主流图形库"><a href="#3-4-Wayland路径目前可运行大部分主流图形库" class="headerlink" title="3.4 Wayland路径目前可运行大部分主流图形库"></a>3.4 Wayland路径目前可运行大部分主流图形库</h3><p>gtk4，sdl2，qt6三个重要图形库，全部经过实际应用测试。这三个库是大部分gui应用的底层库。这说明理论上很多的gui应用都可以在starry上以wayland协议启动了。</p>
+<hr>
+<h2 id="四、学习到的知识和经验"><a href="#四、学习到的知识和经验" class="headerlink" title="四、学习到的知识和经验"></a>四、学习到的知识和经验</h2><h3 id="4-1-我学会了多人合作开发代码的基本流程。"><a href="#4-1-我学会了多人合作开发代码的基本流程。" class="headerlink" title="4.1 我学会了多人合作开发代码的基本流程。"></a>4.1 我学会了多人合作开发代码的基本流程。</h3><p>在此之前，我只个人开发过一些小项目，没有多人的开发经验。现在我熟悉了基于git的多人工作的方式。这对我未来工作还是参加其他开源项目无疑是极大的帮助。同时也给了我参与开源项目的勇气。</p>
+<h3 id="4-2-我学会了与ai合作进行代码开发的基本工作流程。"><a href="#4-2-我学会了与ai合作进行代码开发的基本工作流程。" class="headerlink" title="4.2 我学会了与ai合作进行代码开发的基本工作流程。"></a>4.2 我学会了与ai合作进行代码开发的基本工作流程。</h3><p>我学会了如何使用ai加速我的开发速度。也学会了怎么借助大模型，来学习新知识和快速了解问题。在ai时代，学习使用大模型辅助自己，同时又不丢失自己学习的能力。这也是非常重要的技能。</p>
+<h3 id="4-3-我对操作系统理论的理解更进一步。"><a href="#4-3-我对操作系统理论的理解更进一步。" class="headerlink" title="4.3 我对操作系统理论的理解更进一步。"></a>4.3 我对操作系统理论的理解更进一步。</h3><p>原先我对操作系统的了解仅限rcore这种教学项目，tgoskit更加贴近真实的操作系统内核，让我了解了更加复杂的操作系统的组成和运作方式。相信未来我着手其他更复杂的os项目也能更加得心应手。</p>
+<h3 id="4-4-我了解了为内核适配软件的基本方法。"><a href="#4-4-我了解了为内核适配软件的基本方法。" class="headerlink" title="4.4 我了解了为内核适配软件的基本方法。"></a>4.4 我了解了为内核适配软件的基本方法。</h3><p>开始我完全不了解怎么进行这个工作。在老师同学帮助下我渐渐熟悉了构建方法。知道了怎么通过导入包，根据各种测试等检测starry的功能，并最后修改kernel来完善功能。通过这些方式，我成功修复了很多问题，支持了数个linux软件，丰富了starry生态。</p>
+<h3 id="4-5-我了解了操作系统图形化界面产生的基本原理。"><a href="#4-5-我了解了操作系统图形化界面产生的基本原理。" class="headerlink" title="4.5 我了解了操作系统图形化界面产生的基本原理。"></a>4.5 我了解了操作系统图形化界面产生的基本原理。</h3><p>wayland，weston，EGL，DRM，KMS……等等一堆专业的术语，在此之前我完全看着就晕。但是经过几个月的学习，现在的我，已经了解了一个像素怎么产生，到最后怎么显示在一个屏幕上。这对我也是巨大的收获。</p>
+<hr>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>本次是我第一次参加opencamp训练营。同时也是第一次进入项目阶段。本身我就对rust语言还有操作系统持有浓厚的兴趣。寒假时同学的推荐，给我打开新的大门。几个月的时间，我对os的理解从完全不懂到参与项目，并有一定自己的理解，能找到下一步学习的方向。这些都要感谢所有开源训练营的贡献者。以后我也会积极投入到开源项目的贡献中！</p>
+<p>我也知道了ai的力量非常有限。遇到困难的问题，依然需要我去解决。或者写及其具体的提示词才可以解决。我也明白提升自己个人实力才是解决问题的关键还有ai时代要掌握的能力。</p>
+<p>感谢opencamp让我有机会接触到这些知识，让我有这些经验。感谢各位老师和同学在这段时间给予的帮助和教导。这段时间收获镇的很多，感觉自己处理问题，学习新知识的能力提升了非常多。我很荣幸能学习这门优质的课程。</p>
+<hr>
+<h2 id="六、pr列表"><a href="#六、pr列表" class="headerlink" title="六、pr列表"></a>六、pr列表</h2><ul>
+<li><strong>GitHub ID</strong>: <code>zyc107109102</code></li>
+<li><strong>学习进度issue</strong>: <a href="https://github.com/rcore-os/tgoskits/issues/577" target="_blank" rel="noopener">issue #577</a></li>
+</ul>
+<h3 id="总计13个pr提交"><a href="#总计13个pr提交" class="headerlink" title="总计13个pr提交"></a>总计13个pr提交</h3><table>
+<thead>
+<tr>
+<th>序号</th>
+<th>PR链接</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/598" target="_blank" rel="noopener">PR #598</a></td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/854" target="_blank" rel="noopener">PR #854</a></td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/882" target="_blank" rel="noopener">PR #882</a></td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/884" target="_blank" rel="noopener">PR #884</a></td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/938" target="_blank" rel="noopener">PR #938</a></td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1001" target="_blank" rel="noopener">PR #1001</a></td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1002" target="_blank" rel="noopener">PR #1002</a></td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1072" target="_blank" rel="noopener">PR #1072</a></td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1086" target="_blank" rel="noopener">PR #1086</a></td>
+<td></td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1191" target="_blank" rel="noopener">PR #1191</a></td>
+<td></td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1268" target="_blank" rel="noopener">PR #1268</a></td>
+<td></td>
+</tr>
+<tr>
+<td>12</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1396" target="_blank" rel="noopener">PR #1396</a></td>
+<td></td>
+</tr>
+<tr>
+<td>13</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1415" target="_blank" rel="noopener">PR #1415</a></td>
+<td></td>
+</tr>
+</tbody></table>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-zyc107109102/" rel="tag"># author:zyc107109102</a>
+              <a href="/blog/tags/repo-https-github-com-rcore-os-tgoskits-issues-577/" rel="tag"># repo:https://github.com/rcore-os/tgoskits/issues/577</a>
+              <a href="/blog/tags/2026S/" rel="tag"># <2026S></a>
+              <a href="/blog/tags/StarryOS/" rel="tag"># <StarryOS></a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/27/20260627-LetsWalkInLine-2026%E6%98%A5%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A%EF%BC%9A%E5%9B%B4%E7%BB%95-StarryOS-Linux-%E5%85%BC%E5%AE%B9%E6%80%A7%E7%9A%84%E8%8B%A5%E5%B9%B2%E4%BF%AE%E5%A4%8D%E4%B8%8E%E6%8E%A2%E7%B4%A2/" rel="prev" title="20260627-LetsWalkInLine-2026春季训练营总结报告：围绕 StarryOS Linux 兼容性的若干修复与探索">
+      <i class="fa fa-chevron-left"></i> 20260627-LetsWalkInLine-2026春季训练营总结报告：围绕 StarryOS Linux 兼容性的若干修复与探索
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/28/docker%E5%AE%9E%E7%8E%B0/" rel="next" title="docker实现">
+      docker实现 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
