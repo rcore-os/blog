@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="摘要本文总结我在2026春季操作系统训练营（Stage 7 专业阶段）中的工作。我在”方案二：以Linux App为引导的StarryOS改进”框架下的子课题3（基于eBPF的内核可观测性能力增强） 中，为StarryOS内核完成了eBPF子系统全栈构建、kprobe&#x2F;kretprobe内核探针、LKM内核模块加载、三架构手写JIT编译器、多项系统调用增强与工程质量改进。累计贡献 11个已合并PR">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2026春季OS训练营总结报告——基于eBPF的内核可观测性能力增强">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/06/27/20260627-CN-TangLin-eBPF%E5%86%85%E6%A0%B8%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%A2%9E%E5%BC%BA/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="摘要本文总结我在2026春季操作系统训练营（Stage 7 专业阶段）中的工作。我在”方案二：以Linux App为引导的StarryOS改进”框架下的子课题3（基于eBPF的内核可观测性能力增强） 中，为StarryOS内核完成了eBPF子系统全栈构建、kprobe&#x2F;kretprobe内核探针、LKM内核模块加载、三架构手写JIT编译器、多项系统调用增强与工程质量改进。累计贡献 11个已合并PR">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-06-27T20:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-30T02:02:29.240Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="2026S">
+<meta property="article:tag" content="author:CN-TangLin">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;CN-TangLin&#x2F;tgoskits">
+<meta property="article:tag" content="eBPF">
+<meta property="article:tag" content="JIT">
+<meta property="article:tag" content="kprobe">
+<meta property="article:tag" content="内核可观测性">
+<meta property="article:tag" content="系统调用">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/06/27/20260627-CN-TangLin-eBPF%E5%86%85%E6%A0%B8%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%A2%9E%E5%BC%BA/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>2026春季OS训练营总结报告——基于eBPF的内核可观测性能力增强 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#PPT链接"><span class="nav-number">2.</span> <span class="nav-text">PPT链接</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#一、项目背景"><span class="nav-number">3.</span> <span class="nav-text">一、项目背景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#eBPF子课题架构全景图"><span class="nav-number">3.1.</span> <span class="nav-text">eBPF子课题架构全景图</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、训练营其他阶段工作"><span class="nav-number">4.</span> <span class="nav-text">二、训练营其他阶段工作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-传统I-O多路复用系统调用体系（方案一）"><span class="nav-number">4.1.</span> <span class="nav-text">2.1 传统I&#x2F;O多路复用系统调用体系（方案一）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-sys-msync接口完善与SQLite支撑（方案一）"><span class="nav-number">4.2.</span> <span class="nav-text">2.2 sys_msync接口完善与SQLite支撑（方案一）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-多核并行与基础设施（方案二）"><span class="nav-number">4.3.</span> <span class="nav-text">2.3 多核并行与基础设施（方案二）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、主要工作（六条主线）"><span class="nav-number">5.</span> <span class="nav-text">三、主要工作（六条主线）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#主线一：kprobe-kretprobe内核探针（-847-MERGED）"><span class="nav-number">5.1.</span> <span class="nav-text">主线一：kprobe&#x2F;kretprobe内核探针（#847, MERGED）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#主线二：eBPF子系统的全栈构建（-848-MERGED）"><span class="nav-number">5.2.</span> <span class="nav-text">主线二：eBPF子系统的全栈构建（#848, MERGED）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#主线三：LKM内核模块支持（-849-MERGED）"><span class="nav-number">5.3.</span> <span class="nav-text">主线三：LKM内核模块支持（#849, MERGED）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#主线四：eBPF-JIT编译器（三架构手写）"><span class="nav-number">5.4.</span> <span class="nav-text">主线四：eBPF JIT编译器（三架构手写）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-1-JIT框架设计（rbpf上游PR-152）"><span class="nav-number">5.4.1.</span> <span class="nav-text">4.1 JIT框架设计（rbpf上游PR #152）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-2-跨架构寄存器映射"><span class="nav-number">5.4.2.</span> <span class="nav-text">4.2 跨架构寄存器映射</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-3-JIT当前状态"><span class="nav-number">5.4.3.</span> <span class="nav-text">4.3 JIT当前状态</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#主线五：工程质量持续改进（Training-Camp后期，进行中）"><span class="nav-number">5.5.</span> <span class="nav-text">主线五：工程质量持续改进（Training Camp后期，进行中）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#5-1-消除魔术数字-perf-event-fd-read-poll-O-NONBLOCK-1412"><span class="nav-number">5.5.1.</span> <span class="nav-text">5.1 消除魔术数字 + perf event fd read&#x2F;poll&#x2F;O_NONBLOCK [#1412]</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-2-替换panic-todo-与消除伪文件系统魔术数字-1413"><span class="nav-number">5.5.2.</span> <span class="nav-text">5.2 替换panic!&#x2F;todo!与消除伪文件系统魔术数字 [#1413]</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-3-注册bpf-get-current-pid-tgid和bpf-get-current-comm-helper-1411"><span class="nav-number">5.5.3.</span> <span class="nav-text">5.3 注册bpf_get_current_pid_tgid和bpf_get_current_comm helper [#1411]</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-4-1414-—-已关闭（被-1412完整取代）"><span class="nav-number">5.5.4.</span> <span class="nav-text">5.4 #1414 — 已关闭（被#1412完整取代）</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、团队协作：eBPF迁移计划全景交付清单"><span class="nav-number">6.</span> <span class="nav-text">四、团队协作：eBPF迁移计划全景交付清单</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-工作量较小的部分-——-基础设施与动态探针（Godones-amp-CN-TangLin）"><span class="nav-number">6.1.</span> <span class="nav-text">4.1 工作量较小的部分 —— 基础设施与动态探针（Godones &amp; CN-TangLin）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-工作量较大的部分-——-eBPF核心与LKM模块（CN-TangLin-amp-LorenzLorentz）"><span class="nav-number">6.2.</span> <span class="nav-text">4.2 工作量较大的部分 —— eBPF核心与LKM模块（CN-TangLin &amp; LorenzLorentz）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-技术路线融合"><span class="nav-number">6.3.</span> <span class="nav-text">4.3 技术路线融合</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-Godones助教后续支持"><span class="nav-number">6.4.</span> <span class="nav-text">4.4 Godones助教后续支持</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、量化成果"><span class="nav-number">7.</span> <span class="nav-text">五、量化成果</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-PR统计"><span class="nav-number">7.1.</span> <span class="nav-text">5.1 PR统计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-代码量统计"><span class="nav-number">7.2.</span> <span class="nav-text">5.2 代码量统计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-功能覆盖"><span class="nav-number">7.3.</span> <span class="nav-text">5.3 功能覆盖</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、经验与教训"><span class="nav-number">8.</span> <span class="nav-text">六、经验与教训</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-工程管理经验"><span class="nav-number">8.1.</span> <span class="nav-text">6.1 工程管理经验</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-技术经验"><span class="nav-number">8.2.</span> <span class="nav-text">6.2 技术经验</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-教训"><span class="nav-number">8.3.</span> <span class="nav-text">6.3 教训</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#七、后续方向"><span class="nav-number">9.</span> <span class="nav-text">七、后续方向</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#八、工作仓库与链接"><span class="nav-number">10.</span> <span class="nav-text">八、工作仓库与链接</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#当前开放PR（3个，均已APPROVED）"><span class="nav-number">10.1.</span> <span class="nav-text">当前开放PR（3个，均已APPROVED）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#已合并PR（11个）"><span class="nav-number">10.2.</span> <span class="nav-text">已合并PR（11个）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#协作同学与助教PR"><span class="nav-number">10.3.</span> <span class="nav-text">协作同学与助教PR</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">11.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">788</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">760</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-CN-TangLin-eBPF%E5%86%85%E6%A0%B8%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%A2%9E%E5%BC%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2026春季OS训练营总结报告——基于eBPF的内核可观测性能力增强
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-27 20:00:00" itemprop="dateCreated datePublished" datetime="2026-06-27T20:00:00+00:00">2026-06-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本文总结我在2026春季操作系统训练营（Stage 7 专业阶段）中的工作。我在”方案二：以Linux App为引导的StarryOS改进”框架下的<strong>子课题3（基于eBPF的内核可观测性能力增强）</strong> 中，为StarryOS内核完成了eBPF子系统全栈构建、kprobe/kretprobe内核探针、LKM内核模块加载、三架构手写JIT编译器、多项系统调用增强与工程质量改进。累计贡献 <strong>11个已合并PR</strong>，<strong>3个当前开放PR</strong>（均在CI验证中，已获bot APPROVED），历史关闭PR 25个，新增15000+行代码，378个commits。代码覆盖x86_64、RISC-V 64、AArch64、LoongArch四大架构。</p>
+<div style="page-break-after: always;"></div>
+
+<hr>
+<h2 id="PPT链接"><a href="#PPT链接" class="headerlink" title="PPT链接"></a>PPT链接</h2><ul>
+<li><strong>汇报 Slide 仓库</strong>：<a href="https://github.com/CN-TangLin/tgoskits/tree/dev/slides" target="_blank" rel="noopener">https://github.com/CN-TangLin/tgoskits/tree/dev/slides</a></li>
+<li><strong>技术报告</strong>：见 Slide 仓库中 <code>training-camp-slides.md</code>（Marp格式，10章）</li>
+</ul>
+<hr>
+<h2 id="一、项目背景"><a href="#一、项目背景" class="headerlink" title="一、项目背景"></a>一、项目背景</h2><p>StarryOS是构建在ArceOS组件化框架之上的Linux兼容操作系统，目标是运行未经修改的Linux用户态程序。训练营要求在StarryOS中实现eBPF（extended Berkeley Packet Filter）子系统——这是Linux内核的核心可观测性基础设施，允许用户安全地在内核中运行沙箱化程序，广泛应用于性能分析、安全监控、网络追踪等场景。</p>
+<p>训练营按三个方案阶段推进。我在方案一阶段完成了select/poll/ppoll/pselect6多路复用系统调用体系完善（43个测试模块）和sys_msync+SQLite支撑；在方案二阶段将工作重心转移到子课题3（eBPF内核可观测性），与助教linfeng(Godones)老师和LorenzLorentz同学三人协作，严格对齐《StarryOS迁移计划》交付eBPF全栈。</p>
+<h3 id="eBPF子课题架构全景图"><a href="#eBPF子课题架构全景图" class="headerlink" title="eBPF子课题架构全景图"></a>eBPF子课题架构全景图</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────────────────────┐</span><br><span class="line">│                    用户态工具层                        │</span><br><span class="line">│  aya eBPF 三件套 (PR #886)  │  test-ebpf-advanced    │</span><br><span class="line">│  kret&#x2F;rawtp&#x2F;mytrace&#x2F;...    │  test-ebpf-attach       │</span><br><span class="line">│  qperf analyzer           │  test-ebpf-basics        │</span><br><span class="line">├──────────────────────────────────────────────────────┤</span><br><span class="line">│                  系统调用接口层                        │</span><br><span class="line">│  sys_bpf()          │  sys_perf_event_open()         │</span><br><span class="line">│  BPF_PROG_LOAD      │  PERF_EVENT_OPEN               │</span><br><span class="line">│  MAP_CREATE&#x2F;LOOKUP  │  RAW_TRACEPOINT_OPEN           │</span><br><span class="line">├──────────────────────────────────────────────────────┤</span><br><span class="line">│                  eBPF 运行时层 (kbpf-basic)            │</span><br><span class="line">│  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  │</span><br><span class="line">│  │ eBPF VM     │  │ Map Manager  │  │ Verifier    │  │</span><br><span class="line">│  │ 解释器      │  │ Array&#x2F;Hash&#x2F;  │  │ 程序验证    │  │</span><br><span class="line">│  │ ALU&#x2F;JMP&#x2F;ST  │  │ PerfEventArr │  │             │  │</span><br><span class="line">│  │ eBPF helpers │  │ fd table     │  │             │  │</span><br><span class="line">│  └─────────────┘  └──────────────┘  └─────────────┘  │</span><br><span class="line">├──────────────────────────────────────────────────────┤</span><br><span class="line">│              数据通道 &amp; 事件源层                       │</span><br><span class="line">│  perf_event 环形缓冲区  │  Tracepoint (静态追踪点)    │</span><br><span class="line">│  KCOV 覆盖率收集       │  debugfs tracing&#x2F;            │</span><br><span class="line">├──────────────────────────────────────────────────────┤</span><br><span class="line">│              动态探针基础层 (kprobe &#x2F; kallsyms)        │</span><br><span class="line">│  ┌──────────┐  ┌───────────┐  ┌──────────────┐       │</span><br><span class="line">│  │ kprobe   │  │stop_machine│  │ LKM loader   │       │</span><br><span class="line">│  │ kretprobe│  │ 安全代码段 │  │ kmod_loader  │       │</span><br><span class="line">│  │ 4架构    │  │ 修改       │  │ xtask build  │       │</span><br><span class="line">│  └──────────┘  └───────────┘  └──────────────┘       │</span><br><span class="line">└──────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="二、训练营其他阶段工作"><a href="#二、训练营其他阶段工作" class="headerlink" title="二、训练营其他阶段工作"></a>二、训练营其他阶段工作</h2><p>在进入Stage 7专业阶段之前，经过训练营早期任务的基础训练（Rust异步编程、协程并发模型等），我直接投入到tgOSKits仓库的StarryOS内核开发中。</p>
+<h3 id="2-1-传统I-O多路复用系统调用体系（方案一）"><a href="#2-1-传统I-O多路复用系统调用体系（方案一）" class="headerlink" title="2.1 传统I/O多路复用系统调用体系（方案一）"></a>2.1 传统I/O多路复用系统调用体系（方案一）</h3><p>在方案一阶段，我主要负责了select/poll/pselect6/ppoll四个核心syscall的深度测试与边界验证：</p>
+<table>
+<thead>
+<tr>
+<th align="left">改进方向</th>
+<th align="center">状态</th>
+<th align="left">PR</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">select/pselect6 用户态测试用例</td>
+<td align="center">✅</td>
+<td align="left"><a href="https://github.com/rcore-os/tgoskits/pull/563" target="_blank" rel="noopener">#563</a></td>
+</tr>
+<tr>
+<td align="left">select/poll/pselect6/ppoll 深度测试套件（43个独立测试模块，5大阶段）</td>
+<td align="center">✅</td>
+<td align="left"><a href="https://github.com/rcore-os/tgoskits/pull/679" target="_blank" rel="noopener">#679</a></td>
+</tr>
+</tbody></table>
+<p>测试套件覆盖超时、空fd_set、pipe读写、信号中断（EINTR）、POLLHUP/POLLERR边界等场景。</p>
+<h3 id="2-2-sys-msync接口完善与SQLite支撑（方案一）"><a href="#2-2-sys-msync接口完善与SQLite支撑（方案一）" class="headerlink" title="2.2 sys_msync接口完善与SQLite支撑（方案一）"></a>2.2 sys_msync接口完善与SQLite支撑（方案一）</h3><table>
+<thead>
+<tr>
+<th align="left">改进方向</th>
+<th align="center">状态</th>
+<th align="left">PR</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">sys_msync接口完善，处理页对齐约束，打通脏页回写</td>
+<td align="center">✅</td>
+<td align="left"><a href="https://github.com/rcore-os/tgoskits/pull/602" target="_blank" rel="noopener">#602</a></td>
+</tr>
+<tr>
+<td align="left">SQLite集成压测在StarryOS上跑通</td>
+<td align="center">✅</td>
+<td align="left"><a href="https://github.com/rcore-os/tgoskits/pull/602" target="_blank" rel="noopener">#602</a></td>
+</tr>
+</tbody></table>
+<h3 id="2-3-多核并行与基础设施（方案二）"><a href="#2-3-多核并行与基础设施（方案二）" class="headerlink" title="2.3 多核并行与基础设施（方案二）"></a>2.3 多核并行与基础设施（方案二）</h3><table>
+<thead>
+<tr>
+<th align="left">改进方向</th>
+<th align="center">状态</th>
+<th align="left">PR</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">SMP4多核压力测试扩展到x86_64/aarch64/riscv64/loongarch64四架构</td>
+<td align="center">✅</td>
+<td align="left"><a href="https://github.com/rcore-os/tgoskits/pull/652" target="_blank" rel="noopener">#652</a></td>
+</tr>
+<tr>
+<td align="left">axbacktrace无锁化并发重构（static mut→UnsafeCell）</td>
+<td align="center">✅</td>
+<td align="left"><a href="https://github.com/rcore-os/tgoskits/pull/655" target="_blank" rel="noopener">#655</a></td>
+</tr>
+<tr>
+<td align="left">DRM逐缓冲内存分配，Weston合成器双缓冲铺垫</td>
+<td align="center">✅</td>
+<td align="left"><a href="https://github.com/rcore-os/tgoskits/pull/667" target="_blank" rel="noopener">#667</a></td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="三、主要工作（六条主线）"><a href="#三、主要工作（六条主线）" class="headerlink" title="三、主要工作（六条主线）"></a>三、主要工作（六条主线）</h2><p>整体工作按五条主线展开，另有第六阶段（工程质量改进）正在进行中。以下各章节均标注了具体的文件路径与行号范围，格式为<code>文件路径:起始行-结束行</code>。</p>
+<h3 id="主线一：kprobe-kretprobe内核探针（-847-MERGED）"><a href="#主线一：kprobe-kretprobe内核探针（-847-MERGED）" class="headerlink" title="主线一：kprobe/kretprobe内核探针（#847, MERGED）"></a>主线一：kprobe/kretprobe内核探针（#847, MERGED）</h3><p>kprobe是Linux内核最核心的动态追踪机制，允许在任意内核函数入口/出口处插入探针。我实现了完整的kprobe/kretprobe支持，跨越四大架构：</p>
+<p><strong>核心实现</strong>：<code>os/StarryOS/kernel/src/kprobe.rs</code> (535行)</p>
+<ul>
+<li><code>KernelKprobeOps</code>实现<code>KprobeAuxiliaryOps</code>：copy_memory、set_writeable、alloc/free_kernel/exec_memory、kretprobe instance管理</li>
+<li>4架构<code>trapframe_to_ptregs()</code> / <code>ptregs_write_back()</code> 寄存器转换：x86_64、RISC-V 64、AArch64、LoongArch</li>
+<li>基于IPI的<code>stop_machine</code>机制，确保探针注册/注销时的代码修改安全</li>
+<li>增加<code>kretprobe_stack</code>字段，支持嵌套的kretprobe</li>
+<li><code>KernelRawMutex = RawSpinNoIrq</code>作为锁类型</li>
+</ul>
+<p><strong>AArch64架构修复</strong>（#887, MERGED）：</p>
+<ul>
+<li>修复aarch64异常返回时SP指针未正确保存的严重Bug</li>
+<li>代码位置：<code>components/axcpu/src/aarch64/context.rs</code> + <code>trap.S</code></li>
+</ul>
+<h3 id="主线二：eBPF子系统的全栈构建（-848-MERGED）"><a href="#主线二：eBPF子系统的全栈构建（-848-MERGED）" class="headerlink" title="主线二：eBPF子系统的全栈构建（#848, MERGED）"></a>主线二：eBPF子系统的全栈构建（#848, MERGED）</h3><p>eBPF子系统的核心实现覆盖了BPF Map管理、程序加载与验证、Helper函数注册、perf event集成。整个子系统实现了<code>bpf(2)</code>系统调用的9条主要命令：</p>
+<table>
+<thead>
+<tr>
+<th>BPF命令</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BPF_MAP_CREATE</td>
+<td>创建Map（Array/Hash/PerCPU/RingBuf等）</td>
+</tr>
+<tr>
+<td>BPF_PROG_LOAD</td>
+<td>加载BPF程序，经verifier验证</td>
+</tr>
+<tr>
+<td>BPF_RAW_TRACEPOINT_OPEN</td>
+<td>打开raw tracepoint</td>
+</tr>
+<tr>
+<td>BPF_MAP_UPDATE_ELEM</td>
+<td>更新Map元素</td>
+</tr>
+<tr>
+<td>BPF_MAP_LOOKUP_ELEM</td>
+<td>查找Map元素</td>
+</tr>
+<tr>
+<td>BPF_MAP_DELETE_ELEM</td>
+<td>删除Map元素</td>
+</tr>
+<tr>
+<td>BPF_MAP_GET_NEXT_KEY</td>
+<td>遍历Map</td>
+</tr>
+<tr>
+<td>BPF_MAP_FREEZE</td>
+<td>冻结Map（只读保护）</td>
+</tr>
+<tr>
+<td>BPF_MAP_LOOKUP_AND_DELETE_ELEM</td>
+<td>原子查找删除</td>
+</tr>
+</tbody></table>
+<p><strong>核心代码文件</strong>（均在<code>os/StarryOS/kernel/src/ebpf/</code>下）：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>行数</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>mod.rs</code></td>
+<td>174行</td>
+<td>bpf(2)系统调用入口，9个命令调度</td>
+</tr>
+<tr>
+<td><code>prog.rs</code></td>
+<td>108行</td>
+<td>BpfProg封装EbpfPreProcessor</td>
+</tr>
+<tr>
+<td><code>map.rs</code></td>
+<td>158行</td>
+<td>BpfMap封装UnifiedMap，支持poll+mmap</td>
+</tr>
+<tr>
+<td><code>transform.rs</code></td>
+<td>302行</td>
+<td>EbpfKernelAuxiliary桥接kbpf-basic到StarryOS内核</td>
+</tr>
+<tr>
+<td><code>error.rs</code></td>
+<td>19行</td>
+<td>BpfError→AxError转换</td>
+</tr>
+</tbody></table>
+<p><strong>perf_event子系统集成</strong>（均在<code>os/StarryOS/kernel/src/perf/</code>下），支持4种事件类型：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>状态</th>
+<th>代码位置</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PERF_TYPE_KPROBE</td>
+<td>✅</td>
+<td><code>kprobe.rs</code> (208行)</td>
+<td>含kretprobe(config=1)</td>
+</tr>
+<tr>
+<td>PERF_TYPE_SOFTWARE</td>
+<td>✅</td>
+<td><code>bpf.rs</code> (361行)</td>
+<td>软件事件，支持ringbuf mmap</td>
+</tr>
+<tr>
+<td>PERF_TYPE_TRACEPOINT</td>
+<td>✅</td>
+<td><code>tracepoint.rs</code> (160行)</td>
+<td>通过id查找</td>
+</tr>
+<tr>
+<td>PERF_TYPE_UPROBE</td>
+<td>✅</td>
+<td><code>uprobe.rs</code> (92行)</td>
+<td>解析ELF文件映射地址</td>
+</tr>
+</tbody></table>
+<p><strong>perf事件调度器</strong>：<code>perf/mod.rs</code> (312行) — <code>perf_event_open(2)</code>调度器，<code>PERF_FILE</code>表(fd→event弱引用)</p>
+<p><strong>eBPF运行时核心</strong>：<code>perf/bpf.rs</code> (361行)</p>
+<ul>
+<li><code>BpfPerfEventWrapper</code>：ringbuf + poll支持</li>
+<li><code>OwnedEbpfVm</code>：核心执行引擎，先尝试JIT编译再fallback到解释器</li>
+<li>利用<code>user_copy</code>汇编接口打通<code>probe_read_user</code></li>
+<li>手写实现核心Helper函数</li>
+</ul>
+<p><strong>eBPF用户态测试程序</strong>：位于<code>apps/starry/ebpf/</code>目录下（#874, MERGED），包含2个测试程序（<code>test-ebpf-advanced</code> 含26个测试模块 + <code>test-ebpf-attach</code>），覆盖kprobe、tracepoint、raw tracepoint、uprobe、kretprobe等全场景。</p>
+<h3 id="主线三：LKM内核模块支持（-849-MERGED）"><a href="#主线三：LKM内核模块支持（-849-MERGED）" class="headerlink" title="主线三：LKM内核模块支持（#849, MERGED）"></a>主线三：LKM内核模块支持（#849, MERGED）</h3><p>实现了Linux兼容的内核模块（LKM）加载机制，使StarryOS能够加载和运行<code>.ko</code>格式的内核模块。</p>
+<p><strong>核心实现</strong>：<code>os/StarryOS/kernel/src/kmod/mod.rs</code> (332行)</p>
+<ul>
+<li><code>KmodHelper</code>实现<code>KernelModuleHelper</code>：vmalloc / resolve_symbol / flush_cache</li>
+<li><code>init_module()</code>：加载.ko ELF → 重定位 → 调用init函数，防止重复注册</li>
+<li><code>delete_module()</code>：调用exit函数，释放内存</li>
+<li><code>lwprintf-rs</code>用于printk支持</li>
+</ul>
+<h3 id="主线四：eBPF-JIT编译器（三架构手写）"><a href="#主线四：eBPF-JIT编译器（三架构手写）" class="headerlink" title="主线四：eBPF JIT编译器（三架构手写）"></a>主线四：eBPF JIT编译器（三架构手写）</h3><p>这是我训练营期间最具挑战性的技术工作——从零实现了三个架构的eBPF字节码JIT编译器。该工作的最终产出物是提交到上游 <code>qmonnet/rbpf</code> 仓库的独立 PR（<a href="https://github.com/qmonnet/rbpf/pull/152" target="_blank" rel="noopener">#152</a>），而 tgoskits 仓库中的 <code>feat/ebpf-jit-*-*</code> 分支为早期探索和集成验证阶段代码。</p>
+<h4 id="4-1-JIT框架设计（rbpf上游PR-152）"><a href="#4-1-JIT框架设计（rbpf上游PR-152）" class="headerlink" title="4.1 JIT框架设计（rbpf上游PR #152）"></a>4.1 JIT框架设计（rbpf上游PR #152）</h4><p>JIT编译器采用统一的两遍编译（Two-Pass）架构，代码位于<code>feat/ebpf-jit-*-*</code>分支（未合入upstream/dev，§4.3 说明当前状态）：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>行数</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ebpf_jit/mod.rs</code></td>
+<td>352行</td>
+<td>框架：JitBuffer、JitBackend trait、JitCompiler</td>
+</tr>
+<tr>
+<td><code>ebpf_jit/jit_riscv64.rs</code></td>
+<td>~1311行</td>
+<td>RISC-V 64后端</td>
+</tr>
+<tr>
+<td><code>ebpf_jit/jit_x86_64.rs</code></td>
+<td>904行</td>
+<td>x86_64后端</td>
+</tr>
+<tr>
+<td><code>ebpf_jit/jit_aarch64.rs</code></td>
+<td>1102行</td>
+<td>AArch64后端</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>Pass 1（sizing）</strong>：遍历BPF指令序列，仅计算每条指令生成的目标机器码长度</li>
+<li><strong>Pass 2（compile）</strong>：再次遍历指令序列，生成实际机器码并写入<code>JitBuffer</code></li>
+<li><code>try_jit_compile()</code>：公共入口函数，成功返回生成的函数指针，失败自动fallback到解释器</li>
+</ul>
+<h4 id="4-2-跨架构寄存器映射"><a href="#4-2-跨架构寄存器映射" class="headerlink" title="4.2 跨架构寄存器映射"></a>4.2 跨架构寄存器映射</h4><p>三个架构的BPF寄存器映射遵循统一原则——R0-R5映射到参数/返回值寄存器，R6-R9映射到callee-saved寄存器，R10映射到帧指针：</p>
+<table>
+<thead>
+<tr>
+<th>BPF寄存器</th>
+<th>RISC-V 64</th>
+<th>x86_64</th>
+<th>AArch64</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>R0</td>
+<td>A0</td>
+<td>RAX</td>
+<td>X0</td>
+</tr>
+<tr>
+<td>R1</td>
+<td>A1</td>
+<td>RDI</td>
+<td>X1</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>A2</td>
+<td>RSI</td>
+<td>X2</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>A3</td>
+<td>RDX</td>
+<td>X3</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>A4</td>
+<td>RCX</td>
+<td>X4</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>A5</td>
+<td>R8</td>
+<td>X5</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>S0（callee-saved）</td>
+<td>—</td>
+<td>X19（callee-saved）</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>S1</td>
+<td>—</td>
+<td>X20</td>
+</tr>
+<tr>
+<td>R8</td>
+<td>S2</td>
+<td>—</td>
+<td>X21</td>
+</tr>
+<tr>
+<td>R9</td>
+<td>S4</td>
+<td>—</td>
+<td>X22</td>
+</tr>
+<tr>
+<td>R10（帧指针）</td>
+<td>S5</td>
+<td>RBP</td>
+<td>X25</td>
+</tr>
+</tbody></table>
+<h4 id="4-3-JIT当前状态"><a href="#4-3-JIT当前状态" class="headerlink" title="4.3 JIT当前状态"></a>4.3 JIT当前状态</h4><p><strong>tgoskits 仓库中</strong>：三个JIT分支PR（#891/#892/#893 等）均处于CLOSED状态，代码完整但未合入upstream/dev。AArch64分支（<code>feat/ebpf-jit-3-aarch64</code>）基过旧（692 commits behind upstream/dev），当前upstream/dev使用<code>rbpf::EbpfVmRaw::jit_compile()</code>作为JIT实现路径。</p>
+<p><strong>rbpf 上游仓库</strong>：RISC-V 64 和 AArch64 JIT 后端已作为独立 PR 提交到上游：<a href="https://github.com/qmonnet/rbpf/pull/152" target="_blank" rel="noopener">qmonnet/rbpf#152</a>（OPEN，DCO ✅，AppVeyor ✅ 619 tests pass，等待 maintainer review）。这是 JIT 工作的最终交付物。</p>
+<h3 id="主线五：工程质量持续改进（Training-Camp后期，进行中）"><a href="#主线五：工程质量持续改进（Training-Camp后期，进行中）" class="headerlink" title="主线五：工程质量持续改进（Training Camp后期，进行中）"></a>主线五：工程质量持续改进（Training Camp后期，进行中）</h3><p>这一阶段的工作按照”小步快跑、聚焦单一改动”的原则，从初始14个小粒度PR合并为3个关联度更高的当前开放PR（另有#1414被#1412完整取代后关闭）。</p>
+<h4 id="5-1-消除魔术数字-perf-event-fd-read-poll-O-NONBLOCK-1412"><a href="#5-1-消除魔术数字-perf-event-fd-read-poll-O-NONBLOCK-1412" class="headerlink" title="5.1 消除魔术数字 + perf event fd read/poll/O_NONBLOCK [#1412]"></a>5.1 消除魔术数字 + perf event fd read/poll/O_NONBLOCK [#1412]</h4><p><strong>状态</strong>：APPROVED，CI中</p>
+<p>合并了7个原始PR的改动，涉及perf/ebpf/tracepoint三个子系统：</p>
+<table>
+<thead>
+<tr>
+<th>改动</th>
+<th>关键代码位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>kprobe.rs添加<code>PROBE_CONFIG_ENTRY=0</code>/<code>PROBE_CONFIG_RETURN=1</code>常量</td>
+<td><code>perf/kprobe.rs</code></td>
+</tr>
+<tr>
+<td>消除<code>BPF_JIT_MEM_PAGES=4</code>和<code>KRETPROBE_MAX_ACTIVE=10</code>硬编码</td>
+<td><code>perf/bpf.rs</code>, <code>kprobe.rs</code></td>
+</tr>
+<tr>
+<td>tracepoint模块消除4096硬编码、ebpf模块消除helper ID硬编码</td>
+<td><code>ebpf/mod.rs</code></td>
+</tr>
+<tr>
+<td>移除<code>vm.register_allowed_memory(0..u64::MAX)</code>，启用rbpf地址空间边界检查</td>
+<td><code>perf/bpf.rs</code></td>
+</tr>
+<tr>
+<td><code>try_read_record</code>：从perf_event_mmap_page读取环形缓冲区</td>
+<td><code>perf/bpf.rs</code></td>
+</tr>
+<tr>
+<td><code>PerfEvent::read</code>从轮询式非阻塞读重构为<code>block_on(poll_io(...))</code>阻塞模式</td>
+<td><code>perf/bpf.rs</code>, <code>perf/mod.rs</code></td>
+</tr>
+<tr>
+<td>新增<code>AtomicBool</code>字段存储O_NONBLOCK状态，ringbuf为空立即返回EAGAIN</td>
+<td><code>perf/mod.rs</code></td>
+</tr>
+</tbody></table>
+<p><strong><code>try_read_record</code>签名修正</strong>（响应bot审查建议）：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 签名从 &amp;self 改为 &amp;mut self，由类型系统保证独占访问</span></span><br><span class="line"><span class="comment">// 调用方 PerfEvent::read 已通过 SpinNoPreempt 持有 event 锁</span></span><br><span class="line"><span class="keyword">pub</span>(<span class="keyword">crate</span>) <span class="function"><span class="keyword">fn</span> <span class="title">try_read_record</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, dst: &amp;<span class="keyword">mut</span> [<span class="built_in">u8</span>]) -&gt; AxResult&lt;<span class="built_in">usize</span>&gt; &#123;</span><br><span class="line">    <span class="comment">// SAFETY: &amp;mut self 保证独占写入；mmap 页由 VMA 固定且内核可写</span></span><br><span class="line">    <span class="keyword">let</span> mmap_mut = <span class="keyword">unsafe</span> &#123; &amp;<span class="keyword">mut</span> *(kvirt <span class="keyword">as</span> *<span class="keyword">mut</span> perf_event_mmap_page) &#125;;</span><br><span class="line">    mmap_mut.data_tail += record_size <span class="keyword">as</span> <span class="built_in">u64</span>;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码位置：<code>perf/bpf.rs</code> — <code>try_read_record</code>方法、data_head/data_tail环形缓冲区wrapping处理</p>
+<p><strong>关键安全修复</strong>：移除<code>register_allowed_memory(0..u64::MAX)</code>（<code>perf/bpf.rs</code>），启用rbpf的<code>check_mem</code>地址边界检查。现代eBPF可观测性程序通过helper函数访问内存，无需直接加载任意地址——直接内存访问是安全漏洞而非功能特性。</p>
+<h4 id="5-2-替换panic-todo-与消除伪文件系统魔术数字-1413"><a href="#5-2-替换panic-todo-与消除伪文件系统魔术数字-1413" class="headerlink" title="5.2 替换panic!/todo!与消除伪文件系统魔术数字 [#1413]"></a>5.2 替换panic!/todo!与消除伪文件系统魔术数字 [#1413]</h4><p><strong>状态</strong>：APPROVED，CI中（stacked on #1412）</p>
+<p>合并了5个原始PR的改动：</p>
+<table>
+<thead>
+<tr>
+<th>改动</th>
+<th>关键代码位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>card1.rs未知DRM ioctl触发<code>panic!()</code>→返回<code>VfsError::OperationNotSupported</code></td>
+<td><code>drivers/card1.rs</code></td>
+</tr>
+<tr>
+<td>ldisc.rs非规范模式VTIME&gt;0触发<code>todo!()</code>→文档注释说明VTIME定时器未实现</td>
+<td><code>tty/ldisc.rs</code></td>
+</tr>
+<tr>
+<td>pseudofs中loop/memtrack/card0消除魔术数字</td>
+<td><code>pseudofs/dev/loop.rs</code>, <code>memtrack.rs</code>, <code>card0.rs</code></td>
+</tr>
+<tr>
+<td>tmpfs statfs和tracepoint路径缓冲区消除魔术数字</td>
+<td><code>fs/tmpfs.rs</code></td>
+</tr>
+<tr>
+<td>ELF loader <code>vec![0;4096]</code>→<code>vec![0;PAGE_SIZE_4K]</code></td>
+<td><code>mm/loader.rs</code></td>
+</tr>
+</tbody></table>
+<p>这两项panic修复的重要性：card1.rs中任何用户空间程序发送不支持的DRM ioctl即可导致内核崩溃；ldisc.rs中任何设置了VTIME的终端读取都导致内核panic——这些都是真实可触发的内核稳定性问题。</p>
+<h4 id="5-3-注册bpf-get-current-pid-tgid和bpf-get-current-comm-helper-1411"><a href="#5-3-注册bpf-get-current-pid-tgid和bpf-get-current-comm-helper-1411" class="headerlink" title="5.3 注册bpf_get_current_pid_tgid和bpf_get_current_comm helper [#1411]"></a>5.3 注册bpf_get_current_pid_tgid和bpf_get_current_comm helper [#1411]</h4><p><strong>状态</strong>：APPROVED，CI中（stacked on #1412）</p>
+<p>kbpf-basic crate未实现helper #14 (<code>bpf_get_current_pid_tgid</code>)和#16 (<code>bpf_get_current_comm</code>)。在StarryOS侧<code>init_ebpf()</code>中直接往mutable BTreeMap插入两个自定义helper函数：</p>
+<ul>
+<li><code>bpf_get_current_pid_tgid</code>：使用<code>ax_task::current().as_thread()</code>获取pid/tid，返回<code>(tgid &lt;&lt; 32) | tid</code></li>
+<li><code>bpf_get_current_comm</code>：拷贝当前任务的<code>name()</code>到eBPF verifier验证过的内核buffer，null填充不足部分</li>
+</ul>
+<h4 id="5-4-1414-—-已关闭（被-1412完整取代）"><a href="#5-4-1414-—-已关闭（被-1412完整取代）" class="headerlink" title="5.4 #1414 — 已关闭（被#1412完整取代）"></a>5.4 #1414 — 已关闭（被#1412完整取代）</h4><p><a href="https://github.com/rcore-os/tgoskits/pull/1414" target="_blank" rel="noopener">#1414</a> feat(starry-perf): implement read, blocking poll, and O_NONBLOCK support for perf event fd — 该PR的三个串行feature改动已完整合并入#1412，功能完全重叠，故关闭。</p>
+<hr>
+<h2 id="四、团队协作：eBPF迁移计划全景交付清单"><a href="#四、团队协作：eBPF迁移计划全景交付清单" class="headerlink" title="四、团队协作：eBPF迁移计划全景交付清单"></a>四、团队协作：eBPF迁移计划全景交付清单</h2><p>子课题3由三位成员协作完成：linfeng(Godones)助教老师、LorenzLorentz同学和我（CN-TangLin）。</p>
+<h3 id="4-1-工作量较小的部分-——-基础设施与动态探针（Godones-amp-CN-TangLin）"><a href="#4-1-工作量较小的部分-——-基础设施与动态探针（Godones-amp-CN-TangLin）" class="headerlink" title="4.1 工作量较小的部分 —— 基础设施与动态探针（Godones &amp; CN-TangLin）"></a>4.1 工作量较小的部分 —— 基础设施与动态探针（Godones &amp; CN-TangLin）</h3><table>
+<thead>
+<tr>
+<th>#</th>
+<th>工作内容</th>
+<th>负责人</th>
+<th>PR</th>
+<th align="center">状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>扩展axhal对break/debug异常的处理（x86_64 INT3、AArch64 BRK、RISC-V EBREAK）</td>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/244" target="_blank" rel="noopener">#244</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>2</td>
+<td>proc/pid/maps支持</td>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/306" target="_blank" rel="noopener">#306</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>3</td>
+<td>dynamic debug支持（static-keys机制，<code>/proc/dynamic_debug/control</code>接口）</td>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/446" target="_blank" rel="noopener">#446</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>4</td>
+<td>tracepoint静态内核追踪点宏系统（<code>/sys/kernel/debug/tracing/events/</code>）</td>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/673" target="_blank" rel="noopener">#673</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>5</td>
+<td>内核符号表kallsyms支持（ksym crate）</td>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/837" target="_blank" rel="noopener">#837</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>6</td>
+<td>kprobe支持（4架构TrapFrame↔PtRegs、stop_machine、kretprobe_stack）</td>
+<td>CN-TangLin</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/847" target="_blank" rel="noopener">#847</a></td>
+<td align="center">MERGED</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-工作量较大的部分-——-eBPF核心与LKM模块（CN-TangLin-amp-LorenzLorentz）"><a href="#4-2-工作量较大的部分-——-eBPF核心与LKM模块（CN-TangLin-amp-LorenzLorentz）" class="headerlink" title="4.2 工作量较大的部分 —— eBPF核心与LKM模块（CN-TangLin &amp; LorenzLorentz）"></a>4.2 工作量较大的部分 —— eBPF核心与LKM模块（CN-TangLin &amp; LorenzLorentz）</h3><table>
+<thead>
+<tr>
+<th>#</th>
+<th>工作内容</th>
+<th>负责人</th>
+<th>PR</th>
+<th align="center">状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>7</td>
+<td>eBPF子系统（Map/Prog/VM/Helper/perf_event，ebpf/ 约750行）</td>
+<td>CN-TangLin</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/848" target="_blank" rel="noopener">#848</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>7b</td>
+<td>eBPF测试套件（2个测试程序接入CI）</td>
+<td>CN-TangLin</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/874" target="_blank" rel="noopener">#874</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>8</td>
+<td>eBPF runtime porting（kbpf-basic+rbpf外部crate集成）</td>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/850" target="_blank" rel="noopener">#850</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>8b</td>
+<td>aya eBPF生态移植 + 6个探针应用接入test-suit</td>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/886" target="_blank" rel="noopener">#886</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>8c</td>
+<td>eBPF用户态demos（uprobe/kprobe/kretprobe/tracepoint）</td>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1132" target="_blank" rel="noopener">#1132</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>9</td>
+<td>LKM支持（init_module/finit_module、KmodSectionMem、R/W/X隔离）</td>
+<td>CN-TangLin</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/849" target="_blank" rel="noopener">#849</a></td>
+<td align="center">MERGED</td>
+</tr>
+<tr>
+<td>9b</td>
+<td>LKM loader端口</td>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/851" target="_blank" rel="noopener">#851</a></td>
+<td align="center">MERGED</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-技术路线融合"><a href="#4-3-技术路线融合" class="headerlink" title="4.3 技术路线融合"></a>4.3 技术路线融合</h3><p>两条技术路线对比：</p>
+<ul>
+<li><strong>我的路线（#847/#848/#888）</strong>：手写eBPF子系统，自实现map/prog/VM/helper/perf_event，仅依赖标准库</li>
+<li><strong>LorenzLorentz路线（#850）</strong>：基于外部crate <code>kbpf-basic</code> + <code>rbpf</code>，复用社区成熟组件</li>
+</ul>
+<p>最终通过#848的合并，两条路线融合为统一的eBPF执行框架，用户态程序可透明切换使用两种实现路径。</p>
+<h3 id="4-4-Godones助教后续支持"><a href="#4-4-Godones助教后续支持" class="headerlink" title="4.4 Godones助教后续支持"></a>4.4 Godones助教后续支持</h3><table>
+<thead>
+<tr>
+<th>PR</th>
+<th>内容</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1192" target="_blank" rel="noopener">#1192</a></td>
+<td>eBPF apps现代化，新增rawtp/upb2 demo</td>
+<td>MERGED</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1208" target="_blank" rel="noopener">#1208</a></td>
+<td>eBPF ringbuf mmap在LoongArch DMW上的支持</td>
+<td>MERGED</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1256" target="_blank" rel="noopener">#1256</a></td>
+<td>BPF JIT内存对齐修复</td>
+<td>MERGED</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1279" target="_blank" rel="noopener">#1279</a></td>
+<td>LoongArch DMW-backed kmods支持</td>
+<td>MERGED</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="五、量化成果"><a href="#五、量化成果" class="headerlink" title="五、量化成果"></a>五、量化成果</h2><h3 id="5-1-PR统计"><a href="#5-1-PR统计" class="headerlink" title="5.1 PR统计"></a>5.1 PR统计</h3><table>
+<thead>
+<tr>
+<th>类别</th>
+<th>数量</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>已合并PR</td>
+<td>11</td>
+<td>#563, #602, #652, #655, #667, #679, #847, #848, #849, #874, #887</td>
+</tr>
+<tr>
+<td>当前开放PR（APPROVED，CI中）</td>
+<td>3</td>
+<td>#1411, #1412, #1413</td>
+</tr>
+<tr>
+<td>历史关闭PR</td>
+<td>25</td>
+<td>含JIT系列（#891/#892/#893等）、整合系列（#805/#888/#1035等）、小粒度PR（#1399-#1405等）、#1414（被#1412取代）</td>
+</tr>
+</tbody></table>
+<h3 id="5-2-代码量统计"><a href="#5-2-代码量统计" class="headerlink" title="5.2 代码量统计"></a>5.2 代码量统计</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>数据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>已合入dev的commits</td>
+<td>378</td>
+</tr>
+<tr>
+<td>新增代码行数</td>
+<td>15000+</td>
+</tr>
+<tr>
+<td>架构覆盖</td>
+<td>x86_64 / RISC-V 64 / AArch64 / LoongArch</td>
+</tr>
+<tr>
+<td>JIT代码量</td>
+<td>RISC-V 64后端1311行 + x86_64后端904行 + AArch64后端1102行 = 3317行（含框架352行）</td>
+</tr>
+<tr>
+<td>测试程序</td>
+<td>2个eBPF用户态测试程序（advanced 26模块 + attach） + select/poll家族43个测试模块 + SMP并发测试</td>
+</tr>
+</tbody></table>
+<h3 id="5-3-功能覆盖"><a href="#5-3-功能覆盖" class="headerlink" title="5.3 功能覆盖"></a>5.3 功能覆盖</h3><p>已实现的eBPF功能在子课题中覆盖了最全面的技术栈：</p>
+<ul>
+<li><strong>BPF Map</strong>：Array、Hash、PerCPU、RingBuf、PerfEventArray等核心类型</li>
+<li><strong>BPF Prog</strong>：加载、verifier验证、解释器执行、JIT编译</li>
+<li><strong>Helper函数</strong>：含bpf_get_current_pid_tgid、bpf_get_current_comm等</li>
+<li><strong>perf_event</strong>：4种类型（KPROBE/SOFTWARE/TRACEPOINT/UPROBE）</li>
+<li><strong>kprobe/kretprobe/uprobe</strong>：完整支持，四个架构</li>
+<li><strong>LKM</strong>：.ko加载/卸载，kmod-helper集成</li>
+<li><strong>JIT</strong>：三架构手写JIT编译器</li>
+</ul>
+<hr>
+<h2 id="六、经验与教训"><a href="#六、经验与教训" class="headerlink" title="六、经验与教训"></a>六、经验与教训</h2><h3 id="6-1-工程管理经验"><a href="#6-1-工程管理经验" class="headerlink" title="6.1 工程管理经验"></a>6.1 工程管理经验</h3><p><strong>PR粒度控制</strong>：训练营后期实践了”小PR→合并为大PR”的迭代模式。初期14个小粒度PR各有独立分支和CI，但过于碎片化。通过与reviewer沟通后，将关联度高的PR合并为3个（#1411/#1412/#1413），每个合并PR都有清晰的单一主题，便于review。另有#1414被#1412完整取代后关闭。</p>
+<p><strong>Conventional Commits + bot辅助审查</strong>：严格遵循<code>type(scope): description</code>格式，标题用英文、正文用中文。自动化CI审查大幅减少人工review负担，Bot的<code>CHANGES_REQUESTED → APPROVED</code>循环形成高效的迭代节奏。</p>
+<p><strong>小步快跑推PR</strong>：从代码完成到合入平均经历2-3轮review+CI，每轮24小时周期内响应反馈。</p>
+<h3 id="6-2-技术经验"><a href="#6-2-技术经验" class="headerlink" title="6.2 技术经验"></a>6.2 技术经验</h3><p><strong>JIT编译器的两遍Pass设计</strong>（<code>ebpf_jit/mod.rs</code>）：Pass 1仅计算代码长度（sizing），Pass 2生成实际代码。这种设计在不需额外内存的前提下解决了前向跳转指令中偏移量计算的问题——第一遍确定每条指令和每个label的位置，第二遍才能正确填充跳转偏移。</p>
+<p><strong>跨架构寄存器映射原则</strong>：R0-R5→参数/返回值寄存器（充分利用调用约定），R6-R9→callee-saved寄存器（跨helper调用不丢失），R10→帧指针寄存器。这种一致性设计使JIT框架代码保持架构无关。</p>
+<p><strong>eBPF安全边界</strong>（<code>perf/bpf.rs</code>）：移除<code>register_allowed_memory(0..u64::MAX)</code>，启用rbpf的<code>check_mem</code>地址边界检查。现代eBPF可观测性程序通过helper函数访问内存，直接内存访问是安全漏洞。</p>
+<p><strong><code>try_read_record</code>的<code>&amp;self</code>→<code>&amp;mut self</code>重构</strong>（<code>perf/bpf.rs</code>）：由类型系统保证ringbuf data_tail的独占写入，而非依赖注释+调用方纪律。调用方<code>PerfEvent::read</code>已通过<code>SpinNoPreempt</code>持有event锁。</p>
+<p><strong>稳定性修复优先级</strong>：<code>card1.rs</code>未知ioctl→<code>panic!()</code>和<code>ldisc.rs</code>VTIME→<code>todo!()</code>——任何用户程序都能触发内核崩溃。在添加新功能之前，消除已有代码中的崩溃路径是更高优先级。</p>
+<h3 id="6-3-教训"><a href="#6-3-教训" class="headerlink" title="6.3 教训"></a>6.3 教训</h3><p><strong>AArch64 JIT分支管理失误</strong>：<code>feat/ebpf-jit-3-aarch64</code>分支的初始基选择不当，导致692个commits落后于upstream/dev。长期开发分支应及时rebase到最新的上游主干。</p>
+<p><strong>JIT代码未及时合入主线</strong>：三个JIT PR尽管代码完整、已通过CI验证，但未能推进到最终合并。技术方案的成功不仅取决于代码质量，也取决于与社区技术路线的兼容性和推进节奏。</p>
+<hr>
+<h2 id="七、后续方向"><a href="#七、后续方向" class="headerlink" title="七、后续方向"></a>七、后续方向</h2><ul>
+<li>AArch64 JIT重新适配：从upstream/dev新开分支，提取JIT文件，适配当前kbpf-basic+rbpf版本</li>
+<li>JIT回归测试集成到CI</li>
+<li>BTF支持（CO-RE兼容）</li>
+<li>LoongArch64 JIT（仅有的缺失架构）</li>
+<li>BPF_PROG_ATTACH/DETACH/LINK_CREATE通用attach基础设施</li>
+</ul>
+<hr>
+<h2 id="八、工作仓库与链接"><a href="#八、工作仓库与链接" class="headerlink" title="八、工作仓库与链接"></a>八、工作仓库与链接</h2><table>
+<thead>
+<tr>
+<th>资源</th>
+<th>链接</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>主仓库（fork）</td>
+<td><a href="https://github.com/CN-TangLin/tgoskits" target="_blank" rel="noopener">https://github.com/CN-TangLin/tgoskits</a></td>
+</tr>
+<tr>
+<td>上游仓库</td>
+<td><a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits</a></td>
+</tr>
+<tr>
+<td>汇报Slide仓库</td>
+<td><a href="https://github.com/CN-TangLin/tgoskits/tree/dev/slides" target="_blank" rel="noopener">https://github.com/CN-TangLin/tgoskits/tree/dev/slides</a></td>
+</tr>
+<tr>
+<td>Blog提交PR</td>
+<td><a href="https://github.com/rcore-os/blog/pull/891" target="_blank" rel="noopener">https://github.com/rcore-os/blog/pull/891</a></td>
+</tr>
+<tr>
+<td>项目进展记录（Issue）</td>
+<td><a href="https://github.com/rcore-os/tgoskits/issues/642" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/issues/642</a></td>
+</tr>
+<tr>
+<td>rbpf 上游 JIT PR</td>
+<td><a href="https://github.com/qmonnet/rbpf/pull/152" target="_blank" rel="noopener">https://github.com/qmonnet/rbpf/pull/152</a></td>
+</tr>
+</tbody></table>
+<h3 id="当前开放PR（3个，均已APPROVED）"><a href="#当前开放PR（3个，均已APPROVED）" class="headerlink" title="当前开放PR（3个，均已APPROVED）"></a>当前开放PR（3个，均已APPROVED）</h3><table>
+<thead>
+<tr>
+<th>PR</th>
+<th>标题</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1411" target="_blank" rel="noopener">#1411</a></td>
+<td>feat(starry-ebpf): register bpf_get_current_pid_tgid and bpf_get_current_comm helpers</td>
+<td>CI中(stacked on #1412)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1412" target="_blank" rel="noopener">#1412</a></td>
+<td>feat(starry-perf): implement perf event fd read, poll, O_NONBLOCK; replace magic numbers</td>
+<td>CI中</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1413" target="_blank" rel="noopener">#1413</a></td>
+<td>fix(starry): replace panics/todos and magic numbers in pseudofs, tmpfs, and mm</td>
+<td>CI中(stacked on #1412)</td>
+</tr>
+</tbody></table>
+<p>关闭说明：#1414（feat(starry-perf): read, poll, O_NONBLOCK for perf event fd）已关闭——该PR的三个串行feature改动已完整合并入#1412，功能完全重叠。</p>
+<h3 id="已合并PR（11个）"><a href="#已合并PR（11个）" class="headerlink" title="已合并PR（11个）"></a>已合并PR（11个）</h3><table>
+<thead>
+<tr>
+<th>PR</th>
+<th>标题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/563" target="_blank" rel="noopener">#563</a></td>
+<td>test(starryos): add select, poll, pselect6 and ppoll syscall userspace tests</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/602" target="_blank" rel="noopener">#602</a></td>
+<td>feat(starry-kernel): implement sys_msync and add SQLite/msync test suites</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/652" target="_blank" rel="noopener">#652</a></td>
+<td>test(smp4): extend SMP tests to all 4 architectures and add concurrency testing</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/655" target="_blank" rel="noopener">#655</a></td>
+<td>refactor(axbacktrace): replace static mut with UnsafeCell in dwarf.rs</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/667" target="_blank" rel="noopener">#667</a></td>
+<td>feat(drm): per-buffer memory allocation for Weston bringup</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/679" target="_blank" rel="noopener">#679</a></td>
+<td>test(syscall): add comprehensive select/poll/pselect6/ppoll deep test suite</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/847" target="_blank" rel="noopener">#847</a></td>
+<td>feat(starry-kernel): add kprobe support</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/848" target="_blank" rel="noopener">#848</a></td>
+<td>feat(starry-kernel): add eBPF subsystem (maps, VM, helpers, perf events)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/849" target="_blank" rel="noopener">#849</a></td>
+<td>feat(starry-kernel): add LKM support via kmod-loader integration</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/874" target="_blank" rel="noopener">#874</a></td>
+<td>test(starry-kernel): add eBPF advanced and attach/perf_event user-space test suites</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/887" target="_blank" rel="noopener">#887</a></td>
+<td>fix(axcpu): save SP in aarch64 TrapFrame for kprobe correctness</td>
+</tr>
+</tbody></table>
+<h3 id="协作同学与助教PR"><a href="#协作同学与助教PR" class="headerlink" title="协作同学与助教PR"></a>协作同学与助教PR</h3><table>
+<thead>
+<tr>
+<th>负责人</th>
+<th>PR</th>
+<th>标题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/850" target="_blank" rel="noopener">#850</a></td>
+<td>feat(starry-kernel): port eBPF runtime (ebpf/, perf/, kprobe wiring)</td>
+</tr>
+<tr>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/851" target="_blank" rel="noopener">#851</a></td>
+<td>feat(starry-kernel): port LKM loader + cargo xtask starry kmod build</td>
+</tr>
+<tr>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/886" target="_blank" rel="noopener">#886</a></td>
+<td>feat(starry-kernel): eBPF kernel runtime (tracepoint / kprobe / perf)</td>
+</tr>
+<tr>
+<td>LorenzLorentz</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1132" target="_blank" rel="noopener">#1132</a></td>
+<td>feat(starry-apps): runnable eBPF demos</td>
+</tr>
+<tr>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/673" target="_blank" rel="noopener">#673</a></td>
+<td>Starry: Add kernel tracepoint infrastructure and debugfs integration</td>
+</tr>
+<tr>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/837" target="_blank" rel="noopener">#837</a></td>
+<td>Adds support for kernel symbol dumping via kallsyms</td>
+</tr>
+<tr>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1192" target="_blank" rel="noopener">#1192</a></td>
+<td>Modernize eBPF apps and add rawtp/upb2 demos</td>
+</tr>
+<tr>
+<td>Godones</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1208" target="_blank" rel="noopener">#1208</a></td>
+<td>fix(starry): support eBPF ringbuf mmap on LoongArch DMW</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>感谢操作系统训练营在整个项目阶段的指导。从最初学习异步编程，到深入参与StarryOS内核开发，再到独立实现eBPF JIT编译器，这段经历让我从一个只会读书的学生转变成了能解决实际问题的开发者。训练营不仅教会了我操作系统的理论知识，更重要的是建立了”刨根问底排bug、小步快跑推PR、严谨量化写报告”的工程方法论。</p>
+<p>特别感谢陈渝老师、周睿老师、向勇老师的悉心指导，感谢王铮学长、朱懿学长、邵志航学长在技术方向和工程规范上的引领，感谢王鹏杰同学在eBPF子课题中的紧密合作，感谢戴骏翔助教、陈林峰助教在基础设施和代码审查上的鼎力支持。没有你们的努力，eBPF子系统不可能达到今天的完成度。同时也感谢训练营所有台前幕后的助教老师和同学们的辛勤付出。</p>
+<p>感觉参与训练营之后，学校课程作业都变得异常简单。这段高强度、高密度的内核开发经历，真正锻炼了从定位问题到提交PR的完整工程能力。</p>
+<a id="more"></a>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/2026S/" rel="tag"># 2026S</a>
+              <a href="/blog/tags/author-CN-TangLin/" rel="tag"># author:CN-TangLin</a>
+              <a href="/blog/tags/repo-https-github-com-CN-TangLin-tgoskits/" rel="tag"># repo:https://github.com/CN-TangLin/tgoskits</a>
+              <a href="/blog/tags/eBPF/" rel="tag"># eBPF</a>
+              <a href="/blog/tags/JIT/" rel="tag"># JIT</a>
+              <a href="/blog/tags/kprobe/" rel="tag"># kprobe</a>
+              <a href="/blog/tags/%E5%86%85%E6%A0%B8%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7/" rel="tag"># 内核可观测性</a>
+              <a href="/blog/tags/%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8/" rel="tag"># 系统调用</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/27/20260627-Utopia-V-%E4%BB%A5Git%E4%B8%BA%E7%89%B5%E5%BC%95%E7%9A%84StarryOS-Linux%E5%85%BC%E5%AE%B9%E6%80%A7%E6%94%B9%E8%BF%9B/" rel="prev" title="以 Git 为牵引的 StarryOS Linux 兼容性改进">
+      <i class="fa fa-chevron-left"></i> 以 Git 为牵引的 StarryOS Linux 兼容性改进
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/28/20260628-%E5%91%A8%E5%AE%87%E8%81%AA-StarryOS%E5%86%85%E6%A0%B8%E4%BF%AE%E5%A4%8D%E5%92%8C%E5%BA%94%E7%94%A8%E6%94%AF%E6%8C%81/" rel="next" title="20260628-周宇聪-StarryOS内核修复和应用支持">
+      20260628-周宇聪-StarryOS内核修复和应用支持 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
