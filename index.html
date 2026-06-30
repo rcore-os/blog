@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">789</span>
+          <span class="site-state-item-count">791</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">763</span>
+        <span class="site-state-item-count">770</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,146 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/20260628-silicalet-StarryOS%E4%BF%A1%E5%8F%B7%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E4%B8%8ENix%E5%85%BC%E5%AE%B9%E6%80%A7%E6%8E%A2%E7%B4%A2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/28/20260628-silicalet-StarryOS%E4%BF%A1%E5%8F%B7%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E4%B8%8ENix%E5%85%BC%E5%AE%B9%E6%80%A7%E6%8E%A2%E7%B4%A2/" class="post-title-link" itemprop="url">2026 春季训练营总结：StarryOS 信号系统调用测试与 Nix 兼容性</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-28 22:00:00" itemprop="dateCreated datePublished" datetime="2026-06-28T22:00:00+00:00">2026-06-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <a id="more"></a>
+
+<p><strong>作者</strong>: 王浩旸 (silicalet)<br><strong>仓库</strong>: <a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">rcore-os/tgoskits</a> | 个人 fork: <a href="https://github.com/silicalet/tgoskits" target="_blank" rel="noopener">silicalet/tgoskits</a><br><strong>跟踪分支</strong>: <code>001-starryos-signal-syscalls</code>、<code>002-starryos-nix-smoke</code>、<code>003-starryos-nixpkgs</code></p>
+<p>训练营这三条分支走下来，我最大的感受是：内核兼容性工作的难点不在写代码，而在搞清楚”问题到底是什么”。三次都经历了同一个循环——拿到一个模糊的现象，花大量时间排除自己以为是根因的方向，最后发现真正的问题在完全没料到的地方。</p>
+<p>001 改测试不改内核，002 顺着 Nix 挂起追到 ext4 位图缓存，003 花了一周才搞明白”QEMU 退出码 0 不代表成功”。三条分支共用一套记录方式：Spec Kit 的 spec/plan/tasks/findings 管结构，本地 <code>./silicalet/</code> 目录存实验日志，不进 upstream。本文记的是从头到尾怎么走过来的，以及过程中那些走错的弯路。</p>
+<hr>
+<h2 id="001：只改测试，不改内核"><a href="#001：只改测试，不改内核" class="headerlink" title="001：只改测试，不改内核"></a>001：只改测试，不改内核</h2><p>001 的任务边界一开始让我有点不适应。spec 写得很死：本轮只改测试和文档，不动内核实现。对六个信号扩展系统调用做 readiness 评审，补齐源码级回归测试。</p>
+<p>刚开始觉得这个约束像在限制产出。但做到一半就理解了。信号子系统的 bug 不会在功能测试里暴露，它藏在特定的时序、掩码组合、siginfo 元数据场景下。StarryOS 这些 syscall 在 dispatch 层都有实现，但用户态覆盖参差不齐——有几个甚至没有独立测试。如果不知道”当前行为是什么”就直接改内核，等于在黑暗里装修。先把”正确行为”用测试固化下来，后续谁动信号子系统，这些测试就是回归防线。</p>
+<p>实际写测试时，最难的不是写断言，是确定”参考行为”。比如 rt_sigtimedwait 的 info 参数允许传 NULL，NULL 时 siginfo 不回写但信号仍被消费——这种细节 man page 一句话带过，Linux 内核为什么这么实现、StarryOS 的实现是否符合，得自己想清楚。每个 syscall 写一篇 beginner-oriented 笔记的过程逼着我把语义想透，比单写测试难得多。</p>
+<p>六个测试在 Linux 参考环境下断言全过后，我想去 StarryOS 上验证，结果卡在一个完全无关的地方。grouped syscall case 按字母序执行，test-raw-msg-peek 排在我的 signal 测试之前，它的 prebuild 脚本在 staging rootfs 里跑 apk wrapper 时触发了 ELOOP，整个 grouped case 在预构建阶段就断了，根本到不了我的测试。</p>
+<p>这个阻塞让我意识到一件事：源码级测试的隔离性在 grouped runner 里并不保证。测试本身写对了、Linux 参考过了，但 grouped case 的 prebuild 依赖链可能让它在 StarryOS 上根本跑不到。001 的交付因此是完整的——六个测试、分析文档、六篇笔记——但 StarryOS 侧的 expected-vs-observed 对照只能推迟到 prebuild 阻塞解除后。这是这一轮最大的遗憾。</p>
+<hr>
+<h2 id="002：从”Nix-挂起”到-ext4-位图缓存"><a href="#002：从”Nix-挂起”到-ext4-位图缓存" class="headerlink" title="002：从”Nix 挂起”到 ext4 位图缓存"></a>002：从”Nix 挂起”到 ext4 位图缓存</h2><p>002 的目标很小：让 Nix 在 StarryOS 上完成一个最小 derivation 构建。但从第一天起，现象就模糊得让人抓狂。</p>
+<p>第一个阻塞是 Nix 启动直接 abort，报”saving parent mount namespace”。这个好查——Linux 基线显示 Nix 要访问 /proc/self/ns/mnt，Starry 的 procfs 没这个节点。加了之后 Nix 能启动了。</p>
+<p>但 nix-build 随后挂在 build 阶段，日志只有一句”waiting for lock on /nix/store/…”。这个锁是 builder 自己创建的，不存在竞争，Linux 上一秒就完成。为什么 Nix 拿不到自己的锁？</p>
+<p>面对这种模糊现象，最容易犯的错是直接猜根因改代码。我选了相反的策略：从离现象最近的层开始，每一层先证明它不是问题，再往下走。锁语义、进程创建、PTY、clone、execve——一层层查下来全 PASS。到第六层 flock 操作，终于出现红灯：两个不同的锁文件共享同一个 inode 号，flock 按 (device, inode) 键控，自冲突。再往下查一层，是 ext4 的 inode 分配器把同一个 inode 号分配了两次——第一次分配的位图更新丢了。</p>
+<p>这个根因和我最初想象的方向差了十万八千里。如果一开始就猜”ext4 有问题”，我会在 ext4 几百个代码路径里盲目搜索。但七层排除下来，搜索空间被一步步缩小，最后落到 inode 分配器的位图缓存路径上。每一层 PASS 不是浪费时间，它们构成了”已排除清单”，让我在进入下一层时确信”锁语义、进程、PTY、clone、execve 都没问题，问题一定在更底层”。</p>
+<p>修完 ext4 位图缓存之后，Nix smoke 还是没通。一个 bug 修完暴露出下一个，我前后修了六七个配套问题：PID namespace 孤儿进程回收、pipe EOF 事件上报、rsext4 删除仍被 fd 引用的 inode 时过早释放、unshare(CLONE_FS) 未支持、stale flock 进程退出后不释放。每一个单独看都不大，但叠在一起才让 Nix smoke 真正跑通。</p>
+<p>这个过程中最让我印象深刻的是 rsext4 open-unlink 的设计。Nix 创建 .lock 文件后立刻 unlink，但仍然持有 fd 并通过 fd 写入。Linux 的语义是：unlink 只删除目录项，inode 在所有 fd 关闭后才释放。Starry 原来是删了就释放，导致 Nix 通过 fd 写入到一个已被回收的 inode。修这个需要对齐 Linux 的 i_links_count 和 i_count 双计数语义。这个设计不是我凭空想出来的——是对齐 Linux 已有语义的结果。</p>
+<p>最后 nix-nosandbox 终于 PASSED 的那一刻，我盯着日志看了很久。从”waiting for lock”到完整的构建输出，中间隔了将近一周、七层插桩、六七个配套修复。一个最小 derivation 构建能跑通，背后是一整条兼容性链路的打通。</p>
+<hr>
+<h2 id="003：QEMU-退出码-0-是个谎言"><a href="#003：QEMU-退出码-0-是个谎言" class="headerlink" title="003：QEMU 退出码 0 是个谎言"></a>003：QEMU 退出码 0 是个谎言</h2><p>003 在 002 基础上激活 nixpkgs 源码构建。这一轮我花时间最多的不是修 bug，是搞清楚”测试到底有没有失败”。</p>
+<p>nixpkgs 测试的现象是：no-sandbox 阶段通过，Nix 开始下载解包 nixpkgs，没有 panic，没有失败标志，QEMU 退出码是 0。如果只看 runner，这像一次正常关机。但测试脚本的 EXIT trap 没执行，shell 不是通过正常退出离开的。这个细节一开始没引起我足够重视——我以为就是测试在某个点正常退出了，只是没打 pass 标志。</p>
+<p>最先怀疑的是 OOM。但采样显示 nix 进程 RSS 才几十 MB，系统内存还有大半空闲。把 QEMU 内存从 2GB 加到 8GB，失败只是从 80 秒延后到 400 秒，仍然静默退出，退出时还有 3.8GB 空闲。加内存只延后了失败，没消除它。这不是简单的内存耗尽。</p>
+<p>接下来一周我陷入了排除法的泥潭。在 StarryOS 已知的三个关机路径加诊断——PID 1 退出、primary panic、recursive panic——都没触发。我当时用排除法猜”是 page cache 回收期间的递归 panic”，在 panic 路径本身加诊断后直接被推翻：panic_shutdown 和 page_cache_reclaim 都没触发。排除法能缩小范围，但确认根因必须找到触发证据，不能靠”其他都不对所以这个对”。这是我这一轮最大的教训。</p>
+<p>转折点是追踪 system_off 的调用链。QEMU 退出码 0 来自 someboot 的 x86_64 shutdown 函数往 0x604 端口写 0x2000，触发 QEMU Q35 的 ACPI S5 关机。顺着 system_off 的五个调用点查，前四个都排除了，第五个是 libc_compat 里的 abort()。在 abort 和 shutdown 加直接 COM1 端口写诊断，重新跑，两个标记都触发了。</p>
+<p>原来 nix（C++ 二进制）遇到致命错误时，musl libc 调用 abort()。StarryOS 的 libc_compat 把 abort() 映射成 ax_terminate → system_off → QEMU 关机。QEMU 退出码 0 不是测试成功，是整机关机。</p>
+<p>这个结论也推翻了”几 GiB free 就排除 OOM”的判断。进程 RSS 只描述用户进程映射，不代表内核 page cache 占用。真正增长的是脏页缓存——Nix 解包源码、构建 Git cache 时创建大量文件，没有周期写回时 dirty page cache 持续增长，挤压 Rust 全局分配器的堆空间，触发 rust_oom → abort。所以”free 还很多”是假象，因为我看的是错误的 free 指标。</p>
+<p>修了两处：后台 worker 每五秒同步一次文件缓存，避免脏页无界增长；ax-alloc 的字节分配失败路径改为调用已注册的 page reclaim callback 后重试。修完之后静默关机不再出现。</p>
+<p>但完整 nixpkgs 仍然没通过。89,704 个条目的 archive 在 StarryOS 上解压需要 6-7 分钟，远超 180 秒预算。试了加 vCPU、换压缩格式、用 tmpfs 绕过 ext4，都没改变三分钟结果——tar-to-Git-cache 这一步本质上是单线程的。</p>
+<p>这里我差点犯一个错。Spec Kit 任务希望有一个 grouped system regression。我测了一堆合成 VFS workload，全通过，无法复现真实 nixpkgs 超时。如果用一个本来就通过的 benchmark 冒充红色回归测试，CI 会变绿但什么也防不住。最后我选择诚实记录”当前没有有效的小型红色复现”，而不是造假。未来合适的回归层级是 axfs-ng 的 bounded page-cache pressure 测试，不是把完整 nixpkgs archive 塞进普通 syscall suite。</p>
+<hr>
+<h2 id="回头看"><a href="#回头看" class="headerlink" title="回头看"></a>回头看</h2><p>三条分支走完，几个感受比较深。</p>
+<p><strong>模糊现象是最难的起点。</strong> Nix 挂起、QEMU 退出码 0、测试跑不到——这些现象本身不告诉你任何信息。002 的七层插桩和 003 的 abort 路径追踪都证明了同一件事：现象越模糊，越不能猜根因改代码，必须从离现象最近的层开始逐层排除。每一层 PASS 都是在缩小搜索空间。</p>
+<p><strong>排除法会误导自己。</strong> 003 我曾用排除法猜”recursive panic”，排除了三个已知路径就下结论，结果被下一轮诊断直接推翻。排除法只能排除你想到的路径，确认根因必须找到触发证据。</p>
+<p><strong>观测指标要问覆盖范围。</strong> 003 早期看到”几 GiB free”就排除 OOM，是错的——free 指标不覆盖 page cache。002 一开始想从 Nix 用户态日志找原因，但那里只有”waiting for lock”，看不到 inode 号。观测点选在哪决定了能看到什么。</p>
+<p><strong>不为必须有回归测试造假。</strong> 合成 workload 全通过时，诚实记录”当前没有有效复现”比造一个与根因无关的测试强。CI 变绿但防不住真正的 bug，是更糟糕的状态。</p>
+<p><strong>本地笔记是调查记忆。</strong> 三条分支的 silicalet/ 目录存了几十份实验日志，通过 .git/info/exclude 排除在 upstream 之外。002 从 NIX-SMOKE-001 到 NIX-SMOKE-011 每一步诊断都有记录，003 从 rev9 到 rev13 每一轮排除都有笔记。没有这些笔记，rev12 推翻 rev11 结论时，我可能都不记得 rev11 具体测了什么。切换上下文是常态，结构化笔记让调查可恢复。</p>
+<hr>
+<h2 id="交付状态"><a href="#交付状态" class="headerlink" title="交付状态"></a>交付状态</h2><table>
+<thead>
+<tr>
+<th>分支</th>
+<th>交付</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>001</td>
+<td>六个 C 回归测试 + 分析文档 + 六篇 per-syscall 笔记</td>
+<td>Linux 参考全过；StarryOS 验证被前置 case prebuild 阻塞</td>
+</tr>
+<tr>
+<td>002</td>
+<td>ext4 位图缓存修复 + PID ns 孤儿回收 + pipe EOF + rsext4 open-unlink + unshare(CLONE_FS) + stale flock</td>
+<td>nix-nosandbox PASSED</td>
+</tr>
+<tr>
+<td>003</td>
+<td>周期 writeback + reclaim retry + 本地 store 闭包校准</td>
+<td>no-sandbox 通过；nixpkgs 受 180s 预算约束</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="致谢"><a href="#致谢" class="headerlink" title="致谢"></a>致谢</h2><p>感谢陈渝老师、周睿老师在训练营期间的指导。感谢交流群里的同学们，很多问题的思路是在讨论里逐渐清楚的。感谢开源社区，StarryOS、ArceOS、Linux 这些项目背后无数开发者的工作让后来者能站在巨人肩膀上学习。</p>
+<hr>
+<p><em>报告日期：2026-06-28</em></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/20260628-crion99-2026%E6%98%A5%E5%AD%A3%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-StarryOS%E9%AB%98%E7%BA%A7%E9%9B%B6%E6%8B%B7%E8%B4%9DIO%E4%B8%8E%E5%BA%94%E7%94%A8%E5%85%BC%E5%AE%B9%E6%80%A7%E6%B5%8B%E8%AF%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +404,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -495,7 +635,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -576,7 +716,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1047,7 +1187,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
               </span>
 
           
@@ -1662,7 +1802,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
               </span>
 
           
@@ -1789,7 +1929,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:33" itemprop="dateModified" datetime="2026-06-30T02:07:33+00:00">2026-06-30</time>
               </span>
 
           
@@ -1853,7 +1993,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2237,6 +2377,524 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" class="post-title-link" itemprop="url">2026春季OS训练营总结报告——StarryOS网络应用适配与测试体系构建</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-27 20:00:00" itemprop="dateCreated datePublished" datetime="2026-06-27T20:00:00+00:00">2026-06-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h1><p>本次训练营我的工作主线是：围绕 StarryOS 的 Linux 网络应用兼容性，持续做「应用驱动测试 -&gt; 问题定位修复 -&gt; 测试框架固化」。</p>
+<p>阶段性成果可概括为三点：</p>
+<ol>
+<li>完成 Nginx 和 Apache 测试框架从零到一的构建，建立 smoke/phase/debug 三层测试体系。</li>
+<li>构建网络性能测试基础设施（net-bench），集成 eBPF 观测工具，为网络栈持续优化提供工具支撑。</li>
+<li>完成 OS 功能赛 proj57（ACT 推理）QEMU 和 RK3588 两阶段交付，NPU 执行性能已优于 Linux。</li>
+</ol>
+<hr>
+<h1 id="一、训练营阶段工作"><a href="#一、训练营阶段工作" class="headerlink" title="一、训练营阶段工作"></a>一、训练营阶段工作</h1><h2 id="1-1-第一阶段：系统调用测试基础"><a href="#1-1-第一阶段：系统调用测试基础" class="headerlink" title="1.1 第一阶段：系统调用测试基础"></a>1.1 第一阶段：系统调用测试基础</h2><p>在第一阶段以单一系统调用为目标，完成了事件复用和文件同步两个方向的测试与修复。</p>
+<h3 id="具体工作"><a href="#具体工作" class="headerlink" title="具体工作"></a>具体工作</h3><ol>
+<li><p><strong>事件复用系统调用</strong></p>
+<ul>
+<li>实现 <code>epoll_create1</code>、<code>epoll_ctl</code>、<code>epoll_pwait</code>、<code>epoll_pwait2</code> 测试</li>
+<li>修复 <code>sigsetsize</code> 检查与 Linux ABI 不一致问题</li>
+</ul>
+</li>
+<li><p><strong>文件同步系统调用</strong></p>
+<ul>
+<li>对齐 <code>fsync</code>、<code>fdatasync</code>、<code>sync_file_range</code>、<code>sync</code>、<code>syncfs</code> 的 Linux 语义</li>
+<li>修复返回值和错误码偏差</li>
+</ul>
+</li>
+</ol>
+<h3 id="对应-PR"><a href="#对应-PR" class="headerlink" title="对应 PR"></a>对应 PR</h3><ul>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/658" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/658</a> (Merged)</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/900" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/900</a> (Merged)</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/903" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/903</a> (Merged)</li>
+</ul>
+<hr>
+<h2 id="1-2-第二阶段：Nginx-测试框架与多架构适配"><a href="#1-2-第二阶段：Nginx-测试框架与多架构适配" class="headerlink" title="1.2 第二阶段：Nginx 测试框架与多架构适配"></a>1.2 第二阶段：Nginx 测试框架与多架构适配</h2><p>这一阶段从龙同学（LetsWalkInLine）手中接过初步的 Nginx 支持，将其发展为完整的测试框架。</p>
+<h3 id="1-2-1-统一测试入口与分层架构"><a href="#1-2-1-统一测试入口与分层架构" class="headerlink" title="1.2.1 统一测试入口与分层架构"></a>1.2.1 统一测试入口与分层架构</h3><p><strong>问题背景</strong>：</p>
+<ul>
+<li>初始版本测试脚本分散，QEMU 配置冗余</li>
+<li>缺少统一的测试模式切换机制</li>
+<li>难以在 smoke/phase/debug 间快速切换</li>
+</ul>
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li>实现 <code>nginx-runner.sh</code> 统一 guest 入口，支持：<ul>
+<li><code>smoke</code>：CI 快速验证（APK 安装 + 基础启动）</li>
+<li><code>phase</code>：阶段性功能测试（phase20-70）</li>
+<li><code>debug</code>：问题定位（单步调试、日志增强）</li>
+<li><code>stress</code>：性能压力测试</li>
+</ul>
+</li>
+<li>建立三层 QEMU 配置结构：<ul>
+<li><code>qemu/all/</code>：完整功能测试配置</li>
+<li><code>qemu/phase/</code>：单个 phase 快速验证</li>
+<li><code>qemu/debug/</code>：调试专用配置（更多内存、日志输出）</li>
+</ul>
+</li>
+</ul>
+<p><strong>代码组织</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">test-suit&#x2F;starryos&#x2F;normal&#x2F;nginx&#x2F;</span><br><span class="line">├── scripts&#x2F;</span><br><span class="line">│   ├── nginx-runner.sh          # 统一入口</span><br><span class="line">│   ├── smoke&#x2F;                    # CI 验证脚本</span><br><span class="line">│   ├── phase&#x2F;                    # 功能测试脚本</span><br><span class="line">│   └── debug&#x2F;                    # 调试脚本</span><br><span class="line">├── qemu&#x2F;</span><br><span class="line">│   ├── &#123;arch&#125;-nginx-all.toml    # CI 默认入口</span><br><span class="line">│   ├── all&#x2F;*.toml               # 完整测试</span><br><span class="line">│   ├── phase&#x2F;*.toml             # 单阶段测试</span><br><span class="line">│   └── debug&#x2F;*.toml             # 调试配置</span><br><span class="line">└── build-*.toml                  # 构建配置</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-2-2-关键问题定位与修复"><a href="#1-2-2-关键问题定位与修复" class="headerlink" title="1.2.2 关键问题定位与修复"></a>1.2.2 关键问题定位与修复</h3><p><strong>问题一：多 worker 卡死</strong></p>
+<ul>
+<li>现象：<code>worker_processes 4</code> 时概率性卡死</li>
+<li>根因：信号中断处理和 <code>EPOLLEXCLUSIVE</code> 语义不完整</li>
+<li>修复：<ul>
+<li>补齐 <code>EPOLLEXCLUSIVE</code> 在 <code>epoll_ctl</code> 中的正确处理</li>
+<li>修正 <code>accept()</code> 被信号中断时的返回值和重试逻辑</li>
+</ul>
+</li>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1018" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1018</a> (Merged)</li>
+</ul>
+<p><strong>问题二：x86_64 短连接超时</strong></p>
+<ul>
+<li>现象：phase31（短连接压测）在 x86_64 上偶发 HTTP 超时</li>
+<li>初步怀疑：网络栈性能问题</li>
+<li>深入定位：<ul>
+<li>通过分段计时发现瓶颈在 guest 侧 <code>curl</code> 进程启动</li>
+<li>x86 QEMU 下外部命令启动开销高达 1-3 秒</li>
+<li>Nginx 响应时间实际在毫秒级，非瓶颈</li>
+</ul>
+</li>
+<li>解决：将 <code>curl</code> 超时从 5 秒放宽到 15 秒，匹配 x86 实际开销</li>
+<li>教训：性能问题需要分段计时，避免误判根因</li>
+</ul>
+<p><strong>问题三：loongarch64 内存不足</strong></p>
+<ul>
+<li>现象：loongarch64 启动后 OOM</li>
+<li>根因：默认内存配置 1GB 不足以运行完整测试</li>
+<li>修复：提升到 2GB，并规范化各架构内存配置</li>
+</ul>
+<h3 id="1-2-3-稳定性改进"><a href="#1-2-3-稳定性改进" class="headerlink" title="1.2.3 稳定性改进"></a>1.2.3 稳定性改进</h3><ol>
+<li><p><strong>固定 APK 镜像版本</strong></p>
+<ul>
+<li>问题：使用 <code>edge</code> 仓库导致 glibc ABI 漂移，测试不稳定</li>
+<li>修复：固定到与 rootfs 一致的 Alpine 版本（3.19）</li>
+</ul>
+</li>
+<li><p><strong>动态启动路径修复</strong></p>
+<ul>
+<li>问题：Starry app qemu 未走动态平台启动，导致部分架构失败</li>
+<li>修复：统一通过 <code>axbuild</code> 动态启动路径</li>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1267" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1267</a> (Merged)</li>
+</ul>
+</li>
+</ol>
+<h3 id="对应-PR-1"><a href="#对应-PR-1" class="headerlink" title="对应 PR"></a>对应 PR</h3><ul>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1014" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1014</a> (Merged) - 初始 CI 实现</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1018" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1018</a> (Merged) - 多 worker 修复</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1038" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1038</a> (Merged) - 完整测试框架</li>
+</ul>
+<hr>
+<h2 id="1-3-第二阶段：Apache-测试实现"><a href="#1-3-第二阶段：Apache-测试实现" class="headerlink" title="1.3 第二阶段：Apache 测试实现"></a>1.3 第二阶段：Apache 测试实现</h2><p>在 Nginx 测试框架稳定后，我参照同样的架构从零实现了 Apache MPM prefork 测试。</p>
+<h3 id="1-3-1-测试覆盖设计"><a href="#1-3-1-测试覆盖设计" class="headerlink" title="1.3.1 测试覆盖设计"></a>1.3.1 测试覆盖设计</h3><p>Apache 测试分为 7 个 phase，覆盖从基础到高级的完整生命周期：</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>覆盖内容</th>
+<th>关键验证点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>phase20</td>
+<td>多进程管理</td>
+<td>prefork MPM、graceful 重启、worker 数量控制</td>
+</tr>
+<tr>
+<td>phase30</td>
+<td>HTTP 静态文件</td>
+<td>GET 请求、Content-Type、Last-Modified</td>
+</tr>
+<tr>
+<td>phase40</td>
+<td>目录访问</td>
+<td>DirectoryIndex、FancyIndexing、.htaccess</td>
+</tr>
+<tr>
+<td>phase50</td>
+<td>日志生命周期</td>
+<td>access_log/error_log、graceful 后日志追加</td>
+</tr>
+<tr>
+<td>phase55</td>
+<td>sendfile 与 range</td>
+<td>大文件传输、HTTP Range、mmap/sendfile 路径</td>
+</tr>
+<tr>
+<td>phase70</td>
+<td>CGI</td>
+<td>脚本执行、环境变量、管道通信</td>
+</tr>
+<tr>
+<td>phase80</td>
+<td>模块特性</td>
+<td>mod_rewrite、mod_alias、mod_headers</td>
+</tr>
+</tbody></table>
+<h3 id="1-3-2-关键问题定位：TCP-DEFER-ACCEPT"><a href="#1-3-2-关键问题定位：TCP-DEFER-ACCEPT" class="headerlink" title="1.3.2 关键问题定位：TCP_DEFER_ACCEPT"></a>1.3.2 关键问题定位：TCP_DEFER_ACCEPT</h3><p><strong>问题背景</strong>：</p>
+<ul>
+<li>reviewer 环境下 Apache 启动失败，日志显示 <code>AH00076</code> 警告</li>
+<li>警告内容：<code>setsockopt(TCP_DEFER_ACCEPT) failed: errno 92</code></li>
+</ul>
+<p><strong>深度调查</strong>：</p>
+<ol>
+<li>编写 C 语言探针 <code>tcp-defer-accept-probe.c</code>（172 行）</li>
+<li>验证三个关键问题：<ul>
+<li><code>setsockopt()</code> 返回值：-1</li>
+<li><code>errno</code>：92（协议不支持）</li>
+<li>监听 socket 是否可用：<strong>可用</strong>，能正常 <code>accept()</code></li>
+</ul>
+</li>
+</ol>
+<p><strong>结论</strong>：</p>
+<ul>
+<li><code>TCP_DEFER_ACCEPT</code> 失败是警告而非错误</li>
+<li>Apache 能正常回退到标准 <code>accept()</code> 路径</li>
+<li>监听 socket 完全可用，不影响功能</li>
+</ul>
+<p><strong>smoke 范围调整</strong>：</p>
+<ul>
+<li>基于此结论，将 smoke 收敛到前 4 步：<ul>
+<li>package（APK 安装）</li>
+<li>files（配置文件就位）</li>
+<li>environment（环境变量）</li>
+<li>config test（<code>apachectl configtest</code>）</li>
+</ul>
+</li>
+<li>移除 HTTP 测试到 <code>debug/apache-smoke-full.sh</code></li>
+</ul>
+<h3 id="1-3-3-调试工具集"><a href="#1-3-3-调试工具集" class="headerlink" title="1.3.3 调试工具集"></a>1.3.3 调试工具集</h3><p>为问题定位实现了 9 个 debug 脚本：</p>
+<ol>
+<li><code>mpm-prefork-wait.sh</code>：观测 prefork worker 启动和等待</li>
+<li><code>accept-mutex.sh</code>：验证 accept mutex 行为</li>
+<li><code>graceful-signal.sh</code>：测试 graceful 重启的信号传递</li>
+<li><code>htaccess-path-walk.sh</code>：追踪 <code>.htaccess</code> 路径遍历</li>
+<li><code>sendfile-mmap-range.sh</code>：对比 sendfile/mmap 性能</li>
+<li><code>cgi-pipe-exec.sh</code>：验证 CGI 管道和脚本执行</li>
+<li><code>log-append-reopen.sh</code>：测试日志追加和重开</li>
+<li><code>phase20-restart.sh</code>：单步调试 phase20 重启逻辑</li>
+<li><code>tcp-defer-accept-probe.c</code>：setsockopt 系统调用探针</li>
+</ol>
+<h3 id="当前状态"><a href="#当前状态" class="headerlink" title="当前状态"></a>当前状态</h3><ul>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1311" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1311</a> (Open)</li>
+<li>代码量：2367+ 行（测试脚本 + C 探针 + 配置）</li>
+<li>状态：等待 review，尚未合并</li>
+</ul>
+<hr>
+<h2 id="1-4-网络性能测试基础设施（net-bench）"><a href="#1-4-网络性能测试基础设施（net-bench）" class="headerlink" title="1.4 网络性能测试基础设施（net-bench）"></a>1.4 网络性能测试基础设施（net-bench）</h2><p>在方案二与方案三之间，我构建了网络性能测试框架，为网络栈持续优化提供工具支撑。</p>
+<h3 id="1-4-1-设计目标与理念"><a href="#1-4-1-设计目标与理念" class="headerlink" title="1.4.1 设计目标与理念"></a>1.4.1 设计目标与理念</h3><ul>
+<li><strong>“入口 + 参数明确”的严肃测试架构</strong>：<code>run.sh</code> 为唯一严肃入口，显式指定场景（<code>--scenario</code>）、架构（<code>--arch</code>）、加速器（<code>--accel</code>）、重复次数（<code>--repeat</code>），保证可复现、可对照</li>
+<li><strong>智能入口实验化</strong>：自动检测环境后委托 <code>run.sh</code> 执行，属于开发期便捷能力，不参与严肃测试</li>
+<li><strong>多拓扑支持</strong>：vhost（主力性能）、tap（降级方案）、slirp（功能冒烟），新增 tap-smp4 和 vhost-smp4 多核扩展场景</li>
+<li><strong>全流程自动化</strong>：一键宿主机配置、测试执行、结果汇总、清理回退</li>
+</ul>
+<h3 id="1-4-2-实现架构"><a href="#1-4-2-实现架构" class="headerlink" title="1.4.2 实现架构"></a>1.4.2 实现架构</h3><p><strong>统一入口与公共流程</strong>：</p>
+<p>围绕 <code>run.sh</code> 构建两级入口体系：</p>
+<ul>
+<li>严肃入口：<code>run.sh</code> 显式接收参数，获取公共流程封装后逐轮启动 iperf3 服务端、执行 guest 测试、收集结果、调用汇总脚本</li>
+<li>实验性入口：自动检测平台（WSL2/裸 Linux）、架构、KVM 和 vhost-net 可用性，推断参数后委托 <code>run.sh</code>（确保行为一致），测试结束自动清理；另有 WSL2 快捷封装</li>
+</ul>
+<p>公共流程封装集中在一处，消除散落硬编码：</p>
+<ul>
+<li>常量：网段、端口、拓扑定义</li>
+<li>配置矩阵解析：根据 scenario/arch/accel 自动推导 QEMU 配置文件路径</li>
+<li>iperf3 生命周期：启动、停止、进程级信号兜底（EXIT/INT/TERM）</li>
+<li>前置检查：KVM 可用性、vhost-net 可用性、TAP 设备就绪、DHCP 服务端监听校验（:67 端口）</li>
+<li>环境指纹：记录硬件/OS/内核/编译参数</li>
+<li>结果汇总：mean/stddev，NOISY 标记 &gt;10% stddev</li>
+</ul>
+<p><strong>补齐配置矩阵</strong>：</p>
+<p>QEMU 配置文件按 <code>&lt;scenario&gt;-&lt;arch&gt;-&lt;accel&gt;.toml</code> 命名规范覆盖 20 个组合：</p>
+<ul>
+<li>场景：slirp、tap、vhost、tap-smp4、vhost-smp4</li>
+<li>架构：x86_64、aarch64</li>
+<li>加速模式：kvm（同架构硬件加速）、tcg（跨架构或 KVM 不可用，仅功能验证）</li>
+</ul>
+<p><strong>一键宿主机配置</strong>：</p>
+<p><code>bin/setup</code> 实现全自动配置：</p>
+<ul>
+<li>自动安装缺失依赖（iperf3、brctl、jq、dnsmasq）</li>
+<li>自动加载 vhost_net 模块并放开 <code>/dev/vhost-net</code> 和 <code>/dev/kvm</code> 权限</li>
+<li>创建桥接 br0、tap0 设备，启动 dnsmasq DHCP（iperf3 服务端由 run.sh 自管生命周期）</li>
+<li>资源与进程状态写入状态文件</li>
+</ul>
+<p><code>bin/teardown</code> 读取状态文件，逆序清理进程和设备，实现状态化回滚。</p>
+<p><strong>测试覆盖</strong>：<br>| Test ID | 说明 | iperf3 参数 |<br>|———|——|————-|<br>| tcp1 | TCP 单流上行 | <code>-c $HOST</code> |<br>| tcp4 | TCP 4 并发流 | <code>-P 4</code> |<br>| tcp1r | TCP 单流下行 | <code>-R</code> (reverse) |<br>| udp1g | UDP 大包 1Gbps | <code>-u -b 1G</code> |<br>| udp64 | UDP 64B 小包 | <code>-u -l 64</code> |</p>
+<p>每个测试：1 次 warmup + 5 次正式测量。延迟与短连接由 netperf（TCP_RR/UDP_RR/TCP_CRR）补充。</p>
+<p><strong>基于 WSL2 端到端测试发现的 4 个真实缺陷</strong>：</p>
+<ol>
+<li><code>AX_IP</code>/<code>AX_GW</code> 环境变量注入无效：guest 内核在 xtask 路径下只支持 DHCP 获取地址（<code>axruntime</code> 未解析静态 IP 环境变量），移除误导性环境变量注入并文档化 DHCP 依赖</li>
+<li>DHCP 服务端未校验：缺少 DHCP 时 guest 静默 <code>DHCP timed out</code>，现已对 :67 端口监听校验，缺失时直接报错</li>
+<li>iperf3 服务端残留：失败运行后 <code>trap RETURN</code> 在 <code>set -e</code> 下未触发，改为进程级 EXIT/INT/TERM 兜底</li>
+<li>iperf3 服务端冲突：setup 自启 iperf3 导致与 run.sh 争用端口，改为仅由 run.sh 自管 iperf3 生命周期</li>
+</ol>
+<h3 id="1-4-3-eBPF-网络观测工具"><a href="#1-4-3-eBPF-网络观测工具" class="headerlink" title="1.4.3 eBPF 网络观测工具"></a>1.4.3 eBPF 网络观测工具</h3><p>依托 CN-TangLin 同学的 eBPF 内核运行时（#848、#850、#886），实现了 <code>net_stats</code> 观测工具。</p>
+<p><strong>实现原理</strong>：</p>
+<ul>
+<li>kprobe 入口：统计调用次数（<code>*_pkts</code>）</li>
+<li>kretprobe 出口：统计字节数（<code>*_bytes</code>）</li>
+<li>探测符号：<ul>
+<li><code>ax_net::tcp::TcpSocket::send</code></li>
+<li><code>ax_net::tcp::TcpSocket::recv</code></li>
+<li><code>ax_net::udp::UdpSocket::send</code></li>
+<li><code>ax_net::udp::UdpSocket::recv</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>技术特点</strong>：</p>
+<ul>
+<li>Rust v0 mangled 符号解析</li>
+<li>Multi-symbol attach（同一探针 attach 到多个 monomorphized 符号）</li>
+<li>内置 loopback 自测（<code>--test</code> 模式）</li>
+</ul>
+<p><strong>已知限制</strong>：</p>
+<ul>
+<li><code>*_pkts</code> 实际是调用次数，非真实包数</li>
+<li>统计层级是 socket 层，不含 TCP/IP header</li>
+<li>SMP 并发计数非原子，高并发可能丢失增量</li>
+</ul>
+<p><strong>当前状态</strong>：</p>
+<ul>
+<li>x86_64 self-test 通过</li>
+<li>x86_64 WSL2 端到端（slirp/tap/vhost/vhost-smp4/tap-smp4 全场景）全部 PASS</li>
+<li>eBPF 与 net-bench 的自动集成尚在完善</li>
+</ul>
+<h3 id="对应分支"><a href="#对应分支" class="headerlink" title="对应分支"></a>对应分支</h3><ul>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1417" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1417</a> (Open)</li>
+<li><code>feat/net-enhance</code> (未合并)</li>
+<li>提交：<code>c30afcc60</code>、<code>394bb6414</code>、<code>7e11d94e4</code>、<code>78fd92817</code></li>
+</ul>
+<hr>
+<h2 id="1-5-OS-功能赛-proj57：ACT-推理"><a href="#1-5-OS-功能赛-proj57：ACT-推理" class="headerlink" title="1.5 OS 功能赛 proj57：ACT 推理"></a>1.5 OS 功能赛 proj57：ACT 推理</h2><h3 id="1-5-1-赛题背景"><a href="#1-5-1-赛题背景" class="headerlink" title="1.5.1 赛题背景"></a>1.5.1 赛题背景</h3><p>在 rk3588/sg2002 开发板上实现 ACT（Action Chunking Transformer）模型推理，为移动机器人提供感知-决策能力。</p>
+<p><strong>推理规格</strong>：</p>
+<ul>
+<li>输入：RGB 图像 224x224 + 机器人状态 <code>[left_vel, right_vel]</code></li>
+<li>输出：8 步动作序列 <code>[left_vel, right_vel, gripper_target]</code></li>
+<li>预处理：ImageNet 归一化 + QUANTILES 归一化</li>
+<li>后处理：动作反归一化 + 方向判断</li>
+</ul>
+<h3 id="1-5-2-QEMU-阶段（5月28日）"><a href="#1-5-2-QEMU-阶段（5月28日）" class="headerlink" title="1.5.2 QEMU 阶段（5月28日）"></a>1.5.2 QEMU 阶段（5月28日）</h3><p><strong>快速原型</strong>：</p>
+<ul>
+<li>第一天即在 QEMU StarryOS 中跑通 ACT 推理</li>
+<li>推理引擎：<code>tract</code>（纯 Rust ONNX runtime）</li>
+<li>平台：QEMU riscv64 + musl</li>
+</ul>
+<p><strong>关键指标</strong>：</p>
+<ul>
+<li>模型：193.25 MiB ONNX</li>
+<li>二进制：~17.26 MiB (riscv64)</li>
+<li>推理耗时：~25,233 ms</li>
+<li>验证：golden 对照通过</li>
+</ul>
+<h3 id="1-5-3-RK3588-阶段（6月2日-6月13日）"><a href="#1-5-3-RK3588-阶段（6月2日-6月13日）" class="headerlink" title="1.5.3 RK3588 阶段（6月2日-6月13日）"></a>1.5.3 RK3588 阶段（6月2日-6月13日）</h3><p><strong>6月2日</strong>：rk3588 到货</p>
+<p><strong>6月3日-6月7日</strong>：镜像构建探索</p>
+<ul>
+<li>研究香橙派官方镜像结构</li>
+<li>分析 FIT image、U-Boot、DTB 布局</li>
+<li>手动构建 StarryOS 启动链</li>
+</ul>
+<p><strong>6月8日-6月9日</strong>：RKNN 推理实现</p>
+<ul>
+<li>集成 RKNPU2 runtime SDK</li>
+<li>实现 ONNX → RKNN 转换</li>
+<li>完成用户态推理程序</li>
+</ul>
+<p><strong>6月10日</strong>：多核与局部更新</p>
+<ul>
+<li>更新 StarryOS 镜像支持多核</li>
+<li>实现镜像局部更新脚本（避免完整重刷）</li>
+</ul>
+<p><strong>6月11日</strong>：突破与验证</p>
+<ul>
+<li>关键决策：更换为官方香橙派 DTB 以支持 NPU 驱动</li>
+<li>在板上跑通 ACT 推理，输出正确</li>
+<li>验证：golden 对照通过，左转/右转样例通过</li>
+</ul>
+<p><strong>6月13日-6月15日</strong>：性能对比与文档</p>
+<ul>
+<li>实现分阶段计时（模型加载/预处理/NPU 执行/后处理）</li>
+<li>StarryOS vs Linux 对比测试</li>
+<li>固化镜像构建工作流（rootfs overlay + FIT repack）</li>
+<li>撰写交付报告和复现文档</li>
+</ul>
+<h3 id="1-5-4-关键技术突破"><a href="#1-5-4-关键技术突破" class="headerlink" title="1.5.4 关键技术突破"></a>1.5.4 关键技术突破</h3><p><strong>镜像构建固化</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 工作流</span></span><br><span class="line">1. build-overlay-rootfs.sh  <span class="comment"># 构建 ACT 程序 overlay</span></span><br><span class="line">2. make-dtb.sh              <span class="comment"># 提取官方 DTB</span></span><br><span class="line">3. repack-fit.sh            <span class="comment"># 重新打包 FIT image</span></span><br><span class="line">4. build-image.sh           <span class="comment"># 生成最终镜像</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>性能优化</strong>：<br>| 阶段 | Linux | StarryOS | 倍数 |<br>|——|——-|———-|——|<br>| NPU 执行 | 32.4ms | 28.6ms | 0.88x |<br>| 端到端 | 22.3ms | 29.9ms | 1.34x |<br>| 模型加载 | 37ms | 228ms | 6.17x |</p>
+<p><strong>结论</strong>：</p>
+<ul>
+<li>NPU 执行阶段 StarryOS 已优于 Linux</li>
+<li>瓶颈在模型加载和预处理，非推理核心</li>
+</ul>
+<h3 id="1-5-5-SG2002-计划"><a href="#1-5-5-SG2002-计划" class="headerlink" title="1.5.5 SG2002 计划"></a>1.5.5 SG2002 计划</h3><ul>
+<li>当前状态：尚未开始</li>
+<li>后续：申请 sg2002 开发板</li>
+<li>技术路径：ONNX → CVITEK TPU，参考 rk3588 流程</li>
+</ul>
+<h3 id="对应分支-1"><a href="#对应分支-1" class="headerlink" title="对应分支"></a>对应分支</h3><ul>
+<li><code>proj57</code> (未合并)</li>
+<li>位置：<code>wt-proj57/proj57/{qemu,rk3588}/</code></li>
+</ul>
+<hr>
+<h1 id="二、方法与经验"><a href="#二、方法与经验" class="headerlink" title="二、方法与经验"></a>二、方法与经验</h1><h2 id="2-1-测试框架设计模式"><a href="#2-1-测试框架设计模式" class="headerlink" title="2.1 测试框架设计模式"></a>2.1 测试框架设计模式</h2><p>在 Nginx 和 Apache 测试中形成的可复用模式：</p>
+<ol>
+<li><p><strong>三层测试体系</strong></p>
+<ul>
+<li>smoke：CI 快速验证，覆盖基础功能</li>
+<li>phase：阶段性递进测试，覆盖完整生命周期</li>
+<li>debug：自由度高的问题定位脚本</li>
+</ul>
+</li>
+<li><p><strong>统一 runner 架构</strong></p>
+<ul>
+<li>单一入口脚本</li>
+<li>模式切换通过参数控制</li>
+<li>超时和清理统一处理</li>
+</ul>
+</li>
+<li><p><strong>分层 QEMU 配置</strong></p>
+<ul>
+<li><code>qemu/all/</code>：完整测试（CI 默认）</li>
+<li><code>qemu/phase/</code>：单阶段快速验证</li>
+<li><code>qemu/debug/</code>：调试配置（更多资源）</li>
+</ul>
+</li>
+</ol>
+<h2 id="2-2-典型教训"><a href="#2-2-典型教训" class="headerlink" title="2.2 典型教训"></a>2.2 典型教训</h2><ol>
+<li><p><strong>性能问题需分段计时</strong></p>
+<ul>
+<li>x86 短连接超时案例：误判为网络栈问题，实际是进程启动开销</li>
+<li>教训：先做分段计时，再下结论</li>
+</ul>
+</li>
+<li><p><strong>smoke 测试范围要保守</strong></p>
+<ul>
+<li>Apache <code>TCP_DEFER_ACCEPT</code> 案例：在 reviewer 环境失败</li>
+<li>策略：smoke 只覆盖确定可用的功能，可选特性放到 debug</li>
+</ul>
+</li>
+<li><p><strong>小步快跑的重要性</strong></p>
+<ul>
+<li>反面案例：方案三很多想法（网络命名空间、流水线推理）未落地</li>
+<li>原因：步子太大，未及时拆分和提交</li>
+</ul>
+</li>
+</ol>
+<h2 id="2-3-工具建设的价值"><a href="#2-3-工具建设的价值" class="headerlink" title="2.3 工具建设的价值"></a>2.3 工具建设的价值</h2><p>net-bench 和 eBPF 工具虽然尚未完全成熟，但建立了方法论：</p>
+<ul>
+<li>自动化环境配置和清理</li>
+<li>状态跟踪和回退保护</li>
+<li>内核态观测能力（eBPF）</li>
+</ul>
+<p>这些为后续网络栈持续优化提供了基础。</p>
+<hr>
+<h1 id="三、产出索引"><a href="#三、产出索引" class="headerlink" title="三、产出索引"></a>三、产出索引</h1><h2 id="3-1-已合并-PR（共-9-个）"><a href="#3-1-已合并-PR（共-9-个）" class="headerlink" title="3.1 已合并 PR（共 9 个）"></a>3.1 已合并 PR（共 9 个）</h2><ul>
+<li>#658: epoll 测试</li>
+<li>#900: epoll/sigmask sigsetsize 修复</li>
+<li>#903: 文件同步系统调用对齐</li>
+<li>#1014: Nginx CI 初始实现</li>
+<li>#1018: 多 worker 信号中断修复</li>
+<li>#1038: Nginx 完整测试框架</li>
+<li>#1267: 动态启动路径修复</li>
+<li>#1297: x86 IPI 修复</li>
+<li>#1316: VmPeak &amp; VmHWM 增强</li>
+</ul>
+<h2 id="3-2-开放-PR（共-2-个）"><a href="#3-2-开放-PR（共-2-个）" class="headerlink" title="3.2 开放 PR（共 2 个）"></a>3.2 开放 PR（共 2 个）</h2><ul>
+<li>#1311: Apache 测试框架 (Open)</li>
+<li>#1417: net-bench 网络性能测试框架 (Open)</li>
+</ul>
+<h2 id="3-3-独立分支（未合并）"><a href="#3-3-独立分支（未合并）" class="headerlink" title="3.3 独立分支（未合并）"></a>3.3 独立分支（未合并）</h2><ul>
+<li><code>test/alpine-nginx</code>：Nginx 测试最新版本</li>
+<li><code>test/alpine-apache</code>：Apache 测试</li>
+<li><code>feat/net-enhance</code>：网络性能测试框架</li>
+<li><code>proj57</code>：ACT 推理 QEMU + RK3588</li>
+</ul>
+<h2 id="3-4-工作仓库"><a href="#3-4-工作仓库" class="headerlink" title="3.4 工作仓库"></a>3.4 工作仓库</h2><ul>
+<li>Fork 仓库：<a href="https://github.com/Antareske/tgoskits" target="_blank" rel="noopener">https://github.com/Antareske/tgoskits</a></li>
+<li>上游仓库：<a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits</a></li>
+</ul>
+<hr>
+<h1 id="四、致谢与总结"><a href="#四、致谢与总结" class="headerlink" title="四、致谢与总结"></a>四、致谢与总结</h1><p>感谢助教 Mr Graveyard（方案一）、Ajax（rk3588）、周睿老师（rk3588 NPU 优化和 PR review）的帮助。感谢同组学员 aptacc2421、WellDown64 的讨论交流，感谢龙同学（LetsWalkInLine）交接的初步 Nginx 支持。特别感谢 CN-TangLin 同学的 eBPF 内核运行时工作，为网络观测工具提供了基础。</p>
+<p>这次训练营让我从”写测试”进阶到”建框架”，从”跑通功能”深入到”定位根因”。最大的收获不是代码量，而是工程方法上的变化：更重视测试覆盖、问题跟踪和工具建设，也更能把复杂问题拆成可验证的小问题逐步推进。</p>
+<p>后续计划：完善 net-bench 集成、推动 Apache 测试合并、完成 sg2002 ACT 推理、参与网络栈持续优化。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-CN-TangLin-eBPF%E5%86%85%E6%A0%B8%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%A2%9E%E5%BC%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2268,7 +2926,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:07:32" itemprop="dateModified" datetime="2026-06-30T02:07:32+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3132,370 +3790,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-Utopia-V-%E4%BB%A5Git%E4%B8%BA%E7%89%B5%E5%BC%95%E7%9A%84StarryOS-Linux%E5%85%BC%E5%AE%B9%E6%80%A7%E6%94%B9%E8%BF%9B/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/06/27/20260627-Utopia-V-%E4%BB%A5Git%E4%B8%BA%E7%89%B5%E5%BC%95%E7%9A%84StarryOS-Linux%E5%85%BC%E5%AE%B9%E6%80%A7%E6%94%B9%E8%BF%9B/" class="post-title-link" itemprop="url">以 Git 为牵引的 StarryOS Linux 兼容性改进</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-06-27 18:00:00" itemprop="dateCreated datePublished" datetime="2026-06-27T18:00:00+00:00">2026-06-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>这篇报告整理的是我在 StarryOS Linux 兼容性方向做的一组工作。前半段主要是方案一的 syscall 测例，补了 <code>eventfd2</code>、<code>signalfd4</code>、<code>utimensat</code>；后半段转到方案二，用 Alpine Git 作为测试对象，把 Git 从本地操作一路测到 <code>git://</code>、HTTPS 和 SSH remote。</p>
-<p>我选 Git 的原因比较直接：它本身会碰到很多系统行为。本地仓库会频繁改 <code>.git/refs</code> 和 <code>.git/logs</code>，remote 会走 socket 和 TCP loopback，HTTPS 会带出 OpenSSL 和 Python <code>ssl</code>，SSH 又会碰到 OpenSSH 对 socket option 的使用。沿着这条线做下来，除了补测试，也修到了 loongarch64 LASX 状态保存、socket QoS option、<code>recvmsg</code> cmsg 写回这些比较具体的兼容性问题。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2026/06/27/20260627-Utopia-V-%E4%BB%A5Git%E4%B8%BA%E7%89%B5%E5%BC%95%E7%9A%84StarryOS-Linux%E5%85%BC%E5%AE%B9%E6%80%A7%E6%94%B9%E8%BF%9B/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/2026%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%BB%93%E8%90%A5%E6%8A%A5%E5%91%8A/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/06/27/2026%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%BB%93%E8%90%A5%E6%8A%A5%E5%91%8A/" class="post-title-link" itemprop="url">2026春夏季开源操作系统训练营结营报告</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-06-27 17:06:13" itemprop="dateCreated datePublished" datetime="2026-06-27T17:06:13+00:00">2026-06-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h1><p>本次训练营我的工作主线是：围绕 StarryOS 的 Linux 语义兼容与 systemd 启动链路，持续做「问题复现 -&gt; 根因定位 -&gt; 最小修复 -&gt; 回归测试固化」。</p>
-<p>阶段性成果可以概括为三点：</p>
-<ol>
-<li>完成 System V 共享内存一致性测试与内核语义修复，补齐 <code>shmget/shmat/shmdt/shmctl</code> 关键行为。</li>
-<li>推动 systemd 分阶段支持，连续修复 <code>execveat</code>、<code>PID 1</code>、mount API 回退、<code>/sys/fs/cgroup</code> 挂载点、<code>/dev/kmsg</code> 写侧等阻塞问题。</li>
-<li>启动共享内核日志环建设（dmesg / /dev/kmsg / journald 共用后端），为后续日志子系统统一打基础。</li>
-</ol>
-<hr>
-<h1 id="一、训练营阶段工作"><a href="#一、训练营阶段工作" class="headerlink" title="一、训练营阶段工作"></a>一、训练营阶段工作</h1><h2 id="1-1-第一阶段：System-V-共享内存语义完善"><a href="#1-1-第一阶段：System-V-共享内存语义完善" class="headerlink" title="1.1 第一阶段：System V 共享内存语义完善"></a>1.1 第一阶段：System V 共享内存语义完善</h2><p>我在第一阶段以 Linux man-pages 与内核行为为基准，系统梳理了 System V 共享内存接口语义，并围绕 StarryOS 编写了一致性测试。</p>
-<h3 id="具体工作"><a href="#具体工作" class="headerlink" title="具体工作"></a>具体工作</h3><ol>
-<li>建立语义基线</li>
-</ol>
-<ul>
-<li>对照 Linux 文档逐条梳理 <code>shmget/shmat/shmdt/shmctl</code> 的行为与错误码。</li>
-<li>把“正常路径”和“错误路径”都转为可断言的检查项，避免只验证 happy path。</li>
-</ul>
-<ol start="2">
-<li>落地 conformance 测试 <code>test-shm-family</code></li>
-</ol>
-<ul>
-<li>组织 11 段测试、70 条断言，覆盖：<ul>
-<li><code>shmget</code> 的 <code>IPC_CREAT/IPC_EXCL/ENOENT/EEXIST/EINVAL</code>。</li>
-<li><code>shmat</code> 的只读附加、跨进程共享、错误 <code>shmid</code>。</li>
-<li><code>shmdt</code> 的“必须精确传回原始附加地址”语义。</li>
-<li><code>shmctl</code> 的 <code>IPC_STAT/IPC_SET/IPC_RMID</code> 与延迟销毁。</li>
-</ul>
-</li>
-<li>增加 <code>fork</code> 读写验证，确保共享段在进程间真正共享，而非单进程假通过。</li>
-</ul>
-<ol start="3">
-<li>修复内核实现偏差（以测试失败驱动修复）</li>
-</ol>
-<ul>
-<li>修复前问题：<ul>
-<li>未正确处理 <code>IPC_CREAT/IPC_EXCL</code> 组合。</li>
-<li>对已有段 size 检查过严，偏离 Linux 语义。</li>
-</ul>
-</li>
-<li>修复后行为：<ul>
-<li>key 不存在且无 <code>IPC_CREAT</code> 返回 <code>ENOENT</code>。</li>
-<li><code>IPC_CREAT|IPC_EXCL</code> 命中已有 key 返回 <code>EEXIST</code>。</li>
-<li>仅在请求 size 大于现有段时返回 <code>EINVAL</code>。</li>
-</ul>
-</li>
-</ul>
-<ol start="4">
-<li>多架构验证</li>
-</ol>
-<ul>
-<li>在 x86_64/riscv64/aarch64/loongarch64 QEMU 跑通回归。</li>
-<li>将“测试可发现、可自动执行”作为合入前门槛，而不是手工验证截图。</li>
-</ul>
-<h3 id="对应-issue-PR"><a href="#对应-issue-PR" class="headerlink" title="对应 issue / PR"></a>对应 issue / PR</h3><ul>
-<li>方案记录（Open）：<a href="https://github.com/rcore-os/tgoskits/issues/767" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/issues/767</a></li>
-<li>测试与修复（Merged）：<a href="https://github.com/rcore-os/tgoskits/pull/865" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/865</a></li>
-</ul>
-<h3 id="关键结果"><a href="#关键结果" class="headerlink" title="关键结果"></a>关键结果</h3><ul>
-<li>测例形成了可复用的 conformance 思路：先在 Linux 验证测试，再用同一测试验证 StarryOS。</li>
-<li>将 <code>IPC_CREAT/IPC_EXCL/size</code> 等关键语义对齐，避免「功能可用但行为不兼容」的问题。</li>
-</ul>
-<h2 id="1-2-第二阶段：systemd-分阶段支持"><a href="#1-2-第二阶段：systemd-分阶段支持" class="headerlink" title="1.2 第二阶段：systemd 分阶段支持"></a>1.2 第二阶段：systemd 分阶段支持</h2><p>在这一阶段，我围绕「让 Debian trixie 的 systemd 作为 PID 1 启动」持续打通阻塞链路。工作方式是：每发现一个失败点，就把它拆成独立、可回归验证的小修复。</p>
-<h3 id="主线-issue"><a href="#主线-issue" class="headerlink" title="主线 issue"></a>主线 issue</h3><ul>
-<li>方案二主线（Open，持续更新）：<a href="https://github.com/rcore-os/tgoskits/issues/1126" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/issues/1126</a></li>
-</ul>
-<h3 id="关键修复与重构"><a href="#关键修复与重构" class="headerlink" title="关键修复与重构"></a>关键修复与重构</h3><ol>
-<li><code>execveat(2)</code> 支持与语义落地</li>
-</ol>
-<ul>
-<li>现象：systemd 相关路径需要 <code>execveat</code>，缺失会直接阻塞启动流程。</li>
-<li>第一阶段实现：补齐 syscall 分发、<code>dirfd + path + flags</code> 解析、错误码返回与回归测试。</li>
-<li>评审中暴露的深层问题：<ul>
-<li>主可执行文件在已解析后又被“按路径二次解析”，导致 <code>AT_SYMLINK_NOFOLLOW</code> 语义被覆盖。</li>
-</ul>
-</li>
-<li>关键重构：<ul>
-<li>把 loader 改为“解析一次、按 Location 对象加载”，对齐 Linux 的对象加载模型。</li>
-<li>保留 shebang 与 <code>.sh</code> 解释器路径的按路径解析（这部分应当 follow 链接）。</li>
-</ul>
-</li>
-<li>结果：<code>execveat</code> 不只是“能调用”，而是关键 flag 语义可正确端到端生效。</li>
-</ul>
-<p>相关 PR：</p>
-<ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1144" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1144</a> (Merged)</li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1193" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1193</a> (Merged)</li>
-</ul>
-<ol start="2">
-<li>让 init 成为真实 PID 1</li>
-</ol>
-<ul>
-<li>现象：<code>/proc/1</code> 看起来是 1，但 <code>getpid()</code> 不是 1，systemd 会按“非 system manager”路径退出。</li>
-<li>根因：用户可见 pid/tid 与调度器内部 id 混用，procfs 只是“显示层伪装”。</li>
-<li>修复：<ul>
-<li>init 进程固定用户可见 pid/tid 为 1。</li>
-<li><code>TASK_TABLE</code>、<code>kill</code>、<code>clone</code>、<code>set_child_tid</code>、未实现 syscall 日志等路径统一使用用户可见 tid。</li>
-</ul>
-</li>
-<li>回归：新增 PID 1 语义测试（如 <code>kill(1,0)</code>、<code>getpgid(1)</code>、<code>getsid(1)</code>）。</li>
-<li>结果：PID 1 从“显示为 1”变成“语义上真实为 1”。</li>
-</ul>
-<p>相关 PR：</p>
-<ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1233" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1233</a> (Merged)</li>
-</ul>
-<ol start="3">
-<li>修复新 mount API 误导探测</li>
-</ol>
-<ul>
-<li>现象：<code>fsopen</code> 返回假成功 fd，systemd 误判内核支持新 mount API，然后在后续未实现接口失败，且不回退。</li>
-<li>修复策略：<ul>
-<li>对未实现入口 <code>fsopen/fspick/open_tree</code> 明确返回 <code>ENOSYS</code>（而非 dummy fd）。</li>
-<li>与 <code>fsconfig/fsmount/move_mount</code> 的未实现语义保持一致。</li>
-</ul>
-</li>
-<li>回归：新增用例直接断言三个调用返回 <code>-1</code> 且 <code>errno=ENOSYS</code>。</li>
-<li>结果：systemd 能走回退路径，复用已可用的 <code>mount(2)</code> 链路。</li>
-</ul>
-<p>相关 PR：</p>
-<ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1241" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1241</a> (Merged)</li>
-</ul>
-<ol start="4">
-<li>补齐 <code>/sys/fs/cgroup</code> 挂载点</li>
-</ol>
-<ul>
-<li>现象：即使回退到经典 mount，仍因 <code>/sys/fs/cgroup</code> 不存在导致 <code>ENOENT</code>。</li>
-<li>根因：sysfs 挂载后会覆盖 rootfs 的同名目录，而自建 sysfs 树缺少 <code>fs/cgroup</code> 节点。</li>
-<li>修复：在 sysfs 树显式补齐 <code>fs/cgroup</code> 空目录。</li>
-<li>回归：扩展 sysfs 测试，校验目录存在性与 tmpfs 挂载/卸载成功。</li>
-<li>结果：cgroup 层级挂载链路被完整打通。</li>
-</ul>
-<p>相关 PR：</p>
-<ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1243" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1243</a> (Merged)</li>
-</ul>
-<ol start="5">
-<li>新增 <code>/dev/kmsg</code> 写侧设备</li>
-</ol>
-<ul>
-<li>背景：journald 在早期启动阶段依赖 kmsg 写入通道。</li>
-<li>实现：<ul>
-<li>新增 <code>char 1:11</code> 设备节点。</li>
-<li>每次 <code>write()</code> 视作一条记录，解析可选 <code>&lt;priority&gt;</code> 前缀并映射到日志级别。</li>
-<li>读侧暂按 EOF 语义返回，先保证写侧可用。</li>
-</ul>
-</li>
-<li>回归：新增测试覆盖设备号、带/不带前缀写入、无换行写入与读侧 EOF。</li>
-<li>结果：systemd/journald 早期日志有了可用落点。</li>
-</ul>
-<p>相关 PR：</p>
-<ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1377" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1377</a> (Merged)</li>
-</ul>
-<h2 id="1-3-第三阶段：共享内核日志环（进行中）"><a href="#1-3-第三阶段：共享内核日志环（进行中）" class="headerlink" title="1.3 第三阶段：共享内核日志环（进行中）"></a>1.3 第三阶段：共享内核日志环（进行中）</h2><p>在前面 systemd 启动链路基本可用后，我开始把日志子系统从「多处各自缓存」收敛到「统一日志环」。目标是让 dmesg、<code>/dev/kmsg</code> 读端、journald 共用一套后端。</p>
-<h3 id="当前进展"><a href="#当前进展" class="headerlink" title="当前进展"></a>当前进展</h3><ul>
-<li>在 axlog 的统一落点捕获每条记录（级别、时间、消息体），避免多条日志链路各自格式化与缓存。</li>
-<li>新增 <code>ring.rs</code> 作为当前可用后端，提供 <code>push/read_all/read_record/latest_seq</code> 等基础能力，优先保证接口稳定与可接入。</li>
-<li>并行引入 <code>prb.rs</code>（printk ringbuffer 风格）作为下一阶段后端，当前完成主干结构与核心路径，但尚未切换为默认实现。</li>
-<li>已明确后续里程碑：<ul>
-<li>完成 <code>prb</code> 接线与替换。</li>
-<li>做 SMP 场景并发压测，验证一致性与开销。</li>
-<li>再把 StarryOS 侧 <code>/dev/kmsg</code> 读端、<code>syslog(2)</code> 接到共享环上，形成完整闭环。</li>
-</ul>
-</li>
-</ul>
-<p>相关 PR：</p>
-<ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1394" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1394</a> (Draft)</li>
-</ul>
-<hr>
-<h1 id="二、方法与经验"><a href="#二、方法与经验" class="headerlink" title="二、方法与经验"></a>二、方法与经验</h1><h2 id="2-1-我在本次训练营中形成的方法"><a href="#2-1-我在本次训练营中形成的方法" class="headerlink" title="2.1 我在本次训练营中形成的方法"></a>2.1 我在本次训练营中形成的方法</h2><ol>
-<li>先语义后实现：先明确 Linux 基线行为，再写代码。</li>
-<li>先测试后修复：先用最小失败样例钉住问题，再做实现。</li>
-<li>小步合并：每个 PR 只解决一个明确问题，避免多变量叠加。</li>
-<li>回归前置：每修一个 bug 都补可自动执行的回归用例，防止未来重现。</li>
-</ol>
-<h2 id="2-2-典型教训"><a href="#2-2-典型教训" class="headerlink" title="2.2 典型教训"></a>2.2 典型教训</h2><ol>
-<li>「看起来能跑」不等于兼容：像 mount API 假成功这类问题，短期可通过，长期会误导上层。</li>
-<li>系统调用标志位语义不能只做“接受参数”：必须确保 end-to-end 语义真正生效。</li>
-<li>路径层重构往往是功能正确性的前提：<code>execveat</code> 问题本质上是 loader 模型偏差。</li>
-</ol>
-<hr>
-<h1 id="三、产出索引"><a href="#三、产出索引" class="headerlink" title="三、产出索引"></a>三、产出索引</h1><h2 id="3-1-方案-issue"><a href="#3-1-方案-issue" class="headerlink" title="3.1 方案 issue"></a>3.1 方案 issue</h2><ul>
-<li><a href="https://github.com/rcore-os/tgoskits/issues/767" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/issues/767</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/issues/1126" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/issues/1126</a></li>
-</ul>
-<h2 id="3-2-PR-列表"><a href="#3-2-PR-列表" class="headerlink" title="3.2 PR 列表"></a>3.2 PR 列表</h2><ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/865" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/865</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1144" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1144</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1193" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1193</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1233" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1233</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1241" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1241</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1243" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1243</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1377" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1377</a></li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1394" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1394</a></li>
-</ul>
-<hr>
-<h1 id="四、后续计划"><a href="#四、后续计划" class="headerlink" title="四、后续计划"></a>四、后续计划</h1><ol>
-<li>继续推进共享日志环方案：补齐 <code>prb</code> 接线、并发压测与切换验证。</li>
-<li>补齐 <code>/dev/kmsg</code> 读侧与 <code>syslog(2)</code> 路径对接，形成完整日志闭环。</li>
-<li>继续以回归测试驱动 systemd 兼容缺口，逐步提升发行版可启动、可运行范围。</li>
-</ol>
-<hr>
-<h1 id="结营总结"><a href="#结营总结" class="headerlink" title="结营总结"></a>结营总结</h1><p>这次训练营对我最大的提升，不只是“写了多少代码”，而是工程方法上的变化：我更重视语义对齐、证据链和回归护栏，也更能把一个复杂问题拆成可验证的小问题逐步推进。</p>
-<p>从共享内存一致性到 systemd 启动链路，再到日志子系统统一，我逐步体会到操作系统开发里「小差异会放大成大故障」的现实，也因此建立了更稳健的开发节奏。后续我会继续沿着这条路径，把已完成的阶段成果打磨成可持续迭代的基础能力。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/blog/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/79/">79</a><a class="extend next" rel="next" href="/blog/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+    <span class="page-number current">1</span><a class="page-number" href="/blog/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/blog/page/80/">80</a><a class="extend next" rel="next" href="/blog/page/2/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
   </nav>
 
 
