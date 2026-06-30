@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">788</span>
+          <span class="site-state-item-count">789</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">760</span>
+        <span class="site-state-item-count">763</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,119 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/stage3-arceos-learning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/11/07/stage3-arceos-learning/" class="post-title-link" itemprop="url">stage3-arceos-learning</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-11-07 10:25:57" itemprop="dateCreated datePublished" datetime="2025-11-07T10:25:57+00:00">2025-11-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="第三阶段blog"><a href="#第三阶段blog" class="headerlink" title="第三阶段blog"></a>第三阶段blog</h2><p>总体上 我对arceos的认识可以概括为接口，框架，算法。</p>
+<ul>
+<li>接口关心下面的框架是什么，算法是什么，关心功能， 只需要调用框架提供的api。提供给用户程序</li>
+<li>框架就是为了实现这个组件而需要的各种数据结构和在这些数据结构上面实现的一些<code>trait</code></li>
+<li>算法是对于框架的不同实现，通过指定不同的<code>feature</code>，对同一个<code>框架</code>采取不同的实现</li>
+</ul>
+<h3 id="print-with-color"><a href="#print-with-color" class="headerlink" title="print_with_color"></a>print_with_color</h3><p>通过在<code>arceos/exercises/print_with_color/src/main.rs</code> 中 <code>use axstd::println</code>, 并且在print_with_color中没有实现<code>axstd.rs</code> 或者是<code>axstd/mod.rs</code>于是便到<code>arceos/print_with_color/Cargo.toml</code>中寻找<br>发现这一行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">axstd &#x3D; &#123; workspace &#x3D; true, optional &#x3D; true &#125;</span><br></pre></td></tr></table></figure>
+<p>意思是当前目录的配置直接继承了根目录的配置, 于是便到<code>arceos/Cargo.toml</code>中去求证</p>
+<p>在<code>members</code>中，发现了以下这一行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&quot;exercises&#x2F;print_with_color&quot;,</span><br></pre></td></tr></table></figure>
+<p>说明确实继承了根目录的配置</p>
+<p>因此直接在<code>arceos/Cargo.toml</code>中寻找axstd</p>
+<p>发现了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">axstd &#x3D; &#123; path &#x3D; &quot;ulib&#x2F;axstd&quot; &#125;</span><br></pre></td></tr></table></figure>
+<p>于是便到<code>ulib/axstd</code>中寻找最后在<code>arceos/ulib/axstd/src/macros.rs</code><br>中找到了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">macro_rules! println</span><br></pre></td></tr></table></figure>
+<p>直接修改具体的实现即可</p>
+<p>根据提示修改axhal能够修改ArceOS的颜色 到<code>axruntime</code>中找到打印符号的逻辑，使用的是<code>ax_println</code>那么直接修改该功能的实现，便实现了符号颜色的改变</p>
+<h3 id="support-hashmap"><a href="#support-hashmap" class="headerlink" title="support_hashmap"></a>support_hashmap</h3><ul>
+<li>在 <code>ulib/axstd/Cargo.toml</code>的 `[dependencies]中加入<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">axhal &#x3D; &#123; workspace &#x3D; true &#125;</span><br></pre></td></tr></table></figure>
+实现对axhal模块中的<code>random</code>函数的调用</li>
+</ul>
+<ul>
+<li>哈希函数的选取方面在<code>axstd/Cargo.toml</code>中, 我加入了<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[dependencies.xxhash-rust]</span><br><span class="line">version &#x3D; &quot;0.8.12&quot;</span><br><span class="line">features &#x3D; [&quot;xxh3&quot;, &quot;const_xxh3&quot;]</span><br></pre></td></tr></table></figure>
+来导入该哈希函数<br>哈希表的数据结构包括存储键值对和发生冲突时的步长。对内部存储键值对我直接用了数组来实现，存储的是<code>Optino&lt;(key, value)&gt;</code>键值对，全部初始化为<code>None</code>，表明下标处没有存储元素<br>对于每一个插入操作，先通过将输入通过<code>core::slice::from_raw_parts</code>将输入的键hash得到一个下标，如果该下标对应的键值对是<code>None</code>，<br>那么就将键值对放入这个下标处，否则就将hash得到值不断加上步长，直到找到<code>None</code>为止。</li>
+</ul>
+<p>我并没有实现删除和查找的功能，只是通过了测试用例，实现的并不完善。</p>
+<h3 id="alt-alloc"><a href="#alt-alloc" class="headerlink" title="alt_alloc"></a>alt_alloc</h3><p>对一段连续的内存左侧用以字节分配，右侧用于页面分配即可实现<br>通过这个实验的学习,了解到了初始阶段的内存分配器可以通过直接操作物理地址来支持早期的库和函数</p>
+<h3 id="sys-map"><a href="#sys-map" class="headerlink" title="sys_map"></a>sys_map</h3><p>通过<code>find_free_area</code>找到用户空闲的虚拟地址空间，建立地址映射，将通过<code>sys_read</code>得到的文件内容写入物理地址中，最后返回虚拟地址的开头。</p>
+<h3 id="simple-hv"><a href="#simple-hv" class="headerlink" title="simple_hv"></a>simple_hv</h3><p>执行</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">riscv64-linux-gnu-objdump -d ./target/riscv64gc-unknown-none-elf/release/skernel2</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ffffffc080200000:       f14025f3                csrr    a1,mhartid</span><br><span class="line">ffffffc080200004:       04003503                ld      a0,64(zero) # 40 &lt;_percpu_load_end+0x40&gt;</span><br></pre></td></tr></table></figure>
+<p>通过这两行可得出指令<code>csrr    a1,mhartid</code>长度为4</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ffffffc080200004:       04003503                ld      a0,64(zero) # 40 &lt;_percpu_load_end+0x40&gt;</span><br><span class="line">ffffffc080200008:       48a1                    li      a7,8</span><br></pre></td></tr></table></figure>
+<p>这两行可知指令<code>ld      a0,64(zero)</code> 长度为4<br>因此需要在<br><code>vmexit_handler</code>中对<code>Exception::IllegalInstruction</code>和<code>Exception::LoadGuestPageFault</code>的处理中，将<code>sepc</code>的值加上4。<br>然后通过观察<code>Exception::VirtualSupervisorEnvCall</code>的处理分别设置寄存器<code>a1</code>和寄存器<code>a0</code>的数值即可。</p>
+<p>通过对hypervisor 的初步学习 加深了程序就是状态机的理解，程序的状态有寄存器和内存，对最简单的<code>Guest OS</code>的初始化无非就是对寄存器和内存的初始化</p>
+<h3 id="ramfs-rename"><a href="#ramfs-rename" class="headerlink" title="ramfs_rename"></a>ramfs_rename</h3><p>折腾了半天发现rename一直不会是当前工作区的实现<br>于是就在<code>arceos/exercises/ramfs_rename/Cargo.toml</code>中将</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">axfs_ramfs &#x3D; &#123; version &#x3D; &quot;0.1&quot;, optional &#x3D; true &#125;</span><br></pre></td></tr></table></figure>
+<p>修改为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">axfs_ramfs &#x3D; &#123; workspace &#x3D; true, optional &#x3D; true &#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后发现还是不行</p>
+<p>发现由于<code>rename</code>是被<code>axfs</code>模块中的<code>rename</code>调用的，就将<code>axfs</code>的<code>Cargo.toml</code>也修改了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">axfs_ramfs &#x3D; &#123; workspace &#x3D; true, optional &#x3D; true &#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后就可以了</p>
+<p>实现上来说就是需要通过<code>split_path</code>分离出路径，必须在相同的路径下才能修改名字</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/11/07/wyd-basic-stage-summary/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +377,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
 
           
@@ -340,7 +453,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
 
           
@@ -447,7 +560,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -667,7 +780,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
 
           
@@ -740,7 +853,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -865,7 +978,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -974,7 +1087,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
 
           
@@ -1180,7 +1293,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1333,7 +1446,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:37" itemprop="dateModified" datetime="2026-06-30T02:02:37+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1471,76 +1584,6 @@
 <h2 id="未完成的任务"><a href="#未完成的任务" class="headerlink" title="未完成的任务"></a>未完成的任务</h2><h3 id="让-evering-支持-MPSC"><a href="#让-evering-支持-MPSC" class="headerlink" title="让 evering 支持 MPSC"></a>让 evering 支持 MPSC</h3><p>正如开头所述，evering 目前只实现了 SPSC 队列，受限于此，不能很好的处理复杂的应用场景．而实现 MPSC 队列之后，客户端就能更好的与 tokio 等运行时协同工作．要实现这个目标，主要是对 evering 的队列结构 <code>RawUring</code> 和操作驱动结构 <code>Driver</code> 进行多线程改造，并且尽可能要实现无锁的数据结构．对于 <code>RawUring</code> 的改造可以参考现有的并发队列实现．而 <code>Driver</code> 底层依赖于 <a href="https://docs.rs/slab/latest/slab/" target="_blank" rel="noopener"><code>slab::Slab</code></a> 结构体，因此改造难度稍高．不过，目前 evering 已经支持使用固定大小的 <code>Slab</code>，基于这一点可以大幅降低多线程化的难度．</p>
 <h3 id="基于-evering-实现系统调用"><a href="#基于-evering-实现系统调用" class="headerlink" title="基于 evering 实现系统调用"></a>基于 evering 实现系统调用</h3><p>evering-ipc 只适用于用户进程之间的通信，而本项目最初的目标是实现用户进程和内核的通信．对于这个目标，除了处理共享内存以外，可能还会遇到页表隔离的问题，以及用户进程意外退出后，对应内核异步任务的清理问题．更长远来看，当实现异步系统调用之后，那么可以将用户进程转彻底换成类似 Rust 中 <code>Future</code> 的无栈协程，从而将开销进一步降低．此外，迁移到异步系统调用时，不可避免的会破坏与现有同步代码的兼容性．因此，实现基于有栈绿色线程的异步系统调用也是一个值得尝试的目标．</p>
 <!-- dprint-ignore-start -->
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/06/30/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90os%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%82%B5%E5%8D%93%E7%82%9C/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/06/30/2025%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90os%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E9%82%B5%E5%8D%93%E7%82%9C/" class="post-title-link" itemprop="url">第四阶段总结-邵卓炜</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-06-30 22:23:12" itemprop="dateCreated datePublished" datetime="2025-06-30T22:23:12+00:00">2025-06-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:02:29" itemprop="dateModified" datetime="2026-06-30T02:02:29+00:00">2026-06-30</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="基于Iouring的异步运行时"><a href="#基于Iouring的异步运行时" class="headerlink" title="基于Iouring的异步运行时"></a>基于Iouring的异步运行时</h3><p>我首先选择完成的任务是<a href="https://github.com/Shao-ZW/kunio" target="_blank" rel="noopener">基于iouring的用户态异步运行时</a>，支持常见的文件和网络（Tcp）io。在我的实践经历来看，构建一个高性能的用户态异步运行时，就像是在应用程序内部再造了一个微型的操作系统，它接管了传统上由内核负责的部分调度和I/O管理职责，目的是为了消除内核/用户态切换的开销，并最大化I/O吞吐量。</p>
-<p>为了实现的简单，我选择了thread-per-core 的任务调度模型。简单来说，thread-per-core可以理解为每个CPU核心分配一个独立的执行线程，每个线程（每个核心）都拥有自己的任务队列。当一个异步任务被提交时，它会被放入相应核心的任务队列中。这种设计有几个优势，一是减少竞争，由于每个线程操作自己的队列，线程间避免了共享锁的开销；二是缓存友好：任务和数据在特定核心上处理，能更好地利用CPU缓存，减少缓存失效，提高数据访问速度；三是不需要对每个任务有Send的限制。</p>
-<p>IO接口的异步封装，负责与将os暴露的io接口改造成rust async/await异步语法的形式。传统的I/O模型（如 select, poll, epoll）虽然是非阻塞的，但它们本质上是“事件通知”模型——通知你有事件发生了，你再去读取数据。这依然涉及用户态和内核态之间的多次上下文切换。io_uring 则是提供了更为本质的异步io接口，一种全新的提交-完成模型————队列 (SQ)：用户态应用程序将各种I/O操作（如文件读写、网络套接字的发送接收等）封装成请求，批量地放入一个共享的内核提交队列中;完成队列 (CQ)：内核处理完这些I/O请求后，会将结果（成功与否、处理了多少字节等）批量地放入另一个共享的内核完成队列中。应用程序只需定期检查这个完成队列，就能得知哪些I/O操作已经完成，以及它们的结果。</p>
-<h3 id="无锁ringbuffer-BBQ"><a href="#无锁ringbuffer-BBQ" class="headerlink" title="无锁ringbuffer BBQ"></a>无锁ringbuffer BBQ</h3><p>为了进一步优化我们比赛的OS内核的任务队列，我选择参考BBQ paper实现的<a href="https://github.com/Shao-ZW/bbring" target="_blank" rel="noopener">无锁ringbuffer</a>，虽然最终性能并不理想，但实现该结构是一个很有趣的历程。大多数lock-free ringbuffer基于version+idx组成的 Atmoicusize 作为头尾指针，并通过loop + CAS方式更新头尾指针，version主要用于解决ABA问题；而BBQ通过将数组分块，头尾指针变为头尾块指针，并且在每个块的内部额外维护2个指针（allocated/reserved）以及2个计数（committed/consumed），一个显然的好处是头节点可以直接通过FAA指令获取分配位置。我对我实现的bbq进行了性能测试，目前实现的BBQ的性能表现非常糟糕，对比crossbeam-arrayqueue，尤其在SPMC、MPMC场景下吞吐差距在10倍以上甚至更多。并且我在实践中认为算法本身还有些边缘情形处理的问题，感兴趣的同学可移步<a href="https://github.com/Shao-ZW/bbring/discussions/1" target="_blank" rel="noopener">讨论区</a>。无锁的设计总是“危险”而精妙的，哪怕论文给出算法伪代码，实现的过程依然是相当曲折的，内存序的问题，aba问题，以及如何调整测试复现特定的bug，这个过程只有踩过坑才能知道痛。</p>
-<h3 id="os内核赛中组件化和异步化尝试"><a href="#os内核赛中组件化和异步化尝试" class="headerlink" title="os内核赛中组件化和异步化尝试"></a>os内核赛中组件化和异步化尝试</h3><p>关于我们的<a href="https://github.com/greatbridf/osdev" target="_blank" rel="noopener">比赛内核</a>，我和我的队友在原先宏内核的基础上做了大量的改动，内容聚焦在组件化拆分以及异步化改造，前者主要集中在工作量上的庞大，如果确定好组件的依赖，如何设计出合适接口，这都需要仔细考量；异步化的改造客观来说工作量也很大，这是async传染性带来的必然，（如果重头构建一个异步内核可能相对好点），所以说目前我们为了必然大范围的传染性，会使用block_on语义的函数做一个暂时解决方案。异步os一个大的优势是不需要对每个task分配内核栈，这确实会节约相当大的内存开销，但任务异步化引入的问题之一就是内核抢占，2024届内核赛获奖内核<a href="https://gitlab.eduxiji.net/educg-group-26010-2376550/T202418123993075-2940" target="_blank" rel="noopener">Phoenix</a>给出的解决方案是通过设置抢占标志允许至多一次的内核抢占，这是一个不错的方案，但通用性能否做的更好一点呢？或许早先组会上听到有无栈的结合是最佳的解决方案，但由于内核比赛测试临近，最近的工作在不停的修syscall，暂时没时间研究，希望能在决赛时拿出我们认为优秀的解决方案。</p>
-<p>相关参考资料<br>monoio设计介绍[<a href="https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html]" target="_blank" rel="noopener">https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html]</a><br>iouring介绍[<a href="https://arthurchiao.art/blog/intro-to-io-uring-zh/]" target="_blank" rel="noopener">https://arthurchiao.art/blog/intro-to-io-uring-zh/]</a><br>BBQ论文[<a href="https://www.usenix.org/conference/atc22/presentation/wang-jiawei]" target="_blank" rel="noopener">https://www.usenix.org/conference/atc22/presentation/wang-jiawei]</a><br>AsyncOs[<a href="https://asyncos.github.io]">https://asyncos.github.io]</a></p>
 
       
     </div>
