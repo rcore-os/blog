@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="相当于写给刚接触编译内核的萌新，以及附带一些常用的基本工具...">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Lfan-ke: 动态链接 静态链接 ELF文件 EXE文件">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2025/07/10/Lfan-ke%EF%BC%9A%E5%8A%A8%E9%9D%99%E6%80%81%E9%93%BE%E6%8E%A5%E7%AC%94%E8%AE%B0/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="相当于写给刚接触编译内核的萌新，以及附带一些常用的基本工具...">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2025-07-10T01:01:01.000Z">
+<meta property="article:modified_time" content="2026-06-30T01:58:03.510Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;Lfan-ke">
+<meta property="article:tag" content="author:唤星">
+<meta property="article:tag" content="alias:祈星">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2025/07/10/Lfan-ke%EF%BC%9A%E5%8A%A8%E9%9D%99%E6%80%81%E9%93%BE%E6%8E%A5%E7%AC%94%E8%AE%B0/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Lfan-ke: 动态链接 静态链接 ELF文件 EXE文件 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#0-从-hello-c-到能跑，到底经历了什么"><span class="nav-number">1.</span> <span class="nav-text">0. 从 hello.c 到能跑，到底经历了什么</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-编译四阶段-——-别把”编译”和”汇编”并成一步"><span class="nav-number">2.</span> <span class="nav-text">1. 编译四阶段 —— 别把”编译”和”汇编”并成一步</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#c-停在-o-vs-一路到可执行-——-差的就是「链接」"><span class="nav-number">2.1.</span> <span class="nav-text">-c 停在 .o vs 一路到可执行 —— 差的就是「链接」</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#插曲：crt1-o-vs-Scrt1-o（crt-全家）"><span class="nav-number">2.1.1.</span> <span class="nav-text">插曲：crt1.o vs Scrt1.o（crt 全家）</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-文件类型全家谱（Linux-↔-Windows）"><span class="nav-number">3.</span> <span class="nav-text">2. 文件类型全家谱（Linux ↔ Windows）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-o-为什么自己不能跑"><span class="nav-number">4.</span> <span class="nav-text">3. .o 为什么自己不能跑</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-静态-vs-动态链接（核心）"><span class="nav-number">5.</span> <span class="nav-text">4. 静态 vs 动态链接（核心）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-ELF-文件结构详解"><span class="nav-number">6.</span> <span class="nav-text">5. ELF 文件结构详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#动态链接专用-section-详解（ld-so-的工作底图）"><span class="nav-number">6.1.</span> <span class="nav-text">动态链接专用 section 详解（ld.so 的工作底图）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-跳转表在哪-动态链接机制"><span class="nav-number">7.</span> <span class="nav-text">6. 跳转表在哪 + 动态链接机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#用-RISC-V-交叉编译看真汇编（对应上面的-mermaid）"><span class="nav-number">7.1.</span> <span class="nav-text">用 RISC-V 交叉编译看真汇编（对应上面的 mermaid）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-内核如何-load-ld-so-如何-link-程序如何-run"><span class="nav-number">8.</span> <span class="nav-text">7. 内核如何 load + ld.so 如何 link + 程序如何 run</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-so-是怎么被多进程共享的"><span class="nav-number">8.1.</span> <span class="nav-text">7.1 .so 是怎么被多进程共享的</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-ld-so-找库的顺序-加载步骤"><span class="nav-number">8.2.</span> <span class="nav-text">7.2 ld.so 找库的顺序 + 加载步骤</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-深入：-so-怎么进到「公共映射页」（page-cache-mmap）"><span class="nav-number">8.3.</span> <span class="nav-text">7.3 深入：.so 怎么进到「公共映射页」（page cache + mmap）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#再往下钻：缺页那一刻，内核到底做了什么"><span class="nav-number">8.3.1.</span> <span class="nav-text">再往下钻：缺页那一刻，内核到底做了什么</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-4-实例：两程序两库，看「共享」与「私有」"><span class="nav-number">8.4.</span> <span class="nav-text">7.4 实例：两程序两库，看「共享」与「私有」</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#动态地址回填：一步步看-ld-so-怎么填-GOT"><span class="nav-number">8.4.1.</span> <span class="nav-text">动态地址回填：一步步看 ld.so 怎么填 GOT</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-5-dlopen：运行中手动加载（插件机制）"><span class="nav-number">8.5.</span> <span class="nav-text">7.5 dlopen：运行中手动加载（插件机制）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-交叉编译与目标三元组"><span class="nav-number">9.</span> <span class="nav-text">8. 交叉编译与目标三元组</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-工具链全家"><span class="nav-number">10.</span> <span class="nav-text">9. 工具链全家</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-构建系统-——-别手敲-gcc"><span class="nav-number">11.</span> <span class="nav-text">10. 构建系统 —— 别手敲 gcc</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-速查-坑清单"><span class="nav-number">12.</span> <span class="nav-text">11. 速查 + 坑清单</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-思考题"><span class="nav-number">13.</span> <span class="nav-text">12. 思考题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#参考答案"><span class="nav-number">13.1.</span> <span class="nav-text">参考答案</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">778</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">725</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/07/10/Lfan-ke%EF%BC%9A%E5%8A%A8%E9%9D%99%E6%80%81%E9%93%BE%E6%8E%A5%E7%AC%94%E8%AE%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Lfan-ke: 动态链接 静态链接 ELF文件 EXE文件
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-07-10 01:01:01" itemprop="dateCreated datePublished" datetime="2025-07-10T01:01:01+00:00">2025-07-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Beginner/" itemprop="url" rel="index"><span itemprop="name">Beginner</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Beginner/%E5%B8%B8%E7%94%A8%E7%9F%A5%E8%AF%86/" itemprop="url" rel="index"><span itemprop="name">常用知识</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Beginner/%E5%B8%B8%E7%94%A8%E7%9F%A5%E8%AF%86/o-obj/" itemprop="url" rel="index"><span itemprop="name">o/obj</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Beginner/%E5%B8%B8%E7%94%A8%E7%9F%A5%E8%AF%86/o-obj/a-lib/" itemprop="url" rel="index"><span itemprop="name">a/lib</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Beginner/%E5%B8%B8%E7%94%A8%E7%9F%A5%E8%AF%86/o-obj/a-lib/so-dll/" itemprop="url" rel="index"><span itemprop="name">so/dll</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Beginner/%E5%B8%B8%E7%94%A8%E7%9F%A5%E8%AF%86/o-obj/a-lib/so-dll/ko-sys/" itemprop="url" rel="index"><span itemprop="name">ko/sys</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Beginner/%E5%B8%B8%E7%94%A8%E7%9F%A5%E8%AF%86/o-obj/a-lib/so-dll/ko-sys/elf-exe/" itemprop="url" rel="index"><span itemprop="name">elf/exe</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">相当于写给刚接触编译内核的萌新，以及附带一些常用的基本工具...</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <a id="more"></a>
+
+<blockquote>
+<p>接上篇《烧镜像挂载》——那篇我们见了 ELF 的 <code>vmlinux</code>、以及能被 UEFI 当 PE 加载的 <code>Image</code>、还提了 <code>.ko</code>（内核模块/驱动）。这篇回答：<strong>这些文件是怎么从源码生出来的，又怎么拼到一起跑起来的</strong>。以 Linux/ELF 为主线，Windows 侧随手对照。</p>
+</blockquote>
+<h2 id="0-从-hello-c-到能跑，到底经历了什么"><a href="#0-从-hello-c-到能跑，到底经历了什么" class="headerlink" title="0. 从 hello.c 到能跑，到底经历了什么"></a>0. 从 <code>hello.c</code> 到能跑，到底经历了什么</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">    C[&quot;hello.c&quot;] --&gt;|预处理 cpp| I[&quot;hello.i&quot;]</span><br><span class="line">    I --&gt;|编译 cc1| S[&quot;hello.s 汇编文本&quot;]</span><br><span class="line">    S --&gt;|汇编 as| O[&quot;.o 目标文件&quot;]</span><br><span class="line">    O --&gt;|链接 ld| E[&quot;可执行 ELF&quot;]</span><br><span class="line">    A[&quot;.a &#x2F; 库.o&quot;] -. 静态链接·塞进去 .-&gt; E</span><br><span class="line">    SO[&quot;.so 动态库&quot;] -. 运行时·ld.so 加载 .-&gt; E</span><br></pre></td></tr></table></figure>
+
+<p>一句话：<strong>编译把”人话”翻成”机器话”，链接把”一堆零件”拼成”一个整机”。</strong> 下面逐段拆。</p>
+<hr>
+<h2 id="1-编译四阶段-——-别把”编译”和”汇编”并成一步"><a href="#1-编译四阶段-——-别把”编译”和”汇编”并成一步" class="headerlink" title="1. 编译四阶段 —— 别把”编译”和”汇编”并成一步"></a>1. 编译四阶段 —— 别把”编译”和”汇编”并成一步</h2><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>工具</th>
+<th>输入→输出</th>
+<th>干了啥</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>预处理</td>
+<td><code>cpp</code></td>
+<td><code>.c → .i</code></td>
+<td>宏展开、<code>#include</code> 内联、去注释</td>
+</tr>
+<tr>
+<td>编译</td>
+<td><code>cc1</code></td>
+<td><code>.i → .s</code></td>
+<td>C → <strong>汇编文本</strong></td>
+</tr>
+<tr>
+<td>汇编</td>
+<td><code>as</code></td>
+<td><code>.s → .o</code></td>
+<td>汇编 → <strong>机器码目标文件</strong>（ELF relocatable）</td>
+</tr>
+<tr>
+<td>链接</td>
+<td><code>ld</code></td>
+<td><code>.o(+库) → 可执行</code></td>
+<td>解析符号、按链接脚本分配地址、回填重定位</td>
+</tr>
+</tbody></table>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">gcc -E hello.c -o hello.i     <span class="comment"># 只预处理 → 看宏展开后长啥样</span></span><br><span class="line">gcc -S hello.c -o hello.s     <span class="comment"># 停在汇编(.s 是文本,能读)</span></span><br><span class="line">gcc -c hello.c -o hello.o     <span class="comment"># 停在目标文件(.o)</span></span><br><span class="line">gcc    hello.c -o hello       <span class="comment"># 一路到可执行</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>编译</strong>出的是<strong>汇编文本</strong> <code>.s</code>（可读），<strong>汇编器</strong> <code>as</code> 才把它变 <code>.o</code> 机器码——这俩是两步（<code>gcc -S</code> vs <code>gcc -c</code> 一眼分得开）。</li>
+<li><strong>链接</strong>做两件事：① 把各 <code>.o</code> 里”欠的符号”（如 <code>puts</code>）找到定义；② 按<strong>链接脚本</strong>给各段分配最终地址（哪段进代码区、哪段进数据区；嵌入式里还指定 flash/ram 地址）。</li>
+<li><code>objcopy -O binary</code> 再把 ELF 的多余段/符号去掉 → <strong>裸二进制</strong>（PC 一路递增即可执行）——这正是上篇的 <code>Image</code>！</li>
+</ul>
+<h3 id="c-停在-o-vs-一路到可执行-——-差的就是「链接」"><a href="#c-停在-o-vs-一路到可执行-——-差的就是「链接」" class="headerlink" title="-c 停在 .o vs 一路到可执行 —— 差的就是「链接」"></a><code>-c</code> 停在 <code>.o</code> vs 一路到可执行 —— 差的就是「链接」</h3><p>对照那两条命令的产物：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">gcc -c hello.c -o hello.o   →  hello.o    1488 字节   nm: T main &#x2F; U puts        (没有 _start!)</span><br><span class="line">gcc    hello.c -o hello     →  hello     15960 字节   nm: T _start &#x2F; T main &#x2F; U __libc_start_main</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong><code>gcc -c</code> = 只编译不链接</strong>：跑完 预处理→编译→汇编 就停，产出 <code>.o</code>。里面<strong>只有你写的 <code>main</code>，欠着 <code>puts</code>，没有入口 <code>_start</code>、没有启动代码、没有 libc</strong> → 不能跑。</li>
+<li><strong><code>gcc hello.c -o hello</code>（不带 <code>-c</code>）= 完整 4 阶段含链接</strong>。链接这一步（gcc 实际调 <code>collect2</code>→<code>ld</code>）把这些拼进来：<ul>
+<li><strong>crt 启动文件</strong>：<code>crt1.o</code>（含真正入口 <code>_start</code>；PIE 默认时换成 <code>Scrt1.o</code>）+ <code>crti.o</code>/<code>crtn.o</code>（init/fini 框架）+ <code>crtbeginS.o</code>/<code>crtendS.o</code>（gcc 自带）</li>
+<li><strong>libc</strong>（默认隐含 <code>-lc</code>，解析 <code>puts</code>）</li>
+<li>补上 ELF program headers、<code>PT_INTERP</code>、<code>.plt</code>/<code>.got</code> 等运行时骨架</li>
+</ul>
+</li>
+</ul>
+<p>所以体积从 <strong>1488 → 15960 字节</strong>，多出来的全是「<strong>启动班底 + 运行时骨架</strong>」；符号表也从只有 <code>main</code>，多出 <code>_start</code> 和 <code>__libc_start_main</code>。启动链就是：<code>_start</code>(crt1) → <code>__libc_start_main</code> → 你的 <code>main</code>。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gcc hello.c -o hello -v     <span class="comment"># 看 gcc 背后实际调了哪些子程序</span></span><br></pre></td></tr></table></figure>
+
+<p>真实输出（截关键两行，路径已省略）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cc1 ... hello.c ... -o &#x2F;tmp&#x2F;cc*.s                              ← ① 编译器,产汇编</span><br><span class="line">collect2 ... Scrt1.o crti.o crtbeginS.o hello.o -lc crtendS.o crtn.o   ← ② 链接器,拼 crt 启动文件+你的.o+libc</span><br></pre></td></tr></table></figure>
+
+<p>第 ② 行一眼看穿链接到底干了啥：把 <strong>crt 启动文件</strong>（<code>Scrt1.o</code>/<code>crti.o</code>/<code>crtbeginS.o</code>/<code>crtendS.o</code>/<code>crtn.o</code>）+ <strong>你的 <code>hello.o</code></strong> + <strong>libc（<code>-lc</code>）</strong> 拼成一个完整可执行。也能手动分两步：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">gcc -c hello.c -o hello.o   <span class="comment"># 只编译,出半成品 .o</span></span><br><span class="line">gcc    hello.o -o hello     <span class="comment"># 纯链接,把启动文件+libc 拼上去</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="插曲：crt1-o-vs-Scrt1-o（crt-全家）"><a href="#插曲：crt1-o-vs-Scrt1-o（crt-全家）" class="headerlink" title="插曲：crt1.o vs Scrt1.o（crt 全家）"></a>插曲：<code>crt1.o</code> vs <code>Scrt1.o</code>（crt 全家）</h4><p>这些 <code>crt</code>（C RunTime）启动文件都干同一件事——提供入口 <code>_start</code>，准备好后调 <code>__libc_start_main(main, …)</code>。区别在<strong>给哪种可执行用</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>用于</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>crt1.o</code></td>
+<td>非 PIE 可执行（ET_EXEC）</td>
+</tr>
+<tr>
+<td><code>Scrt1.o</code></td>
+<td><strong>PIE</strong> 可执行（ET_DYN，现代默认）</td>
+</tr>
+<tr>
+<td><code>rcrt1.o</code></td>
+<td>static-PIE</td>
+</tr>
+<tr>
+<td><code>gcrt1.o</code> / <code>Mcrt1.o</code></td>
+<td>profiling（<code>gcc -pg</code>）</td>
+</tr>
+<tr>
+<td><code>crti.o</code> / <code>crtn.o</code></td>
+<td><code>.init</code>/<code>.fini</code> 的头/尾框架（都用）</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong><code>S</code> 后缀 = Shared / 位置无关版</strong>（PIE、共享库用）——同样的 <code>S</code> 也出现在 <code>crtbeginS.o</code>/<code>crtendS.o</code>。</li>
+<li><strong>本质区别</strong>：历史上 <code>crt1.o</code> 用<strong>绝对地址</strong>引用 <code>main</code>（只能固定基址加载），<code>Scrt1.o</code> 用 <strong>GOT</strong> 间接引用（适应 PIE 的 ASLR 随机基址）。</li>
+<li><strong>趋同与否看架构</strong>：在 <strong>x86-64</strong> 上两者对 <code>main</code> 的重定位<strong>已趋同</strong>（都走 GOT 的 <code>R_X86_64_REX_GOTPCRELX</code>）；但在 <strong>RISC-V</strong> 上<strong>仍有区别</strong>——<code>crt1.o</code> 用 <code>R_RISCV_PCREL_HI20</code>（PC 相对、直接引用），<code>Scrt1.o</code> 用 <code>R_RISCV_GOT_HI20</code>（经 GOT 间接，适应 PIE）。保留两个文件，就是为了让链接器按 <code>-pie</code>/<code>-no-pie</code> 自动挑对的。</li>
+</ul>
+<blockquote>
+<p><strong>Windows 对应</strong>：<code>cl /P</code>(预处理) / <code>cl /FA</code>(出汇编) / <code>cl /c</code>(出 <code>.obj</code>) / <code>link</code>(链接成 <code>.exe</code>)。</p>
+</blockquote>
+<hr>
+<h2 id="2-文件类型全家谱（Linux-↔-Windows）"><a href="#2-文件类型全家谱（Linux-↔-Windows）" class="headerlink" title="2. 文件类型全家谱（Linux ↔ Windows）"></a>2. 文件类型全家谱（Linux ↔ Windows）</h2><table>
+<thead>
+<tr>
+<th>角色</th>
+<th>Linux</th>
+<th>Windows</th>
+<th>是什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>目标文件</td>
+<td><code>.o</code></td>
+<td><code>.obj</code></td>
+<td>单个源码编译后的<strong>可重定位</strong>机器码（带符号表+重定位）</td>
+</tr>
+<tr>
+<td>静态库</td>
+<td><code>.a</code></td>
+<td><code>.lib</code></td>
+<td>一堆 <code>.o</code> 的<strong>打包</strong>（<code>ar</code>/<code>lib.exe</code>）；链接时<strong>整段塞进</strong>可执行</td>
+</tr>
+<tr>
+<td>动态库</td>
+<td><code>.so</code></td>
+<td><code>.dll</code></td>
+<td>运行时才加载、<strong>多程序共享</strong>的库</td>
+</tr>
+<tr>
+<td>导入库</td>
+<td>（无独立物）</td>
+<td><code>.lib</code>（import lib）</td>
+<td>Windows 特有：链 <code>.dll</code> 时先链这个<strong>桩</strong>，真代码在 <code>.dll</code></td>
+</tr>
+<tr>
+<td>可执行</td>
+<td>ELF（无后缀）</td>
+<td><code>.exe</code></td>
+<td>能直接跑的完整程序（ELF = Executable and Linkable Format；Windows 用 PE = Portable Executable）</td>
+</tr>
+<tr>
+<td>内核模块</td>
+<td><code>.ko</code></td>
+<td><code>.sys</code></td>
+<td>（一嘴）特殊目标文件，用 <code>insmod</code> 链进<strong>内核地址空间</strong>（不走 ld.so、不含 libc、直接调内核 API），详见驱动篇</td>
+</tr>
+</tbody></table>
+<ul>
+<li><code>.a</code> = <code>ar rcs libfoo.a a.o b.o</code>（其实就是个 <code>.o</code> 的归档包）。</li>
+<li><code>.so</code> = <code>gcc -shared -fPIC foo.c -o libfoo.so</code>（<code>-fPIC</code>=位置无关代码，下面讲为什么）。</li>
+<li>Windows 的 <code>.lib</code> 有<strong>两种身份</strong>：要么是<strong>静态库</strong>（含真代码），要么是某个 <code>.dll</code> 的<strong>导入库</strong>（只含跳转桩）——名字一样，看用途。</li>
+</ul>
+<hr>
+<h2 id="3-o-为什么自己不能跑"><a href="#3-o-为什么自己不能跑" class="headerlink" title="3. .o 为什么自己不能跑"></a>3. <code>.o</code> 为什么自己不能跑</h2><p><code>.o</code> 是<strong>可重定位目标（relocatable）</strong>——它欠着外部符号、没入口、段没按执行布局：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">gcc -c hello.c -o hello.o ;  nm hello.o</span><br><span class="line">0000000000000000 T main      ← 已定义(代码在本文件)</span><br><span class="line">                 U puts      ← 未定义(等链接去别处找)</span><br></pre></td></tr></table></figure>
+
+<p>两个细节：</p>
+<ol>
+<li><code>T main</code> = 本文件<strong>定义</strong>了 <code>main</code>；<code>U puts</code> = <strong>未定义</strong>，链接时才去 libc 里找。<strong><code>.o</code> 跑不了的根本原因是它的 ELF 类型是 <code>ET_REL</code>（可重定位）——内核直接拒绝执行</strong>（<code>chmod +x x.o; ./x.o</code> 会报 <code>cannot execute binary file: Exec format error</code>），它既没入口 <code>_start</code>、也没 <code>PT_LOAD</code>/<code>PT_INTERP</code>。<code>U puts</code> 是<strong>额外</strong>的：还得<strong>链接</strong>才能补上外部符号。所以门槛是<strong>链接</strong>（编译期），不是”缺动态库”（哪怕全静态，也得先链接）。</li>
+<li>我源码写的是 <code>printf(&quot;hi\n&quot;)</code>，<code>nm</code> 却显示欠 <code>puts</code>！<strong>编译器把”常量串+换行+无格式参数的 printf 优化成了 puts”</strong>（更便宜）。你写的 ≠ 最终调的——这是编译器优化的活教材。</li>
+</ol>
+<hr>
+<h2 id="4-静态-vs-动态链接（核心）"><a href="#4-静态-vs-动态链接（核心）" class="headerlink" title="4. 静态 vs 动态链接（核心）"></a>4. 静态 vs 动态链接（核心）</h2><p>同一个 <code>hello.c</code>，两种链法，差距惊人：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">gcc hello.c -o hello_dyn          # 动态(默认)</span><br><span class="line">gcc hello.c -static -o hello_sta  # 静态</span><br><span class="line"></span><br><span class="line">ls -l :   hello_dyn  15960 字节   |  hello_sta  785360 字节   ← 差 49 倍!</span><br><span class="line">size  :   text 1365             |  text 668337            ← 整个 glibc 塞进来了</span><br><span class="line">file  :   ...dynamically linked, interpreter &#x2F;lib64&#x2F;ld-linux-x86-64.so.2</span><br><span class="line">          ...statically linked</span><br><span class="line">ldd hello_dyn :  linux-vdso.so.1 &#x2F; libc.so.6 &#x2F; ld-linux-x86-64.so.2</span><br><span class="line">ldd hello_sta :  not a dynamic executable</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>静态（<code>.a</code>，塞进去）</th>
+<th>动态（<code>.so</code>，共享）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>体积</td>
+<td>大（每个程序各塞一份）</td>
+<td>小（只留符号引用 + 桩）</td>
+</tr>
+<tr>
+<td>运行依赖</td>
+<td>无，单文件即可跑</td>
+<td>需要 <code>.so</code> 文件 + <code>ld.so</code> 在位</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>每进程各占一份库</td>
+<td>多进程<strong>共享</strong>同一份库页</td>
+</tr>
+<tr>
+<td>升级修漏洞</td>
+<td>必须<strong>重新编译/链接</strong>每个程序</td>
+<td><strong>换一个 <code>.so</code>/打补丁</strong>即可全体生效</td>
+</tr>
+<tr>
+<td>启动</td>
+<td>快（无运行时链接）</td>
+<td>略慢（<code>ld.so</code> 要解析）</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>现实例子：Windows 上 360 之类老打”系统安全补丁补 DLL”——就是动态库的优势，<strong>改一个 <code>.dll</code>，所有用它的程序一起修好</strong>。反过来，静态链接的程序要修同一个漏洞，得逐个重编。</p>
+</blockquote>
+<hr>
+<h2 id="5-ELF-文件结构详解"><a href="#5-ELF-文件结构详解" class="headerlink" title="5. ELF 文件结构详解"></a>5. ELF 文件结构详解</h2><p>ELF 有<strong>两副面孔</strong>：</p>
+<ul>
+<li><strong>Section（节）= 链接视角</strong>：<code>.text</code> <code>.data</code> … 给链接器/调试器看。</li>
+<li><strong>Segment（段，program header）= 执行视角</strong>：把若干 section 归成 <code>PT_LOAD</code> 等，给<strong>内核 mmap</strong> 用。</li>
+</ul>
+<p>常见 section：</p>
+<table>
+<thead>
+<tr>
+<th>section</th>
+<th>内容</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>.text</code></td>
+<td>代码</td>
+<td>r-x</td>
+</tr>
+<tr>
+<td><code>.rodata</code></td>
+<td>只读数据/常量字符串</td>
+<td>r–</td>
+</tr>
+<tr>
+<td><code>.data</code></td>
+<td>已初始化全局变量</td>
+<td>rw-</td>
+</tr>
+<tr>
+<td><code>.bss</code></td>
+<td>未初始化全局</td>
+<td><strong>不占文件</strong>，加载时清零</td>
+</tr>
+<tr>
+<td><code>.symtab</code>/<code>.strtab</code></td>
+<td>符号表</td>
+<td><code>strip</code> 可去</td>
+</tr>
+<tr>
+<td><code>.dynsym</code>/<code>.dynstr</code></td>
+<td>动态符号表</td>
+<td>动态链接用</td>
+</tr>
+<tr>
+<td><code>.rela.dyn</code>/<code>.rela.plt</code></td>
+<td>重定位表</td>
+<td>链接/加载时回填地址</td>
+</tr>
+<tr>
+<td><code>.plt</code>/<code>.got</code>/<code>.got.plt</code></td>
+<td><strong>跳转表</strong>（§6 详讲）</td>
+<td>动态调用的关键</td>
+</tr>
+<tr>
+<td><code>.init_array</code>/<code>.fini_array</code></td>
+<td>构造/析构函数指针</td>
+<td>C++ 全局对象、<code>__attribute__((constructor))</code></td>
+</tr>
+<tr>
+<td><code>.interp</code></td>
+<td>解释器路径</td>
+<td>动态可执行才有</td>
+</tr>
+<tr>
+<td><code>.dynamic</code></td>
+<td>动态段（NEEDED 等）</td>
+<td><code>ld.so</code> 的导航图</td>
+</tr>
+</tbody></table>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">readelf -h hello_dyn    <span class="comment"># ELF 头(类型/入口/架构)</span></span><br><span class="line">readelf -S hello_dyn    <span class="comment"># 所有 section</span></span><br><span class="line">readelf -l hello_dyn    <span class="comment"># program headers(segment) + section→segment 映射</span></span><br><span class="line">readelf -d hello_dyn    <span class="comment"># 动态段(NEEDED 哪些库)</span></span><br></pre></td></tr></table></figure>
+
+<p>关键输出节选（<code>hello_dyn</code>）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readelf -h →  Type: DYN (Position-Independent Executable)   Entry: 0x1060</span><br><span class="line">readelf -d →  (NEEDED) libc.so.6   (FLAGS) BIND_NOW   (FLAGS_1) NOW PIE</span><br><span class="line">readelf -l →  INTERP → &#x2F;lib64&#x2F;ld-linux-x86-64.so.2 ; 两个 LOAD 段(代码 r-x &#x2F; 数据 rw-)</span><br></pre></td></tr></table></figure>
+
+<h3 id="动态链接专用-section-详解（ld-so-的工作底图）"><a href="#动态链接专用-section-详解（ld-so-的工作底图）" class="headerlink" title="动态链接专用 section 详解（ld.so 的工作底图）"></a>动态链接专用 section 详解（<code>ld.so</code> 的工作底图）</h3><p>上表里 <code>.dynsym</code>/<code>.rela.*</code>/<code>.got</code>/<code>.dynamic</code> 这几个是<strong>动态链接的核心机器</strong>，它们环环相扣：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">    DYN[&quot;.dynamic&lt;br&#x2F;&gt;总索引 DT_* 标签&quot;] --&gt; NEED[&quot;DT_NEEDED&lt;br&#x2F;&gt;要加载哪些 .so&quot;]</span><br><span class="line">    DYN --&gt; SYM[&quot;.dynsym&#x2F;.dynstr&lt;br&#x2F;&gt;符号名表&quot;]</span><br><span class="line">    DYN --&gt; REL[&quot;.rela.dyn&#x2F;.rela.plt&lt;br&#x2F;&gt;待补地址清单&quot;]</span><br><span class="line">    DYN --&gt; INIT[&quot;.init_array&lt;br&#x2F;&gt;启动跑的构造函数&quot;]</span><br><span class="line">    REL --&gt;|回填| GOT[&quot;.got&#x2F;.got.plt&lt;br&#x2F;&gt;真实地址表&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>逐个拆：</p>
+<ul>
+<li><strong><code>.dynamic</code> —— 总索引</strong>。一串 <code>DT_*</code> 标签，是 <code>ld.so</code> 进来<strong>第一个读</strong>的导航图：<code>DT_NEEDED</code>(要哪些 <code>.so</code>)、<code>DT_SYMTAB</code>/<code>DT_STRTAB</code>(符号表在哪)、<code>DT_RELA</code>/<code>DT_JMPREL</code>(重定位表在哪)、<code>DT_INIT_ARRAY</code>、<code>DT_RUNPATH</code>、<code>DT_SONAME</code>、<code>DT_FLAGS</code>(如 <code>BIND_NOW</code>)。<code>readelf -d</code> 看的就是它。</li>
+<li><strong><code>.dynsym</code> / <code>.dynstr</code> —— 动态符号表 + 名字串</strong>。<code>.dynsym</code> 是动态链接<strong>必须保留</strong>的符号子集（导出的 + 欠的如 <code>puts</code>），<code>.dynstr</code> 存它们的名字。区别于 <code>.symtab</code>（完整符号表，给链接器/调试器，<code>strip</code> 能删）——<code>.dynsym</code> <strong>strip 不掉</strong>，<code>ld.so</code> 运行时全靠它认符号。每条记录：名字、地址、类型(FUNC/OBJECT)、绑定(GLOBAL/WEAK)、所属段(<code>UND</code>=未定义=去别的 <code>.so</code> 找)。</li>
+<li><strong><code>.rela.dyn</code> / <code>.rela.plt</code> —— 重定位表（”待补地址清单”）</strong>。每条说”把<strong>这个位置</strong>按<strong>这个规则</strong>填上<strong>某符号</strong>的真实地址”。<code>.rela.dyn</code>=数据类(全局变量、GOT 数据项，加载时<strong>立即</strong>补)；<code>.rela.plt</code>=函数类(PLT 的 <code>JUMP_SLOT</code>，lazy 留到首调 / <code>NOW</code> 立即补)。常见类型：<code>R_X86_64_RELATIVE</code>(PIE 自身引用=基址+addend)、<code>GLOB_DAT</code>(全局变量)、<code>JUMP_SLOT</code>(函数)。<code>readelf -r</code> 看它。</li>
+<li><strong><code>.plt</code> / <code>.got</code> / <code>.got.plt</code> —— 跳转表</strong>（§6 详讲）。<code>.got</code>=真实地址表(可写)、<code>.plt</code>=跳板代码(可执行)；上面的重定位就是往 <code>.got</code>/<code>.got.plt</code> 里<strong>回填</strong>地址。</li>
+<li><strong><code>.init_array</code> / <code>.fini_array</code> —— 构造/析构函数指针数组</strong>。<code>.init_array</code> 里的函数在 <code>main</code> <strong>之前</strong>跑（C++ 全局对象构造、<code>__attribute__((constructor))</code>、libc 初始化）；<code>.fini_array</code> 在 <code>main</code> <strong>之后</strong>跑。每个 <code>.so</code> 被加载完，<code>ld.so</code> 也会跑它自己的 <code>.init_array</code>。（老式是 <code>.init</code>/<code>.fini</code> 段里的 <code>_init</code>/<code>_fini</code>，由 <code>crti.o</code>/<code>crtn.o</code> 包头尾。）</li>
+<li><strong><code>.interp</code> —— 解释器路径</strong>。就是一个字符串 <code>/lib64/ld-linux-x86-64.so.2</code>。内核读 <code>PT_INTERP</code>(指向它) → 加载这个解释器。<strong>只有动态可执行才有</strong>。<code>readelf -p .interp hello_dyn</code> 直接打印。</li>
+</ul>
+<p><strong>一句话串起来</strong>：<code>ld.so</code> 进来 → 读 <code>.dynamic</code> 拿导航 → 按 <code>DT_NEEDED</code> 加载 <code>.so</code> → 用 <code>.dynsym</code>/<code>.dynstr</code> 认符号 → 按 <code>.rela.*</code> 把地址<strong>回填进 <code>.got</code>/<code>.got.plt</code></strong> → 跑 <code>.init_array</code> → 交给你的 <code>main</code>。</p>
+<p><strong>ELF 三种类型</strong>：<code>ET_REL</code>（<code>.o</code>）/ <code>ET_EXEC</code>（传统可执行）/ <code>ET_DYN</code>（<code>.so</code> <strong>和 PIE 可执行</strong>）。</p>
+<blockquote>
+<p><strong>PIE（Position-Independent Executable，位置无关可执行）= 放到任意地址都能跑的程序。</strong></p>
+<ul>
+<li><strong>为什么</strong>：老式可执行（<code>ET_EXEC</code>）被链接死在固定地址（传统 <code>0x400000</code>），地址写死 → 攻击者永远知道代码在哪、好打。</li>
+<li><strong>ASLR</strong>（地址随机化）：每次运行把程序加载到<strong>随机基址</strong>，攻击者猜不中。但要随机化主程序，主程序就得”位置无关”。</li>
+<li><strong>PIE</strong> = 把可执行也编成位置无关码（像共享库一样用 RIP 相对 / GOT 间接寻址；RIP = x86-64 指令指针寄存器，”相对当前指令算地址”而非写死绝对地址），于是加载器能把它随机摆放，ASLR 生效。</li>
+<li><strong>PIC vs PIE 别混</strong>：<code>PIC</code>(Position-Independent <strong>Code</strong>) 是<strong>代码属性</strong>（可在任意地址执行）；<code>PIE</code>(Position-Independent <strong>Executable</strong>) 是<strong>可执行属性</strong>（用 PIC 码做成、可被内核随机摆放的程序）。</li>
+<li><strong>认出来</strong>：PIE 的 ELF 类型是 <strong><code>ET_DYN</code>（和 <code>.so</code> 一样！）</strong>，所以上面 <code>file</code> 说 <code>hello_dyn</code> 是 <strong>pie executable</strong>。现代 gcc 默认 <code>-pie</code>；<code>gcc -no-pie</code> 关掉后就是传统 <code>ET_EXEC</code>。代价是轻微运行时开销。</li>
+</ul>
+<p><strong>Windows 侧</strong>：可执行/库都是 <strong>PE/COFF</strong> 格式（<code>.exe</code>/<code>.dll</code>），对应 ELF 的角色；查看用 <code>dumpbin /headers</code>、<code>dumpbin /imports</code>。</p>
+</blockquote>
+<hr>
+<h2 id="6-跳转表在哪-动态链接机制"><a href="#6-跳转表在哪-动态链接机制" class="headerlink" title="6. 跳转表在哪 + 动态链接机制"></a>6. 跳转表在哪 + 动态链接机制</h2><p>看跳转表落在哪些 section：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">readelf -S hello_dyn:</span><br><span class="line">  .plt      0x1020   ← PLT 跳板,在【代码段】(可执行只读),紧挨 .text(0x1060) 前</span><br><span class="line">  .got      0x3fb8   ← GOT 地址表,在【数据段】(可写),高地址</span><br><span class="line">  .rela.plt 0x0610   ← PLT 用的重定位(JUMP_SLOT)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong><code>.plt</code></strong>（Procedure Linkage Table）= 一堆<strong>跳板小代码</strong>，放可执行段。</li>
+<li><strong><code>.got</code>/<code>.got.plt</code></strong>（Global Offset Table）= 一张<strong>真实地址表</strong>，放可写数据段。</li>
+</ul>
+<p><strong>经典 lazy binding（懒解析）</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">graph LR</span><br><span class="line">    call[&quot;call puts@plt&quot;] --&gt; plt[&quot;.plt 跳板&quot;]</span><br><span class="line">    plt --&gt; got&#123;&quot;.got.plt 槽&lt;br&#x2F;&gt;已解析?&quot;&#125;</span><br><span class="line">    got --&gt;|否·首次| res[&quot;ld.so 解析器&lt;br&#x2F;&gt;算出 puts 真地址&quot;]</span><br><span class="line">    res --&gt;|回填 GOT| got</span><br><span class="line">    got --&gt;|是·之后| real[&quot;直接跳 puts 真地址&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>第一次 <code>call puts</code> 走 PLT→GOT→<code>ld.so</code> 解析→<strong>回填 GOT 槽</strong>；以后再 call 直接命中真地址。</p>
+<blockquote>
+<p><strong>为什么要 GOT 隔一层？</strong> PIE/共享库<strong>位置无关</strong>，代码段只读、不能把地址写死在指令里；于是把”会变的地址”集中到<strong>可写的 GOT</strong>，代码只引用 GOT 槽（相对固定偏移）。</p>
+</blockquote>
+<p><strong>现代加固：now binding + RELRO（RELocation Read-Only）</strong>。<code>readelf -d hello_dyn</code> 的 <code>DT_FLAGS</code> 显示 <code>BIND_NOW</code> + <code>NOW PIE</code>——这个 binary <strong>不走 lazy</strong>，而是 load 时一次性解析所有外部符号，再把 GOT 段标<strong>只读</strong>（防 GOT 覆写攻击）。这是安全 vs 启动速度的取舍，Ubuntu/Debian 默认开。</p>
+<h3 id="用-RISC-V-交叉编译看真汇编（对应上面的-mermaid）"><a href="#用-RISC-V-交叉编译看真汇编（对应上面的-mermaid）" class="headerlink" title="用 RISC-V 交叉编译看真汇编（对应上面的 mermaid）"></a>用 RISC-V 交叉编译看真汇编（对应上面的 mermaid）</h3><p>默认 <code>hello_dyn</code> 是 <code>BIND_NOW</code>，看不到经典 lazy。编个<strong>非 PIE + 懒绑定</strong>的 <strong>RISC-V</strong> 版来看：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">riscv64-linux-gnu-gcc hello.c -no-pie -fno-pie -Wl,-z,lazy -o hello_rv</span><br><span class="line">riscv64-linux-gnu-objdump -d hello_rv</span><br></pre></td></tr></table></figure>
+
+<p><strong>① <code>main</code> 里调用 puts</strong> → 跳 PLT（不是直接调 puts）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">10532:  jal  10450 &lt;puts@plt&gt;</span><br></pre></td></tr></table></figure>
+
+<p><strong>② <code>puts@plt</code> 跳板</strong>（mermaid 的「.plt 跳板 → 查 .got.plt 槽」）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">0000000000010450 &lt;puts@plt&gt;:</span><br><span class="line">  auipc t3, 0x2          # auipc&#x3D;Add Upper Imm to PC; t3 &#x3D; PC + (0x2&lt;&lt;12),拼 GOT 基址</span><br><span class="line">  ld    t3, -1096(t3)    # t3 &#x3D; *(GOT[puts] @ 0x12008)  ← 载入 .got.plt 槽</span><br><span class="line">  jalr  t1, t3           # &#x3D;jalr t1,0(t3);跳 t3,返回地址特意存 t1(供解析器反推是哪个 PLT 项)</span><br><span class="line">  nop</span><br></pre></td></tr></table></figure>
+
+<p><strong>③ <code>.got.plt</code> 槽 + JUMP_SLOT 重定位</strong>（mermaid 的「.got.plt 槽」「回填 GOT」）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">readelf -r hello_rv:</span><br><span class="line">  0x12008  R_RISCV_JUMP_SLOT  puts@GLIBC_2.27   ← 槽初值指向 PLT[0],解析后回填成 puts 真地址</span><br></pre></td></tr></table></figure>
+
+<p><strong>④ <code>.plt[0]</code> 公共解析跳板</strong>（上面 mermaid 的「ld.so 解析器」）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">0000000000010420 &lt;_PROCEDURE_LINKAGE_TABLE_&gt;:    # PLT[0]:拼出 _dl_runtime_resolve 地址 → 跳 ld.so</span><br></pre></td></tr></table></figure>
+
+<p><strong>对应 mermaid 走一遍</strong>：<code>main</code> <code>jal puts@plt</code>（call）→ <code>auipc/ld</code> 载入 GOT 槽（查 .got.plt）→ <code>jalr</code> 跳过去。<strong>首次</strong>：槽指向 PLT[0] → <code>_dl_runtime_resolve</code>(ld.so) → 算出 puts 真地址 → <strong>回填 GOT 槽</strong>；<strong>之后</strong>：<code>ld</code> 直接载入真地址 → <code>jalr</code> 直跳。</p>
+<blockquote>
+<p><strong>RV vs x86 的味道</strong>：x86 一条 <code>jmp *0x2fb6(%rip)</code> 就能”间接跳过 GOT 槽”（CISC 有内存间接跳转）；RISC-V 必须 <code>auipc</code>+<code>ld</code>+<code>jalr</code> <strong>三条</strong>——先把地址 <code>ld</code> 进寄存器，再 <code>jalr</code> 跳（RISC 没有”经内存间接跳转”这种复杂寻址）。这就是 RISC 哲学的一个缩影。</p>
+</blockquote>
+<hr>
+<h2 id="7-内核如何-load-ld-so-如何-link-程序如何-run"><a href="#7-内核如何-load-ld-so-如何-link-程序如何-run" class="headerlink" title="7. 内核如何 load + ld.so 如何 link + 程序如何 run"></a>7. 内核如何 load + <code>ld.so</code> 如何 link + 程序如何 run</h2><p>一个最该澄清的点：<strong>动态链接不是内核干的，是用户态的 <code>ld.so</code>（<code>ld-linux-*.so</code> / <code>ld-musl-*.so</code>）干的</strong>。全流程：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant U as shell</span><br><span class="line">    participant K as 内核</span><br><span class="line">    participant L as ld.so(用户态)</span><br><span class="line">    participant P as 你的程序</span><br><span class="line">    U-&gt;&gt;K: execve(&quot;.&#x2F;hello&quot;)</span><br><span class="line">    K-&gt;&gt;K: 读 ELF header(魔数&#x2F;类型&#x2F;e_entry)</span><br><span class="line">    K-&gt;&gt;K: 读 program headers(PT_LOAD&#x2F;PT_INTERP)</span><br><span class="line">    K-&gt;&gt;K: mmap 各 PT_LOAD 段(代码 r-x &#x2F; 数据 rw-)</span><br><span class="line">    K-&gt;&gt;K: 见 PT_INTERP → 再 mmap 解释器 ld-linux.so</span><br><span class="line">    K-&gt;&gt;K: 建栈(argv&#x2F;envp&#x2F;auxv)</span><br><span class="line">    K-&gt;&gt;L: 跳【解释器入口】(不是程序 e_entry!)</span><br><span class="line">    L-&gt;&gt;L: 按 DT_NEEDED 递归 mmap 所有 .so(libc.so.6…)</span><br><span class="line">    L-&gt;&gt;L: 解析符号、填 GOT(NOW&#x3D;全填 &#x2F; lazy&#x3D;留首call)</span><br><span class="line">    L-&gt;&gt;L: 跑各 .so 的 init(.init_array)</span><br><span class="line">    L-&gt;&gt;P: 跳程序入口 _start</span><br><span class="line">    P-&gt;&gt;P: _start(crt1) → __libc_start_main → main()</span><br><span class="line">    P-&gt;&gt;K: main 返回 → exit_group syscall</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>ldd hello_dyn</code> 那三行也印证了：<code>linux-vdso.so.1</code>（内核映射进每个进程的<strong>虚拟 .so</strong>，磁盘上没文件，给快速 syscall 用）、<code>libc.so.6</code>（C 库）、<code>ld-linux-x86-64.so.2</code>（<strong>动态链接器自己</strong>）。</li>
+<li><strong>静态可执行</strong>没 <code>PT_INTERP</code>，内核第 6 步直接跳程序 <code>_start</code>，全程不碰 <code>ld.so</code>。</li>
+<li><strong>Windows 侧</strong>：没有独立的 <code>ld.so</code>，动态链接由 <strong>加载器（<code>ntdll.dll</code> 里的 loader）</strong> 在进程启动时完成；<code>.dll</code> 的延迟解析靠 IAT（Import Address Table，对位 GOT）。</li>
+</ul>
+<h3 id="7-1-so-是怎么被多进程共享的"><a href="#7-1-so-是怎么被多进程共享的" class="headerlink" title="7.1 .so 是怎么被多进程共享的"></a>7.1 <code>.so</code> 是怎么被多进程共享的</h3><p>动态库省内存的根本：<strong>一份代码，多进程共用</strong>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">graph TB</span><br><span class="line">    subgraph 物理内存</span><br><span class="line">        CODE[&quot;libc 代码页&lt;br&#x2F;&gt;只读·只一份&quot;]</span><br><span class="line">        D1[&quot;进程A 的数据副本&quot;]</span><br><span class="line">        D2[&quot;进程B 的数据副本&quot;]</span><br><span class="line">    end</span><br><span class="line">    PA[&quot;进程A 虚拟空间&quot;] --&gt; CODE</span><br><span class="line">    PB[&quot;进程B 虚拟空间&quot;] --&gt; CODE</span><br><span class="line">    PA --&gt; D1</span><br><span class="line">    PB --&gt; D2</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>.so</code> 的<strong>代码段是位置无关(PIC) + 只读</strong> → 物理内存里<strong>只存一份</strong>，多个进程各自的页表把<strong>同一物理页</strong>映射进自己的虚拟地址空间。</li>
+<li>每个进程的<strong>数据段（<code>.data</code>/<code>.bss</code>/<code>.got</code>）是私有的</strong>（写时复制 COW）——因为各进程的全局变量、GOT 里填的地址各不相同。</li>
+<li>所以”共享” = <strong>共享只读代码页 + 私有可写数据</strong>。100 个进程都用 <code>libc</code>，代码在物理内存只占一份——这就是动态库省内存的本质（也是静态链接做不到的）。</li>
+</ul>
+<h3 id="7-2-ld-so-找库的顺序-加载步骤"><a href="#7-2-ld-so-找库的顺序-加载步骤" class="headerlink" title="7.2 ld.so 找库的顺序 + 加载步骤"></a>7.2 <code>ld.so</code> 找库的顺序 + 加载步骤</h3><p><strong>找一个 <code>.so</code> 的搜索顺序</strong>（按 SONAME 如 <code>libc.so.6</code>——SONAME = Shared Object Name，<code>.so.6</code> 的 <code>6</code> 是主版本号，可多版本共存）：</p>
+<ol>
+<li><code>DT_RPATH</code>（可执行里写死的路径，已弃用——它会被 <code>DT_NEEDED</code> 继承，有安全隐患，故被只作用于自身的 <code>DT_RUNPATH</code> 取代）</li>
+<li><code>LD_LIBRARY_PATH</code>（环境变量，调试/临时用；suid/setgid 程序会<strong>忽略</strong>它，安全限制）</li>
+<li><code>DT_RUNPATH</code>（现代的 rpath）</li>
+<li><strong><code>/etc/ld.so.cache</code></strong>（<code>ldconfig</code> 建的索引，主路径；<code>ldconfig -p</code> 可查）</li>
+<li>默认 <code>/lib</code>、<code>/usr/lib</code></li>
+</ol>
+<p><strong>加载完整步骤</strong>（<code>ld.so</code> 干的活）：</p>
+<ol>
+<li>读主程序 <code>.dynamic</code> → 拿 <code>DT_NEEDED</code> 列表（要哪些 <code>.so</code>）</li>
+<li>每个 <code>.so</code> 按上面顺序找到 → <code>mmap</code> 进地址空间（代码页共享只读，数据页私有 COW）</li>
+<li><strong>递归</strong>：<code>.so</code> 自己也可能 <code>DT_NEEDED</code> 别的库 → 继续加载，构建依赖图</li>
+<li><strong>重定位</strong>：处理 <code>.rela.dyn</code>，按实际加载基址把 GOT 里的全局地址回填好</li>
+<li><strong>符号绑定</strong>：解析 PLT 的 <code>JUMP_SLOT</code>（函数地址）——<code>NOW</code> 全填 / <code>lazy</code> 留到首次调用</li>
+<li>跑各 <code>.so</code> 的初始化（<code>.init_array</code> / <code>DT_INIT</code>）</li>
+<li>跳主程序 <code>_start</code></li>
+</ol>
+<h3 id="7-3-深入：-so-怎么进到「公共映射页」（page-cache-mmap）"><a href="#7-3-深入：-so-怎么进到「公共映射页」（page-cache-mmap）" class="headerlink" title="7.3 深入：.so 怎么进到「公共映射页」（page cache + mmap）"></a>7.3 深入：<code>.so</code> 怎么进到「公共映射页」（page cache + mmap）</h3><p>先破一个误解：<strong>没有一个”公共映射页登记表”让 <code>ld.so</code> 去查”有没有现成的”</strong>。共享是<strong>内核 page cache 自动给的</strong>，<code>ld.so</code> 根本不知道别的进程存在。机制分三层：</p>
+<p><strong>① <code>ld.so</code> 找文件（用户态）</strong>：按 SONAME 走搜索顺序（§7.2）→ 在<strong>磁盘</strong>上找到文件，或找不到。</p>
+<p><strong>② <code>mmap</code> 文件（用户态发起、内核服务）</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mmap(代码段, PROT_READ|EXEC,  MAP_PRIVATE)</span><br><span class="line">mmap(数据段, PROT_READ|WRITE, MAP_PRIVATE)</span><br></pre></td></tr></table></figure>
+
+<p><code>mmap</code> 只<strong>建立映射关系</strong>（一个 VMA），并不立刻读盘——按需分页（demand paging）。</p>
+<p><strong>③ 内核 page cache 提供共享（自动）</strong>：</p>
+<ul>
+<li>进程首次访问某页 → <strong>缺页异常</strong> → 内核把该<strong>文件页读进 page cache</strong>（若还没缓存），再映射给进程。</li>
+<li><strong>page cache 全系统共享，按 <code>(inode, 偏移)</code> 索引。</strong> 进程 B 也 <code>mmap</code> <strong>同一个文件</strong>时，它的缺页发现该页<strong>已在 page cache</strong> → B 的页表指向<strong>同一块物理页</strong>。<strong>这就是「公共映射页」——不是查出来的，是同一文件被多次 <code>mmap</code> 自然落到同一 page cache 页。</strong></li>
+<li><strong>代码段只读</strong> → 永不写 → COW 永不触发 → 一直共享一份；<strong>数据段可写</strong> → 首次写触发 COW → 各进程私有。</li>
+</ul>
+<p>真实佐证（<code>/proc/self/maps</code> 里 <code>libc.so.6</code> 的几段）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">...  r--p  &#x2F;usr&#x2F;lib&#x2F;x86_64-linux-gnu&#x2F;libc.so.6   ← ELF头&#x2F;只读</span><br><span class="line">...  r-xp  &#x2F;usr&#x2F;lib&#x2F;x86_64-linux-gnu&#x2F;libc.so.6   ← 代码段(多进程共享同一物理页!)</span><br><span class="line">...  rw-p  &#x2F;usr&#x2F;lib&#x2F;x86_64-linux-gnu&#x2F;libc.so.6   ← 数据段(私有 COW)</span><br></pre></td></tr></table></figure>
+
+<h4 id="再往下钻：缺页那一刻，内核到底做了什么"><a href="#再往下钻：缺页那一刻，内核到底做了什么" class="headerlink" title="再往下钻：缺页那一刻，内核到底做了什么"></a>再往下钻：缺页那一刻，内核到底做了什么</h4><p><strong>涉及的内核数据结构</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">    PA[&quot;进程A 页表&quot;] --&gt; PG[&quot;同一物理页&lt;br&#x2F;&gt;(page cache 里)&quot;]</span><br><span class="line">    PB[&quot;进程B 页表&quot;] --&gt; PG</span><br><span class="line">    VMA[&quot;VMA(vm_area_struct)&lt;br&#x2F;&gt;vm_file→libc.so.6 +offset&quot;] -. 描述映射 .-&gt; PA</span><br><span class="line">    PG --&gt; AS[&quot;address_space&lt;br&#x2F;&gt;&#x3D; inode 的 page cache&quot;]</span><br><span class="line">    AS --&gt; INODE[&quot;inode: libc.so.6&quot;]</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>struct vm_area_struct</code>（VMA）= 进程虚拟空间里”映射了某文件某段”的记录（<code>vm_file</code> 指向 <code>libc.so.6</code>、带 offset、权限）。</li>
+<li><code>struct address_space</code> = <strong>每个 inode 一个</strong>的 page cache 索引，按文件 offset 存物理页。</li>
+<li>多进程的 VMA 各自独立，但都指向<strong>同一 inode 的同一 address_space</strong> → 物理页只一份。</li>
+</ul>
+<p><strong>缺页时序（demand paging）</strong>：</p>
+<ol>
+<li><code>ld.so</code> <code>mmap(...MAP_PRIVATE...)</code> → 内核 <code>elf_map()</code>→<code>vm_mmap()</code> 建 VMA，<strong>不读盘</strong>（<code>fs/binfmt_elf.c:371</code>）。</li>
+<li>程序跳进 libc 代码 → 访问还没页表项的地址 → <strong>缺页异常</strong>。</li>
+<li>内核 <code>filemap_fault()</code>（<code>mm/filemap.c</code>）：算出文件 offset → 查该 inode 的 page cache：<ul>
+<li><strong>命中</strong>（别的进程已读过该页）→ 直接复用同一物理页；</li>
+<li><strong>未命中</strong> → 分配页框 + 发起读盘填充 + 插入 page cache。</li>
+</ul>
+</li>
+<li>把该物理页<strong>只读</strong>映进本进程页表。多进程缺页都解析到<strong>同一 page cache 页</strong> → 这就是共享。</li>
+</ol>
+<p><strong>MAP_PRIVATE + COW（代码共享、数据私有的根）</strong>：</p>
+<ul>
+<li>代码段 <code>MAP_PRIVATE</code> 只读 → 页表只读指向共享页 → 不写 → COW 不触发 → 永远共享一份。</li>
+<li>数据段 <code>MAP_PRIVATE</code> 可写 → 初始只读映射 page cache 页（文件里的初值）→ <strong>首次写</strong> → 触发 <code>do_wp_page()</code>（<code>mm/memory.c</code>）<strong>写时复制</strong>：拷一份匿名私有页、改可写 → 从此私有。<code>.bss</code> 则是匿名零页，一开始就私有。</li>
+<li>为什么 <code>MAP_PRIVATE</code> 不是 <code>MAP_SHARED</code>：对 <code>.data</code> 的写<strong>不能</strong>回写文件、也不能传染别的进程。（源码：<code>fs/binfmt_elf.c:677</code> PT_LOAD 段用 <code>MAP_PRIVATE</code>。）</li>
+</ul>
+<p><strong>GOT 为什么每进程一份</strong>：GOT 在数据段（可写、私有 COW）→ <code>ld.so</code> 把解析出的地址写进<strong>本进程私有的 GOT 页</strong>（触发 COW）→ 每进程各有一份 GOT（各进程 ASLR 基址不同、填的地址不同）。代码段则始终只读共享——PIC 用 GOT 间接正是为了<strong>不改代码</strong>（避免 text relocation 把代码页也变私有、毁掉共享）。</p>
+<p><strong>关键内核代码路径</strong>（想深挖可对照 Linux 内核源码）：</p>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>代码</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>映射 ELF 段（含解释器）</td>
+<td><code>fs/binfmt_elf.c</code> <code>elf_map()</code>（:371）</td>
+</tr>
+<tr>
+<td>PT_LOAD 用 MAP_PRIVATE</td>
+<td><code>fs/binfmt_elf.c:677</code></td>
+</tr>
+<tr>
+<td>建 VMA</td>
+<td><code>mm/mmap.c</code> <code>vm_mmap()</code></td>
+</tr>
+<tr>
+<td>文件缺页 → page cache</td>
+<td><code>mm/filemap.c</code> <code>filemap_fault()</code></td>
+</tr>
+<tr>
+<td>写时复制</td>
+<td><code>mm/memory.c</code> <code>do_wp_page()</code></td>
+</tr>
+<tr>
+<td>VMA 结构</td>
+<td><code>include/linux/mm_types.h</code> <code>struct vm_area_struct</code>（<code>vm_file</code>）</td>
+</tr>
+</tbody></table>
+<p><strong>回答三个常见疑问：</strong></p>
+<ul>
+<li><strong>「公共映射页没有、但磁盘上有 → 载入?」</strong>：<code>ld.so</code> 不查”公共映射页”，它查<strong>磁盘</strong>。<code>mmap</code> 后那页若没缓存（冷）→ 首次访问从盘读进 page cache；若别的进程已缓存（热）→ 直接复用。<strong>「载入公共映射页」= 缺页时填 page cache，自动发生。</strong></li>
+<li><strong>「所有文件夹都没找到 → 报错?」</strong>：是。<code>ld.so</code> 找不到 → <code>error while loading shared libraries: libXXX.so.N: cannot open shared object file</code> → 程序<strong>根本启动不了</strong>（<code>dlopen</code> 则返回 NULL，<code>dlerror()</code> 拿原因）。</li>
+<li><strong>机制一句话</strong>：<code>ld.so</code> 只管”按名字在<strong>磁盘</strong>找到 + <code>mmap</code>“；<strong>跨进程共享是内核 page cache（按 inode）白送的</strong>，<code>ld.so</code> 全程不知道别的进程存在。</li>
+</ul>
+<h3 id="7-4-实例：两程序两库，看「共享」与「私有」"><a href="#7-4-实例：两程序两库，看「共享」与「私有」" class="headerlink" title="7.4 实例：两程序两库，看「共享」与「私有」"></a>7.4 实例：两程序两库，看「共享」与「私有」</h3><p>自己造一个公共函数的<code>.c</code>编译： <code>libmath.so</code>（<code>square()</code>）+ 两个程序 <code>progA</code>(<code>square(7)</code>)、<code>progB</code>(<code>square(9)</code>)，都链接它和 libc，同时跑，看 <code>/proc/PID/maps</code>理解多文件公用多动态库的场景：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">progA(PID 100785): libc @0x7481_34228000 r-xp   libmath @0x7481_34503000 r-xp</span><br><span class="line">progB(PID 100786): libc @0x715e_bc428000 r-xp   libmath @0x715e_bc6b6000 r-xp</span><br><span class="line">ls -i:  libmath.so&#x3D;inode 7628755 · libc.so.6&#x3D;inode 2507420   ← 同一文件</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ① 公共库 libmath.c —— 一个公共函数 square</span></span><br><span class="line">cat &gt; libmath.c &lt;&lt;<span class="string">'EOF'</span></span><br><span class="line">int square(int x)&#123; <span class="built_in">return</span> x*x; &#125;</span><br><span class="line">EOF</span><br><span class="line"></span><br><span class="line"><span class="comment"># ② 两个程序:都声明并调用 square(来自 libmath.so) + printf(来自 libc)</span></span><br><span class="line">cat &gt; progA.c &lt;&lt;<span class="string">'EOF'</span></span><br><span class="line"><span class="comment">#include &lt;stdio.h&gt;</span></span><br><span class="line"><span class="comment">#include &lt;unistd.h&gt;</span></span><br><span class="line">int square(int);                  // 声明:定义在 libmath.so</span><br><span class="line">int <span class="function"><span class="title">main</span></span>()&#123; <span class="built_in">printf</span>(<span class="string">"A:%d\n"</span>, square(7)); fflush(stdout); sleep(20); <span class="built_in">return</span> 0; &#125;</span><br><span class="line">EOF</span><br><span class="line">cat &gt; progB.c &lt;&lt;<span class="string">'EOF'</span></span><br><span class="line"><span class="comment">#include &lt;stdio.h&gt;</span></span><br><span class="line"><span class="comment">#include &lt;unistd.h&gt;</span></span><br><span class="line">int square(int);</span><br><span class="line">int <span class="function"><span class="title">main</span></span>()&#123; <span class="built_in">printf</span>(<span class="string">"B:%d\n"</span>, square(9)); fflush(stdout); sleep(20); <span class="built_in">return</span> 0; &#125;</span><br><span class="line">EOF</span><br><span class="line"></span><br><span class="line"><span class="comment"># ③ 编译:库要 -shared -fPIC;程序用 -lmath 链它,-rpath 让运行时找得到</span></span><br><span class="line">gcc -shared -fPIC libmath.c -o libmath.so</span><br><span class="line">gcc progA.c -L. -lmath -Wl,-rpath,. -o progA</span><br><span class="line">gcc progB.c -L. -lmath -Wl,-rpath,. -o progB</span><br><span class="line"></span><br><span class="line"><span class="comment"># ④ 同时跑,看两进程的库映射 + GOT 重定位</span></span><br><span class="line">./progA &amp; ./progB &amp;</span><br><span class="line">grep -E <span class="string">'libmath|libc'</span> /proc/$(pgrep -f progA)/maps</span><br><span class="line">grep -E <span class="string">'libmath|libc'</span> /proc/$(pgrep -f progB)/maps</span><br><span class="line">ls -i libmath.so                    <span class="comment"># 看 inode(两进程映射同一个)</span></span><br><span class="line">readelf -r progA | grep square      <span class="comment"># 看 square 的 GOT 重定位</span></span><br></pre></td></tr></table></figure>
+
+<p>三个关键现象：</p>
+<ol>
+<li><strong>虚拟地址不同（ASLR）、但是同一文件</strong>：progA/progB 把 libmath 映到不同虚拟地址（随机基址），但 <code>ls -i</code> 是<strong>同一 inode</strong>。</li>
+<li><strong>物理内存只一份（page cache 共享）</strong>：同 inode → 同 <code>address_space</code> → 两进程的 <code>r-xp</code> 代码页指<strong>同一批物理页</strong>。<code>square()</code> 机器码物理<strong>只存一份</strong>，progA/progB 共用。</li>
+<li><strong>GOT 每进程私有</strong>：<code>readelf -r progA</code> 里 <code>square</code> 有 <code>R_X86_64_JUMP_SLOT @GOT 0x3fb8</code>。两进程把库映到不同地址 → <code>square</code> 真实地址不同 → 各自 GOT 填的值不同（数据段 COW）。<strong>代码共享，”square 在哪”私有。</strong></li>
+</ol>
+<p><strong>结合源码，机制分两半：</strong></p>
+<ul>
+<li><strong>内核（Linux <code>fs/</code>+<code>mm/</code> 子系统）= 共享那一半</strong>：<code>mmap</code> 同文件 → <code>filemap_fault()</code> 按 inode 取 page cache 页 → 代码页共享；GOT 在数据段 → <code>do_wp_page()</code> COW → 每进程私有。</li>
+<li><strong><code>ld.so</code>（musl <code>ldso/dynlink.c</code>）= 解析那一半</strong>：<code>do_relocs()</code>(:379) 遍历重定位 → <code>R_TYPE(rel[1])</code>(:405) 取类型 → <code>find_sym()</code>(:345) 按名字找到 <code>square</code> 真实地址 → <strong>写进本进程 GOT 槽</strong>（这就是”回填 GOT”在源码里的样子；lazy 时由首调触发的 <code>_dl_runtime_resolve</code> 来做）。</li>
+</ul>
+<blockquote>
+<p><strong>一句话</strong>：两程序<strong>共享</strong> libmath/libc 的只读代码物理页（内核 page cache 白送），但各有<strong>私有 GOT</strong>（COW），由 <code>ld.so</code> 按各自 ASLR 基址把 <code>square</code>/<code>puts</code> 真实地址填进去——<strong>代码一份共享、地址各自私有</strong>。</p>
+</blockquote>
+<h4 id="动态地址回填：一步步看-ld-so-怎么填-GOT"><a href="#动态地址回填：一步步看-ld-so-怎么填-GOT" class="headerlink" title="动态地址回填：一步步看 ld.so 怎么填 GOT"></a>动态地址回填：一步步看 <code>ld.so</code> 怎么填 GOT</h4><p>以 progA 首次 <code>call square</code> 为例（lazy 路径），把 §6 mermaid 里”<code>ld.so</code> 解析器”那个框拆开：</p>
+<ol>
+<li><code>call square@plt</code> → 跳 <code>square@plt</code> 跳板。</li>
+<li>跳板跳 <code>*GOT[square]</code>，但该槽<strong>初值</strong>指向”跳板的下一条”（还不是真地址）。</li>
+<li>跳板 push 这条的<strong>重定位索引</strong>，跳 PLT[0]。</li>
+<li>PLT[0] push <code>link_map</code>（本进程加载了哪些库的描述）、跳 <code>_dl_runtime_resolve</code> → 进 <code>ld.so</code>。</li>
+<li><code>ld.so</code> 解析（musl 里就是 <code>do_relocs</code>/<code>find_sym</code>）：<ul>
+<li>用索引在 <code>.rela.plt</code> 找到这条重定位 → 拿符号下标 → 符号名 <code>square</code>（查 <code>.dynstr</code>）。</li>
+<li><strong>符号查找</strong> <code>find_sym</code>：遍历依赖图（顺序：可执行 → 各 <code>.so</code>，第一个全局/弱定义胜出）→ 在 <code>libmath.so</code> 找到 <code>square</code>。</li>
+<li><strong>算真实地址</strong> = <code>库的加载基址(ASLR 随机) + square 在库内偏移</code>。← 这就是 progA/progB 的 GOT 值不同的原因。</li>
+<li><strong>回填</strong>：把这个地址<strong>写进本进程的 GOT 槽</strong>（数据段、私有、触发 COW）。</li>
+<li>返回真实地址 → 跳去执行 <code>square</code>。</li>
+</ul>
+</li>
+<li><strong>之后再 call</strong>：跳板 <code>jmp *GOT[square]</code> 此刻已是真地址 → 直接跳，不再进 <code>ld.so</code>。</li>
+</ol>
+<p><code>now binding</code> 版：load 时对<strong>所有</strong>重定位一次性做完第 5 步，再把 GOT 标只读（RELRO），运行时不再回填。</p>
+<p><strong>源码实锤</strong>（musl <code>ldso/dynlink.c</code> 的 <code>do_relocs</code>，第 379–470 行）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">type    = R_TYPE(rel[<span class="number">1</span>]);                       <span class="comment">// 重定位类型(REL_PLT=JUMP_SLOT…)</span></span><br><span class="line">name    = strings + sym-&gt;st_name;               <span class="comment">// 符号名(.dynstr)</span></span><br><span class="line">def     = find_sym(ctx, name, type==REL_PLT);   <span class="comment">// 符号查找 → 找到定义在哪个库(dso)</span></span><br><span class="line">sym_val = laddr(def.dso, def.sym-&gt;st_value);    <span class="comment">// 真实地址 = def.dso-&gt;base(库基址) + 库内偏移</span></span><br><span class="line">*reloc_addr = sym_val + addend;                 <span class="comment">// ← 回填:写进 GOT 槽(reloc_addr)</span></span><br></pre></td></tr></table></figure>
+
+<p>一眼看穿：<strong><code>真实地址 = 库基址 + 库内偏移</code>，写进 <code>reloc_addr</code>（GOT 槽）</strong>。各进程 <code>def.dso-&gt;base</code> 因 ASLR 不同 → 同一个 <code>square</code>，各进程 GOT 里填的值不同。</p>
+<h3 id="7-5-dlopen：运行中手动加载（插件机制）"><a href="#7-5-dlopen：运行中手动加载（插件机制）" class="headerlink" title="7.5 dlopen：运行中手动加载（插件机制）"></a>7.5 <code>dlopen</code>：运行中手动加载（插件机制）</h3><p>上面是<strong>启动时</strong>自动加载（<code>DT_NEEDED</code>）。程序还能<strong>运行中手动</strong>加载某个库：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> *h  = dlopen(<span class="string">"libfoo.so"</span>, RTLD_NOW);  <span class="comment">// 运行时把库装进来</span></span><br><span class="line"><span class="keyword">void</span> (*f)() = dlsym(h, <span class="string">"do_work"</span>);          <span class="comment">// 按名字取函数地址</span></span><br><span class="line">f();                                         <span class="comment">// 调用</span></span><br><span class="line">dlclose(h);                                  <span class="comment">// 卸载</span></span><br></pre></td></tr></table></figure>
+
+<p>这是<strong>插件机制</strong>的基础——浏览器插件、Python C 扩展、游戏 mod 都靠它：主程序不预先依赖，运行中按需加载、用完卸载。</p>
+<blockquote>
+<p><strong>Windows 对应</strong>：<code>LoadLibrary(&quot;foo.dll&quot;)</code> + <code>GetProcAddress(h,&quot;do_work&quot;)</code> + <code>FreeLibrary</code>，一一对应 <code>dlopen</code>/<code>dlsym</code>/<code>dlclose</code>。</p>
+</blockquote>
+<hr>
+<h2 id="8-交叉编译与目标三元组"><a href="#8-交叉编译与目标三元组" class="headerlink" title="8. 交叉编译与目标三元组"></a>8. 交叉编译与目标三元组</h2><p>工具名 <code>arch-vendor-os-abi</code> 每段都有义：</p>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>arch</th>
+<th>vendor</th>
+<th>os</th>
+<th>abi/libc</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>riscv64-unknown-elf-gcc</code></td>
+<td>riscv64</td>
+<td>unknown</td>
+<td><strong>elf</strong></td>
+<td>newlib</td>
+<td><strong>裸机</strong>(无 OS)：固件/内核</td>
+</tr>
+<tr>
+<td><code>arm-none-eabi-gcc</code></td>
+<td>arm</td>
+<td>none</td>
+<td><strong>eabi</strong></td>
+<td>newlib</td>
+<td><strong>裸机</strong> Cortex-M</td>
+</tr>
+<tr>
+<td><code>riscv64-linux-gnu-gcc</code></td>
+<td>riscv64</td>
+<td>—</td>
+<td><strong>linux</strong></td>
+<td>gnu(glibc)</td>
+<td>RISC-V <strong>Linux 用户态</strong></td>
+</tr>
+<tr>
+<td><code>arm-linux-gnueabihf-gcc</code></td>
+<td>arm</td>
+<td>—</td>
+<td>linux</td>
+<td>gnu+<strong>eabihf</strong>(硬浮点)</td>
+<td>ARM Linux 用户态</td>
+</tr>
+<tr>
+<td><code>aarch64-linux-musl-gcc</code></td>
+<td>aarch64</td>
+<td>—</td>
+<td>linux</td>
+<td><strong>musl</strong></td>
+<td>ARM64 Linux + musl</td>
+</tr>
+<tr>
+<td><code>x86_64-w64-mingw32-gcc</code></td>
+<td>x86_64</td>
+<td>w64</td>
+<td><strong>mingw32</strong></td>
+<td></td>
+<td>编 <strong>Windows</strong> exe</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong><code>-elf</code> / <code>-none-eabi</code> = 裸机/freestanding</strong>：无 OS、无 Linux syscall，用 newlib 或无 libc，自带裸机 <code>crt0</code> + 默认裸机链接脚本（编固件/RTOS/内核，如 OpenSBI、Cortex-M 程序）。</li>
+<li><strong><code>-linux-gnu</code> / <code>-linux-musl</code> = hosted（寄宿）</strong>：目标 OS 提供完整 libc + syscall（相对 <code>-elf</code> 的 freestanding 裸机）；链 glibc/musl、走 Linux syscall，编用户态程序。</li>
+<li><strong>vendor 段</strong>：<code>w64</code>=Windows、<code>pc</code>=x86/PC、<code>none</code>=裸机、<code>unknown</code>=通用占位符——部分有具体含义，但真正决定编译行为的还是 <strong>os</strong> 和 <strong>abi/libc</strong> 段。</li>
+<li>三元组一选，就定了<strong>用哪套 libc、哪个 crt 启动文件、默认链接脚本、ABI（软/硬浮点）</strong>——选错 = 错的 syscall/ABI/libc，编出来跑不了。</li>
+</ul>
+<blockquote>
+<p>引申：裸机 <code>-elf</code> 工具链就是编 SBI/bootloader 用的（见本系列《穿越系统之前》）；<code>-linux-gnu</code> 是编用户态程序用的（见《穿越系统之后》libc 篇）。</p>
+</blockquote>
+<hr>
+<h2 id="9-工具链全家"><a href="#9-工具链全家" class="headerlink" title="9. 工具链全家"></a>9. 工具链全家</h2><p><strong>GNU binutils</strong>（配 GCC）：</p>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>干啥</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>as</code></td>
+<td>汇编器（<code>.s → .o</code>）</td>
+</tr>
+<tr>
+<td><code>ld</code></td>
+<td>链接器</td>
+</tr>
+<tr>
+<td><code>ar</code></td>
+<td>打静态库（<code>.o → .a</code>）</td>
+</tr>
+<tr>
+<td><code>objcopy</code></td>
+<td>格式转换（ELF → 裸二进制 <code>Image</code>）</td>
+</tr>
+<tr>
+<td><code>objdump</code></td>
+<td>反汇编 / 看段</td>
+</tr>
+<tr>
+<td><code>readelf</code></td>
+<td>解析 ELF 头/段/符号/动态段</td>
+</tr>
+<tr>
+<td><code>nm</code></td>
+<td>列符号（<code>T</code>定义 / <code>U</code>未定义）</td>
+</tr>
+<tr>
+<td><code>strip</code></td>
+<td>删符号表瘦身</td>
+</tr>
+<tr>
+<td><code>ldd</code></td>
+<td>看动态依赖</td>
+</tr>
+</tbody></table>
+<p><strong>LLVM</strong>：<code>clang</code>/<code>clang++</code>（编译器）、<code>lld</code>（链接器，快）、<code>llvm-objcopy</code>/<code>llvm-readelf</code>（binutils 对位）、<strong><code>compiler-rt</code></strong>（LLVM 的低层 builtins + 运行时库，对位 GCC 的 <code>libgcc</code>）。</p>
+<p><strong>MSVC</strong>（Windows）：<code>cl.exe</code>（编译）、<code>link.exe</code>（链接）、<code>lib.exe</code>（打 <code>.lib</code>）、<code>dumpbin</code>（看 PE，对位 <code>readelf</code>/<code>objdump</code>）。</p>
+<p>造库示范：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ar  rcs libfoo.a foo.o bar.o                 <span class="comment"># 静态库</span></span><br><span class="line">gcc -shared -fPIC foo.c -o libfoo.so         <span class="comment"># 动态库</span></span><br><span class="line">gcc main.c -L. -lfoo -o app                  <span class="comment"># 链接(动/静取决于找到 .so 还是 .a + -static)</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="10-构建系统-——-别手敲-gcc"><a href="#10-构建系统-——-别手敲-gcc" class="headerlink" title="10. 构建系统 —— 别手敲 gcc"></a>10. 构建系统 —— 别手敲 gcc</h2><table>
+<thead>
+<tr>
+<th>工具</th>
+<th>定位</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>GNU <code>make</code></strong></td>
+<td>用 <code>Makefile</code> 描述”目标←依赖←命令”，按时间戳增量编译</td>
+</tr>
+<tr>
+<td><strong>CMake</strong></td>
+<td><strong>跨平台生成器</strong>：写 <code>CMakeLists.txt</code>，生成 Makefile / Ninja / VS 工程</td>
+</tr>
+<tr>
+<td><strong>Ninja</strong></td>
+<td>极快的底层构建器（CMake 常用它当后端）</td>
+</tr>
+<tr>
+<td>autotools / Meson</td>
+<td>（科普）<code>./configure &amp;&amp; make</code> 老牌 / Meson 现代替代</td>
+</tr>
+</tbody></table>
+<p>一句话区别：<strong><code>make</code> 是执行者，<code>CMake</code> 是”生成 make 脚本的人”</strong>——CMake 让同一份配置在 Linux(make/ninja) 和 Windows(VS) 都能构建。</p>
+<hr>
+<h2 id="11-速查-坑清单"><a href="#11-速查-坑清单" class="headerlink" title="11. 速查 + 坑清单"></a>11. 速查 + 坑清单</h2><table>
+<thead>
+<tr>
+<th>操作</th>
+<th>Linux</th>
+<th>Windows</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>编译到目标文件</td>
+<td><code>gcc -c</code> / <code>clang -c</code></td>
+<td><code>cl /c</code></td>
+</tr>
+<tr>
+<td>链接</td>
+<td><code>ld</code> / <code>gcc</code></td>
+<td><code>link.exe</code></td>
+</tr>
+<tr>
+<td>打静态库</td>
+<td><code>ar rcs</code></td>
+<td><code>lib.exe</code></td>
+</tr>
+<tr>
+<td>造动态库</td>
+<td><code>gcc -shared -fPIC</code></td>
+<td><code>cl /LD</code></td>
+</tr>
+<tr>
+<td>看符号</td>
+<td><code>nm</code> / <code>readelf -s</code></td>
+<td><code>dumpbin /symbols</code></td>
+</tr>
+<tr>
+<td>看依赖</td>
+<td><code>ldd</code></td>
+<td><code>dumpbin /dependents</code></td>
+</tr>
+<tr>
+<td>反汇编</td>
+<td><code>objdump -d</code></td>
+<td><code>dumpbin /disasm</code></td>
+</tr>
+</tbody></table>
+<p><strong>坑：</strong></p>
+<ol>
+<li><code>.o</code> 跑不了 → 它是 relocatable，要先<strong>链接</strong>（静态/动态都行）。</li>
+<li>动态程序换机器跑不起来 → 缺 <code>.so</code>（<code>ldd</code> 看缺谁）或 <code>ld.so</code> 版本不对。</li>
+<li><code>-fPIC</code> 漏了造 <code>.so</code> → 链接报错（共享库要位置无关码）。</li>
+<li>静态链 glibc 体积暴涨且某些功能（NSS/dlopen）有坑 → 嵌入式常配 musl 静态。</li>
+<li>交叉编译选错三元组（<code>-elf</code> vs <code>-linux-gnu</code>）→ 编出来 syscall/ABI 全错。</li>
+</ol>
+<h2 id="12-思考题"><a href="#12-思考题" class="headerlink" title="12. 思考题"></a>12. 思考题</h2><ol>
+<li>为什么 <code>nm hello.o</code> 欠的是 <code>puts</code> 而不是 <code>printf</code>？把 <code>printf(&quot;hi\n&quot;)</code> 改成 <code>printf(&quot;hi %d\n&quot;, 1)</code> 再 <code>nm</code>，欠的还会是 <code>puts</code> 吗？为什么？</li>
+<li><code>hello_sta</code> 静态 785K、<code>hello_dyn</code> 动态 16K——那”省下的 769K”去哪了？运行 <code>hello_dyn</code> 时这些代码从哪来？</li>
+<li>为什么 PIE 可执行的 ELF 类型是 <code>ET_DYN</code>（和 <code>.so</code> 一样），而不是 <code>ET_EXEC</code>？</li>
+<li>动态链接由用户态 <code>ld.so</code> 完成，但 <code>ld.so</code> 自己是谁加载的？它需不需要另一个 <code>ld.so</code> 来加载（鸡生蛋问题怎么破）？</li>
+</ol>
+<h3 id="参考答案"><a href="#参考答案" class="headerlink" title="参考答案"></a>参考答案</h3><ol>
+<li><strong>会变回 <code>printf</code>。</strong> <code>printf(&quot;hi\n&quot;)</code> 是常量串、<code>\n</code> 结尾、无格式参数 → gcc 把它优化成 <code>puts(&quot;hi&quot;)</code>（puts 自动补换行，更省），所以欠 <code>puts</code>。改成 <code>printf(&quot;hi %d\n&quot;, 1)</code> 后有格式参数 <code>%d</code>，puts 不会格式化、替不了 → <code>nm</code> 欠的就变回 <strong><code>U printf</code></strong>。</li>
+<li><strong>“省下的 769K”就是 glibc 的代码。</strong> 静态版把它塞进可执行（785K），动态版不含、只留引用（16K）。运行 <code>hello_dyn</code> 时这些代码来自磁盘的 <code>/lib/x86_64-linux-gnu/libc.so.6</code>——<code>ld.so</code> 启动时 <code>mmap</code> 它进内存，而且<strong>多进程共享物理内存里的同一份</strong> libc 代码页（见 §7.1）。没消失，只是挪到共享的 <code>libc.so</code>、按需加载、多进程共用。</li>
+<li><strong>因为 PIE 要支持 ASLR（随机基址）。</strong> <code>ET_EXEC</code> 是加载地址写死的可执行（不能随机）；<code>ET_DYN</code> 是位置无关、可加载到任意基址（<code>.so</code> 就是这类）。PIE 复用和共享库一样的 <code>ET_DYN</code> 机制，让加载器能把它摆到随机地址——它只是比普通 <code>.so</code> 多了个 <code>main</code>/entry 当程序跑。</li>
+<li><strong>内核直接加载 <code>ld.so</code>，不需要另一个 <code>ld.so</code>——“第一只鸡”是内核。</strong> <code>execve</code> 时内核看到 <code>PT_INTERP</code> → <strong>内核自己</strong>（<code>fs/binfmt_elf.c</code> 里的 ELF 加载器）<code>mmap</code> 那个解释器进内存。而且 <code>ld.so</code> 本身是<strong>静态自包含 + 自重定位</strong>的（<code>ldd /lib64/ld-linux-x86-64.so.2</code> 显示 <code>statically linked</code>，无任何依赖；它有自举代码先把自己的重定位补好，再去加载别人）。链条：内核加载 ld.so → ld.so 加载其它所有 <code>.so</code>。</li>
+</ol>
+<hr>
+<blockquote>
+<p><strong>小结</strong>：编译四阶段把源码变 <code>.o</code>，链接把一堆 <code>.o</code>/库拼成可执行；静态是”塞进去、单文件、重编修漏洞”，动态是”共享、小巧、换 <code>.so</code> 打补丁”。ELF 用 section（链接视角）/segment（执行视角）两副面孔组织自己，靠 <code>.plt</code>/<code>.got</code> 跳转表 + 用户态 <code>ld.so</code> 在运行时把外部函数地址补齐。内核只负责 load ELF + 拉起解释器，真正的动态链接在用户态。下一站——这些可执行/库怎么被打进 rootfs、装进发行版，见《穿越系统之后》。</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/repo-https-github-com-Lfan-ke/" rel="tag"># repo:https://github.com/Lfan-ke</a>
+              <a href="/blog/tags/author-%E5%94%A4%E6%98%9F/" rel="tag"># author:唤星</a>
+              <a href="/blog/tags/alias-%E7%A5%88%E6%98%9F/" rel="tag"># alias:祈星</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2025/07/07/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-jizhaoqin/" rel="prev" title="rCore2025-spring四阶段总结-jizhaoqin">
+      <i class="fa fa-chevron-left"></i> rCore2025-spring四阶段总结-jizhaoqin
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2025/11/02/arceos-summary-Blankke/" rel="next" title="arceos-summary-Blankke">
+      arceos-summary-Blankke <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

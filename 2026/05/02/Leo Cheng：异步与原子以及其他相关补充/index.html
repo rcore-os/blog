@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta property="og:type" content="article">
+<meta property="og:title" content="Leo Cheng: 异步、原子，以及其他相关补充">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/05/02/Leo%20Cheng%EF%BC%9A%E5%BC%82%E6%AD%A5%E4%B8%8E%E5%8E%9F%E5%AD%90%E4%BB%A5%E5%8F%8A%E5%85%B6%E4%BB%96%E7%9B%B8%E5%85%B3%E8%A1%A5%E5%85%85/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-05-02T21:43:45.000Z">
+<meta property="article:modified_time" content="2026-06-30T01:58:03.501Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="author:heke1228">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;cnb.cool&#x2F;heke_learning&#x2F;oscamp-base-experiment">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/05/02/Leo%20Cheng%EF%BC%9A%E5%BC%82%E6%AD%A5%E4%B8%8E%E5%8E%9F%E5%AD%90%E4%BB%A5%E5%8F%8A%E5%85%B6%E4%BB%96%E7%9B%B8%E5%85%B3%E8%A1%A5%E5%85%85/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Leo Cheng: 异步、原子，以及其他相关补充 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-四组最容易混的概念"><span class="nav-number">1.</span> <span class="nav-text">1. 四组最容易混的概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-并发-vs-并行"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 并发 vs 并行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-同步-异步-×-阻塞-非阻塞（四象限）"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 同步&#x2F;异步 × 阻塞&#x2F;非阻塞（四象限）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-抢占式-vs-协作式调度"><span class="nav-number">1.3.</span> <span class="nav-text">1.3 抢占式 vs 协作式调度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-4-贯穿全篇的核心判断"><span class="nav-number">1.4.</span> <span class="nav-text">1.4 贯穿全篇的核心判断</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-执行流载体全景：从进程到生成器"><span class="nav-number">2.</span> <span class="nav-text">2. 执行流载体全景：从进程到生成器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-原子操作与内存模型"><span class="nav-number">3.</span> <span class="nav-text">3. 原子操作与内存模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-为什么要”原子”"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 为什么要”原子”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-原子类型与操作（Rust-Zig-0-17-对照）"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 原子类型与操作（Rust + Zig 0.17 对照）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-五种内存序（memory-ordering）"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 五种内存序（memory ordering）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-Release-Acquire-必须配对"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 Release-Acquire 必须配对</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-5-落到硬件：RISC-V-A-扩展"><span class="nav-number">3.5.</span> <span class="nav-text">3.5 落到硬件：RISC-V A 扩展</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-同步原语：都建在原子之上"><span class="nav-number">4.</span> <span class="nav-text">4. 同步原语：都建在原子之上</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-自旋锁：纯原子搭出来的最小锁"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 自旋锁：纯原子搭出来的最小锁</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-互斥锁-读写锁-信号量-条件变量"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 互斥锁 &#x2F; 读写锁 &#x2F; 信号量 &#x2F; 条件变量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-共享内存-vs-消息传递"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 共享内存 vs 消息传递</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-无锁数据结构（lock-free）"><span class="nav-number">4.4.</span> <span class="nav-text">4.4 无锁数据结构（lock-free）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-5-Rust-的独到设计：Send-Sync（把线程安全钉死在编译期）"><span class="nav-number">4.5.</span> <span class="nav-text">4.5 Rust 的独到设计：Send &#x2F; Sync（把线程安全钉死在编译期）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-函数染色：异步为什么”传染”"><span class="nav-number">5.</span> <span class="nav-text">5. 函数染色：异步为什么”传染”</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-什么是函数染色"><span class="nav-number">5.1.</span> <span class="nav-text">5.1 什么是函数染色</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-各语言对染色的态度"><span class="nav-number">5.2.</span> <span class="nav-text">5.2 各语言对染色的态度</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-消除染色的两条路"><span class="nav-number">5.3.</span> <span class="nav-text">5.3 消除染色的两条路</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-Rust-为何接受染色的代价"><span class="nav-number">5.4.</span> <span class="nav-text">5.4 Rust 为何接受染色的代价</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-协程深挖：有栈（纤程）vs-无栈（async）"><span class="nav-number">6.</span> <span class="nav-text">6. 协程深挖：有栈（纤程）vs 无栈（async）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-核心区分"><span class="nav-number">6.1.</span> <span class="nav-text">6.1 核心区分</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-有栈协程的上下文切换（RISC-V-汇编）"><span class="nav-number">6.2.</span> <span class="nav-text">6.2 有栈协程的上下文切换（RISC-V 汇编）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-无栈协程：状态机-poll"><span class="nav-number">6.3.</span> <span class="nav-text">6.3 无栈协程：状态机 + poll</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-4-全维度对比-跨语言归属"><span class="nav-number">6.4.</span> <span class="nav-text">6.4 全维度对比 + 跨语言归属</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-异步运行时（执行器）"><span class="nav-number">7.</span> <span class="nav-text">7. 异步运行时（执行器）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-为什么-async-需要运行时"><span class="nav-number">7.1.</span> <span class="nav-text">7.1 为什么 async 需要运行时</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-就绪式-vs-完成式-I-O"><span class="nav-number">7.2.</span> <span class="nav-text">7.2 就绪式 vs 完成式 I&#x2F;O</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-Rust-运行时横向"><span class="nav-number">7.3.</span> <span class="nav-text">7.3 Rust 运行时横向</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-4-Zig-的并发：没有”运行时生态”，只有-io-后端"><span class="nav-number">7.4.</span> <span class="nav-text">7.4 Zig 的并发：没有”运行时生态”，只有 io 后端</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-5-嵌入式：embassy（Rust-async-on-bare-metal）"><span class="nav-number">7.5.</span> <span class="nav-text">7.5 嵌入式：embassy（Rust async-on-bare-metal）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-生成器：受限的协程"><span class="nav-number">8.</span> <span class="nav-text">8. 生成器：受限的协程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-其他语言一瞥（仅示例用法）"><span class="nav-number">8.1.</span> <span class="nav-text">8.1 其他语言一瞥（仅示例用法）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-Rust：从-nightly-Generator-到-stable-genawaiter"><span class="nav-number">8.2.</span> <span class="nav-text">8.2 Rust：从 nightly Generator 到 stable genawaiter</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-Zig：没有内建生成器，用手工状态机-next"><span class="nav-number">8.3.</span> <span class="nav-text">8.3 Zig：没有内建生成器，用手工状态机 next()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-4-生成器-迭代器-协程的关系"><span class="nav-number">8.4.</span> <span class="nav-text">8.4 生成器 &#x2F; 迭代器 &#x2F; 协程的关系</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-实验：oscamp-对照验证-代码走读"><span class="nav-number">9.</span> <span class="nav-text">9. 实验：oscamp 对照验证 + 代码走读</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#9-1-上下文切换：真·RISC-V-naked-汇编（对应-§6-2）"><span class="nav-number">9.1.</span> <span class="nav-text">9.1 上下文切换：真·RISC-V naked 汇编（对应 §6.2）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-2-手写-Future：异步运行时的最小内核（对应-§6-3-§7-1）"><span class="nav-number">9.2.</span> <span class="nav-text">9.2 手写 Future：异步运行时的最小内核（对应 §6.3 &#x2F; §7.1）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-3-原子-锁-channel-进程（对应-§3-§4）"><span class="nav-number">9.3.</span> <span class="nav-text">9.3 原子 &#x2F; 锁 &#x2F; channel &#x2F; 进程（对应 §3 &#x2F; §4）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-4-思考题（附参考答案）"><span class="nav-number">9.4.</span> <span class="nav-text">9.4 思考题（附参考答案）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-其他相关补充：把异步推进到内核与硬件"><span class="nav-number">10.</span> <span class="nav-text">10. 其他相关补充：把异步推进到内核与硬件</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#10-1-异步内核：把-future-协程搬进内核"><span class="nav-number">10.1.</span> <span class="nav-text">10.1 异步内核：把 future &#x2F; 协程搬进内核</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-2-用户态中断：让异步通知绕过内核"><span class="nav-number">10.2.</span> <span class="nav-text">10.2 用户态中断：让异步通知绕过内核</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#10-3-给-async-加抢占：embassy-preempt"><span class="nav-number">10.3.</span> <span class="nav-text">10.3 给 async 加抢占：embassy_preempt</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">778</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">725</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/05/02/Leo%20Cheng%EF%BC%9A%E5%BC%82%E6%AD%A5%E4%B8%8E%E5%8E%9F%E5%AD%90%E4%BB%A5%E5%8F%8A%E5%85%B6%E4%BB%96%E7%9B%B8%E5%85%B3%E8%A1%A5%E5%85%85/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Leo Cheng: 异步、原子，以及其他相关补充
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-05-02 21:43:45" itemprop="dateCreated datePublished" datetime="2026-05-02T21:43:45+00:00">2026-05-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/" itemprop="url" rel="index"><span itemprop="name">Zig</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/" itemprop="url" rel="index"><span itemprop="name">Go</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/" itemprop="url" rel="index"><span itemprop="name">Kotlin</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/" itemprop="url" rel="index"><span itemprop="name">ES6</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/" itemprop="url" rel="index"><span itemprop="name">Cpp</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/" itemprop="url" rel="index"><span itemprop="name">Tokio</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/" itemprop="url" rel="index"><span itemprop="name">Monoio</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/" itemprop="url" rel="index"><span itemprop="name">Itertools</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/" itemprop="url" rel="index"><span itemprop="name">Generator</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/" itemprop="url" rel="index"><span itemprop="name">Corosensei</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/" itemprop="url" rel="index"><span itemprop="name">May</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/" itemprop="url" rel="index"><span itemprop="name">Smol</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/" itemprop="url" rel="index"><span itemprop="name">AsyncStd</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/" itemprop="url" rel="index"><span itemprop="name">Futures</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/" itemprop="url" rel="index"><span itemprop="name">Async Runtime</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/" itemprop="url" rel="index"><span itemprop="name">Async Programming</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/Atomic-Operations/" itemprop="url" rel="index"><span itemprop="name">Atomic Operations</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/Atomic-Operations/Atomic-Instructions/" itemprop="url" rel="index"><span itemprop="name">Atomic Instructions</span></a>
+                </span>
+                  , 
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/Atomic-Operations/Atomic-Instructions/Green-Threads/" itemprop="url" rel="index"><span itemprop="name">Green Threads</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <!-- Fiber-纤程/有栈协程 Generator-生成器/受限协程 -->
+<!-- Stackless Coroutine    Rust async/await、Python async、C++20 coroutines -->
+<!-- Stackful Coroutine    Go goroutine、Erlang process、Lua coroutine -->
+
+<a id="more"></a>
+
+<blockquote>
+<p><strong>本篇两条主线</strong>：<strong>异步</strong>——怎么让一个线程交错跑很多任务（协程 / 纤程 / 生成器 / 运行时）；<strong>原子</strong>——多核共享数据时怎么保证”不可分割”，以及建在其上的锁与无锁结构。以 Rust / Zig 为主轴，旁及 Go / Python / C++20 / Kotlin / JS，逐点给跨语言写法对照。</p>
+</blockquote>
+<hr>
+<h2 id="1-四组最容易混的概念"><a href="#1-四组最容易混的概念" class="headerlink" title="1. 四组最容易混的概念"></a>1. 四组最容易混的概念</h2><p>并发的讨论，先把这四组概念分清，后续才不致混淆。</p>
+<h3 id="1-1-并发-vs-并行"><a href="#1-1-并发-vs-并行" class="headerlink" title="1.1 并发 vs 并行"></a>1.1 并发 vs 并行</h3><ul>
+<li><strong>并发（concurrency）</strong>：一个核<strong>轮流</strong>跑多个任务，逻辑上”同时推进”，物理上某一刻只有一个在跑。</li>
+<li><strong>并行（parallelism）</strong>：多个核<strong>物理上真同时</strong>跑多个任务。</li>
+</ul>
+<p>Rob Pike 的经典区分：<em>Concurrency is about dealing with lots of things at once; parallelism is about doing lots of things at once.</em>——并发是”结构”（怎么组织多个任务），并行是”执行”（真同时跑）。协程 / async 主要解决<strong>并发</strong>（用极低开销交错大量 I/O 任务），不一定带来并行；要并行还得把任务摊到多个 OS 线程上（tokio 多线程运行时、Go 的 <code>GOMAXPROCS</code>、rayon）。</p>
+<h3 id="1-2-同步-异步-×-阻塞-非阻塞（四象限）"><a href="#1-2-同步-异步-×-阻塞-非阻塞（四象限）" class="headerlink" title="1.2 同步/异步 × 阻塞/非阻塞（四象限）"></a>1.2 同步/异步 × 阻塞/非阻塞（四象限）</h3><p>这两组维度正交，组合出四象限——很多人把”异步”和”非阻塞”混为一谈，其实是两回事：</p>
+<table>
+<thead>
+<tr>
+<th align="center">\</th>
+<th align="center">阻塞（调用方原地等结果）</th>
+<th align="center">非阻塞（立即返回，可能没结果）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><strong>同步</strong>（自己主动取结果）</td>
+<td align="center">普通 <code>read()</code>：调用方阻塞挂起，数据就绪后被唤醒</td>
+<td align="center"><code>read()</code> + <code>O_NONBLOCK</code>：没数据立即返 <code>EAGAIN</code>，得自己轮询</td>
+</tr>
+<tr>
+<td align="center"><strong>异步</strong>（结果好了来通知你）</td>
+<td align="center">较少见：提交请求后仍挂起等通知</td>
+<td align="center"><code>io_uring</code> / 回调 / <code>await</code>：提交后照常干别的，完成由内核 / 运行时通知</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>阻塞 vs 非阻塞</strong>：调用方要不要在原地等。</li>
+<li><strong>同步 vs 异步</strong>：结果由谁、怎么交付——同步是你主动取，异步是好了通知你（回调 / Future / 完成队列）。</li>
+</ul>
+<h3 id="1-3-抢占式-vs-协作式调度"><a href="#1-3-抢占式-vs-协作式调度" class="headerlink" title="1.3 抢占式 vs 协作式调度"></a>1.3 抢占式 vs 协作式调度</h3><p>切换执行流的<strong>触发者</strong>不同，这是理解协程的关键：</p>
+<ul>
+<li><strong>抢占式（preemptive）</strong>：调度器靠<strong>时钟中断</strong>强行把当前任务切走，任务自己不知情。OS 线程、Go goroutine（带抢占点）属此类。好处：一个任务死循环也饿不死别人；代价：随时可能被打断，共享数据必须加锁。</li>
+<li><strong>协作式（cooperative）</strong>：任务<strong>自己显式让出</strong>（<code>yield</code> / <code>await</code> / <code>suspend</code>）才切。绝大多数协程（Rust async、Python async、Lua coroutine）属此类。好处：让出点明确、单线程内无需锁；代价：一个任务不让出就卡死整个调度器。</li>
+</ul>
+<h3 id="1-4-贯穿全篇的核心判断"><a href="#1-4-贯穿全篇的核心判断" class="headerlink" title="1.4 贯穿全篇的核心判断"></a>1.4 贯穿全篇的核心判断</h3><p>协程 / 纤程之所以比线程”轻”，根因只有一句：<strong>切换时要保存 / 恢复的东西更少，且不进内核</strong>。线程切换要换页表（<code>satp</code>）、刷 TLB、过特权级；协程切换只在用户态存几个寄存器（有栈），甚至什么都不存（无栈，只改状态机的当前状态）。下一节用一张谱系图说明。</p>
+<hr>
+<h2 id="2-执行流载体全景：从进程到生成器"><a href="#2-执行流载体全景：从进程到生成器" class="headerlink" title="2. 执行流载体全景：从进程到生成器"></a>2. 执行流载体全景：从进程到生成器</h2><p>把”能独立推进的执行流”按<strong>从重到轻</strong>排成一条谱系：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">    P[&quot;进程 process&lt;br&#x2F;&gt;独立地址空间&quot;] --&gt; T[&quot;线程 thread&lt;br&#x2F;&gt;共享地址空间&quot;]</span><br><span class="line">    T --&gt; G[&quot;green thread &#x2F; goroutine&lt;br&#x2F;&gt;runtime 调度的用户态线程&quot;]</span><br><span class="line">    G --&gt; SF[&quot;纤程 &#x2F; 有栈协程 fiber&lt;br&#x2F;&gt;用户态调度器 + 独立栈&quot;]</span><br><span class="line">    SF --&gt; SL[&quot;无栈协程 async&lt;br&#x2F;&gt;编译成状态机，无独立栈&quot;]</span><br><span class="line">    SL --&gt; GEN[&quot;生成器 generator&lt;br&#x2F;&gt;受限协程，只能 yield 值&quot;]</span><br><span class="line">    style P fill:#e8e8e8</span><br><span class="line">    style GEN fill:#e8f0ff</span><br></pre></td></tr></table></figure>
+
+<p>越往下越轻——切换要保存的东西越少、越不碰内核：</p>
+<table>
+<thead>
+<tr>
+<th align="center">载体</th>
+<th align="center">谁来切</th>
+<th align="center">切换保存什么</th>
+<th align="center">每个的栈</th>
+<th align="center">切换开销</th>
+<th align="center">典型代表</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">进程</td>
+<td align="center">内核</td>
+<td align="center">全寄存器 + 页表(<code>satp</code>) + 信号 + fd 表</td>
+<td align="center">内核栈 + 用户栈</td>
+<td align="center">~μs（特权切换 + TLB 刷新）</td>
+<td align="center"><code>fork</code></td>
+</tr>
+<tr>
+<td align="center">线程</td>
+<td align="center">内核</td>
+<td align="center">全寄存器 + 信号掩码（页表共享）</td>
+<td align="center">独立栈</td>
+<td align="center">~μs（特权切换，无 TLB 刷新）</td>
+<td align="center"><code>pthread</code> / <code>std::thread</code> / <code>std.Thread</code></td>
+</tr>
+<tr>
+<td align="center">green thread / goroutine</td>
+<td align="center">语言 runtime</td>
+<td align="center">用户态寄存器</td>
+<td align="center">动态增长栈（2–8 KB 起）</td>
+<td align="center">~100 ns</td>
+<td align="center">Go goroutine / Java 虚拟线程</td>
+</tr>
+<tr>
+<td align="center">纤程 / 有栈协程</td>
+<td align="center">用户态调度器</td>
+<td align="center">callee-saved 寄存器 + <code>SP</code></td>
+<td align="center">固定用户栈（需预分配）</td>
+<td align="center">~10–100 ns</td>
+<td align="center">corosensei / may / zigcoro / Lua / Erlang</td>
+</tr>
+<tr>
+<td align="center">无栈协程（async）</td>
+<td align="center">调用方 <code>poll</code></td>
+<td align="center"><strong>无</strong>——编译成状态机</td>
+<td align="center">无独立栈（帧在堆 / 父栈）</td>
+<td align="center">~ns（函数调用级）</td>
+<td align="center">Rust <code>async</code> / Python <code>async</code> / C++20 / Zig 状态机</td>
+</tr>
+<tr>
+<td align="center">生成器（受限协程）</td>
+<td align="center">调用方 <code>next</code></td>
+<td align="center"><strong>无</strong>——状态机</td>
+<td align="center">无</td>
+<td align="center">~ns</td>
+<td align="center">Python <code>yield</code> / Rust Generator / JS <code>function*</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>核心洞察</strong>：这张表从上到下，”切换”这件事从”内核换页表刷 TLB”一路退化到”改一个状态机枚举的当前值”。有栈协程的切换本质就是<strong>用户态的上下文切换</strong>——和 OS 切线程的机制几乎一样（存恢复 SP + 寄存器），只是发生在用户态、没有内核参与、没有页表切换。无栈协程更彻底：连栈都不切，编译器把函数拆成一段段状态，<code>poll</code> 一次推进一段。后面会把这两条路各自拆到汇编 / 源码级。</p>
+</blockquote>
+<hr>
+<h2 id="3-原子操作与内存模型"><a href="#3-原子操作与内存模型" class="headerlink" title="3. 原子操作与内存模型"></a>3. 原子操作与内存模型</h2><p>异步讲的是”一个核怎么交错跑多个任务”；一旦任务摊到<strong>多个核</strong>真并行，就绕不开”共享数据怎么不打架”——这就是原子与内存模型的地盘，也是后面一切锁与无锁结构的地基。</p>
+<h3 id="3-1-为什么要”原子”"><a href="#3-1-为什么要”原子”" class="headerlink" title="3.1 为什么要”原子”"></a>3.1 为什么要”原子”</h3><p>多核共享一个变量时，<code>x += 1</code> 这种看似一步的操作，机器层面其实是三步：<strong>读 → 改 → 写</strong>。两个核同时做，可能都读到旧值、各自加一、各自写回——结果只加了一次（丢更新）。<strong>原子操作</strong>就是硬件保证这组”读-改-写”不可分割：要么没发生，要么整体完成，中间不会被另一个核插进来。</p>
+<p>不只多核——<strong>单核多任务同样会出问题</strong>：某任务刚执行完”改”、还没”写回”，时间片就结束、切到下一任务；后者完成了自己的”改 + 写回”，切回来时前者又把过期的旧值写回原位，同样丢了更新。因此单核环境下一种常见的原子实现就是<strong>关中断</strong>——在临界区结束前禁止任务切换。</p>
+<blockquote>
+<p>概括地说：原子操作即硬件级的”事务”——要么整体生效、要么视作未发生，不存在中间态。</p>
+</blockquote>
+<h3 id="3-2-原子类型与操作（Rust-Zig-0-17-对照）"><a href="#3-2-原子类型与操作（Rust-Zig-0-17-对照）" class="headerlink" title="3.2 原子类型与操作（Rust + Zig 0.17 对照）"></a>3.2 原子类型与操作（Rust + Zig 0.17 对照）</h3><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::sync::atomic::&#123;</span><br><span class="line">    AtomicUsize,  <span class="comment">// 无符号整数        AtomicIsize,  // 有符号整数</span></span><br><span class="line">    AtomicBool,   <span class="comment">// 布尔值            AtomicPtr,    // 指针</span></span><br><span class="line">    AtomicU8, AtomicU16, AtomicU32, AtomicU64,</span><br><span class="line">    AtomicI8, AtomicI16, AtomicI32, AtomicI64,</span><br><span class="line">    Ordering,     <span class="comment">// 内存序（见 3.3）</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> counter = AtomicUsize::new(<span class="number">0</span>);</span><br><span class="line">counter.store(<span class="number">42</span>, Ordering::SeqCst);              <span class="comment">// 存</span></span><br><span class="line"><span class="keyword">let</span> value = counter.load(Ordering::SeqCst);       <span class="comment">// 取</span></span><br><span class="line"><span class="keyword">let</span> old = counter.swap(<span class="number">100</span>, Ordering::SeqCst);    <span class="comment">// 交换，返回旧值</span></span><br><span class="line"><span class="keyword">let</span> old = counter.fetch_add(<span class="number">1</span>, Ordering::SeqCst); <span class="comment">// 原子加，返回旧值</span></span><br><span class="line"><span class="keyword">let</span> old = counter.fetch_sub(<span class="number">1</span>, Ordering::SeqCst); <span class="comment">// 原子减，返回旧值</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 比较并交换 (CAS)：当前值 == expected 才写入 new</span></span><br><span class="line"><span class="keyword">let</span> res = counter.compare_exchange(</span><br><span class="line">    expected,          <span class="comment">// 期望的当前值</span></span><br><span class="line">    new,               <span class="comment">// 要写入的新值</span></span><br><span class="line">    Ordering::SeqCst,  <span class="comment">// 成功时的内存序</span></span><br><span class="line">    Ordering::SeqCst,  <span class="comment">// 失败时的内存序</span></span><br><span class="line">);  <span class="comment">// 返回 Result：Ok(旧值)=成功 / Err(当前实际值)=失败</span></span><br></pre></td></tr></table></figure>
+
+<p>Zig 0.17 对位写法（原子类型是 <code>std.atomic.Value(T)</code>）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">const std &#x3D; @import(&quot;std&quot;);</span><br><span class="line"></span><br><span class="line">var counter &#x3D; std.atomic.Value(usize).init(0);</span><br><span class="line">counter.store(42, .seq_cst);                  &#x2F;&#x2F; 存</span><br><span class="line">const value &#x3D; counter.load(.seq_cst);         &#x2F;&#x2F; 取</span><br><span class="line">const old &#x3D; counter.swap(100, .seq_cst);      &#x2F;&#x2F; 交换，返回旧值</span><br><span class="line">_ &#x3D; counter.fetchAdd(1, .seq_cst);            &#x2F;&#x2F; 原子加，返回旧值</span><br><span class="line">_ &#x3D; counter.fetchSub(1, .seq_cst);            &#x2F;&#x2F; 原子减</span><br><span class="line">&#x2F;&#x2F; CAS：当前 &#x3D;&#x3D; expected 才写 desired（示意值，不依赖前面 counter 的实际值）</span><br><span class="line">const res &#x3D; counter.cmpxchgStrong(expected, desired, .seq_cst, .seq_cst);  &#x2F;&#x2F; ?usize</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>一处易错对照：<strong>CAS 的返回反着来</strong>——Rust <code>compare_exchange</code> 返回 <code>Result</code>（<code>Ok(旧值)</code>=成功）；Zig <code>cmpxchgStrong</code> 返回 <code>?T</code>（<code>null</code>=成功、非 null=当前实际值）。内存序枚举：Rust <code>Relaxed</code> = Zig <strong><code>.monotonic</code></strong>，其余 <code>.acquire</code>/<code>.release</code>/<code>.acq_rel</code>/<code>.seq_cst</code> 同名。</p>
+</blockquote>
+<p>这套语义，各语言只是换了套写法：</p>
+<table>
+<thead>
+<tr>
+<th align="center">操作</th>
+<th align="center">Rust</th>
+<th align="center">Zig</th>
+<th align="center">C++</th>
+<th align="center">Go</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">类型</td>
+<td align="center"><code>AtomicUsize</code></td>
+<td align="center"><code>std.atomic.Value(usize)</code></td>
+<td align="center"><code>std::atomic&lt;size_t&gt;</code></td>
+<td align="center"><code>atomic.Uint64</code></td>
+</tr>
+<tr>
+<td align="center">加载</td>
+<td align="center"><code>.load(ord)</code></td>
+<td align="center"><code>.load(ord)</code></td>
+<td align="center"><code>.load(ord)</code></td>
+<td align="center"><code>.Load()</code></td>
+</tr>
+<tr>
+<td align="center">存储</td>
+<td align="center"><code>.store(v, ord)</code></td>
+<td align="center"><code>.store(v, ord)</code></td>
+<td align="center"><code>.store(v, ord)</code></td>
+<td align="center"><code>.Store(v)</code></td>
+</tr>
+<tr>
+<td align="center">原子加</td>
+<td align="center"><code>.fetch_add(1, ord)</code></td>
+<td align="center"><code>.fetchAdd(1, ord)</code></td>
+<td align="center"><code>.fetch_add(1, ord)</code></td>
+<td align="center"><code>.Add(1)</code></td>
+</tr>
+<tr>
+<td align="center">CAS</td>
+<td align="center"><code>.compare_exchange(…)</code></td>
+<td align="center"><code>.cmpxchgStrong(…)</code></td>
+<td align="center"><code>.compare_exchange_strong(…)</code></td>
+<td align="center"><code>.CompareAndSwap(…)</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>Go 的原子默认即最强序（顺序一致），不开放内存序选择；Rust / Zig / C++ 均要求显式指定内存序——这正引出下一节。</p>
+</blockquote>
+<h3 id="3-3-五种内存序（memory-ordering）"><a href="#3-3-五种内存序（memory-ordering）" class="headerlink" title="3.3 五种内存序（memory ordering）"></a>3.3 五种内存序（memory ordering）</h3><p>光”原子”还不够：编译器和 CPU 都会<strong>重排指令</strong>提速，多核下重排会让别的核看到”不该看到的顺序”。内存序就是你给原子操作附加的排序约束，编译器据此生成对应的<strong>内存屏障</strong>挡住重排。从弱到强：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. Relaxed —— 只管原子，不管顺序</span></span><br><span class="line">counter.fetch_add(<span class="number">1</span>, Ordering::Relaxed);</span><br><span class="line"><span class="comment">// √ 保证：操作本身原子（不被打断、不撕裂）</span></span><br><span class="line"><span class="comment">// × 不保证：与其它变量的先后顺序、跨线程可见性时机</span></span><br><span class="line"><span class="comment">// 用：纯计数器（只要最终总数对，不关心中间顺序）</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 2. Release —— "写完才能发布"</span></span><br><span class="line">data = <span class="number">42</span>;</span><br><span class="line">ready.store(<span class="literal">true</span>, Ordering::Release);</span><br><span class="line"><span class="comment">// √ 保证：本线程在此 store 之前的所有写，对"用 Acquire 读到这个值"的线程可见</span></span><br><span class="line"><span class="comment">//        —— ready 翻 true 这一刻，data=42 一定已经写好</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 3. Acquire —— "读到才能往下看"</span></span><br><span class="line"><span class="keyword">if</span> ready.load(Ordering::Acquire) &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"&#123;&#125;"</span>, data);   <span class="comment">// 一定看到 42</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// √ 保证：此 load 之后的读，不会被重排到 load 之前</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 4. AcqRel —— 读改写合一（给 fetch_xxx 这类 RMW 用）</span></span><br><span class="line"><span class="keyword">let</span> old = counter.fetch_add(<span class="number">1</span>, Ordering::AcqRel);</span><br><span class="line"><span class="comment">// = 读那一半 Acquire + 写那一半 Release，原子地一起做</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 5. SeqCst —— 全局单一顺序</span></span><br><span class="line">counter.store(<span class="number">42</span>, Ordering::SeqCst);</span><br><span class="line"><span class="comment">// √ 保证：所有线程看到的所有 SeqCst 操作排成同一个全局顺序（最直觉、最安全、也最慢）</span></span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">Ordering</th>
+<th align="center">保证</th>
+<th align="center">典型用途</th>
+<th align="center">性能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Relaxed</td>
+<td align="center">仅原子性</td>
+<td align="center">简单计数器</td>
+<td align="center">最快</td>
+</tr>
+<tr>
+<td align="center">Release</td>
+<td align="center">之前的写不重排到它之后</td>
+<td align="center">发布数据</td>
+<td align="center">快</td>
+</tr>
+<tr>
+<td align="center">Acquire</td>
+<td align="center">之后的读不重排到它之前</td>
+<td align="center">获取数据</td>
+<td align="center">快</td>
+</tr>
+<tr>
+<td align="center">AcqRel</td>
+<td align="center">Release + Acquire</td>
+<td align="center">read-modify-write</td>
+<td align="center">中</td>
+</tr>
+<tr>
+<td align="center">SeqCst</td>
+<td align="center">全局一致顺序</td>
+<td align="center">通用、最安全</td>
+<td align="center">最慢</td>
+</tr>
+</tbody></table>
+<p>各语言内存序名字几乎一一对应：<strong>Rust <code>Relaxed</code> = C++ <code>relaxed</code> = Zig <code>.monotonic</code></strong>；<code>Acquire</code>/<code>Release</code>/<code>AcqRel</code>/<code>SeqCst</code> 四个 Zig/C++ 同名（Zig 写 <code>.acquire</code>/<code>.release</code>/<code>.acq_rel</code>/<code>.seq_cst</code>）。</p>
+<h3 id="3-4-Release-Acquire-必须配对"><a href="#3-4-Release-Acquire-必须配对" class="headerlink" title="3.4 Release-Acquire 必须配对"></a>3.4 Release-Acquire 必须配对</h3><p>内存序的精髓是<strong>配对</strong>：一个线程 <code>Release</code> 写、另一个线程 <code>Acquire</code> 读<strong>同一个原子变量</strong>，才建立起 happens-before——发布方在 Release 之前的写，获取方在 Acquire 之后一定看得到。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 线程1（生产者）</span></span><br><span class="line">data = <span class="number">42</span>;                              <span class="comment">// ① 写数据</span></span><br><span class="line">ready.store(<span class="literal">true</span>, Ordering::Release);   <span class="comment">// ② 发布：此前的写一并生效</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 线程2（消费者）</span></span><br><span class="line"><span class="keyword">if</span> ready.load(Ordering::Acquire) &#123;      <span class="comment">// ③ 获取：读到 true 后即可安全读取</span></span><br><span class="line">    <span class="built_in">assert_eq!</span>(data, <span class="number">42</span>);               <span class="comment">// ④ 一定成立</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Zig 0.17 同款（语义一致，只是内存序写 <code>.release</code>/<code>.acquire</code>）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 线程1（生产者）</span><br><span class="line">data &#x3D; 42;</span><br><span class="line">ready.store(true, .release);          &#x2F;&#x2F; 发布</span><br><span class="line">&#x2F;&#x2F; 线程2（消费者）</span><br><span class="line">if (ready.load(.acquire)) &#123;           &#x2F;&#x2F; 获取</span><br><span class="line">    std.debug.assert(data &#x3D;&#x3D; 42);     &#x2F;&#x2F; 一定成立</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>单独一个 Release 或单独一个 Acquire 没意义——必须 Release 配 Acquire（读写<strong>同一个</strong>原子量）才形成同步。这是无锁编程最容易出错的地方。</p>
+</blockquote>
+<h3 id="3-5-落到硬件：RISC-V-A-扩展"><a href="#3-5-落到硬件：RISC-V-A-扩展" class="headerlink" title="3.5 落到硬件：RISC-V A 扩展"></a>3.5 落到硬件：RISC-V A 扩展</h3><p>原子操作最终要变成 CPU 指令。RISC-V 用 <strong>A（Atomic）扩展</strong>实现，两条路：</p>
+<ul>
+<li><strong>AMO（Atomic Memory Operation）</strong>：一条指令完成读-改-写，如 <code>amoadd.d</code> / <code>amoswap.d</code> / <code>amoand.d</code> / <code>amoor.d</code>。</li>
+<li><strong>LR/SC（Load-Reserved / Store-Conditional）</strong>：两条指令拼出任意原子操作（CAS 就靠它）。</li>
+</ul>
+<p>A 扩展（后续模块化拆分）由两个子集组成：</p>
+<table>
+<thead>
+<tr>
+<th align="center">子扩展</th>
+<th align="center">内容</th>
+<th align="center">指令</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><strong>Zaamo</strong></td>
+<td align="center">原子内存操作（AMO）</td>
+<td align="center"><code>amoswap</code> / <code>amoadd</code> / <code>amoand</code> / <code>amoor</code> / <code>amoxor</code> / <code>amomax[u]</code> / <code>amomin[u]</code>，各带 <code>.w</code>/<code>.d</code> 宽度</td>
+</tr>
+<tr>
+<td align="center"><strong>Zalrsc</strong></td>
+<td align="center">加载保留 / 条件存储</td>
+<td align="center"><code>lr.w</code> / <code>lr.d</code>、<code>sc.w</code> / <code>sc.d</code></td>
+</tr>
+</tbody></table>
+<p><code>A = Zaamo + Zalrsc</code>。AMO 适合”定操作”（加 / 换 / 与或异或 / 取极值），一条指令完成、最快；LR/SC 灵活，能拼出 AMO 没有的任意 read-modify-write（CAS、带上限的自增、无锁链表摘点等）。</p>
+<p><strong>AMO 怎么做到”原子”</strong>——以 <code>amoadd.d rd, rs2, (rs1)</code> 为例，硬件在缓存 / 内存控制器层把”读旧值 → 运算 → 写回 → 返回旧值”锁成不可分割的一拍：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; amoadd.d rd, rs2, (rs1) 的硬件语义（伪码）</span><br><span class="line">atomic &#123;                          &#x2F;&#x2F; 由 cache 一致性协议锁住该 cacheline，期间其它 hart 不能介入</span><br><span class="line">    let tmp  &#x3D; mem[rs1];          &#x2F;&#x2F; 读旧值</span><br><span class="line">    mem[rs1] &#x3D; tmp + reg[rs2];    &#x2F;&#x2F; 运算并写回</span><br><span class="line">    reg[rd]  &#x3D; tmp;               &#x2F;&#x2F; 旧值返回 rd</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实现上，持有该地址 cacheline 的核先将其置为<strong>独占</strong>（MESI 的 M / E 态），在独占期间完成读-改-写；其它核对该行的访问请求被一致性协议挡住，从而保证整组操作不可分割。</p>
+<p>内存序则落成 <code>fence</code> 屏障。同一个 Rust 操作，Relaxed 与 SeqCst 编出的指令不同：</p>
+<table>
+<thead>
+<tr>
+<th align="center">Rust</th>
+<th align="center">RISC-V（Relaxed）</th>
+<th align="center">RISC-V（SeqCst）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">load</td>
+<td align="center"><code>ld</code></td>
+<td align="center"><code>fence; ld; fence</code></td>
+</tr>
+<tr>
+<td align="center">store</td>
+<td align="center"><code>sd</code></td>
+<td align="center"><code>fence; sd; fence</code></td>
+</tr>
+<tr>
+<td align="center">fetch_add</td>
+<td align="center"><code>amoadd.d</code></td>
+<td align="center"><code>fence; amoadd.d; fence</code></td>
+</tr>
+<tr>
+<td align="center">swap</td>
+<td align="center"><code>amoswap.d</code></td>
+<td align="center"><code>fence; amoswap.d; fence</code></td>
+</tr>
+<tr>
+<td align="center">compare_exchange</td>
+<td align="center"><code>lr/sc</code> 循环</td>
+<td align="center"><code>fence; lr/sc; fence</code></td>
+</tr>
+<tr>
+<td align="center">fetch_and</td>
+<td align="center"><code>amoand.d</code></td>
+<td align="center"><code>fence; amoand.d; fence</code></td>
+</tr>
+<tr>
+<td align="center">fetch_or</td>
+<td align="center"><code>amoor.d</code></td>
+<td align="center"><code>fence; amoor.d; fence</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>实际上 AMO 与 LR/SC 指令本身就带两个内存序 bit——<code>.aq</code>（acquire：本操作之后的访存不得前移）、<code>.rl</code>（release：本操作之前的访存不得后移）、<code>.aqrl</code>（两者皆有）。内存序直接编码在指令里，比插独立 <code>fence</code> 更省；上表”裸指令 vs 加 <code>fence</code>“是为建立直觉而做的简化对照。</p>
+</blockquote>
+<p><strong>LR/SC 怎么”抢”同一个地址</strong>——让多核安全地争抢同一内存地址（比如多个核同时改一个计数器）：</p>
+<ul>
+<li><strong>LR（Load-Reserved）</strong>：先读取数据，同时令硬件<strong>标记保留该地址</strong>（reservation）。</li>
+<li><strong>SC（Store-Conditional）</strong>：尝试写回——<strong>只有这个坑没被别人动过</strong>才写入成功；否则写失败、返回非零，软件<strong>跳回 LR 重试</strong>。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># CAS 的 LR&#x2F;SC 实现骨架：把 *a0 从 a1(old) 换成 a2(new)</span><br><span class="line">retry:</span><br><span class="line">    lr.d   t0, (a0)        # 保留读：t0 &#x3D; *a0，并 reserve 该地址</span><br><span class="line">    bne    t0, a1, fail    # 当前值 !&#x3D; old → 放弃</span><br><span class="line">    sc.d   t1, a2, (a0)    # 条件写：reservation 还在才写 new；t1&#x3D;0 成功 &#x2F; 非0 失败</span><br><span class="line">    bnez   t1, retry       # 期间被其它核改动过 → 重试</span><br><span class="line">fail:</span><br></pre></td></tr></table></figure>
+
+<p>其硬件机制是每个 hart 维护一组保留状态（reservation）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 每个 hart 一组保留寄存器</span><br><span class="line">reg reservation_valid;            &#x2F;&#x2F; 是否持有保留</span><br><span class="line">reg reservation_addr;             &#x2F;&#x2F; 保留的地址</span><br><span class="line"></span><br><span class="line">on LR(addr):                      &#x2F;&#x2F; lr.d rd, (addr)</span><br><span class="line">    reservation_valid &#x3D; 1;</span><br><span class="line">    reservation_addr  &#x3D; addr;     &#x2F;&#x2F; 登记保留</span><br><span class="line">    rd &#x3D; mem[addr];</span><br><span class="line"></span><br><span class="line">on SC(addr, val):                 &#x2F;&#x2F; sc.d rd, val, (addr)</span><br><span class="line">    if reservation_valid &amp;&amp; reservation_addr &#x3D;&#x3D; addr:</span><br><span class="line">        mem[addr] &#x3D; val;  rd &#x3D; 0; &#x2F;&#x2F; 成功</span><br><span class="line">    else:</span><br><span class="line">        rd &#x3D; 1;                   &#x2F;&#x2F; 失败</span><br><span class="line">    reservation_valid &#x3D; 0;        &#x2F;&#x2F; 不论成败，保留都被清</span><br></pre></td></tr></table></figure>
+
+<p>令保留失效（被打破）的情形：① 另一 hart 向 <code>reservation_addr</code> 写入（cache 一致性使该行失效）；② 本 hart 又执行了别的 <code>SC</code>、或发生异常 / 中断 / 上下文切换；③ 规范还允许<strong>虚假失败</strong>——即便无人改动，<code>SC</code> 也可能偶发失败。正因如此，LR/SC 代码必须写成”<code>lr</code> → 运算 → <code>sc</code>，失败即跳回重试”的循环（上面骨架的 <code>bnez t1, retry</code>）。这是 RISC-V 的有意取舍：reservation 只需记一个地址、无需复杂的总线锁，硬件简单、易于多核伸缩。</p>
+<p><strong>硬件内存模型</strong>决定默认重排有多凶，也就决定要插多少 <code>fence</code>：</p>
+<table>
+<thead>
+<tr>
+<th align="center">架构</th>
+<th align="center">内存模型</th>
+<th align="center">强度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">x86 / x86_64</td>
+<td align="center">TSO（Total Store Order）</td>
+<td align="center">强（只允许 store-load 重排）</td>
+</tr>
+<tr>
+<td align="center">ARMv8 / AArch64</td>
+<td align="center">weak</td>
+<td align="center">弱（多种重排）</td>
+</tr>
+<tr>
+<td align="center">RISC-V</td>
+<td align="center">RVWMO（RISC-V Weak Memory Ordering，2019 批准）</td>
+<td align="center">弱（类 ARM）</td>
+</tr>
+</tbody></table>
+<p>x86 强序，很多 Acquire/Release 几乎不用额外屏障；RISC-V / ARM 弱序，同样代码仍需显式插入 <code>fence</code>——这正是”同一份无锁代码，x86 上跑对了、搬到 ARM/RISC-V 就出错”的根因。</p>
+<hr>
+<h2 id="4-同步原语：都建在原子之上"><a href="#4-同步原语：都建在原子之上" class="headerlink" title="4. 同步原语：都建在原子之上"></a>4. 同步原语：都建在原子之上</h2><p>§3 的原子是最底层的”不可分割”；再往上，所有锁与通道，剥到底都是”<strong>原子 + 一套等待 / 唤醒策略</strong>“。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">    AT[&quot;原子 + fence（§3 地基）&quot;] --&gt; SP[&quot;spinlock 自旋锁&quot;]</span><br><span class="line">    AT --&gt; MX[&quot;mutex &#x2F; rwlock &#x2F; semaphore &#x2F; condvar &#x2F; barrier&quot;]</span><br><span class="line">    SP --&gt; HI[&quot;channel &#x2F; monitor（高级）&quot;]</span><br><span class="line">    MX --&gt; HI</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-1-自旋锁：纯原子搭出来的最小锁"><a href="#4-1-自旋锁：纯原子搭出来的最小锁" class="headerlink" title="4.1 自旋锁：纯原子搭出来的最小锁"></a>4.1 自旋锁：纯原子搭出来的最小锁</h3><p>最小的锁——一个原子标志位，抢不到就空转重试。适合<strong>极短临界区</strong>（内核 / RTOS）；长持有则空耗 CPU。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust：用 AtomicBool 手写</span></span><br><span class="line"><span class="keyword">use</span> std::sync::atomic::&#123;AtomicBool, Ordering&#125;;</span><br><span class="line"><span class="keyword">use</span> std::hint::spin_loop;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> lock = AtomicBool::new(<span class="literal">false</span>);</span><br><span class="line"><span class="keyword">while</span> lock.swap(<span class="literal">true</span>, Ordering::Acquire) &#123;   <span class="comment">// 抢锁：换成 true；旧值若是 true，说明别人正持有</span></span><br><span class="line">    spin_loop();                             <span class="comment">// 提示 CPU 这是自旋（PAUSE / yield）</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 临界区 ...</span></span><br><span class="line">lock.store(<span class="literal">false</span>, Ordering::Release);        <span class="comment">// 放锁</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; Zig 0.17：用 std.atomic.Value(bool) 手写</span><br><span class="line">const std &#x3D; @import(&quot;std&quot;);</span><br><span class="line">var lock &#x3D; std.atomic.Value(bool).init(false);</span><br><span class="line"></span><br><span class="line">while (lock.swap(true, .acquire)) &#123;          &#x2F;&#x2F; 抢锁</span><br><span class="line">    std.atomic.spinLoopHint();               &#x2F;&#x2F; 自旋提示</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F; 临界区 ...</span><br><span class="line">lock.store(false, .release);                 &#x2F;&#x2F; 放锁</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-互斥锁-读写锁-信号量-条件变量"><a href="#4-2-互斥锁-读写锁-信号量-条件变量" class="headerlink" title="4.2 互斥锁 / 读写锁 / 信号量 / 条件变量"></a>4.2 互斥锁 / 读写锁 / 信号量 / 条件变量</h3><p>这些不再空转，而是抢不到就<strong>睡</strong>（让出 CPU）、被唤醒再跑——底层 = 原子快路径 + 慢路径 <code>futex</code>（Linux）/ 内核等待队列。</p>
+<p><strong>Rust</strong> 的这些原语由 <code>std::sync</code> 提供：<code>Mutex</code> 返回 <strong>RAII 守卫</strong>（离开作用域自动解锁），还带 poison（持锁线程 panic 后锁”中毒”）：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::sync::&#123;Mutex, RwLock&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> m = Mutex::new(<span class="number">0</span>);</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> g = m.lock().unwrap();   <span class="comment">// 返回 MutexGuard，drop 时自动 unlock</span></span><br><span class="line">    *g += <span class="number">1</span>;</span><br><span class="line">&#125;                                     <span class="comment">// ← 作用域结束，自动解锁</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> rw = RwLock::new(<span class="number">0</span>);</span><br><span class="line"><span class="keyword">let</span> _r = rw.read().unwrap();          <span class="comment">// 多读</span></span><br><span class="line"><span class="comment">// let _w = rw.write().unwrap();      // 单写</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>Zig 0.17</strong> 把同步原语挪进了 <strong><code>std.Io</code></strong>（<code>std.Io.Mutex</code> / <code>RwLock</code> / <code>Semaphore</code> / <code>Condition</code>），而且 <code>lock</code> / <code>unlock</code> / <code>wait</code> 都要<strong>传入 <code>io</code></strong>——加锁这件事被接进了新的 Io 并发模型：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; Zig 0.17：std.Io.Mutex —— lock&#x2F;unlock 带 io 参数，且可被取消（Cancelable）</span><br><span class="line">var m: std.Io.Mutex &#x3D; .init;</span><br><span class="line">try m.lock(io);          &#x2F;&#x2F; 抢锁（io 决定怎么等：自旋 &#x2F; futex 挂起 &#x2F; 异步让出）</span><br><span class="line">defer m.unlock(io);      &#x2F;&#x2F; 手动解锁，由 defer 保证</span><br><span class="line">&#x2F;&#x2F; 临界区 ...</span><br><span class="line"></span><br><span class="line">var cond: std.Io.Condition &#x3D; .init;</span><br><span class="line">try cond.wait(io, &amp;m);   &#x2F;&#x2F; 条件变量：原子地&quot;解锁 + 睡；醒来再上锁&quot;，wait 同时要 io 和它守护的 mutex</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>一眼对照：<strong>Rust 的锁是 RAII</strong>（守卫 drop 自动解锁、无 io 参数）；<strong>Zig 0.17 的锁手动 <code>unlock</code>（靠 <code>defer</code> 配合）、且 <code>lock(io)</code> 把 io 注入进来</strong>——后者是 Zig”无隐藏 + 显式注入调度器”哲学的延续：连”等锁”都不会隐式阻塞线程，而是交给 <code>io</code> 决定怎么等（这和后面 §5 的”函数染色 / io 注入”是同一套思路）。注意这套 <code>std.Io</code> 同步原语仍随 Io 模型重构，API 可能继续变。</p>
+</blockquote>
+<p>跨语言一览：</p>
+<table>
+<thead>
+<tr>
+<th align="center">原语</th>
+<th align="center">干什么</th>
+<th align="center">Rust</th>
+<th align="center">Zig 0.17</th>
+<th align="center">C++</th>
+<th align="center">Go</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">自旋锁</td>
+<td align="center">忙等短临界区</td>
+<td align="center">手写 atomic / <code>spin</code> crate</td>
+<td align="center">手写 <code>atomic</code>+<code>spinLoopHint</code></td>
+<td align="center"><code>atomic_flag</code> 手写</td>
+<td align="center">手写 atomic</td>
+</tr>
+<tr>
+<td align="center">互斥锁</td>
+<td align="center">睡等独占</td>
+<td align="center"><code>Mutex</code>（RAII）</td>
+<td align="center"><code>std.Io.Mutex</code>（<code>lock(io)</code>）</td>
+<td align="center"><code>std::mutex</code></td>
+<td align="center"><code>sync.Mutex</code></td>
+</tr>
+<tr>
+<td align="center">读写锁</td>
+<td align="center">多读单写</td>
+<td align="center"><code>RwLock</code></td>
+<td align="center"><code>std.Io.RwLock</code></td>
+<td align="center"><code>std::shared_mutex</code></td>
+<td align="center"><code>sync.RWMutex</code></td>
+</tr>
+<tr>
+<td align="center">信号量</td>
+<td align="center">计数许可</td>
+<td align="center">std 无（用 tokio / 三方）</td>
+<td align="center"><code>std.Io.Semaphore</code></td>
+<td align="center"><code>std::counting_semaphore</code></td>
+<td align="center">缓冲 channel 模拟</td>
+</tr>
+<tr>
+<td align="center">条件变量</td>
+<td align="center">等待-通知</td>
+<td align="center"><code>Condvar</code></td>
+<td align="center"><code>std.Io.Condition</code>（<code>wait(io,&amp;m)</code>）</td>
+<td align="center"><code>std::condition_variable</code></td>
+<td align="center"><code>sync.Cond</code></td>
+</tr>
+<tr>
+<td align="center">一次性初始化</td>
+<td align="center">只跑一次</td>
+<td align="center"><code>OnceLock</code> / <code>Once</code></td>
+<td align="center"><code>std.once</code></td>
+<td align="center"><code>std::call_once</code></td>
+<td align="center"><code>sync.Once</code></td>
+</tr>
+<tr>
+<td align="center">屏障</td>
+<td align="center">所有线程到齐</td>
+<td align="center"><code>Barrier</code></td>
+<td align="center">手写 atomic</td>
+<td align="center"><code>std::barrier</code></td>
+<td align="center"><code>sync.WaitGroup</code></td>
+</tr>
+</tbody></table>
+<h3 id="4-3-共享内存-vs-消息传递"><a href="#4-3-共享内存-vs-消息传递" class="headerlink" title="4.3 共享内存 vs 消息传递"></a>4.3 共享内存 vs 消息传递</h3><p>并发协作有两条哲学路线：</p>
+<ul>
+<li><strong>共享内存 + 锁</strong>：大家围着同一块数据，靠锁保护（传统、灵活、易错）。</li>
+<li><strong>消息传递 + channel</strong>：谁也不碰谁的内存，值通过管道传（Go / Erlang / Rust mpsc）。</li>
+</ul>
+<blockquote>
+<p>Go 的名言：<em>Don’t communicate by sharing memory; share memory by communicating.</em>——别用共享内存来通信，要用通信来共享内存。</p>
+</blockquote>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust：std::sync::mpsc（多生产者单消费者）</span></span><br><span class="line"><span class="keyword">use</span> std::sync::mpsc;</span><br><span class="line"><span class="keyword">let</span> (tx, rx) = mpsc::channel();</span><br><span class="line">std::thread::spawn(<span class="keyword">move</span> || &#123; tx.send(<span class="number">42</span>).unwrap(); &#125;);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">"&#123;&#125;"</span>, rx.recv().unwrap());   <span class="comment">// 42</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Go：channel + goroutine（语言内建）</span></span><br><span class="line">ch := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>)</span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; ch &lt;- <span class="number">42</span> &#125;()</span><br><span class="line">fmt.Println(&lt;-ch)   <span class="comment">// 42</span></span><br></pre></td></tr></table></figure>
+
+<p>Zig 没有内建 channel——要么手写基于原子的无锁队列（下一节），要么用社区库。</p>
+<h3 id="4-4-无锁数据结构（lock-free）"><a href="#4-4-无锁数据结构（lock-free）" class="headerlink" title="4.4 无锁数据结构（lock-free）"></a>4.4 无锁数据结构（lock-free）</h3><p>锁之外的另一条路：不加锁，靠原子 CAS 让”至少一个线程总能往前走”。入门经典是 <strong>SPSC（单生产者单消费者）无锁环形队列</strong>——head / tail 两个原子下标，生产者只动 tail、消费者只动 head，靠 acquire/release 配对保证可见性，全程无锁：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; Zig：SPSC 无锁环形队列（节选）</span><br><span class="line">fn SpscQueue(comptime T: type, comptime CAP: usize) type &#123;</span><br><span class="line">    return struct &#123;</span><br><span class="line">        buf: [CAP]T &#x3D; undefined,</span><br><span class="line">        head: std.atomic.Value(usize) &#x3D; std.atomic.Value(usize).init(0),</span><br><span class="line">        tail: std.atomic.Value(usize) &#x3D; std.atomic.Value(usize).init(0),</span><br><span class="line"></span><br><span class="line">        pub fn push(self: *@This(), v: T) bool &#123;</span><br><span class="line">            const t &#x3D; self.tail.load(.monotonic);</span><br><span class="line">            const next &#x3D; (t + 1) % CAP;</span><br><span class="line">            if (next &#x3D;&#x3D; self.head.load(.acquire)) return false; &#x2F;&#x2F; 满</span><br><span class="line">            self.buf[t] &#x3D; v;</span><br><span class="line">            self.tail.store(next, .release);                    &#x2F;&#x2F; release 发布</span><br><span class="line">            return true;</span><br><span class="line">        &#125;</span><br><span class="line">        pub fn pop(self: *@This()) ?T &#123;</span><br><span class="line">            const h &#x3D; self.head.load(.monotonic);</span><br><span class="line">            if (h &#x3D;&#x3D; self.tail.load(.acquire)) return null;     &#x2F;&#x2F; 空</span><br><span class="line">            const v &#x3D; self.buf[h];</span><br><span class="line">            self.head.store((h + 1) % CAP, .release);</span><br><span class="line">            return v;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>强度分层：<strong>wait-free</strong>（每个操作有界步内完成）&gt; <strong>lock-free</strong>（至少一个线程有进展）&gt; <strong>obstruction-free</strong>。工业经典：Michael-Scott 队列、Treiber 栈、Linux 的 <strong>RCU</strong>（读多写少、读侧零开销）。无锁最难的不是写，而是<strong>内存回收</strong>——别的线程可能还在读你想 <code>free</code> 的节点，要靠 hazard pointer / epoch GC 处理。</p>
+</blockquote>
+<h3 id="4-5-Rust-的独到设计：Send-Sync（把线程安全钉死在编译期）"><a href="#4-5-Rust-的独到设计：Send-Sync（把线程安全钉死在编译期）" class="headerlink" title="4.5 Rust 的独到设计：Send / Sync（把线程安全钉死在编译期）"></a>4.5 Rust 的独到设计：Send / Sync（把线程安全钉死在编译期）</h3><p>前面所有原语，C / C++ / Zig / Go 都靠<strong>程序员自律 + 运行时工具</strong>（ThreadSanitizer、Go race detector）抓数据竞争；Rust 把它提前到了<strong>编译期</strong>：</p>
+<ul>
+<li><strong><code>Send</code></strong>：类型 <code>T</code> 可以<strong>跨线程移动</strong>（所有权转移到别的线程）。</li>
+<li><strong><code>Sync</code></strong>：<code>&amp;T</code> 可以<strong>跨线程共享</strong>（多个线程同时持引用）。</li>
+</ul>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::rc::Rc;</span><br><span class="line"><span class="keyword">use</span> std::sync::Arc;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Rc 是非原子引用计数 → 不是 Send；下面这行编译就报错：</span></span><br><span class="line"><span class="comment">// std::thread::spawn(move || &#123; let _x = Rc::new(1); &#125;);</span></span><br><span class="line"><span class="comment">//   error: `Rc&lt;i32&gt;` cannot be sent between threads safely</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Arc 是原子引用计数 → 是 Send，可以跨线程：</span></span><br><span class="line">std::thread::spawn(<span class="keyword">move</span> || &#123; <span class="keyword">let</span> _x = Arc::new(<span class="number">1</span>); &#125;);   <span class="comment">// OK</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>把一个线程不安全的类型塞进 <code>thread::spawn</code>，编译期就会被拒绝。这把”会不会数据竞争”从<strong>运行时崩溃</strong>提前到<strong>编译期报错</strong>，是 Rust”无数据竞争”承诺的根。代价是类型系统更重；Zig / C / Go 把这份责任留给你和工具。</p>
+</blockquote>
+<hr>
+<h2 id="5-函数染色：异步为什么”传染”"><a href="#5-函数染色：异步为什么”传染”" class="headerlink" title="5. 函数染色：异步为什么”传染”"></a>5. 函数染色：异步为什么”传染”</h2><p>讲完原子 / 同步（多核共享的地基），转入异步主线。绕不开的第一个概念是<strong>函数染色（function coloring）</strong>。</p>
+<h3 id="5-1-什么是函数染色"><a href="#5-1-什么是函数染色" class="headerlink" title="5.1 什么是函数染色"></a>5.1 什么是函数染色</h3><p>Bob Nystrom 2015《What Color is Your Function?》：一门语言引入 <code>async</code>/<code>await</code> 后，函数被隐式分成两色——<strong>普通函数（红）</strong> 和 <strong>async 函数（蓝）</strong>。规则：蓝函数只能被蓝函数 <code>await</code>，红函数调不了蓝函数。于是<strong>只要调用链最底层有一个 async，整条链都得染成 async</strong>：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Python：染色传染</span></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">def</span> <span class="title">fetch</span><span class="params">()</span>:</span>       ...    <span class="comment"># 蓝</span></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">def</span> <span class="title">process</span><span class="params">()</span>:</span>            <span class="comment"># 被迫也蓝</span></span><br><span class="line">    data = <span class="keyword">await</span> fetch()</span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">def</span> <span class="title">main</span><span class="params">()</span>:</span>               <span class="comment"># 一路蓝到顶</span></span><br><span class="line">    <span class="keyword">await</span> process()</span><br><span class="line"><span class="comment"># 普通同步函数无法直接调 fetch()，得 asyncio.run() 起一个事件循环</span></span><br></pre></td></tr></table></figure>
+
+<p>同样的传染在 Rust / JS(ES6) / C# / Kotlin 都有：底层一个 <code>async fn</code>，上面全得 <code>async</code>。</p>
+<h3 id="5-2-各语言对染色的态度"><a href="#5-2-各语言对染色的态度" class="headerlink" title="5.2 各语言对染色的态度"></a>5.2 各语言对染色的态度</h3><table>
+<thead>
+<tr>
+<th align="center">语言</th>
+<th align="center">异步方案</th>
+<th align="center">染色？</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Python / JS(ES6) / Rust / C# / C++20</td>
+<td align="center"><code>async</code>/<code>await</code> 关键字</td>
+<td align="center"><strong>有</strong>，传染整条链</td>
+</tr>
+<tr>
+<td align="center">Kotlin</td>
+<td align="center"><code>suspend</code> 函数 + 协程</td>
+<td align="center"><strong>有</strong>（<code>suspend</code> 即颜色），编译器隐式传 Continuation</td>
+</tr>
+<tr>
+<td align="center">Go</td>
+<td align="center">goroutine + 阻塞自动挂起</td>
+<td align="center"><strong>无</strong>——任何函数都能在 goroutine 里阻塞</td>
+</tr>
+<tr>
+<td align="center">Java 虚拟线程（Loom, JDK 21）</td>
+<td align="center">阻塞调用自动挂起</td>
+<td align="center"><strong>无</strong></td>
+</tr>
+<tr>
+<td align="center">Erlang</td>
+<td align="center">进程 + 消息</td>
+<td align="center"><strong>无</strong></td>
+</tr>
+<tr>
+<td align="center">老 Zig（stage1 时代）</td>
+<td align="center"><code>async fn</code> 关键字</td>
+<td align="center"><strong>有</strong>（同 Rust）</td>
+</tr>
+<tr>
+<td align="center">新 Zig（self-hosted 后）</td>
+<td align="center">移除内建 async + <code>io</code> 参数注入</td>
+<td align="center"><strong>设计上无</strong></td>
+</tr>
+</tbody></table>
+<h3 id="5-3-消除染色的两条路"><a href="#5-3-消除染色的两条路" class="headerlink" title="5.3 消除染色的两条路"></a>5.3 消除染色的两条路</h3><p><strong>路一 · 绿色线程 / 虚拟线程</strong>（Go / Java Loom / Erlang）：函数不分色，遇到阻塞调用，<strong>运行时自动把当前任务挂起</strong>、切去跑别的。代价：需要一个<strong>有栈</strong>的运行时（每任务一个可增长栈），运行时较重。这正是 §2 里”green thread / goroutine”那一档——<strong>无染色 = 用有栈协程 + runtime 自动调度换来的</strong>。</p>
+<p><strong>路二 · Zig 的 <code>io</code> 注入</strong>（0.15+）：把”是否异步”从函数类型里挪出来，改成一个普通参数 <code>io</code>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 普通函数，只是多收一个 io 参数；同步还是异步由传进来的 io 决定</span><br><span class="line">fn fetch(io: std.Io, url: []const u8) ![]u8 &#123;</span><br><span class="line">    return io.http.get(url);   &#x2F;&#x2F; 单线程 io → 顺序；线程池 &#x2F; 事件循环 io → 并发</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>函数本身中性、不染色——但<strong>调用链仍要一路把 <code>io</code> 传下去</strong>。还记得 §4.2 的 <code>std.Io.Mutex.lock(io)</code> 吗？连加锁都收 <code>io</code>，正是这套思路的延续。</p>
+<blockquote>
+<p>进一步看：Zig 这招<strong>没有真正消灭染色，只是把它从”类型传染”换成”参数传染”、把决定权推迟到调用方</strong>——决定用哪种 <code>io</code> 后端的那一刻，颜色就定了。区别在于：<code>io</code> 是普通参数、函数类型不变，所以不需要异步的中间函数可以不收 <code>io</code>、可运行时换后端，比”编译期钉死在类型上”灵活。</p>
+</blockquote>
+<h3 id="5-4-Rust-为何接受染色的代价"><a href="#5-4-Rust-为何接受染色的代价" class="headerlink" title="5.4 Rust 为何接受染色的代价"></a>5.4 Rust 为何接受染色的代价</h3><p>Rust 偏偏选了<strong>有染色</strong>的 <code>async</code>/<code>await</code> + <code>Future</code>，因为它要<strong>零成本 + 不强制运行时</strong>：async 编译成状态机（见 §6 无栈那半），不需要 Go 那样每任务一个有栈协程 + 重运行时，能跑在 <code>#![no_std]</code> 裸机上（embassy）。染色是 Rust 为”零成本异步”付的代价——配合 §4.5 的 <code>Send</code>/<code>Sync</code>，构成 Rust”显式、可控、但啰嗦”的并发风格。</p>
+<hr>
+<h2 id="6-协程深挖：有栈（纤程）vs-无栈（async）"><a href="#6-协程深挖：有栈（纤程）vs-无栈（async）" class="headerlink" title="6. 协程深挖：有栈（纤程）vs 无栈（async）"></a>6. 协程深挖：有栈（纤程）vs 无栈（async）</h2><p>§2 把协程分了”有栈 / 无栈”两档。这不是风格差异，而是<strong>实现机制的根本分叉</strong>——决定了切换开销、能在哪挂起、要不要染色。</p>
+<h3 id="6-1-核心区分"><a href="#6-1-核心区分" class="headerlink" title="6.1 核心区分"></a>6.1 核心区分</h3><ul>
+<li><strong>有栈协程 / 纤程（stackful）</strong>：每个协程有<strong>自己的独立栈</strong>。切换 = 保存当前 SP + callee-saved 寄存器、恢复另一个的——和 OS 切线程几乎一样，只是在用户态、不换页表。能在<strong>调用链任意深度</strong>直接 <code>yield</code>（整个栈都保住了）。代表：Go goroutine、Erlang 进程、Lua coroutine、Rust corosensei / may、Zig zigcoro / zap。</li>
+<li><strong>无栈协程（stackless）</strong>：<strong>没有独立栈</strong>。编译器把 async 函数拆成一个<strong>状态机</strong>，局部变量塞进一个”帧”结构体，<code>poll</code> 一次推进一段。只能在<strong>显式标记点</strong>（<code>await</code>）挂起。代表：Rust async/await、Python async、C++20 coroutine、JS async、Zig 状态机。</li>
+</ul>
+<h3 id="6-2-有栈协程的上下文切换（RISC-V-汇编）"><a href="#6-2-有栈协程的上下文切换（RISC-V-汇编）" class="headerlink" title="6.2 有栈协程的上下文切换（RISC-V 汇编）"></a>6.2 有栈协程的上下文切换（RISC-V 汇编）</h3><p>有栈切换需保存 <strong>callee-saved 寄存器（<code>sp</code> 与 <code>s0–s11</code>）外加返回地址 <code>ra</code></strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># RISC-V：context_switch(old: *Context, new: *Context)</span><br><span class="line"># 需换出 &#x3D; sp + s0–s11（callee-saved，13 个）+ ra（恢复点），共 14 个 &#x3D; 112 字节；布局同 §9.1 的 TaskContext</span><br><span class="line">context_switch:</span><br><span class="line">    sd sp,   0*8(a0)      # 存当前：栈指针</span><br><span class="line">    sd ra,   1*8(a0)      # 返回地址(&#x3D;恢复时的 PC)</span><br><span class="line">    sd s0,   2*8(a0)</span><br><span class="line">    # ... s1–s11 ...</span><br><span class="line">    sd s11, 13*8(a0)</span><br><span class="line"></span><br><span class="line">    ld sp,   0*8(a1)      # 恢复下一个：sp</span><br><span class="line">    ld ra,   1*8(a1)      # ra</span><br><span class="line">    ld s0,   2*8(a1)</span><br><span class="line">    # ... s1–s11 ...</span><br><span class="line">    ld s11, 13*8(a1)</span><br><span class="line">    ret                   # 跳到新协程上次 yield 时存的 ra</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对比进程 / 线程切换：有栈协程切换要保存 / 恢复的寄存器量，其实不大（callee-saved 那批加 ra）——<strong>省的不是保存量，而是省掉了切页表与刷缓存</strong>。进程 / 线程切换还要换 <code>satp</code>（页表基址）、执行 <code>sfence.vma</code> 刷 TLB、过特权级；有栈协程在<strong>同一进程 / 线程内</strong>，地址空间不变，无需切页表、无需刷 TLB 与各级 cache——这才是它快一两个数量级的根因。有栈协程的本质，就是”用户态自己做的一次上下文切换”。无栈协程则更彻底：状态全由自身字段保存，切换<strong>连上下文的保存 / 重载都省了</strong>，改一个变量（状态机的当前值）即完成。</p>
+</blockquote>
+<p>Rust 的 corosensei / may、Zig 的 zigcoro / zap，底层都是这套平台汇编（x86-64 / aarch64 / RISC-V 各一份）的封装：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust：corosensei（有栈协程）</span></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> co = Coroutine::new(|yielder, input: <span class="built_in">i32</span>| &#123;</span><br><span class="line">    <span class="keyword">let</span> x = yielder.suspend(input * <span class="number">2</span>);   <span class="comment">// 暂停，把 input*2 交给调用方；恢复时拿到新输入</span></span><br><span class="line">    x + <span class="number">1</span></span><br><span class="line">&#125;);</span><br><span class="line">co.resume(<span class="number">10</span>);   <span class="comment">// → Yield(20)</span></span><br><span class="line">co.resume(<span class="number">99</span>);   <span class="comment">// → Return(100)</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; Zig：zigcoro（有栈协程，底层汇编 context_switch）</span><br><span class="line">var frame &#x3D; try coro.Coro.init(worker, stack);</span><br><span class="line">coro.xresume(frame);   &#x2F;&#x2F; 切入 worker，跑到 xsuspend 返回</span><br><span class="line">coro.xresume(frame);   &#x2F;&#x2F; 继续到结束</span><br><span class="line">fn worker() void &#123;</span><br><span class="line">    coro.xsuspend();   &#x2F;&#x2F; 让出（context_switch 回到调用方）</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><code>may</code>（Rust）/ <code>zap</code>（Zig，kprotty 的实验性调度器，已停更）更进一层：在上面套了 <strong>M:N 调度器</strong>（多个 OS 线程跑多个有栈协程，work-stealing），API 像 Go 的 <code>go</code>/<code>spawn</code>——这就是”goroutine 风格”的库实现。</p>
+</blockquote>
+<h3 id="6-3-无栈协程：状态机-poll"><a href="#6-3-无栈协程：状态机-poll" class="headerlink" title="6.3 无栈协程：状态机 + poll"></a>6.3 无栈协程：状态机 + poll</h3><p>无栈不切栈——编译器把 async 函数翻译成一个<strong>状态机</strong>，每个 <code>await</code> 点是一个状态。Rust 的核心抽象是 <code>Future</code>：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">Future</span></span> &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Output</span></span>;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;) -&gt; Poll&lt;Self::Output&gt;;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">enum</span> <span class="title">Poll</span></span>&lt;T&gt; &#123; Ready(T), Pending &#125;   <span class="comment">// 对应有栈的 return / yield</span></span><br></pre></td></tr></table></figure>
+
+<p><code>async fn</code> 编译后大致等价于一个状态机：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// async fn f() &#123; let a = step1().await; step2(a).await; &#125;</span></span><br><span class="line"><span class="comment">// ≈ 编译成：</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">F</span></span> &#123; Start, AwaitStep1(Step1Fut), AwaitStep2(Step2Fut), Done &#125;</span><br><span class="line"><span class="comment">// 每次 poll 按当前状态推进一段；遇到内层返回 Pending 就也返回 Pending，等下次再被 poll</span></span><br></pre></td></tr></table></figure>
+
+<p>跨 <code>await</code> 存活的局部变量被搬进这个帧里——所以无栈协程”没有独立栈”，帧放堆上或父任务栈上。（<code>Future::poll</code> 的 <code>self: Pin&lt;&amp;mut Self&gt;</code> 正因如此：帧可能自引用，<code>Pin</code> 钉住其地址、禁止移动——这是 Rust async 最著名的一道坎。）Zig 没有内建 async 语法（self-hosted 编译器起已移除），无栈就靠<strong>手工状态机</strong>或 0.17 落地中的 <code>io.async</code>；Python / JS / C++20 各有 <code>async</code>/<code>await</code> 语法糖，编译 / 解释器同样生成状态机。</p>
+<h3 id="6-4-全维度对比-跨语言归属"><a href="#6-4-全维度对比-跨语言归属" class="headerlink" title="6.4 全维度对比 + 跨语言归属"></a>6.4 全维度对比 + 跨语言归属</h3><table>
+<thead>
+<tr>
+<th align="center">维度</th>
+<th align="center">有栈协程 / 纤程</th>
+<th align="center">无栈协程 / async</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">独立栈</td>
+<td align="center">有（预分配 / 可增长）</td>
+<td align="center">无（帧在堆 / 父栈）</td>
+</tr>
+<tr>
+<td align="center">切换保存</td>
+<td align="center">SP + callee-saved 寄存器</td>
+<td align="center">无——只改状态机当前值</td>
+</tr>
+<tr>
+<td align="center">切换开销</td>
+<td align="center">~10–100 ns</td>
+<td align="center">~ns（函数调用级）</td>
+</tr>
+<tr>
+<td align="center">能在哪挂起</td>
+<td align="center">调用链<strong>任意深度</strong>直接 yield</td>
+<td align="center">只能在 <code>await</code> 标记点</td>
+</tr>
+<tr>
+<td align="center">染色</td>
+<td align="center"><strong>无</strong>（普通函数即可 yield）</td>
+<td align="center"><strong>有</strong>（async 传染）</td>
+</tr>
+<tr>
+<td align="center">栈溢出</td>
+<td align="center">要手动设栈大小</td>
+<td align="center">不存在（无栈）</td>
+</tr>
+<tr>
+<td align="center">调试回溯</td>
+<td align="center">栈回溯正常</td>
+<td align="center">状态机，回溯可能割裂</td>
+</tr>
+<tr>
+<td align="center">每任务内存</td>
+<td align="center">一个栈（KB 级）</td>
+<td align="center">一个帧（按需，字节级）</td>
+</tr>
+</tbody></table>
+<table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">有栈</th>
+<th align="center">无栈</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">语言内建</td>
+<td align="center">Go goroutine · Erlang 进程 · Lua coroutine</td>
+<td align="center">Rust · Python · C++20 · JS(ES6) · Kotlin(<code>suspend</code>)</td>
+</tr>
+<tr>
+<td align="center">库</td>
+<td align="center">Rust corosensei / may · Zig zigcoro / zap</td>
+<td align="center">Rust futures · Zig 手工状态机 / libxev</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>总纲：<strong>有栈用空间（每协程一个栈）换”任意处可挂起 + 无染色”；无栈用”染色 + 只能定点挂起”换极致省内存 + 零运行时</strong>。Go 选有栈（开发省心、运行时重）；Rust 选无栈（零成本、能上裸机，但有染色、写法更繁）。</p>
+</blockquote>
+<hr>
+<h2 id="7-异步运行时（执行器）"><a href="#7-异步运行时（执行器）" class="headerlink" title="7. 异步运行时（执行器）"></a>7. 异步运行时（执行器）</h2><p>无栈 async 只是<strong>语法 / 状态机</strong>，本身不会跑——必须有个<strong>运行时（执行器）</strong>反复 <code>poll</code> 它、在 I/O 就绪时唤醒。这一层是 Rust async 生态最厚的地方。</p>
+<h3 id="7-1-为什么-async-需要运行时"><a href="#7-1-为什么-async-需要运行时" class="headerlink" title="7.1 为什么 async 需要运行时"></a>7.1 为什么 async 需要运行时</h3><p><code>async fn</code> 返回的 <code>Future</code> 是个”还没跑的状态机”。谁来 <code>poll</code>？运行时。它干三件事：① 拿顶层 Future 循环 <code>poll</code>；② Future 返回 <code>Pending</code> 就挂起它、记下”它在等什么”；③ I/O / 定时器就绪时通过 <strong><code>Waker</code></strong> 唤醒对应 Future，再 <code>poll</code>。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> fut = <span class="keyword">async</span> &#123; <span class="number">42</span> &#125;;        <span class="comment">// 只是造了个 Future，什么也没发生</span></span><br><span class="line"><span class="keyword">let</span> v = smol::block_on(fut);   <span class="comment">// 必须交给运行时；block_on 在当前线程把它跑到完成</span></span><br></pre></td></tr></table></figure>
+
+<p>Rust <strong>不自带运行时</strong>（std 只给 <code>Future</code> trait），这是”零成本 + 不强制运行时”的代价——你得自己选 tokio / smol / …。Go / Python / JS 则<strong>内建运行时</strong>（goroutine 调度器 / asyncio 事件循环 / 浏览器事件循环），开箱即用。</p>
+<h3 id="7-2-就绪式-vs-完成式-I-O"><a href="#7-2-就绪式-vs-完成式-I-O" class="headerlink" title="7.2 就绪式 vs 完成式 I/O"></a>7.2 就绪式 vs 完成式 I/O</h3><p>运行时怎么向内核要 I/O，分两大流派：</p>
+<ul>
+<li><strong>就绪式（readiness，epoll / kqueue）</strong>：内核说”fd 可读了”→ 你再 <code>read()</code> → 内核把数据<strong>从内核缓冲拷到你的 buf</strong>。tokio 走这条。</li>
+<li><strong>完成式（completion，io_uring / IOCP）</strong>：你<strong>提交 read 请求 + buf</strong> → 内核异步执行 → 完成时通知你”buf 已填好”（少一次拷贝）。monoio 走这条。</li>
+</ul>
+<p>完成式代价是<strong>所有权模型不同</strong>：buf 在内核处理期间不能碰，得交出所有权：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">file.read(&amp;<span class="keyword">mut</span> buf).<span class="keyword">await</span>?;                    <span class="comment">// tokio（就绪式）：&amp;mut buf 借用即可</span></span><br><span class="line"><span class="keyword">let</span> (res, buf) = file.read_exact(buf).<span class="keyword">await</span>;   <span class="comment">// monoio（完成式）：buf 移进去、完成后移回来</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>monoio 源码里这套所有权的真实长相：<code>fn read&lt;T: IoBufMut&gt;(&amp;mut self, buf: T) -&gt; impl Future&lt;Output = BufResult&lt;usize, T&gt;&gt;</code>（<code>BufResult&lt;T, B&gt; = (io::Result&lt;T&gt;, B)</code>）——buffer 按值 move 进函数，飞行期间由内部 <code>Op</code> 结构体在堆上持有（连同对 <code>SharedFd</code> 的强引用，防止 fd 在传输途中被关闭），io_uring 完成后连同结果一并还回。</p>
+</blockquote>
+<h3 id="7-3-Rust-运行时横向"><a href="#7-3-Rust-运行时横向" class="headerlink" title="7.3 Rust 运行时横向"></a>7.3 Rust 运行时横向</h3><table>
+<thead>
+<tr>
+<th align="center">运行时</th>
+<th align="center">线程模型</th>
+<th align="center">I/O 后端</th>
+<th align="center">适合</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><strong>tokio</strong></td>
+<td align="center">多线程 work-stealing</td>
+<td align="center">epoll / kqueue / IOCP</td>
+<td align="center">服务端通用，生态最大</td>
+</tr>
+<tr>
+<td align="center"><strong>monoio</strong></td>
+<td align="center">单线程</td>
+<td align="center">io_uring（Linux）</td>
+<td align="center">极低延迟、零拷贝</td>
+</tr>
+<tr>
+<td align="center"><strong>async-std</strong></td>
+<td align="center">多线程</td>
+<td align="center">同 tokio</td>
+<td align="center">API 镜像 std，迁移友好</td>
+</tr>
+<tr>
+<td align="center"><strong>smol</strong></td>
+<td align="center">多线程</td>
+<td align="center">async-io（poll/epoll）</td>
+<td align="center">~1500 行，最适合读源码学原理</td>
+</tr>
+</tbody></table>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// tokio：spawn(类 goroutine) + join!(并发等) + select!(等第一个) + mpsc channel</span></span><br><span class="line"><span class="meta">#[tokio::main]</span></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="keyword">let</span> h1 = tokio::spawn(<span class="keyword">async</span> &#123; <span class="number">1u32</span> &#125;);</span><br><span class="line">    <span class="keyword">let</span> h2 = tokio::spawn(<span class="keyword">async</span> &#123; <span class="number">2u32</span> &#125;);</span><br><span class="line">    <span class="keyword">let</span> (a, b) = tokio::join!(h1, h2);          <span class="comment">// join!：并发等多个</span></span><br><span class="line">    <span class="keyword">let</span> _ = (a, b);</span><br><span class="line">    tokio::<span class="built_in">select!</span> &#123;                            <span class="comment">// select!：等最先完成的那个</span></span><br><span class="line">        v = <span class="keyword">async</span> &#123; <span class="number">42u32</span> &#125; =&gt; &#123; <span class="keyword">let</span> _ = v; &#125;</span><br><span class="line">        _ = tokio::time::sleep(std::time::Duration::from_millis(<span class="number">10</span>)) =&gt; &#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// smol：最小执行器，吃透它就懂"执行器怎么驱动 Future"</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    smol::block_on(<span class="keyword">async</span> &#123;</span><br><span class="line">        <span class="keyword">let</span> h = smol::spawn(<span class="keyword">async</span> &#123; <span class="number">42u32</span> &#125;);</span><br><span class="line">        <span class="built_in">assert_eq!</span>(h.<span class="keyword">await</span>, <span class="number">42</span>);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="7-4-Zig-的并发：没有”运行时生态”，只有-io-后端"><a href="#7-4-Zig-的并发：没有”运行时生态”，只有-io-后端" class="headerlink" title="7.4 Zig 的并发：没有”运行时生态”，只有 io 后端"></a>7.4 Zig 的并发：没有”运行时生态”，只有 io 后端</h3><p>Zig 没有 tokio 那样的第三方运行时生态，并发由 <strong><code>std.Io</code> 后端</strong> + 几条路拼出来：</p>
+<table>
+<thead>
+<tr>
+<th align="center">路</th>
+<th align="center">适用</th>
+<th align="center">代表</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">手工状态机</td>
+<td align="center">裸机 / no_std，永远有效</td>
+<td align="center">§6.3 风格</td>
+</tr>
+<tr>
+<td align="center"><code>std.Thread</code></td>
+<td align="center">有 OS、CPU 密集</td>
+<td align="center">线程 + §4 锁</td>
+</tr>
+<tr>
+<td align="center"><code>libxev</code> 事件循环</td>
+<td align="center">高并发 I/O，回调式</td>
+<td align="center">mitchellh/libxev</td>
+</tr>
+<tr>
+<td align="center"><code>io.async</code> / <code>io.await</code></td>
+<td align="center">0.17 落地中的官方协程</td>
+<td align="center"><code>std.Io</code></td>
+</tr>
+</tbody></table>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; libxev：跨平台事件循环（Linux&#x3D;io_uring &#x2F; macOS&#x3D;kqueue &#x2F; Windows&#x3D;IOCP），回调式无栈异步</span><br><span class="line">var loop &#x3D; try xev.Loop.init(.&#123;&#125;);</span><br><span class="line">defer loop.deinit();</span><br><span class="line">var timer &#x3D; try xev.Timer.init();</span><br><span class="line">timer.run(&amp;loop, &amp;c, 1000, T, &amp;ud, callback);   &#x2F;&#x2F; 1000ms 后触发 callback</span><br><span class="line">try loop.run(.until_done);</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>Zig 的并发单位是 <strong>Completion 回调</strong>，不是帧 / 栈——本质是工程化的回调式事件驱动，适合高并发 I/O，但书写体验不如 Rust 的 <code>async</code>/<code>await</code>。0.17 的 <code>io.async</code> 意在补足这一环，仍在落地中。</p>
+</blockquote>
+<h3 id="7-5-嵌入式：embassy（Rust-async-on-bare-metal）"><a href="#7-5-嵌入式：embassy（Rust-async-on-bare-metal）" class="headerlink" title="7.5 嵌入式：embassy（Rust async-on-bare-metal）"></a>7.5 嵌入式：embassy（Rust async-on-bare-metal）</h3><p><code>embassy</code> 把 Rust async/await 搬上<strong>裸机 MCU</strong>（<code>#![no_std]</code>、无 OS）：一个极小执行器跑 Future，靠中断当 Waker 唤醒任务——<strong>无栈协程不需要每任务一个栈，恰好契合 KB 级 RAM 的 MCU</strong>。这正是无栈路线相对有栈（Go 风格每任务一栈）在嵌入式的关键优势：同样的并发，async 内存占用小一个数量级。</p>
+<hr>
+<h2 id="8-生成器：受限的协程"><a href="#8-生成器：受限的协程" class="headerlink" title="8. 生成器：受限的协程"></a>8. 生成器：受限的协程</h2><p>生成器（generator）是协程的”受限版”——只能<strong>单向把值 yield 给调用方</strong>，不能任意挂起去等别的任务。本质还是个<strong>无栈状态机</strong>（每个 <code>yield</code> 是一个状态），归在协程家族里，但更窄：只解决”惰性产出一串值”。</p>
+<h3 id="8-1-其他语言一瞥（仅示例用法）"><a href="#8-1-其他语言一瞥（仅示例用法）" class="headerlink" title="8.1 其他语言一瞥（仅示例用法）"></a>8.1 其他语言一瞥（仅示例用法）</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Python：yield 即生成器</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">fib</span><span class="params">()</span>:</span></span><br><span class="line">    a, b = <span class="number">0</span>, <span class="number">1</span></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        <span class="keyword">yield</span> a</span><br><span class="line">        a, b = b, a + b</span><br></pre></td></tr></table></figure>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// JS(ES6)：function* + yield</span></span><br><span class="line"><span class="function"><span class="keyword">function</span>* <span class="title">fib</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">let</span> [a, b] = [<span class="number">0</span>, <span class="number">1</span>];</span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123; <span class="keyword">yield</span> a; [a, b] = [b, a + b]; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>C# 的 <code>yield return</code>、Kotlin 的 <code>sequence { yield(x) }</code> 同理——都是”形如普通循环、实则惰性产出”的语法糖。</p>
+<h3 id="8-2-Rust：从-nightly-Generator-到-stable-genawaiter"><a href="#8-2-Rust：从-nightly-Generator-到-stable-genawaiter" class="headerlink" title="8.2 Rust：从 nightly Generator 到 stable genawaiter"></a>8.2 Rust：从 nightly Generator 到 stable genawaiter</h3><p>Rust 的真·生成器（<code>Coroutine</code> trait + <code>yield</code>）还在 nightly：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#![feature(coroutines, coroutine_trait)]</span></span><br><span class="line"><span class="keyword">let</span> <span class="keyword">mut</span> g = <span class="meta">#[coroutine]</span> || &#123; <span class="keyword">yield</span> <span class="number">1</span>; <span class="keyword">yield</span> <span class="number">2</span>; <span class="keyword">yield</span> <span class="number">3</span>; &#125;;</span><br><span class="line"><span class="comment">// Pin::new(&amp;mut g).resume(()) → Yielded(1) → Yielded(2) → ...</span></span><br></pre></td></tr></table></figure>
+
+<p>stable 上用 <strong>genawaiter</strong>——它没有真生成器，而是<strong>借 async/await 模拟</strong>：把 async 块当协程体，靠一个共享单元 <code>Airlock</code> 在”生成端”和”驱动端”之间传值。看它的真实源码：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// genawaiter/src/rc/engine.rs：Airlock = 一个共享的 Cell</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">Airlock</span></span>&lt;Y, R&gt;(Rc&lt;Cell&lt;Next&lt;Y, R&gt;&gt;&gt;);   <span class="comment">// Next: Empty / Yield(Y) / Resume(R) / Completed</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// genawaiter/src/core.rs：yield_ 不真返回值，而是往 airlock 塞 Yield，再交出一个 Barrier future</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">yield_</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, value: A::Yield) -&gt; <span class="keyword">impl</span> Future&lt;Output = A::Resume&gt; + <span class="symbol">'_</span> &#123;</span><br><span class="line">    <span class="keyword">self</span>.airlock.replace(Next::Yield(value));</span><br><span class="line">    Barrier &#123; airlock: &amp;<span class="keyword">self</span>.airlock &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>其机制是：<code>yield_</code> 把值写入 <code>Rc&lt;Cell&lt;Next&gt;&gt;</code>、返回一个”挂起一次”的 <code>Barrier</code>；驱动方 <code>poll</code> 这个 async 块，执行到 <code>yield_</code> 即暂停、从 airlock 取出值——<strong>借无栈 async 的”暂停”能力，实现了生成器的”产出一个值”</strong>。这是”语言未提供 X，便以 Y 组合实现”的一种做法。</p>
+</blockquote>
+<p>惰性产出还有 <strong>itertools</strong>——迭代器的工具集合，纯 pull 式惰性求值，思想和生成器一致：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> itertools::Itertools;</span><br><span class="line"><span class="keyword">let</span> w: <span class="built_in">Vec</span>&lt;_&gt; = (<span class="number">1</span>..=<span class="number">5</span>).tuple_windows::&lt;(_, _)&gt;().collect();   <span class="comment">// [(1,2),(2,3),(3,4),(4,5)]</span></span><br><span class="line"><span class="keyword">for</span> chunk <span class="keyword">in</span> &amp;(<span class="number">0</span>..<span class="number">100</span>).chunks(<span class="number">10</span>) &#123; <span class="keyword">let</span> _s: <span class="built_in">i32</span> = chunk.sum(); &#125;  <span class="comment">// 惰性分组</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="8-3-Zig：没有内建生成器，用手工状态机-next"><a href="#8-3-Zig：没有内建生成器，用手工状态机-next" class="headerlink" title="8.3 Zig：没有内建生成器，用手工状态机 next()"></a>8.3 Zig：没有内建生成器，用手工状态机 next()</h3><p>Zig 没有 <code>yield</code> 语法，生成器就是一个带 <code>next()</code> 的 struct——状态全在字段里，每次 <code>next</code> 推进一步：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">const FibGen &#x3D; struct &#123;</span><br><span class="line">    a: u64 &#x3D; 0,</span><br><span class="line">    b: u64 &#x3D; 1,</span><br><span class="line">    pub fn next(self: *FibGen) u64 &#123;</span><br><span class="line">        const r &#x3D; self.a;</span><br><span class="line">        const nb &#x3D; self.a + self.b;</span><br><span class="line">        self.a &#x3D; self.b;</span><br><span class="line">        self.b &#x3D; nb;</span><br><span class="line">        return r;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line">var fib &#x3D; FibGen&#123;&#125;;</span><br><span class="line">for (0..10) |_| std.debug.print(&quot;&#123;d&#125; &quot;, .&#123;fib.next()&#125;);   &#x2F;&#x2F; 0 1 1 2 3 5 8 13 21 34</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>这其实就是 §6.3 无栈协程”状态机”的最朴素形态——Zig 把它留给你手写，而不给 <code>yield</code> 关键字。比起 Python 的 <code>yield</code>，Zig 更啰嗦但<strong>所见即所得</strong>（状态就是那几个字段，无编译器隐藏的处理）。</p>
+</blockquote>
+<h3 id="8-4-生成器-迭代器-协程的关系"><a href="#8-4-生成器-迭代器-协程的关系" class="headerlink" title="8.4 生成器 / 迭代器 / 协程的关系"></a>8.4 生成器 / 迭代器 / 协程的关系</h3><table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">方向</th>
+<th align="center">能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">迭代器 Iterator</td>
+<td align="center">拉（调用方 <code>next</code> 取）</td>
+<td align="center">只产出值</td>
+</tr>
+<tr>
+<td align="center">生成器 Generator</td>
+<td align="center">推（<code>yield</code> 主动产出）</td>
+<td align="center">产出值（受限协程）</td>
+</tr>
+<tr>
+<td align="center">协程 Coroutine</td>
+<td align="center">双向（<code>yield</code> 送出 + <code>resume</code> 送入）</td>
+<td align="center">产出 + 接收，可对称协作</td>
+</tr>
+</tbody></table>
+<p>Rust 的 <code>Iterator</code> trait 是 pull 式；生成器是”写迭代器的语法糖”（手写 <code>Iterator::next</code> 很烦，<code>yield</code> 让你像写循环一样写）；完整协程（§6 有栈那种）还能双向传值（corosensei 的 <code>suspend(x)</code> 返回 resume 时的输入）。三者一脉相承、能力递增。</p>
+<hr>
+<h2 id="9-实验：oscamp-对照验证-代码走读"><a href="#9-实验：oscamp-对照验证-代码走读" class="headerlink" title="9. 实验：oscamp 对照验证 + 代码走读"></a>9. 实验：oscamp 对照验证 + 代码走读</h2><p>前 8 节的概念，在 <code>oscamp-base-experiment</code> 仓里都有对应练习。三组练习正好把本篇内容落到三个实验：</p>
+<table>
+<thead>
+<tr>
+<th align="center">练习</th>
+<th align="center">对应本篇</th>
+<th align="center">验证什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><code>01_concurrency_sync</code></td>
+<td align="center">§3 / §4</td>
+<td align="center">线程 / <code>Arc&lt;Mutex&gt;</code> / mpsc / 进程管道</td>
+</tr>
+<tr>
+<td align="center"><code>04_context_switch</code></td>
+<td align="center">§6 有栈协程</td>
+<td align="center">真·RISC-V 上下文切换 + 绿色线程调度器</td>
+</tr>
+<tr>
+<td align="center"><code>05_async_programming</code></td>
+<td align="center">§6.3 / §7</td>
+<td align="center">手写 Future / poll / Waker + tokio</td>
+</tr>
+</tbody></table>
+<h3 id="9-1-上下文切换：真·RISC-V-naked-汇编（对应-§6-2）"><a href="#9-1-上下文切换：真·RISC-V-naked-汇编（对应-§6-2）" class="headerlink" title="9.1 上下文切换：真·RISC-V naked 汇编（对应 §6.2）"></a>9.1 上下文切换：真·RISC-V naked 汇编（对应 §6.2）</h3><p>§6.2 讲的有栈切换，这里是能跑的真版 <code>switch_context</code>（即 §6.2 那个 <code>context_switch</code>，riscv64 only）。<code>TaskContext</code> 用 <code>#[repr(C)]</code> 锁死布局，汇编偏移与字段严格对应：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C)]</span>                         <span class="comment">// sp@0  ra@8  s0..s11@16..104</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskContext</span></span> &#123; <span class="keyword">pub</span> sp: <span class="built_in">u64</span>, <span class="keyword">pub</span> ra: <span class="built_in">u64</span>, <span class="keyword">pub</span> s0: <span class="built_in">u64</span>, <span class="comment">/* … */</span> <span class="keyword">pub</span> s11: <span class="built_in">u64</span> &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> TaskContext &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">init</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, stack_top: <span class="built_in">usize</span>, entry: <span class="built_in">usize</span>) &#123;</span><br><span class="line">        <span class="keyword">self</span>.sp = (stack_top &amp; !<span class="number">0xF</span>) <span class="keyword">as</span> <span class="built_in">u64</span>;   <span class="comment">// 16 字节对齐（RISC-V ABI 要求）</span></span><br><span class="line">        <span class="keyword">self</span>.ra = entry <span class="keyword">as</span> <span class="built_in">u64</span>;                <span class="comment">// 首次 ret 就跳到 entry</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[unsafe(naked)]</span>                    <span class="comment">// naked：禁止编译器加 prologue / epilogue</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">switch_context</span></span>(old: &amp;<span class="keyword">mut</span> TaskContext, new: &amp;TaskContext) &#123;</span><br><span class="line">    std::arch::naked_asm!(</span><br><span class="line">        <span class="string">"sd sp, 0(a0)"</span>, <span class="string">"sd ra, 8(a0)"</span>, <span class="string">"sd s0, 16(a0)"</span>, <span class="comment">/* … s1..s11 … */</span> <span class="string">"sd s11, 104(a0)"</span>,</span><br><span class="line">        <span class="string">"ld sp, 0(a1)"</span>, <span class="string">"ld ra, 8(a1)"</span>, <span class="string">"ld s0, 16(a1)"</span>, <span class="comment">/* … s1..s11 … */</span> <span class="string">"ld s11, 104(a1)"</span>,</span><br><span class="line">        <span class="string">"mv a0, zero"</span>,  <span class="string">"mv a1, zero"</span>,   <span class="comment">// 清掉指针参数，不泄漏进新上下文</span></span><br><span class="line">        <span class="string">"ret"</span>,                           <span class="comment">// 跳到 new.ra</span></span><br><span class="line">    )</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>印证 §6.2 那句”有栈协程 = 用户态自己做的一次上下文切换”：换出 13 个 callee-saved（<code>sp</code>/<code>s0–s11</code>）外加作为恢复点的 <code>ra</code>（共 14 个）、<code>ret</code> 跳走，没有 <code>satp</code>、没有 <code>sfence.vma</code>。<code>init</code> 把 <code>ra</code> 设成入口——<strong>第一次切到这个任务时，那条 <code>ret</code> 直接跳进任务函数</strong>——这就是协程首次启动的关键。在它之上加一层 Ready/Running/Finished 状态 + 一个调度循环，就是 <code>02_green_threads</code> 的协作式绿色线程。</p>
+</blockquote>
+<h3 id="9-2-手写-Future：异步运行时的最小内核（对应-§6-3-§7-1）"><a href="#9-2-手写-Future：异步运行时的最小内核（对应-§6-3-§7-1）" class="headerlink" title="9.2 手写 Future：异步运行时的最小内核（对应 §6.3 / §7.1）"></a>9.2 手写 Future：异步运行时的最小内核（对应 §6.3 / §7.1）</h3><p>§7.1 说”Future 不自己跑，要运行时反复 poll + Waker 唤醒”。这个练习把它剥到最小——手写一个 <code>Future</code>：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::future::Future;</span><br><span class="line"><span class="keyword">use</span> std::pin::Pin;</span><br><span class="line"><span class="keyword">use</span> std::task::&#123;Context, Poll&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">CountDown</span></span> &#123; <span class="keyword">pub</span> count: <span class="built_in">u32</span> &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span> Future <span class="keyword">for</span> CountDown &#123;</span><br><span class="line">    <span class="class"><span class="keyword">type</span> <span class="title">Output</span></span> = &amp;<span class="symbol">'static</span> <span class="built_in">str</span>;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">mut</span> <span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;) -&gt; Poll&lt;Self::Output&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">self</span>.count == <span class="number">0</span> &#123;</span><br><span class="line">            Poll::Ready(<span class="string">"liftoff!"</span>)            <span class="comment">// 完成</span></span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">self</span>.count -= <span class="number">1</span>;</span><br><span class="line">            cx.waker().wake_by_ref();          <span class="comment">// 关键：告诉运行时"我还没好，请再 poll 我"</span></span><br><span class="line">            Poll::Pending                      <span class="comment">// 未完成</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>这就是 §6.3 状态机的实例：<code>count</code> 是状态，每次 <code>poll</code> 推进一步。<code>Poll::Pending</code> 对应有栈协程的 <code>yield</code>、<code>Poll::Ready</code> 对应 <code>return</code>。最关键的是 <code>cx.waker().wake_by_ref()</code>——<strong>没有它，运行时 poll 一次拿到 Pending 就将任务挂起、不再轮询</strong>；调用 wake 后，运行时才知道”该任务可再次 poll”。Waker 正是 §7.1 中”I/O 就绪时唤醒任务”的那一机制。最小的”挂起一次”版是 <code>YieldOnce</code>：首次 poll 置标志 + wake + Pending，二次 poll 直接 Ready。</p>
+</blockquote>
+<h3 id="9-3-原子-锁-channel-进程（对应-§3-§4）"><a href="#9-3-原子-锁-channel-进程（对应-§3-§4）" class="headerlink" title="9.3 原子 / 锁 / channel / 进程（对应 §3 / §4）"></a>9.3 原子 / 锁 / channel / 进程（对应 §3 / §4）</h3><p><code>01_concurrency_sync</code> 把 §3 / §4 的同步原语全跑一遍：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Arc&lt;Mutex&gt; + thread::scope（作用域线程，借栈数据无需 move）</span></span><br><span class="line"><span class="keyword">let</span> res = Arc::new(Mutex::new(<span class="number">0</span>));</span><br><span class="line">thread::scope(|s| &#123;</span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="number">0</span>..n &#123;</span><br><span class="line">        <span class="keyword">let</span> r = Arc::clone(&amp;res);</span><br><span class="line">        s.spawn(<span class="keyword">move</span> || &#123; *r.lock().unwrap() += step; &#125;);   <span class="comment">// 锁守卫，离开块自动解锁</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;);                                                          <span class="comment">// scope 结束 = 所有线程 join</span></span><br></pre></td></tr></table></figure>
+
+<p>进程那一题揭示了”用户态 API = 底层 syscall”：<code>Command::new</code> 内部就是 <code>fork()+execve()</code>、<code>Stdio::piped()</code> = <code>pipe()+dup2()</code>、<code>drop(stdin)</code> = <code>close()</code> 写端给子进程发 EOF——<strong>高层 API 都是对 syscall 的包装</strong>。</p>
+<h3 id="9-4-思考题（附参考答案）"><a href="#9-4-思考题（附参考答案）" class="headerlink" title="9.4 思考题（附参考答案）"></a>9.4 思考题（附参考答案）</h3><p><strong>Q1. 有栈协程的 <code>switch_context</code> 只换出 14 个寄存器，为什么不用存 <code>a0</code>–<code>a7</code>、<code>t0</code>–<code>t6</code>？</strong></p>
+<blockquote>
+<p>因为 <code>switch_context</code> 是个<strong>普通函数调用</strong>：按 RISC-V ABI，caller-saved 寄存器（<code>a*</code>/<code>t*</code>）的保存责任在<strong>调用方</strong>——调用前编译器已把还需用的 caller-saved 值压栈。切换只需随上下文换出 <strong>callee-saved（<code>sp</code> 与 <code>s0–s11</code>，共 13 个）</strong>，再加上 <strong><code>ra</code></strong>——注意 <code>ra</code> 按 ABI 其实是 caller-saved，这里单独换出是因为它充当协程的<strong>恢复地址</strong>（首次 <code>ret</code> 即跳入入口），与”是否 callee-saved”无关。其余 caller-saved 寄存器交给正常的函数调用约定。这也是有栈切换轻的原因之一。</p>
+</blockquote>
+<p><strong>Q2. <code>CountDown</code> 每次 poll 都调 <code>wake_by_ref()</code>；删掉这行会怎样？</strong></p>
+<blockquote>
+<p>任务<strong>永远卡住</strong>。运行时逻辑是”poll 拿到 Pending → 挂起，等 Waker 通知再 poll”。不调 wake，就没人通知”可以再 poll 了”，任务再也不被推进。真实场景里 wake 由 I/O 就绪 / 定时器到点触发；这个练习里 count 没到 0 就自我 wake，相当于”立刻安排下一次 poll”（忙轮询）。</p>
+</blockquote>
+<p><strong>Q3. 同一段无锁 SPSC 队列（§4.4），x86 上用 <code>Relaxed</code> 跑对了，搬到 RISC-V 就出错——为什么？</strong></p>
+<blockquote>
+<p>x86 是 TSO 强模型，几乎不重排（只允许 store-load），<code>Relaxed</code> 碰巧不暴露问题；RISC-V 是 RVWMO 弱模型，读写可大幅重排，head/tail 与 buf 之间若不用 acquire/release 配对，消费者可能”看到 tail 更新了、但 buf 数据还没写进来”。<strong>正确性要靠内存序、而非依赖运气</strong>——§3.4 的 acquire/release 配对、§3.5 的弱内存模型，讲的都是这个道理。</p>
+</blockquote>
+<p><strong>Q4. Zig 0.17 的 <code>std.Io.Mutex.lock(io)</code> 要传 <code>io</code>，Rust 的 <code>Mutex::lock()</code> 不用——本质差异是什么？</strong></p>
+<blockquote>
+<p>本质是两种并发哲学（§5 染色）。Rust 的锁阻塞的是 <strong>OS 线程</strong>（陷入内核 futex 睡眠），锁本身不关心运行时。Zig 0.17 把”等锁”接进了 <code>io</code>：传哪种 <code>io</code>，就决定等锁时是自旋、是 futex 挂起线程、还是<strong>让出当前异步任务</strong>——锁与调度器解耦、由调用方注入。代价是 <code>io</code> 一路传下去（参数传染），好处是同一把锁能适配线程 / 协程 / 异步多种后端。</p>
+</blockquote>
+<hr>
+<h2 id="10-其他相关补充：把异步推进到内核与硬件"><a href="#10-其他相关补充：把异步推进到内核与硬件" class="headerlink" title="10. 其他相关补充：把异步推进到内核与硬件"></a>10. 其他相关补充：把异步推进到内核与硬件</h2><p>前面的异步都在<strong>用户态</strong>（协程、运行时、生成器）。本地资源里还有一批，把”异步”这套思路推进到<strong>内核结构</strong>乃至<strong>硬件中断</strong>——这是异步的前沿，也是本篇标题里”其他相关补充”所指。</p>
+<h3 id="10-1-异步内核：把-future-协程搬进内核"><a href="#10-1-异步内核：把-future-协程搬进内核" class="headerlink" title="10.1 异步内核：把 future / 协程搬进内核"></a>10.1 异步内核：把 future / 协程搬进内核</h3><p>长期以来，Linux 等主流内核仍是同步线程模型，异步只存在于用户态。近年的研究尝试把 future / 协程作为<strong>内核自身的执行单位</strong>，按”异步如何进入内核”可分四派：</p>
+<table>
+<thead>
+<tr>
+<th align="center">流派</th>
+<th align="center">代表</th>
+<th align="center">异步如何进入内核</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">异步 I/O 接口</td>
+<td align="center">Linux io_uring</td>
+<td align="center">用户态 ring buffer + 内核 worker；内核本体仍是同步线程</td>
+</tr>
+<tr>
+<td align="center">async fn syscall</td>
+<td align="center">NoAxiomOS</td>
+<td align="center">syscall handler 写成 <code>async fn</code>，编译期生成 future</td>
+</tr>
+<tr>
+<td align="center">共享调度器外置</td>
+<td align="center">TornadoOS</td>
+<td align="center">调度器单独编译成裸机库、固定物理地址、跨地址空间共享 raw table</td>
+</tr>
+<tr>
+<td align="center">运行时可选</td>
+<td align="center">arceos</td>
+<td align="center">runtime 是编译期 feature，由上层决定是否启用异步</td>
+</tr>
+</tbody></table>
+<p>以 TornadoOS 为例：它把调度器编译成独立的 <code>shared-scheduler.bin</code>、加载到固定物理地址，通过一张 <code>SHARED_RAW_TABLE</code>（若干函数指针 + 调度器静态变量地址）让内核态与用户态<strong>共享同一个协程调度器</strong>——future 在内核或用户态注册后，跨地址空间统一调度。这是把 §6 / §7 的”无栈 Future + 执行器”模型从用户态上移到内核的一次尝试。</p>
+<h3 id="10-2-用户态中断：让异步通知绕过内核"><a href="#10-2-用户态中断：让异步通知绕过内核" class="headerlink" title="10.2 用户态中断：让异步通知绕过内核"></a>10.2 用户态中断：让异步通知绕过内核</h3><p>异步的另一半是”完成时如何通知”。传统通知（信号 / epoll 唤醒）都要陷入内核。<strong>用户态中断</strong>（RISC-V N 扩展 / Intel uintr）允许一个用户态任务<strong>直接向另一个用户态任务发中断</strong>，全程不经内核——uintr（ISA 扩展）、TAIC（任务感知中断控制器硬件）即此方向；rCore-N 则把调度器做成 vDSO（用户态共享代码），配合用户态中断实现异步调度。</p>
+<p>典型应用是异步 IPC：client 向 server 申请服务，内核开辟一块 IPC buffer 供双方共享；<strong>同步</strong>时 client 轮询等待结果，<strong>异步</strong>时 client 注册一个用户态中断回调，server 处理完毕后直接发用户态中断通知——<code>async read / write</code> 由此实现，零拷贝、无内核介入。这把 §7 的”I/O 就绪 → Waker 唤醒任务”链路，从”内核唤醒”压缩到了”硬件用户态中断直达”。</p>
+<h3 id="10-3-给-async-加抢占：embassy-preempt"><a href="#10-3-给-async-加抢占：embassy-preempt" class="headerlink" title="10.3 给 async 加抢占：embassy_preempt"></a>10.3 给 async 加抢占：embassy_preempt</h3><p>§1.3 区分过协作式与抢占式，也指出绝大多数协程是协作式（任务不让出即卡死调度器）。embassy_preempt 在 embassy（§7.5 的裸机 async 运行时）之上引入 uC/OS-II 式抢占，让 async 任务也能被时钟中断抢占——在 async 的省内存与抢占式的实时性之间取得折中。</p>
+<hr>
+<blockquote>
+<p><strong>回望全篇</strong>：从”四组概念 + 执行流载体”起步，向下抵达”原子 + 内存模型 + 同步原语”的硬件地基，向上延伸到”协程（有栈 / 无栈）+ 染色 + 运行时 + 生成器”的异步上层，最后以 oscamp 练习对照。一条主线贯穿始终：<strong>并发的种种机制，要么在解决”如何高效切换执行流”（协程谱系），要么在解决”如何安全共享内存”（原子谱系）</strong>——Rust 以类型系统将安全约束固化在编译期，Zig 以显式与 io 注入将控制权交还给开发者，各有取舍。</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/author-heke1228/" rel="tag"># author:heke1228</a>
+              <a href="/blog/tags/repo-https-cnb-cool-heke-learning-oscamp-base-experiment/" rel="tag"># repo:https://cnb.cool/heke_learning/oscamp-base-experiment</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/05/01/Leo%20Cheng%EF%BC%9ARust%20vs.%20Zig%20%E5%A4%9A%E6%96%B9%E9%9D%A2%E4%BB%8B%E7%BB%8D%E4%B8%8E%E5%AF%B9%E6%AF%94/" rel="prev" title="Leo Cheng: Rust & Zig 多方面介绍与对比">
+      <i class="fa fa-chevron-left"></i> Leo Cheng: Rust & Zig 多方面介绍与对比
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/05/03/Leo%20Cheng%EF%BC%9ABIOS%20SPL%20SBI%20BOOTLOADER%20-%20%E7%A9%BF%E8%B6%8A%E7%B3%BB%E7%BB%9F%E4%B9%8B%E5%89%8D/" rel="next" title="Leo Cheng: BIOS SPL SBI BOOTLOADERS - 穿越系统之前">
+      Leo Cheng: BIOS SPL SBI BOOTLOADERS - 穿越系统之前 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
