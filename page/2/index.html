@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">785</span>
+          <span class="site-state-item-count">786</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">745</span>
+        <span class="site-state-item-count">750</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,141 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/20/20260621-jk-embassy-preempt%E7%A7%BB%E6%A4%8D%E4%B8%8EFFIFuture%E5%AE%9E%E7%8E%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/20/20260621-jk-embassy-preempt%E7%A7%BB%E6%A4%8D%E4%B8%8EFFIFuture%E5%AE%9E%E7%8E%B0/" class="post-title-link" itemprop="url">20260621-jk-embassy_preempt移植与FFIFuture实现</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-20 23:44:45" itemprop="dateCreated datePublished" datetime="2026-06-20T23:44:45+00:00">2026-06-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>我参加的 “基于协程异步机制的操作系统/驱动” 项目分为 3 个阶段, 在一阶段, 我主要阅读了 tokio-tutorial, 了解了 Rust 中的异步编程常见结构和异步执行方式, 产出了一个爬虫程序, 该爬虫主要对 进程, 线程, 协程 三种实现的并发程序进行相互比较, 进一步让我理解了协程的作用以及和进程/线程的区别。</p>
+<p>在第二阶段, 我主要阅读了 embassy 的源码和文档, embassy 有点类似于 tokio, 区别是 embassy 是一个运行在嵌入式裸机上的异步运行时, 而 tokio 则大量使用了标准库(即操作系统)提供的一些方法。我的产出是对 mini-tokio - 一个 tokio-tutorial 里教学用的最小化异步运行时进行了优先级支持, 即每个任务拥有各自的优先级, 优先级高的任务在调度时会被优先执行。</p>
+<p>来到了第三阶段, 我主要阅读了 embassy_preempt 的源码, 了解其执行流。 embassy_preempt 实现了协程之间的抢占, 即在定时器发出中断后保存其上下文并切换任务, 由于抢占这件事在现实中发生的次数一般较少, 我们认为这样操作带来的性能损失是可以接受的; 同时, 这也在某种程度上实现了进程和协程的统一: 协程在被抢占时退化为线程, 在再次执行并让权时自然的恢复为协程。我主要的贡献为将 embassy_preempt 从 stm32f401re 移植到 stm32f103c8 开发板上, 并为 embassy_preempt 实现了 Future 的 FFI 化, 即我们可以在手动构造一个 Future 并通过 FFI 传给 embassy_preempt 执行, 给异步任务的构造提供了新的选择。</p>
+<hr>
+<p>在从 stm32f401re 到 stm32f103c8 的移植过程中, 我主要做了以下改动:</p>
+<p>F103C8 仅有 20KB SRAM 和 64KB Flash,而 F401RE 拥有 96KB SRAM 和 512KB Flash。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">MEMORY</span><br><span class="line">&#123;</span><br><span class="line">RAM (xrw)      : ORIGIN &#x3D; 0x20000000, LENGTH &#x3D; 20K</span><br><span class="line">FLASH (rx)      : ORIGIN &#x3D; 0x8000000, LENGTH &#x3D; 64K</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>OS_ARENA_SIZE</code> 定义任务控制块分配器的容量。F401 设置为 10240 字节,可容纳约 80 个任务;F103 的 20KB 总 RAM 使其必须缩小至 4096 字节(约 30 个任务)。<code>APB_HZ</code> 是定时器的输入时钟频率。STM32F103 的最高系统时钟为 72MHz(F401 为 84MHz),该值直接用于计算 TIM3 的预分频器: <code>psc = APB_HZ / TICK_HZ - 1</code>。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> OS_ARENA_SIZE: USIZE = <span class="number">10240</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> OS_ARENA_SIZE: USIZE = <span class="number">4096</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> APB_HZ: INT64U = <span class="number">84000000</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> APB_HZ: INT64U = <span class="number">72000000</span>;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> STACK_START: *<span class="keyword">mut</span> <span class="built_in">u8</span> = <span class="number">0x20001400</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> STACK_SIZE: <span class="built_in">usize</span> = <span class="number">6</span> * <span class="number">1024</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PROGRAM_STACK_SIZE: <span class="built_in">usize</span> = <span class="number">1024</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> INTERRUPT_STACK_SIZE: <span class="built_in">usize</span> = <span class="number">1024</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> HEAP_START: *<span class="keyword">mut</span> <span class="built_in">u8</span> = <span class="number">0x20002C00</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> HEAP_SIZE: <span class="built_in">usize</span> = <span class="number">2</span> * <span class="number">1024</span>;</span><br></pre></td></tr></table></figure>
+
+<p>一开始我编译运行后 BSS 段实际占用 0x20000038-0x200011EC(约 4.5KB), 而 STACK_START 设于 0x20001000,正处于 BSS 范围内。<code>init_stack_allocator()</code> 初始化时通过 <code>FixedSizeBlockAllocator</code> 在 0x20001000 处建立链表元数据, 随后 <code>__aeabi_memclr8</code> 运行 BSS 清零,将已分配的元数据结构覆盖为全零, 导致后续 <code>alloc_stack()</code> 返回空指针或访问损坏的链表, 触发 BusFault → HardFault。移至 0x20001400 后解决。</p>
+<p><code>STACK_SIZE</code> 影响系统可支持的最大并发抢占数, PROGRAM_STACK(1KB) + INTERRUPT_STACK(1KB) 固定消耗 2KB, 剩余 (STACK_SIZE - 2KB) / TASK_STACK_SIZE 为最大同时被抢占的任务数。以 6KB 栈池和 1KB 每任务计算,可支持 4 个任务同时处于被抢占状态。preempt_test 需要 3 个抢占栈,最初的 4KB 设置仅余 2KB(2 个栈), 在分配第 3 个时栈池返回空指针导致 panic, 需扩容至 6KB。</p>
+<p>HEAP_START 和 HEAP_SIZE 需紧随 STACK 末尾,避免中间产生间隙浪费 SRAM。2KB 足以满足 <code>lazy_static</code> 和 arena 之外的零星 <code>alloc</code> 需求。</p>
+<p>F103 与 F401 的 RCC 外设属于完全不同的两代设计, F401 将 PLL 配置置于独立寄存器 <code>RCC.pllcfgr()</code>,包含 PLLM/PLLN/PLLP/PLLQ 四个分频系数,源自 F4 系列为 USB/SDIO/I2S 等多种外设提供独立时钟的需求。F103 的 PLL 参数直接集成在 <code>RCC.cfgr()</code> 中,仅有一个倍频系数 <code>PLLMUL</code>, 因为 F1 系列只需为 CPU 和简单外设提供时钟。此外 F401 拥有 PLLI2S 和 PLLSAI 且需在启动时显式禁用, F103 则完全没有这些外设。Flash 等待周期也不同: F401 使用 <code>set_prften()</code> 使能预取缓冲, F103 对应方法名为 <code>set_prftbe()</code>。</p>
+<p>TIM3 定时器在两种芯片上使用了相同的 <code>timer_v1.rs</code> PAC 模块和 <code>TIM_GP16</code> 类型,因此 <code>enable_Timer()</code> 及所有定时器操作代码无需修改。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">rcc_init</span></span>() &#123;</span><br><span class="line">    <span class="keyword">use</span> stm32_metapac::rcc::vals::&#123;Pllmul, Pllsrc, Pllxtpre&#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 启用 HSE (8MHz 外部晶振)</span></span><br><span class="line">    RCC.cr().modify(|v| &#123; v.set_hseon(<span class="literal">true</span>); &#125;);</span><br><span class="line">    <span class="keyword">while</span> !RCC.cr().read().hserdy() &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 配置 PLL, 源=HSE, 倍频=9 -&gt; 72MHz</span></span><br><span class="line">    RCC.cfgr().modify(|v| &#123;</span><br><span class="line">        v.set_pllsrc(Pllsrc::HSE_DIV_PREDIV);</span><br><span class="line">        v.set_pllxtpre(Pllxtpre::DIV1);</span><br><span class="line">        v.set_pllmul(Pllmul::MUL9);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 设置 Flash 等待周期, 72MHz 需要 2 个等待周期</span></span><br><span class="line">    FLASH.acr().modify(|v| &#123;</span><br><span class="line">        v.set_latency(Latency::WS2);</span><br><span class="line">        v.set_prftbe(<span class="literal">true</span>);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 启用 PLL</span></span><br><span class="line">    RCC.cr().modify(|v| &#123; v.set_pllon(<span class="literal">true</span>); &#125;);</span><br><span class="line">    <span class="keyword">while</span> !RCC.cr().read().pllrdy() &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 配置总线分频, AHB=72MHz, APB1=36MHz, APB2=72MHz</span></span><br><span class="line">    RCC.cfgr().modify(|v| &#123;</span><br><span class="line">        v.set_hpre(Hpre::DIV1);</span><br><span class="line">        v.set_ppre1(Ppre::DIV2);</span><br><span class="line">        v.set_ppre2(Ppre::DIV1);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 切换系统时钟到 PLL</span></span><br><span class="line">    RCC.cfgr().modify(|v| v.set_sw(Sw::PLL1_P));</span><br><span class="line">    <span class="keyword">while</span> RCC.cfgr().read().sws() != Sw::PLL1_P &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>F401 和 F103 的 GPIO 是两代完全不同的外设设计。F401 使用 4 个独立寄存器分别配置每个引脚的模式 MODER、输出类型 OTYPER、速度 OSPEEDR和上下拉 PUPDR, 每个寄存器为 16 个引脚各分配 2 位。F103 将所有配置压缩在 CRL/CRH 两个寄存器中: 每个引脚占 4 位, 低 2 位为 MODE(输入/2MHz/10MHz/50MHz), 高 2 位为 CNF(推挽/开漏/复用功能)。CRL 管理引脚 0-7, CRH 管理引脚 8-15。</p>
+<p>此外, 时钟总线也不同: F401 的 GPIO 挂在 AHB1 总线上(<code>RCC.ahb1enr()</code>), F103 的 GPIO 挂在 APB2 上(<code>RCC.apb2enr()</code>)。</p>
+<p>F103 实现使用 <code>core::ptr::write_volatile</code> 直接操作硬件地址而非 PAC 抽象, 原因之一是调试 LED 问题时需要绕过 PAC 逐层验证寄存器写入是否生效, 二是在两个芯片的 PAC 类型系统不兼容的情况下, 直接内存访问反而更清晰。</p>
+<p>LED 极性也值得注意: Blue Pill 板载 LED 连接 PC13 且为低电平有效(输出 LOW=灯亮,HIGH=灯灭)。Embassy 官方 blinky 示例使用 <code>Output::new(p.PC13, Level::High, Speed::Low)</code> 将初始电平设为 HIGH(灯灭),与我们的 <code>LED_OFF()</code> 逻辑一致。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// F401</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">LED_Init</span></span>() &#123;</span><br><span class="line">    RCC.ahb1enr().modify(|v| v.set_gpioaen(<span class="literal">true</span>));      <span class="comment">// AHB1 总线</span></span><br><span class="line">    GPIOA.moder().modify(|v| v.set_moder(<span class="number">5</span>, vals::Moder::OUTPUT));</span><br><span class="line">    GPIOA.otyper().modify(|v| v.set_ot(<span class="number">5</span>, vals::Ot::PUSHPULL));</span><br><span class="line">    GPIOA.ospeedr().modify(|v| v.set_ospeedr(<span class="number">5</span>, vals::Ospeedr::HIGHSPEED));</span><br><span class="line">    GPIOA.pupdr().modify(|v| v.set_pupdr(<span class="number">5</span>, vals::Pupdr::FLOATING));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// F103</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">LED_Init</span></span>() &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="comment">// GPIO 时钟在 APB2 上(F401 在 AHB1)</span></span><br><span class="line">        <span class="keyword">let</span> r = core::ptr::read_volatile(<span class="number">0x40021018</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>);</span><br><span class="line">        core::ptr::write_volatile(<span class="number">0x40021018</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u32</span>, r | (<span class="number">1</span> &lt;&lt; <span class="number">4</span>));</span><br><span class="line">        asm!(<span class="string">"dsb"</span>); asm!(<span class="string">"isb"</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// F103 使用 CRH 寄存器,每 4 位编码一个引脚的全部属性</span></span><br><span class="line">        <span class="keyword">let</span> crh = core::ptr::read_volatile(<span class="number">0x40011004</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>);</span><br><span class="line">        core::ptr::write_volatile(<span class="number">0x40011004</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u32</span>,</span><br><span class="line">            (crh &amp; !(<span class="number">0xF</span> &lt;&lt; <span class="number">20</span>)) | (<span class="number">0x2</span> &lt;&lt; <span class="number">20</span>));</span><br><span class="line">        <span class="comment">// bits[23:20] = 0b0010 → CNF=00(推挽), MODE=10(2MHz)</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>bottom_driver</code> 模块是一个按键中断驱动,用于测试外部中断触发的任务抢占。它操作 F401 的 <code>SYSCFG</code> 外设来选择 EXTI 线的映射引脚。F103 没有 SYSCFG 外设,替代方案是 <code>AFIO</code>(Alternate Function I/O), 但两者寄存器布局、字段名称、使能位全部不同。该驱动不是 RTOS 核心调度功能的前提——任务的创建、定时器、优先级调度、PendSV 上下文切换均不依赖它, 因此直接对 F103 禁用。测试中使用 <code>bottom_driver</code> 的 bin(如 <code>bottom_test</code>, <code>time_performance</code> 等)在 F103 上无法编译, 这是预期行为。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// port/mod.rs</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">mod</span> bottom_driver;   <span class="comment">// F401-only,使用 SYSCFG 外设</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// os_core.rs</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">use</span> bottom_driver::BOT_DRIVER;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line">BOT_DRIVER.init();</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>而对于第二个任务, 一个 <code>dyn Trait</code> 显然无法通过 FFI 传递, 需要做以下修改: </p>
+<p><code>FfiWaker</code> 用 C 函数指针作为 <code>vtable</code>,把 Rust 的 <code>Waker</code> 包装成 C 可以克隆/唤醒/销毁的指针。<code>FfiContext</code> 把这个指针重新包装回 <code>Rust</code> 的 <code>Context</code>,让 C 侧能通过它唤醒任务。</p>
+<p>标准库的 <code>Poll</code> 没有 #[repr(C)],不能跨 FFI 边界传递。所以我们需要另一个 <code>Poll</code></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C, u8)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">enum</span> <span class="title">FfiPoll</span></span>&lt;T&gt; &#123;</span><br><span class="line">    Ready(T),</span><br><span class="line">    Pending,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>C 侧的对应类型</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">uint8_t</span> _tag;      <span class="comment">// 0=Ready, 1=Pending</span></span><br><span class="line">    <span class="keyword">uint8_t</span> _pad[<span class="number">3</span>];   <span class="comment">// 对齐到 4 字节</span></span><br><span class="line">    <span class="keyword">uint32_t</span> value;    <span class="comment">// 仅 Ready 时有效</span></span><br><span class="line">&#125; FfiPoll_u32;</span><br></pre></td></tr></table></figure>
+
+<p>内存布局</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Ready(42):   00 00 00 00  2a 00 00 00</span><br><span class="line">             ^tag&#x3D;0       ^value&#x3D;42</span><br><span class="line">             </span><br><span class="line">Pending:     01 00 00 00  00 00 00 00</span><br><span class="line">             ^tag&#x3D;1       ^未使用</span><br></pre></td></tr></table></figure>
+
+<p>同时, 我们将 <code>Waker</code> 视为一个不透明的结构体提供给 C, 我在 Task2 里面描述过 <code>Waker</code> 的内部结构(<a href="https://gitlab.eduxiji.net/T2026106149910763/project3136859-388282/-/blob/task2/docs/waker.md" target="_blank" rel="noopener">https://gitlab.eduxiji.net/T2026106149910763/project3136859-388282/-/blob/task2/docs/waker.md</a>), 这里不再赘述。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">FfiWakerBase</span></span> &#123;</span><br><span class="line">    vtable: *<span class="keyword">const</span> FfiWakerVTable,  <span class="comment">// 指向函数指针表</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">FfiWaker</span></span> &#123;</span><br><span class="line">    base: FfiWakerBase,</span><br><span class="line">    waker: ManuallyDrop&lt;Waker&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">FfiWakerVTable</span></span> &#123;</span><br><span class="line">    clone:       <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase) -&gt; *<span class="keyword">const</span> FfiWakerBase,</span><br><span class="line">    wake:        <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase),</span><br><span class="line">    wake_by_ref: <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase),</span><br><span class="line">    <span class="built_in">drop</span>:        <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase),</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> REF_VTABLE: FfiWakerVTable = &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">clone</span></span>(data) -&gt; *<span class="keyword">const</span> FfiWakerBase &#123;</span><br><span class="line">        <span class="comment">// C 调 clone → 分配新的 FfiWaker (Owned)</span></span><br><span class="line">        <span class="keyword">let</span> cloned = Waker::clone(&amp;(*w).waker);  <span class="comment">// 从原始 Waker clone</span></span><br><span class="line">        <span class="built_in">Box</span>::into_raw(<span class="built_in">Box</span>::new(FfiWaker &#123;</span><br><span class="line">            base: FfiWakerBase &#123; vtable: &amp;OWNED_VTABLE &#125;,  <span class="comment">// 新的 vtable!</span></span><br><span class="line">            waker: ManuallyDrop::new(cloned),</span><br><span class="line">        &#125;))</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">wake</span></span>(data) &#123; <span class="built_in">unreachable!</span>(); &#125;</span><br><span class="line">    <span class="comment">//     ↑ wake 不应该被调用——FfiWaker 是借来的,</span></span><br><span class="line">    <span class="comment">//       不拥有 Waker, 不能消费它</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">wake_by_ref</span></span>(data) &#123;</span><br><span class="line">        w.waker.wake_by_ref();  <span class="comment">// 委托给 Rust Waker</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">drop</span></span>(data) &#123; <span class="built_in">unreachable!</span>(); &#125;</span><br><span class="line">    <span class="comment">//     ↑ drop 也不允许——借来的不能释放</span></span><br><span class="line"></span><br><span class="line">    FfiWakerVTable &#123; clone, wake: unreachable, wake_by_ref, <span class="built_in">drop</span>: unreachable &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>C 端不能 <code>wake()</code> 或 <code>drop()</code>。这两个操作会消费所有权,但 <code>borrowed waker</code> 没有所有权。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> OWNED_VTABLE: FfiWakerVTable = &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">clone</span></span>(data) -&gt; *<span class="keyword">const</span> FfiWakerBase &#123;</span><br><span class="line">        <span class="keyword">let</span> cloned = Waker::clone(&amp;(*w).waker);</span><br><span class="line">        <span class="built_in">Box</span>::into_raw(<span class="built_in">Box</span>::new(FfiWaker &#123; <span class="comment">/* ... */</span> &#125;))</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">wake</span></span>(data) &#123;</span><br><span class="line">        <span class="keyword">let</span> b = <span class="built_in">Box</span>::from_raw(data <span class="keyword">as</span> *<span class="keyword">mut</span> FfiWaker);</span><br><span class="line">        ManuallyDrop::into_inner(b.waker).wake();  <span class="comment">// 消费 Waker</span></span><br><span class="line">        <span class="comment">// b 被 drop, FfiWaker 内存释放</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">drop</span></span>(data) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> b = <span class="built_in">Box</span>::from_raw(data <span class="keyword">as</span> *<span class="keyword">mut</span> FfiWaker);</span><br><span class="line">        ManuallyDrop::<span class="built_in">drop</span>(&amp;<span class="keyword">mut</span> b.waker);  <span class="comment">// 安静释放, 不唤醒</span></span><br><span class="line">        <span class="comment">// b 被 drop, FfiWaker 内存释放</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    FfiWakerVTable &#123; clone, wake, wake_by_ref, <span class="built_in">drop</span> &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>C 端通过 <code>clone()</code> 得到的 <code>waker</code> 是完全拥有的, 可以 <code>wake()</code>、<code>drop()</code>、或 <code>clone()</code>。</p>
+<p><code>Waker</code> 的上层 <code>Context</code> 同样需要处理。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">FfiContext</span></span>&lt;<span class="symbol">'a</span>&gt; &#123;</span><br><span class="line">    task: OS_TCB_REF,               <span class="comment">// TCB 指针，用于 ffi_task_delay</span></span><br><span class="line">    waker: *<span class="keyword">const</span> FfiWakerBase,     <span class="comment">// waker 引用，用于 ffi_wake_by_ref</span></span><br><span class="line">    _marker: PhantomData&lt;&amp;<span class="symbol">'a</span> FfiWakerBase&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>C 的 <code>poll</code> 函数接收 <code>*mut FfiContext</code>,通过 <code>with_context()</code> 方法获取标准 <code>&amp;mut Context</code></p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">with_context</span></span>&lt;T&gt;(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, f: <span class="keyword">impl</span> <span class="built_in">FnOnce</span>(&amp;<span class="keyword">mut</span> Context) -&gt; T) -&gt; T &#123;</span><br><span class="line">    <span class="comment">// RUST_VTABLE: 把 FfiWaker 包装成 RawWaker</span></span><br><span class="line">    <span class="keyword">static</span> RUST_VTABLE: RawWakerVTable = &#123;</span><br><span class="line">        <span class="comment">// clone → 调用 C vtable 的 clone</span></span><br><span class="line">        <span class="comment">// wake  → 调用 C vtable 的 wake</span></span><br><span class="line">        <span class="comment">// wake_by_ref → 调用 C vtable 的 wake_by_ref</span></span><br><span class="line">        <span class="comment">// drop → 调用 C vtable 的 drop</span></span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> raw = RawWaker::new(<span class="keyword">self</span>.waker.cast(), &amp;RUST_VTABLE);</span><br><span class="line">    <span class="keyword">let</span> waker = <span class="keyword">unsafe</span> &#123; Waker::from_raw(raw) &#125;;</span><br><span class="line">    <span class="keyword">let</span> waker = ManuallyDrop::new(waker);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> cx = Context::from_waker(&amp;waker);</span><br><span class="line">    f(&amp;<span class="keyword">mut</span> cx)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>Future</code> 同理</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">FfiFuture</span></span>&lt;T&gt; &#123;</span><br><span class="line">    <span class="keyword">pub</span> fut_ptr: *<span class="keyword">mut</span> (),</span><br><span class="line">    <span class="keyword">pub</span> poll_fn: <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">mut</span> (), *<span class="keyword">mut</span> FfiContext) -&gt; FfiPoll&lt;T&gt;,</span><br><span class="line">    <span class="keyword">pub</span> drop_fn: <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">mut</span> ()),</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;T&gt; Future <span class="keyword">for</span> FfiFuture&lt;T&gt; &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;) -&gt; Poll&lt;T&gt; &#123;</span><br><span class="line">        <span class="keyword">let</span> task_ref = executor::task_from_waker(cx.waker());  <span class="comment">// 获取 TCB</span></span><br><span class="line">        <span class="keyword">let</span> rust_waker = cx.waker().clone();</span><br><span class="line">        <span class="keyword">let</span> ffi_waker = ManuallyDrop::new(FfiWaker &#123;           <span class="comment">// 包装 waker</span></span><br><span class="line">            base: FfiWakerBase &#123; vtable: &amp;REF_VTABLE &#125;,</span><br><span class="line">            waker: ManuallyDrop::new(rust_waker),</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> ffi_ctx = FfiContext::new(task_ref, &amp;*ffi_waker);</span><br><span class="line">        <span class="keyword">let</span> ret = (<span class="keyword">self</span>.poll_fn)(<span class="keyword">self</span>.fut_ptr, &amp;<span class="keyword">mut</span> ffi_ctx);  <span class="comment">// 调用 C</span></span><br><span class="line">        Poll::from(ret)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>与 <code>async-ffi</code> 的主要区别是, <code>async-ffi</code> 基于 <code>std</code> 环境, 做了一些额外的包装, 包括捕获 <code>unwind panic</code> 等问题。我在嵌入式领域做了相应的改造, 去除了一些不必要的功能, 同时可以与 <code>no-std</code> 环境适配。</p>
+<hr>
+<p>训练营到这里就结束了, 我接下来的想法是继续沿着 “同步与异步统一” 这个问题继续走下去, 先前的 FFIFuture 也是我在这个问题上的初步尝试, 最终形成成果。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/18/20260618-xianxw-SD%E9%A9%B1%E5%8A%A8%E5%BC%82%E6%AD%A5%E5%8C%96/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +399,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
 
           
@@ -608,7 +743,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1047,7 +1182,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1184,7 +1319,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1398,7 +1533,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1684,7 +1819,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3764,7 +3899,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3931,7 +4066,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4899,7 +5034,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -5030,123 +5165,6 @@
 <li><a href="https://github.com/PassingThroughStarDust/simple-sdmmc-extended" target="_blank" rel="noopener">优化后的 simple-sdmmc 代码仓库</a></li>
 <li><a href="https://github.com/PassingThroughStarDust/sdmmc-tests" target="_blank" rel="noopener">测试集框架代码仓库</a></li>
 </ol>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/29/2026%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/04/29/2026%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93/" class="post-title-link" itemprop="url">2026春夏季开源操作系统训练营总结</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-04-29 00:24:04" itemprop="dateCreated datePublished" datetime="2026-04-29T00:24:04+00:00">2026-04-29</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/summary/" itemprop="url" rel="index"><span itemprop="name">summary</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="操作系统训练营复盘"><a href="#操作系统训练营复盘" class="headerlink" title="操作系统训练营复盘"></a>操作系统训练营复盘</h1><h2 id="序言"><a href="#序言" class="headerlink" title="序言"></a>序言</h2><p>我参加过不止一次操作系统训练营，但只有这次真正进入了专业阶段。回头看，这段学习给我最大的提升不是“又多懂了一些概念”，而是理解方式变了：操作系统不再是各种模块的拼装，而更像是对 CPU、内存、设备等物理资源的重新组织与分配——向上管理应用，向下管理资源。</p>
-<p>这次训练营的跨度也很大：从 OS 理论与 Rust 基础，到搭建纯粹的 <code>no_std</code> 环境；再到特权级切换、调度、页表；最后在专业阶段落到并发控制、VFS、系统调用等更复杂的系统能力上。</p>
-<hr>
-<h2 id="导学阶段"><a href="#导学阶段" class="headerlink" title="导学阶段"></a>导学阶段</h2><p>导学阶段我主要跟着课程录像把操作系统体系重新过了一遍，并结合训练营官方指导与 OSTEP 做补充。这个阶段我最重要的收获是：很多章节并不是在讲“技巧”，而是在解释 OS 如何把有限的物理资源做成一种“多路复用的错觉”，让每个进程都觉得自己独占资源。理解到这一层之后，再看内核架构为什么这么演进，会更顺。</p>
-<p>第一次在 <code>no_std</code>/裸机环境里做实验时，一些在标准库里理所当然的操作突然变得“不显然”。我印象很深的是终端彩色输出：我原本习惯用 <code>{:?}</code> 快速打印结构体/变量状态，但当我尝试直接写字节序列输出 ANSI 颜色控制码时，屏幕却是一堆乱码。</p>
-<p>后来定位到原因：Debug 格式化会把 ANSI 转义字符 <code>\x1b</code> 强制转义成字面量文本（真实字符 <code>\</code>、<code>x</code>、<code>1</code>、<code>b</code>），控制码语义被破坏，终端自然无法解析颜色指令。解决方式很朴素：不要用 <code>{:?}</code>，改用 <code>{}</code>（Display），保证原始 <code>0x1B</code> 字节无损进入串口发送寄存器。</p>
-<hr>
-<h2 id="基础阶段"><a href="#基础阶段" class="headerlink" title="基础阶段"></a>基础阶段</h2><p>基础阶段的任务密度明显上来了：总共需要实现 6 个模块、23 个测试，涉及 <code>no_std</code> 基础设施、并发、特权级切换与调度、页表等多个节点。我这里挑几个对我影响最大的点写一下。</p>
-<h3 id="1）no-std-基础设施：内存原语、ecall、堆分配"><a href="#1）no-std-基础设施：内存原语、ecall、堆分配" class="headerlink" title="1）no_std 基础设施：内存原语、ecall、堆分配"></a>1）<code>no_std</code> 基础设施：内存原语、ecall、堆分配</h3><p>在没有标准库的情况下，一些基础能力需要自己补齐。我用汇编与内联 Rust 代码手动实现了 <code>memcpy</code> 与 <code>memset</code>，并封装了 <code>ecall</code> 系统调用接口。</p>
-<p>动态内存分配方面，我实现了基于 CAS 无锁算法与侵入式链表的 Free-List 分配器，为内核态提供稳定的堆内存支持。</p>
-<h3 id="2）特权级切换与调度：上下文切换变得“可触摸”"><a href="#2）特权级切换与调度：上下文切换变得“可触摸”" class="headerlink" title="2）特权级切换与调度：上下文切换变得“可触摸”"></a>2）特权级切换与调度：上下文切换变得“可触摸”</h3><p>在特权级切换与进程调度模块里，我更深刻地理解了上下文切换的本质：我利用 RISC‑V 的裸函数属性，手动保存与恢复 32 个通用寄存器以及核心 CSR。在此基础上，我不仅实现了传统线程上下文切换，还进一步实现了运行在用户态的“绿色线程”，用协作式调度与状态机探索轻量级协程的性能边界。</p>
-<h3 id="3）和同期同学对照后的一个结论：底层问题放大效应很强"><a href="#3）和同期同学对照后的一个结论：底层问题放大效应很强" class="headerlink" title="3）和同期同学对照后的一个结论：底层问题放大效应很强"></a>3）和同期同学对照后的一个结论：底层问题放大效应很强</h3><p>我会把自己的 Debug 记录和同期同学的PR对照着看，感受很明显：应用层的“坏习惯”到了 OS 底层会被成倍放大。比如只顾设计模式而忽略数据流正确性、缺少错误路径测试、试图用大量 <code>unsafe</code> 绕过 Rust 检查器等——在 OS 里往往会直接演变成系统级灾难。</p>
-<p>我印象比较深的几类问题与我的处理方式大致是这样：</p>
-<ul>
-<li><strong>内存分配与回收</strong> ：早期简单 Bump 分配器缺乏回收机制，遇到 <code>Vec</code> 扩容或动态字符串处理很容易 OOM。针对早期内核初始化，我做过一种折中：设计“双端内存分配”，前端分配小块字节、后端分配整页，并引入一个基于引用计数的全局追踪器；当活动对象计数归零时，直接把字节分配指针重置回基址（<code>b_pos = start</code>）。</li>
-<li><strong>并发与生命周期</strong> ：我踩过一个很隐蔽的“临时值生命周期”坑：链式调用 <code>current().task_ext().aspace.lock()</code> 会让 <code>current()</code> 生成的临时任务引用在语句结束时被 Drop，但 <code>lock()</code> 得到的 Guard 仍试图借用它，导致编译错误。最终我回到所有权本质：用显式变量绑定 <code>let curr = current();</code> 延长引用存活期，理清锁与借用对象的层次关系。</li>
-<li><strong>中断与特权级相关陷阱</strong> ：在异常处理里，若不推进 <code>sepc</code>，可能会反复回到同一条触发异常的指令。我的处理里会在必要时手动 <code>sepc += 4</code> 跳过当前 32 位指令。在 <code>simple_hv</code> 虚拟机管理程序中，我还遇到过一个规范相关的细节：从 VS 态访问某些 M 级 CSR（如 <code>mhartid</code>）触发的并非预期的 <code>VirtualInstruction</code>（异常码 22），而是 <code>IllegalInstruction</code>（异常码 2）。最后我重写了非法指令处理器：软件解码指令、模拟返回伪造的 CSR 值，并精细管理 <code>sepc</code> 的演进流。</li>
-<li><strong>no_std 生态缺失</strong> ：为了支持更复杂的数据结构，我把 <code>hashbrown</code> 引入到自己的 <code>axstd</code> 模块中，重建哈希集合支持。过程中还触发过 <code>nightly-2024-09-03</code> 的编译器 ICE：常量泛型参数 <code>SIZE</code> 与 Trait 关联常量 <code>PAGE_SIZE</code> 底层符号解析冲突。我通过重命名泛型变量（如改为 <code>PAGESZ</code>）从侧面规避了前端缺陷。</li>
-</ul>
-<hr>
-<h2 id="SV39-分页-与-TLB“幽灵状态”"><a href="#SV39-分页-与-TLB“幽灵状态”" class="headerlink" title="SV39 分页 与 TLB“幽灵状态”"></a>SV39 分页 与 TLB“幽灵状态”</h2><p>如果要选一个最能体现“软硬件协同”且最折磨人的点，我会选虚拟内存分页系统及其与 TLB 的交互。</p>
-<p>RISC‑V 的 SV39 使用三级 Radix Tree：虚拟地址拆成 VPN2/VPN1/VPN0+ 12 位页内偏移，MMU 会遍历三级页表完成映射。静态结构很好理解，但真正难的是运行时的硬件状态同步。</p>
-<p>我在处理动态内存映射时，逻辑上已经“看起来完美”：分配物理页帧、更新 PTE、设置 V/R/W/X 权限位，然后 <code>sret</code> 返回继续执行。按常理应该成功，但 CPU 会再次抛出同样的缺页异常。</p>
-<p>后来我意识到这是典型的  <strong>TLB staleness</strong> ：页表在内存里更新了，但 CPU 内部的 TLB 仍缓存着旧的“该地址无效”记录。解决必须落到指令层：修改页表后，显式向处理器发出同步屏障。在我的逻辑里，只要重写了 <code>hgatp</code> 或更新了关键页表条目，就需要紧接着执行 <code>hfence.gvma</code>，强制刷新相关地址空间的 TLB 项。</p>
-<hr>
-<h2 id="专业阶段"><a href="#专业阶段" class="headerlink" title="专业阶段"></a>专业阶段</h2><p>专业阶段的变化很明显：复杂度与状态空间开始爆炸。文件系统架构、复杂并发控制、IPC 等问题，逼着我从“写功能”转向“做工程治理与架构取舍”。</p>
-<p>在 rCore-Tutorial 的 Chapter 6，我围绕 <code>easy-fs</code> 的文件系统实现做了较多工作，并对其分层有了更清晰的认识：</p>
-<ol>
-<li><strong>块设备抽象层（<code>easy-fs/efs.rs</code>）</strong> ：磁盘布局、inode 位置计算、位图分配与回收等底层逻辑</li>
-<li><strong>VFS 层（<code>easy-fs/vfs.rs</code>）</strong> ：目录树遍历、链接、inode 生命周期管理等核心抽象</li>
-<li><strong>系统调用边界（<code>os/src/fs/</code>）</strong> ：将内核对象包装成用户态可用的文件抽象（如文件描述符）</li>
-</ol>
-<p>我主要补全了 <code>sys_fstat</code>、<code>sys_linkat</code>、<code>sys_unlinkat</code>。以 <code>linkat</code> 为例，其控制流非常“手术式”：路径遍历 → 校验目标实体/链接名→ 锁定源 inode，对 <code>nlink</code> 原子 +1 并写回磁盘 → 在目标目录追加新的 <code>DirEntry</code> 并强刷缓存。</p>
-<p><code>unlinkat</code> 的反向流程同样复杂，尤其是“删除目录项不产生空间碎片”的问题。我采用的策略是：找到待删除目录项后，将其与目录中最后一个有效目录项交换，然后缩减目录文件 <code>size</code>，保证磁盘空间紧凑；随后递减目标 inode 引用计数，只有当 <code>nlink</code> 降至 0 且系统内无文件描述符占用时，才触发底层数据簇回收。</p>
-<p>另外我也处理了一些边界：例如 <code>Stdin/Stdout</code> 属于流式字符设备，缺乏普通磁盘文件的块状元数据；为了避免生成“虚假的 Stat”，我的实现会直接拦截这类请求并 <code>panic!</code>，拒绝伪造元数据。</p>
-<hr>
-<h2 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h2><p>经历导学、基础、专业三个阶段之后，我最明显的变化是：对“底层原理”的认知从抽象概念变成了可推导的具体原理，我会去思考寄存器怎么变、异常为什么回到同一条指令、TLB 为什么缓存旧结论、并发原语为何在不同调度模型下表现截然不同。</p>
-<h3 id="我对-AI-辅助编码的用法"><a href="#我对-AI-辅助编码的用法" class="headerlink" title="我对 AI 辅助编码的用法"></a>我对 AI 辅助编码的用法</h3><p>随着AI的迅猛发展，在本次训练营中我也结合AI辅助OS编码，但是我也发现了OS 底层容错率太低，使得我对 AI 的用法也变得更审慎：它可以当手术刀处理局部实现与重复劳动，但不该在宏观架构上自由发挥。我的做法是把它严格约束在可控范围内：</p>
-<ol>
-<li><strong>全局上下文对齐</strong> ：先规定技术边界与可改文件/不可碰结构（唯一事实来源）</li>
-<li><strong>原子化拆解</strong> ：把大需求拆成 3–5 个闭环步骤，每一步都是 MVP，爆炸半径小</li>
-<li><strong>确定性验证标准</strong> ：每一步必须给出明确可验证的测试/日志/行为变化，通过后再做下一步</li>
-</ol>
-<p>这套策略在专业阶段帮我避免了“AI 幻觉导致底层数据结构被悄悄破坏”的风险，也提高了推进效率，这也是我在本次训练营中领悟出来的使用技巧。从代码的写作转到审查代码，把控架构，也许我感觉这是能否在Vibe Coding的冲击中站稳脚跟的关键，以操作系统的设计为例，后者更考验对整个复杂系统的掌握，这就驱使着我们要加速脚步增加对知识的汲取。AI Coding 的效率不取决于模型的能力，而是取决于所使用的架构是否支持多工作树低冲突合并；AI 的能力边界也不取决于模型的能力，而是取决于工程过程可被 token 化的范围边界在哪里。</p>
 
       
     </div>

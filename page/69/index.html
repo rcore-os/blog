@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">785</span>
+          <span class="site-state-item-count">786</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">745</span>
+        <span class="site-state-item-count">750</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,85 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Luv_Ray/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2023/11/02/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Luv_Ray/" class="post-title-link" itemprop="url">2023开源操作系统训练营第二阶段总结报告-Luv_Ray.md</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-11-02 00:00:00" itemprop="dateCreated datePublished" datetime="2023-11-02T00:00:00+00:00">2023-11-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="2023rCore-训练营第二阶段总结"><a href="#2023rCore-训练营第二阶段总结" class="headerlink" title="2023rCore 训练营第二阶段总结"></a>2023rCore 训练营第二阶段总结</h1><p>其实很早以前就知道 rcore 这个项目了，之前学 rust 时做过 Stanford 的 <a href="https://reberhardt.com/cs110l/spring-2020/" target="_blank" rel="noopener">CS 110L</a>。<br>不过由于之前做过 MIT 的 xv6，在操作系统 lab 方面定位有些重合，就没有去做 rcore。</p>
+<p>在今年暑假想要找些 rust 项目看时，在 github 上找到 arceos，后面才知道 rcore 只是社区众多项目中的其中一个，这次报名也是希望能进一步参与后面的项目。</p>
+<h2 id="实验"><a href="#实验" class="headerlink" title="实验"></a>实验</h2><p>rcore 的实验其实挺简单，重要的是理解系统概念以及现有的 api，这一点其实和 xv6 有点相似。<br>然而这也对应了另一个问题，只做实验其实不一定有很好的学习效果，有可能只根据类型试着调用 api 就能通过测试，学习的深度某种程度上只能靠自觉来保证。</p>
+<p>另外，感觉各个 lab 的测试样例并不算强，其实编写 kernel 是很容易在 corner case 上出各种漏洞的，希望自己的实现没太大问题。</p>
+<p>由于 rust 本身的约束，产生漏洞的风险比 c 要小，但是在使用 unsafe 时，由于 rust 本身做了更多抽象，直接接触底层时就会有更大的潜在隐患。</p>
+<p>比如在 <code>sys_task_info</code> 中，需要将 <code>&amp;TaskInfo</code> 转换为 u8 的 buffer，我使用了 <code>as</code> 来直接进行转换</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> k_ti = &amp;TaskInfo &#123;</span><br><span class="line">        status: get_task_status(),</span><br><span class="line">        syscall_times: get_task_syscall_times(),</span><br><span class="line">        time: get_time_ms(),</span><br><span class="line">    &#125; <span class="keyword">as</span> *<span class="keyword">const</span> TaskInfo</span><br><span class="line">        <span class="keyword">as</span> *<span class="keyword">const</span> [<span class="built_in">u8</span>; mem::size_of::&lt;TaskInfo&gt;() / mem::size_of::&lt;<span class="built_in">u8</span>&gt;()];</span><br></pre></td></tr></table></figure>
+<p>转换为裸指针是 safe 的，但是访问裸指针时很容易触发未定义行为，unsafe 里有很多隐秘的 <strong>unsound</strong> 情况。</p>
+<p>实际上，对于 <code>TaskInfo</code> 数组：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/// Task information</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">TaskInfo</span></span> &#123;</span><br><span class="line">    <span class="comment">/// Task status in it's life cycle</span></span><br><span class="line">    status: TaskStatus,</span><br><span class="line">    <span class="comment">/// The numbers of syscall called by task</span></span><br><span class="line">    syscall_times: [<span class="built_in">u32</span>; MAX_SYSCALL_NUM],</span><br><span class="line">    <span class="comment">/// Total running time of task</span></span><br><span class="line">    time: <span class="built_in">usize</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其内存布局是<strong>不确定</strong>的，编译器甚至不保证 <code>status</code>，<code>syscall_times</code>，<code>time</code> 是按顺序排布的，添加 <code>#[repr(C)]</code> 才能保证会是我们想象的类似 C 语言的内存布局。</p>
+<p>同时，这个结构体中的元素比较简单所以没问题，但是直接裸指针转换是很不好的风格，在面对内部可变性、内存对齐、未初始化元素时极易访问未初始化内存，对未初始化内存的任何写入和读取都是<strong>UB</strong>。</p>
+<p>在 <a href="https://docs.rs/bytemuck/latest/bytemuck/fn.cast.html" target="_blank" rel="noopener">bytemuck</a> 提供了对于类型转换的更好方式。</p>
+<p>类似这种，其实很有多潜在的需要解决的问题都被忽略了，实验中保留了比较核心的概念和问题，但是仔细挖掘文档和现有的代码的话，会有更多的值得学习和思考的问题。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>rcore 是个很好的 rust 和 OS 项目，国内的开源教学项目实在很少，大部分学生都会去学习 MIT、CMU 等学校的开源课程，不过国外的英文课程对国内学生有一定门槛，会有一些额外的负担。<br>我之前写过的 Stanford 的 rust 课程在 20 年后的版本都不公开代码了，难免说开源的行为会持续多久，所以国内还是很需要这种优质的开源课程来弥补空白的，在此感谢各位老师和助教的付出，也希望未来在各个方面能有更多的优质开源课程。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/11/01/2023-%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-Misonoi/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +343,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
 
           
@@ -342,7 +421,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
 
           
@@ -413,7 +492,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
 
           
@@ -486,7 +565,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -568,7 +647,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
 
           
@@ -653,7 +732,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
 
           
@@ -729,7 +808,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -948,7 +1027,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
 
           
@@ -1031,7 +1110,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:11" itemprop="dateModified" datetime="2026-06-30T02:02:11+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1061,87 +1140,6 @@
 <p>因为对 rCore-Tutorial 还有些印象，所以 ch1 ch2 ch3 都很快的复习了一遍。ch3 的实验内容倒是于之前不同，不过难度也不算很大，很快就有了思路并且将它完成了。ch4 是我这次阶段主要学习的内容，因为之前学习的时候对这块内容有点一知半解的：尤其是开启分页后，内核是如何去管理物理页的（因为开启后内核是不能直接访问到物理地址的）。所以这次重点的学习了一下，并且做了笔记。mmap 和 munmap 实验和之前的基本相同，不过这次需要适配 sys_get_time 和 sys_task_info 系统调用。到了 ch5，还是实现一个 spawn，但是我上一次训练营实现的 spawn 感觉有点问题，这次重新实现了一遍。stride 调度算法对这次的代码进行了适配调整。ch6 实现链接和 fstat，因为对 Linux 这块实现原理比较了解，很快就知道如何去实现了。</p>
 <p>对第三阶段的期望：之前第三阶段是做了一些文档的工作，这次想参与一些代码的开发。</p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2023/10/31/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E7%9D%BF/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2023/10/31/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E7%9D%BF/" class="post-title-link" itemprop="url">2023开源操作系统训练营总结报告-周睿</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-10-31 20:42:27" itemprop="dateCreated datePublished" datetime="2023-10-31T20:42:27+00:00">2023-10-31</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>首先感谢各位老师以及同学提供的如此丰富的Rust与操作系统相关的学习资料，令本人受益匪浅，下面是本次训练营的总结报告。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2023/10/31/2023%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%91%A8%E7%9D%BF/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 
