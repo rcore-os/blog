@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">783</span>
+          <span class="site-state-item-count">785</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">737</span>
+        <span class="site-state-item-count">745</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,405 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/" class="post-title-link" itemprop="url">二阶段rCore总结-折鸦</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-13 02:00:30" itemprop="dateCreated datePublished" datetime="2025-04-13T02:00:30+00:00">2025-04-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="二阶段-rCore-实验总结-折鸦"><a href="#二阶段-rCore-实验总结-折鸦" class="headerlink" title="二阶段 rCore 实验总结 - 折鸦"></a>二阶段 rCore 实验总结 - 折鸦</h1><h2 id="实验环境配置"><a href="#实验环境配置" class="headerlink" title="实验环境配置"></a>实验环境配置</h2><p>用 Rust 开发操作系统内核源代码, 通过 <code>rustc</code> 交叉编译到 <code>riscv64gc-unknown-none-elf</code> (一般情况下是 <code>x86_64-unknown-linux-gnu</code>), 通过 <code>rust-objcopy</code> 提取出 bin, 然后放到 <code>qemu-system-riscv64</code> 模拟器进行模拟, 大概是这么个工具链.</p>
+<p>QEMU 最好装 <code>7.0.0</code> 版本的, 从源码编译安装的话需要注意一下依赖, 部分发行版的依赖可以在 <a href="https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites" target="_blank" rel="noopener">Running 64- and 32-bit RISC-V Linux on QEMU — RISC-V - Getting Started Guide</a> 找到</p>
+<p>Arch Linux 仓库里是 QEMU 9, 需要修改一下 <code>RustSBI</code> 的版本. 注意如果你想直接 <code>downgrade</code> 到 <code>7.0.0</code> 的话可能会需要连带降级一些非常核心的软件包, 非常不建议尝试. 有需要也可以自行寻找依赖包然后从源代码编译, 但是有一些接口变动可能会导致编译失败, 所以最佳方案还是替换 <code>RustSBI</code> 版本, 这里不再赘述.</p>
+<h2 id="构建一个能跑但仅仅能跑的操作系统"><a href="#构建一个能跑但仅仅能跑的操作系统" class="headerlink" title="构建一个能跑但仅仅能跑的操作系统"></a>构建一个能跑但仅仅能跑的操作系统</h2><p>根据 OSTEP 的说法, 操作系统的主要三个任务部分在于: <strong>虚拟化</strong>, <strong>并发</strong>, <strong>可持久化</strong></p>
+<ul>
+<li>虚拟化主要表现在:<ul>
+<li>对内存的抽象: 每个进程有自己的虚拟地址空间, 造成每个进程独占一个主存的假象(学过 CSAPP 可以回忆一下第九章, 博客还在补)</li>
+<li>对 CPU 的虚拟化: 主要表现在操作系统内核对各个任务的调度, 使得每个任务产生独占 CPU 的假象(这就是一种并发)</li>
+<li>对外设设备的虚拟化等等</li>
+</ul>
+</li>
+<li>并发主要表现在:<ul>
+<li>进程概念的抽象和实现, 进程间通信</li>
+<li>多线程的实现</li>
+</ul>
+</li>
+<li>可持久化主要涉及文件系统</li>
+</ul>
+<p>而形式上, 操作系统是一个二进制文件或二进制文件镜像, 被 bootloader 加载进内存的特定位置, 驻留在内存中的特定代码, 这些代码负责一些加载应用程序(简单来说就是把可执行文件加载到内存), 管理资源(设备/文件)并提供访问的任务, 这些任务以系统调用(syscall)的形式暴露给应用程序, 只是系统调用函数比较敏感特殊, 下面会仔细介绍.</p>
+<p>那么我们的任务就比较明确了: </p>
+<ul>
+<li>先设计一个基本的能把应用程序加载到内存的功能 (当然因为现在内核没有任何调度能力也没有让应用程序启动其他应用程序的必要(这依赖进程的实现), 所以我们暂时不需要设计 <code>execve</code> 系统调用)</li>
+<li>实现标准输出能力 (实际上标准输出就是调用系统调用 <code>write</code>, 目标为 <code>1</code> (标准输入))</li>
+<li>实现退出程序的能力 (<code>exit</code> 系统调用)</li>
+</ul>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2025/04/13/%E4%BA%8C%E9%98%B6%E6%AE%B5rCore%E6%80%BB%E7%BB%93-%E6%8A%98%E9%B8%A6/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/10/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-1430329301Lsj/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/04/10/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-1430329301Lsj/" class="post-title-link" itemprop="url"><2025春夏季开源操作系统训练营第一阶段总结报告-1430329301Lsj></a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-04-10 23:00:24" itemprop="dateCreated datePublished" datetime="2025-04-10T23:00:24+00:00">2025-04-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>Rust速查表：<a href="https://cheats.rs/" target="_blank" rel="noopener">Rust Language Cheat Sheet</a></p>
+<h1 id="Rust是什么"><a href="#Rust是什么" class="headerlink" title="Rust是什么"></a>Rust是什么</h1><ul>
+<li><p>Rust可看作一个在语法层面（编译时）具有严格检查和限制的<strong>C语言上位</strong>。</p>
+</li>
+<li><p>扩展了<strong>面向对象</strong>的便捷方法绑定。</p>
+</li>
+<li><p>编译和运行方式类似于C/C++，可以<code>rustc xxx.rs</code>编译，<code>./xxx</code>运行。</p>
+</li>
+<li><p>有约定的项目目录格式，可使用<code>Cargo</code>配置<code>toml</code>进行包管理、编译、运行、测试等等。</p>
+</li>
+<li><p>包资源网站为<code>CratesIO</code>，见<code>src↑</code>。</p>
+</li>
+<li><p>不支持运算符重载，支持多态。其中语句为：<code>表达式+;</code>，语句的值是<code>()</code>。</p>
+<blockquote>
+<p><strong>运算符重载</strong>是指为自定义的类或结构体重新定义或赋予运算符(如+、-、*、/等)新的功能。它允许程序员对已有运算符赋予多重含义，使同一运算符作用于不同类型的数据时执行不同的操作。</p>
+<p><strong>特点：</strong></p>
+<ol>
+<li><strong>扩展运算符功能</strong>：让运算符不仅能作用于基本数据类型，也能作用于自定义类型</li>
+<li><strong>语法简洁</strong>：使自定义类型的操作像基本类型一样自然</li>
+<li><strong>保持直观性</strong>：重载后的运算符功能应与原意相符，避免滥用</li>
+</ol>
+</blockquote>
+</li>
+</ul>
+<h1 id="Rust安装"><a href="#Rust安装" class="headerlink" title="Rust安装"></a>Rust安装</h1><p>可使用编译器：VSCode + <a href="https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer" target="_blank" rel="noopener">rust-analyzer</a>，VIM，<a href="https://www.jetbrains.com/rust/" target="_blank" rel="noopener">RustRover</a></p>
+<p><img src="https://linhaiyi-1.oss-cn-beijing.aliyuncs.com/%E5%9B%BE%E5%BA%8A/image-20250403110554181.png" alt="image-20250403110554181"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl --proto &#39;&#x3D;https&#39; --tlsv1.2 -sSf https:&#x2F;&#x2F;sh.rustup.rs | sh</span><br></pre></td></tr></table></figure>
+
+<p>我最终选择使用rustRover来编译——jetBrain全家桶之一，与Pycham同源使用会比较顺手，且可以直接连接WSL：</p>
+<img src="https://linhaiyi-1.oss-cn-beijing.aliyuncs.com/%E5%9B%BE%E5%BA%8A/image-20250403110943092.png" alt="image-20250403110943092" style="zoom: 33%;" />
+
+<h1 id="Rust基础"><a href="#Rust基础" class="headerlink" title="Rust基础"></a>Rust基础</h1><p>rust的编译与运行是分开的，是一种<strong>预编译静态类型</strong>语言。rust的源文件为<code>xx.rs</code>，最基础的编译为使用<code>rustc xx.rs</code>对代码进行编译。</p>
+<h2 id="基础语法"><a href="#基础语法" class="headerlink" title="基础语法"></a>基础语法</h2><h3 id="Cargo"><a href="#Cargo" class="headerlink" title="Cargo"></a>Cargo</h3><p>Cargo是Rust的构建系统和包管理器：</p>
+<ul>
+<li>构建代码</li>
+<li>下载依赖库（代码所需的库叫做依赖）</li>
+</ul>
+<p>1.使用Cargo构建项目</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ cargo new the_project</span><br><span class="line">$ cd the_project</span><br></pre></td></tr></table></figure>
+
+<p>在Linux终端输入上面的代码创建rust项目后，会生成如下的文件与目录：</p>
+<p><img src="https://linhaiyi-1.oss-cn-beijing.aliyuncs.com/%E5%9B%BE%E5%BA%8A/image-20250410180737109.png" alt="image-20250410180737109"></p>
+<p>变量</p>
+<p>首先必须说明，Rust 是强类型语言，但具有自动判断变量类型的能力。这很容易让人与弱类型语言产生混淆。</p>
+<p>默认情况下，Rust 中的变量是不可变的，除非使用 mut 关键字声明为可变变量。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">let a &#x3D; 123;       &#x2F;&#x2F; 不可变变量</span><br><span class="line">let mut b &#x3D; 10;  &#x2F;&#x2F; 可变变量</span><br></pre></td></tr></table></figure>
+
+<p>如果要声明变量，需要使用 <strong>let</strong> 关键字。例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">let a &#x3D; 123;</span><br></pre></td></tr></table></figure>
+
+<p>变量和常量还是有区别的。在 Rust 中，以下程序是合法的：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">let a &#x3D; 123;   &#x2F;&#x2F; 可以编译，但可能有警告，因为该变量没有被使用</span><br><span class="line">let a &#x3D; 456;</span><br></pre></td></tr></table></figure>
+
+<p>但是如果 a 是常量就不合法：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">const a: i32 &#x3D; 123;</span><br><span class="line">let a &#x3D; 456;</span><br></pre></td></tr></table></figure>
+
+<h3 id="控制流"><a href="#控制流" class="headerlink" title="控制流"></a>控制流</h3><p><strong>if 表达式</strong></p>
+<p>实例:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">let number &#x3D; 7;</span><br><span class="line">if number &lt; 5 &#123;</span><br><span class="line">  println!(&quot;小于 5&quot;);</span><br><span class="line">&#125; else &#123;</span><br><span class="line">  println!(&quot;大于等于 5&quot;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>loop 循环:</strong> loop 是 Rust 中的无限循环，可以使用 break 退出循环。</p>
+<p>实例</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">let mut counter &#x3D; 0;</span><br><span class="line">loop &#123;</span><br><span class="line">  counter +&#x3D; 1;</span><br><span class="line">  if counter &#x3D;&#x3D; 10 &#123;</span><br><span class="line">    break;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>while 循环</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">let mut number &#x3D; 3;</span><br><span class="line">while number !&#x3D; 0 &#123;</span><br><span class="line">  println!(&quot;&#123;&#125;!&quot;, number);</span><br><span class="line">  number -&#x3D; 1;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>for 循环</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">for number in 1..4 &#123;</span><br><span class="line">  println!(&quot;&#123;&#125;!&quot;, number);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="结构体-Structs"><a href="#结构体-Structs" class="headerlink" title="结构体 (Structs)"></a>结构体 (Structs)</h3><p>结构体用于创建自定义类型，字段可以包含多种数据类型。</p>
+<p>实例</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">struct User &#123;</span><br><span class="line">  username: String,</span><br><span class="line">  email: String,</span><br><span class="line">  sign_in_count: u64,</span><br><span class="line">  active: bool,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">let user1 &#x3D; User &#123;</span><br><span class="line">  username: String::from(&quot;someusername&quot;),</span><br><span class="line">  email: String::from(&quot;someone@example.com&quot;),</span><br><span class="line">  sign_in_count: 1,</span><br><span class="line">  active: true,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="枚举-Enums"><a href="#枚举-Enums" class="headerlink" title="枚举 (Enums)"></a>枚举 (Enums)</h3><p>枚举允许定义可能的几种数据类型中的一种。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">enum IpAddrKind &#123;</span><br><span class="line">  V4,</span><br><span class="line">  V6,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">let four &#x3D; IpAddrKind::V4;</span><br><span class="line">let six &#x3D; IpAddrKind::V6;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="模式匹配-match"><a href="#模式匹配-match" class="headerlink" title="模式匹配 (match)"></a>模式匹配 (match)</h3><p>match 是 Rust 中强大的控制流工具，类似于 switch 语句。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">enum Coin &#123;</span><br><span class="line">  Penny,</span><br><span class="line">  Nickel,</span><br><span class="line">  Dime,</span><br><span class="line">  Quarter,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn value_in_cents(coin: Coin) -&gt; u8 &#123;</span><br><span class="line">  match coin &#123;</span><br><span class="line">    Coin::Penny &#x3D;&gt; 1,</span><br><span class="line">    Coin::Nickel &#x3D;&gt; 5,</span><br><span class="line">    Coin::Dime &#x3D;&gt; 10,</span><br><span class="line">    Coin::Quarter &#x3D;&gt; 25,</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="错误处理"><a href="#错误处理" class="headerlink" title="错误处理"></a>错误处理</h3><p>Rust 有两种主要的错误处理方式：<strong>Result&lt;T, E&gt;</strong> 和 <strong>Option<T></strong>。</p>
+<p><strong>Result:</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">enum Result&lt;T, E&gt; &#123;</span><br><span class="line">  Ok(T),</span><br><span class="line">  Err(E),</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn divide(a: i32, b: i32) -&gt; Result&lt;i32, String&gt; &#123;</span><br><span class="line">  if b &#x3D;&#x3D; 0 &#123;</span><br><span class="line">    Err(String::from(&quot;Division by zero&quot;))</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    Ok(a &#x2F; b)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Option:</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">fn get_element(index: usize, vec: &amp;Vec&lt;i32&gt;) -&gt; Option&lt;i32&gt; &#123;</span><br><span class="line">  if index &lt; vec.len() &#123;</span><br><span class="line">    Some(vec[index])</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    None</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="所有权与借用的生命周期"><a href="#所有权与借用的生命周期" class="headerlink" title="所有权与借用的生命周期"></a>所有权与借用的生命周期</h3><p>Rust 使用生命周期来确保引用的有效性。生命周期标注用 <strong>‘a</strong> 等来表示，但常见的情况下，编译器会自动推导。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">fn longest&lt;&#39;a&gt;(x: &amp;&#39;a str, y: &amp;&#39;a str) -&gt; &amp;&#39;a str &#123;</span><br><span class="line">  if x.len() &gt; y.len() &#123;</span><br><span class="line">    x</span><br><span class="line">  &#125; else &#123;</span><br><span class="line">    y</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="重影（Shadowing）"><a href="#重影（Shadowing）" class="headerlink" title="重影（Shadowing）"></a>重影（Shadowing）</h3><p>重影的概念与其他面向对象语言里的”重写”（Override）或”重载”（Overload）是不一样的。重影就是刚才讲述的所谓”重新绑定”，之所以加引号就是为了在没有介绍这个概念的时候代替一下概念。</p>
+<p>重影就是指变量的名称可以被重新使用的机制：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">fn main() &#123;</span><br><span class="line">  let x &#x3D; 5;</span><br><span class="line">  let x &#x3D; x + 1;</span><br><span class="line">  let x &#x3D; x * 2;</span><br><span class="line">  println!(&quot;The value of x is: &#123;&#125;&quot;, x);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="数据类型"><a href="#数据类型" class="headerlink" title="数据类型"></a>数据类型</h2><h3 id="整数型（Integer）"><a href="#整数型（Integer）" class="headerlink" title="整数型（Integer）"></a>整数型（Integer）</h3><p>整数型简称整型，按照比特位长度和有无符号分为以下种类：</p>
+<table>
+<thead>
+<tr>
+<th align="left">位长度</th>
+<th align="left">有符号</th>
+<th align="left">无符号</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">8-bit</td>
+<td align="left">i8</td>
+<td align="left">u8</td>
+</tr>
+<tr>
+<td align="left">16-bit</td>
+<td align="left">i16</td>
+<td align="left">u16</td>
+</tr>
+<tr>
+<td align="left">32-bit</td>
+<td align="left">i32</td>
+<td align="left">u32</td>
+</tr>
+<tr>
+<td align="left">64-bit</td>
+<td align="left">i64</td>
+<td align="left">u64</td>
+</tr>
+<tr>
+<td align="left">128-bit</td>
+<td align="left">i128</td>
+<td align="left">u128</td>
+</tr>
+<tr>
+<td align="left">arch</td>
+<td align="left">isize</td>
+<td align="left">usize</td>
+</tr>
+</tbody></table>
+<p>isize 和 usize 两种整数类型是用来衡量数据大小的，它们的位长度取决于所运行的目标平台，如果是 32 位架构的处理器将使用 32 位位长度整型。</p>
+<h3 id="浮点数型（Floating-Point）"><a href="#浮点数型（Floating-Point）" class="headerlink" title="浮点数型（Floating-Point）"></a>浮点数型（Floating-Point）</h3><p>Rust 与其它语言一样支持 32 位浮点数（f32）和 64 位浮点数（f64）。默认情况下，64.0 将表示 64 位浮点数，因为现代计算机处理器对两种浮点数计算的速度几乎相同，但 64 位浮点数精度更高。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">fn main() &#123;</span><br><span class="line">  let x &#x3D; 2.0; *&#x2F;&#x2F; f64*</span><br><span class="line">  let y: f32 &#x3D; 3.0; *&#x2F;&#x2F; f32*</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="布尔型"><a href="#布尔型" class="headerlink" title="布尔型"></a>布尔型</h3><p>布尔型用 bool 表示，值只能为 true 或 false。</p>
+<h3 id="字符型"><a href="#字符型" class="headerlink" title="字符型"></a>字符型</h3><p>字符型用 char 表示。</p>
+<p>Rust的 char 类型大小为 4 个字节，代表 Unicode标量值，这意味着它可以支持中文，日文和韩文字符等非英文字符甚至表情符号和零宽度空格在 Rust 中都是有效的 char 值。</p>
+<h2 id="注释"><a href="#注释" class="headerlink" title="注释"></a>注释</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 这是第一种注释方式</span><br><span class="line"></span><br><span class="line">&#x2F;* 这是第二种注释方式 *&#x2F;</span><br><span class="line"></span><br><span class="line">&#x2F;*</span><br><span class="line"> * 多行注释</span><br><span class="line"> * 多行注释</span><br><span class="line"> * 多行注释</span><br><span class="line"> *&#x2F;</span><br></pre></td></tr></table></figure>
+
+<h2 id="函数"><a href="#函数" class="headerlink" title="函数"></a>函数</h2><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> </span>&lt;函数名&gt; ( &lt;参数&gt; ) &lt;函数体&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="函数参数"><a href="#函数参数" class="headerlink" title="函数参数"></a>函数参数</h3><p>Rust 中定义函数如果需要具备参数必须声明参数名称和类型：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">fn main() &#123;</span><br><span class="line">  another_function(5, 6);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn another_function(x: i32, y: i32) &#123;</span><br><span class="line">  println!(&quot;x 的值为 : &#123;&#125;&quot;, x);</span><br><span class="line">  println!(&quot;y 的值为 : &#123;&#125;&quot;, y);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="函数返回值"><a href="#函数返回值" class="headerlink" title="函数返回值"></a>函数返回值</h3><p>在函数体中，随时都可以以 return 关键字结束函数运行并返回一个类型合适的值。这也是最接近大多数开发者经验的做法：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fn add(a: i32, b: i32) -&gt; i32 &#123;</span><br><span class="line">  return a + b;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>但是 Rust 不支持自动返回值类型判断！如果没有明确声明函数返回值的类型，函数将被认为是”纯过程”，不允许产生返回值，return 后面不能有返回值表达式。这样做的目的是为了让公开的函数能够形成可见的公报。</p>
+<h1 id="Rust特色"><a href="#Rust特色" class="headerlink" title="Rust特色"></a>Rust特色</h1><h2 id="所有权"><a href="#所有权" class="headerlink" title="所有权"></a>所有权</h2><p>Rust 中的所有权是独特的内存管理机制，核心概念包括所有权 (ownership)、借用 (borrowing) 和引用 (reference)。</p>
+<p><strong>所有权规则:</strong></p>
+<ul>
+<li>Rust 中的每个值都有一个所有者。</li>
+<li>每个值在任意时刻只能有一个所有者。</li>
+<li>当所有者超出作用域时，值会被删除。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">let s1 &#x3D; String::from(&quot;hello&quot;);</span><br><span class="line">let s2 &#x3D; s1; &#x2F;&#x2F; s1 的所有权被转移给了 s2</span><br><span class="line">&#x2F;&#x2F; println!(&quot;&#123;&#125;&quot;, s1); &#x2F;&#x2F; 此处编译会报错，因为 s1 已不再拥有该值</span><br></pre></td></tr></table></figure>
+
+<p><strong>借用和引用:</strong> 借用允许引用数据而不获取所有权，通过 <strong>&amp;</strong> 符号实现。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">fn main() &#123;</span><br><span class="line">    let s &#x3D; String::from(&quot;hello&quot;);</span><br><span class="line">    let len &#x3D; calculate_length(&amp;s);  &#x2F;&#x2F; 借用</span><br><span class="line">    println!(&quot;The length of &#39;&#123;&#125;&#39; is &#123;&#125;.&quot;, s, len);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn calculate_length(s: &amp;String) -&gt; usize &#123;</span><br><span class="line">    s.len()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="组织管理"><a href="#组织管理" class="headerlink" title="组织管理"></a>组织管理</h2><p>Rust 中有三个重要的组织概念：箱、包、模块。</p>
+<h3 id="箱（Crate）"><a href="#箱（Crate）" class="headerlink" title="箱（Crate）"></a>箱（Crate）</h3><p>“箱”是二进制程序文件或者库文件，存在于”包”中。</p>
+<p>“箱”是树状结构的，它的树根是编译器开始运行时编译的源文件所编译的程序。</p>
+<p>注意：”二进制程序文件”不一定是”二进制可执行文件”，只能确定是是包含目标机器语言的文件，文件格式随编译环境的不同而不同。</p>
+<h3 id="包（Package）"><a href="#包（Package）" class="headerlink" title="包（Package）"></a>包（Package）</h3><p>当我们使用 Cargo 执行 new 命令创建 Rust 工程时，工程目录下会建立一个 Cargo.toml 文件。工程的实质就是一个包，包必须由一个 Cargo.toml 文件来管理，该文件描述了包的基本信息以及依赖项。</p>
+<p>一个包最多包含一个库”箱”，可以包含任意数量的二进制”箱”，但是至少包含一个”箱”（不管是库还是二进制”箱”）。</p>
+<p>当使用 cargo new 命令创建完包之后，src 目录下会生成一个 main.rs 源文件，Cargo 默认这个文件为二进制箱的根，编译之后的二进制箱将与包名相同。</p>
+<h3 id="模块（Module）"><a href="#模块（Module）" class="headerlink" title="模块（Module）"></a>模块（Module）</h3><p>对于一个软件工程来说，我们往往按照所使用的编程语言的组织规范来进行组织，组织模块的主要结构往往是树。Java 组织功能模块的主要单位是类，而 JavaScript 组织模块的主要方式是 function。</p>
+<p>这些先进的语言的组织单位可以层层包含，就像文件系统的目录结构一样。Rust 中的组织单位是模块（Module）。</p>
+<h2 id="宏"><a href="#宏" class="headerlink" title="宏"></a>宏</h2><p>Rust 宏（Macros）是一种在编译时生成代码的强大工具，它允许你在编写代码时创建自定义语法扩展。</p>
+<p>宏（Macro）是一种在代码中进行元编程（Metaprogramming）的技术，它允许在编译时生成代码，宏可以帮助简化代码，提高代码的可读性和可维护性，同时允许开发者在编译时执行一些代码生成的操作。</p>
+<p>宏在 Rust 中有两种类型：声明式宏（Declarative Macros）和过程宏（Procedural Macros）。</p>
+<p>本文主要介绍声明式宏。</p>
+<h3 id="宏的定义"><a href="#宏的定义" class="headerlink" title="宏的定义"></a>宏的定义</h3><p>在 Rust 中，使用 <strong>macro_rules!</strong> 关键字来定义声明式宏。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">macro_rules! my_macro &#123;</span><br><span class="line">    &#x2F;&#x2F; 模式匹配和展开</span><br><span class="line">    ($arg:expr) &#x3D;&gt; &#123;</span><br><span class="line">        &#x2F;&#x2F; 生成的代码</span><br><span class="line">        &#x2F;&#x2F; 使用 $arg 来代替匹配到的表达式</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>声明式宏使用 <strong>macro_rules!</strong> 关键字进行定义，它们被称为 <strong>“macro_rules”</strong> 宏。这种宏的定义是基于模式匹配的，可以匹配代码的结构并根据匹配的模式生成相应的代码。这样的宏在不引入新的语法结构的情况下，可以用来简化一些通用的代码模式。</p>
+<p>注意：</p>
+<ul>
+<li><strong>模式匹配：</strong>宏通过模式匹配来匹配传递给宏的代码片段，模式是宏规则的左侧部分，用于捕获不同的代码结构。</li>
+<li><strong>规则：</strong>宏规则是一组由 <strong>$</strong> 引导的模式和相应的展开代码，规则由分号分隔。</li>
+<li><strong>宏的展开：</strong>当宏被调用时，匹配的模式将被替换为相应的展开代码，展开代码是宏规则的右侧部分。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">*&#x2F;&#x2F; 宏的定义*</span><br><span class="line">macro_rules! vec &#123;</span><br><span class="line">  *&#x2F;&#x2F; 基本情况，空的情况*</span><br><span class="line">  () &#x3D;&gt; &#123;</span><br><span class="line">    Vec::new()</span><br><span class="line">  &#125;;</span><br><span class="line">  </span><br><span class="line">  *&#x2F;&#x2F; 递归情况，带有元素的情况*</span><br><span class="line">  ($($element:expr),+ $(,)?) &#x3D;&gt; &#123;</span><br><span class="line">    &#123;</span><br><span class="line">      let mut temp_vec &#x3D; Vec::new();</span><br><span class="line">      $(</span><br><span class="line">        temp_vec.push($element);</span><br><span class="line">      )+</span><br><span class="line">      temp_vec</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn main() &#123;</span><br><span class="line">  *&#x2F;&#x2F; 调用宏*</span><br><span class="line">  let my_vec &#x3D; vec![1, 2, 3];</span><br><span class="line">  println!(&quot;&#123;:?&#125;&quot;, my_vec); *&#x2F;&#x2F; 输出: [1, 2, 3]*</span><br><span class="line"></span><br><span class="line">  let empty_vec &#x3D; vec![];</span><br><span class="line">  println!(&quot;&#123;:?&#125;&quot;, empty_vec); *&#x2F;&#x2F; 输出: []*</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这个例子中，<strong>vec!</strong> 宏使用了模式匹配，以及 <strong>$($element:expr),+ $(,)?)</strong> 这样的语法来捕获传递给宏的元素，并用它们创建一个 Vec。</p>
+<p>注意，$<strong>(,)?)</strong> 用于处理末尾的逗号，使得在不同的使用情境下都能正常工作。</p>
+<h3 id="过程宏（Procedural-Macros）"><a href="#过程宏（Procedural-Macros）" class="headerlink" title="过程宏（Procedural Macros）"></a>过程宏（Procedural Macros）</h3><p>过程宏是一种更为灵活和强大的宏，允许在编译时通过自定义代码生成过程来操作抽象语法树（AST）。过程宏在功能上更接近于函数，但是它们在编写和使用上更加复杂。</p>
+<p>过程宏的类型：</p>
+<ul>
+<li><strong>派生宏（Derive Macros）</strong>：用于自动实现trait（比如<code>Copy</code>、<code>Debug</code>）的宏。</li>
+<li><strong>属性宏（Attribute Macros）</strong>：用于在声明上附加额外的元数据，如<code>#[derive(Debug)]</code>。</li>
+</ul>
+<p>过程宏的实现通常需要使用 proc_macro 库提供的功能，例如 TokenStream 和 TokenTree，以便更直接地操纵源代码。</p>
+<h2 id="智能指针"><a href="#智能指针" class="headerlink" title="智能指针"></a>智能指针</h2><p>智能指针（Smart pointers）是一种在 Rust 中常见的数据结构，它们提供了额外的功能和安全性保证，以帮助管理内存和数据。</p>
+<p>在 Rust 中，智能指针是一种封装了对动态分配内存的所有权和生命周期管理的数据类型。</p>
+<p>智能指针通常封装了一个原始指针，并提供了一些额外的功能，比如引用计数、所有权转移、生命周期管理等。</p>
+<p>在 Rust 中，标准库提供了几种常见的智能指针类型，例如 Box、Rc、Arc 和 RefCell。</p>
+<p><strong>智能指针的使用场景:</strong></p>
+<ul>
+<li>当需要在堆上分配内存时，使用 <code>Box&lt;T&gt;</code>。</li>
+<li>当需要多处共享所有权时，使用 <code>Rc&lt;T&gt;</code> 或 <code>Arc&lt;T&gt;</code>。</li>
+<li>当需要内部可变性时，使用 <code>RefCell&lt;T&gt;</code>。</li>
+<li>当需要线程安全的共享所有权时，使用 <code>Arc&lt;T&gt;</code>。</li>
+<li>当需要互斥访问数据时，使用 <code>Mutex&lt;T&gt;</code>。</li>
+<li>当需要读取-写入访问数据时，使用 <code>RwLock&lt;T&gt;</code>。</li>
+<li>当需要解决循环引用问题时，使用 <code>Weak&lt;T&gt;</code>。</li>
+</ul>
+<h2 id="错误处理-1"><a href="#错误处理-1" class="headerlink" title="错误处理"></a>错误处理</h2><p>Rust 有一套独特的处理异常情况的机制，它并不像其它语言中的 try 机制那样简单。</p>
+<p>首先，程序中一般会出现两种错误：可恢复错误和不可恢复错误。</p>
+<p>可恢复错误的典型案例是文件访问错误，如果访问一个文件失败，有可能是因为它正在被占用，是正常的，我们可以通过等待来解决。</p>
+<p>但还有一种错误是由编程中无法解决的逻辑错误导致的，例如访问数组末尾以外的位置。</p>
+<p>大多数编程语言不区分这两种错误，并用 Exception （异常）类来表示错误。在 Rust 中没有 Exception。</p>
+<p>对于可恢复错误用 Result&lt;T, E&gt; 类来处理，对于不可恢复错误使用 panic! 宏来处理。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2025/04/10/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-1430329301Lsj/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/04/06/2025%E6%98%A5%E5%A4%8F%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-hxingjie/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +663,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -368,7 +767,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:02:00" itemprop="dateModified" datetime="2026-06-30T02:02:00+00:00">2026-06-30</time>
               </span>
 
           
@@ -433,7 +832,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -522,7 +921,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:35" itemprop="dateModified" datetime="2026-06-30T02:01:35+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -650,7 +1049,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1096,7 +1495,7 @@ ino:u64,
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1227,7 +1626,7 @@ ino:u64,
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:35" itemprop="dateModified" datetime="2026-06-30T02:01:35+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1322,7 +1721,7 @@ ino:u64,
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
 
           
@@ -1375,201 +1774,6 @@ ino:u64,
 <p>然而，我不赞成将所有内核代码和锁都替换为异步协程版本。如前所述，操作系统内核代码对性能非常敏感。虽然无栈协程的切换开销较小，但在内核开发中这种开销仍然不容忽视。此外，由于CPU大部分时间都会交由用户线程执行以最大化资源利用率，载体线程（CPU核心）会尽可能运行用户代码，这在某种程度上违反了协程使用原则，可能导致其他任务出现饥饿现象。</p>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>四阶段开始前, 我曾立下这个目标: 希望能开发出我自己的操作系统内核, 并在 Lichee Pi 4A 真机设备上成功启动.</p>
 <p>无奈上周夫人孕期遭遇大出血, 紧急住院保胎一周. 我作为陪护家属, 暂停了一周的学习与工作照顾夫人. 故未能完成四阶段开始前立下的目标😔.</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/22/2024%20%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8D%93%E5%A0%82%E8%B6%8A/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/22/2024%20%E7%A7%8B%E5%86%AC%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E5%9B%9B%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E5%8D%93%E5%A0%82%E8%B6%8A/" class="post-title-link" itemprop="url">2024 秋冬季开源操作系统训练营第四阶段总结-卓堂越</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-22 12:48:00" itemprop="dateCreated datePublished" datetime="2024-12-22T12:48:00+00:00">2024-12-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:35" itemprop="dateModified" datetime="2026-06-30T02:01:35+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="从小白到操作系统开发者：我的训练营历程与成长"><a href="#从小白到操作系统开发者：我的训练营历程与成长" class="headerlink" title="从小白到操作系统开发者：我的训练营历程与成长"></a>从小白到操作系统开发者：我的训练营历程与成长</h2><p>参加训练营已经快一年了，回顾这段时间的学习与实践，感觉收获满满，成长也非常明显。虽然过程中经历了不少挑战，但我从中学到了很多，也更加明白了自己未来的目标和方向。</p>
-<h3 id="从初识RTOS和操作系统"><a href="#从初识RTOS和操作系统" class="headerlink" title="从初识RTOS和操作系统"></a>从初识RTOS和操作系统</h3><p>从今年刚刚开始接触开源操作系统训练营，感觉开辟了一片新的天地在训练营的第一阶段，我还是一个对RTOS（实时操作系统）了解甚少的“小白”。当时，我的理解仅限于知道 <strong>FreeRTOS</strong> 是什么，而对于操作系统的具体结构和工作原理几乎没有任何概念。然而，通过这段时间的学习，我开始接触并逐步理解操作系统的基本组成部分，像是内核、调度、进程管理等。这个阶段的学习让我明白了操作系统不仅仅是运行应用程序的基础，更是硬件和软件之间的重要桥梁。</p>
-<h4 id="网络问题与任务挑战"><a href="#网络问题与任务挑战" class="headerlink" title="网络问题与任务挑战"></a>网络问题与任务挑战</h4><p>不过，学习的过程并不是一帆风顺的。由于网络不稳定，很多简单的任务总是上传不了，这让我有时感到非常沮丧。更有一次，我因为任务时间限制和一些技术难题，没能在结课期间按时完成所有的任务。这些问题让我认识到，技术的实现不仅仅依赖于个人的能力，还需要更好的时间管理和稳定的技术环境支持。</p>
-<h3 id="深入探索异步编程与Python适配"><a href="#深入探索异步编程与Python适配" class="headerlink" title="深入探索异步编程与Python适配"></a>深入探索异步编程与Python适配</h3><p>进入训练营的第二阶段后，任务的难度逐步增加。我选择了一个相对较简单的方向，与其他小伙伴们一起研究 <strong>异步编程</strong>。虽然这与我之前的经验较为接近，但在实际实现过程中，我还是遇到了不少挑战，尤其是在理解异步编程模型时。</p>
-<p>然而，通过逐步的实现，我不仅加深了对异步编程的理解，还接触了Python适配的相关知识。实际上，这个阶段让我学到了很多之前没有涉及的技术，这些新知识极大地丰富了我的技术栈，也让我对未来的技术方向更加清晰。</p>
-<h3 id="Python与OpenCV的结合"><a href="#Python与OpenCV的结合" class="headerlink" title="Python与OpenCV的结合"></a>Python与OpenCV的结合</h3><p>尽管我没有完全按预期完成所有任务，但这个阶段让我深入思考了自己的学习方法。我曾经盲目追求高难度的任务，而忽略了任务的实际意义和自己的能力匹配。因此，在这个阶段，我主动选择了一个相对简单的任务——<strong>OpenCV</strong> 的相关实践。尽管我最终未能在 <strong>Starry</strong> 上完成OpenCV的测例，但这个过程让我更加明白了如何进行项目规划和任务分配。</p>
-<p>在这阶段，我还负责了Python与OpenCV的结合，进行了一些与图像处理相关的实验和项目。通过这些实践，我深入了解了Python的图像处理能力，尤其是OpenCV库在计算机视觉中的应用。例如，如何使用OpenCV进行图像读取、处理和展示，这些操作帮助我了解了计算机如何通过视觉来感知和分析信息。</p>
-<h4 id="实现Python3-11的syscall系统调用"><a href="#实现Python3-11的syscall系统调用" class="headerlink" title="实现Python3.11的syscall系统调用"></a>实现Python3.11的syscall系统调用</h4><p>作为实习任务的一部分，我参与了分析和实现支持 <strong>Python3.11</strong> 程序的 <strong>syscall</strong> 系统调用，尤其是在 <strong>ArceOS/Starry</strong> 系统中，逐步完善Python程序所依赖的系统调用。具体来说，这个过程涉及了用户态程序的交叉编译、依赖库的交叉编译、以及系统模拟器 <strong>Qemu</strong> 中的实验。</p>
-<ol>
-<li><p><strong>交叉编译Python程序</strong>：首先，我需要交叉编译 <strong>Python3.11</strong>，以支持 <strong>aarch64</strong> 架构。这包括了编译所需的依赖库（如 <strong>libffi</strong>、<strong>zlib</strong>、<strong>libuuid</strong> 和 <strong>xz</strong> 等），并且每个依赖库都必须交叉编译，以保证在目标架构上能够正常运行。</p>
-</li>
-<li><p><strong>Qemu模拟环境</strong>：为了测试在交叉编译后的Python程序，我在 <strong>Qemu</strong> 模拟环境中运行了一个 <strong>aarch64</strong> 架构的 <strong>Alpine Linux</strong>，并在其中加载了交叉编译生成的Python库。通过这种方式，我能够测试并调试系统调用，确保它们能够在模拟器中正常执行。</p>
-</li>
-<li><p><strong>系统调用分析</strong>：我使用 <strong>strace</strong> 工具来统计Python程序所使用的所有系统调用，并分析它们在不同架构下的表现。通过这个过程，我深入了解了 <strong>syscall</strong> 的工作机制，并能够在实际操作系统中正确实现这些调用。</p>
-</li>
-</ol>
-<p>通过这个任务，我不仅加深了对操作系统内核和系统调用机制的理解，还在实践中学会了如何处理复杂的交叉编译任务。</p>
-<h3 id="未来的目标–操作系统与编译器"><a href="#未来的目标–操作系统与编译器" class="headerlink" title="未来的目标–操作系统与编译器"></a>未来的目标–操作系统与编译器</h3><p>回顾这一年的学习，我不仅了解了操作系统的基本原理，还在逐步实现的过程中积累了不少经验。尤其是从一个仅仅知道FreeRTOS的小白，到如今能够理解操作系统结构的程度，我感到自己有了明显的进步。</p>
-<p>最令我兴奋的是，未来我希望能够在自己写的操作系统上运行自己开发的编译器。这是我一直以来的梦想，虽然这需要我不断努力和学习，但我相信，通过这段时间的积累，我已经打下了坚实的基础。</p>
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>参加训练营的这一年里，我收获了很多，不仅有热心的助教和同学的帮助，还有机会接触到多种新技术和工具。虽然遇到了一些困难，但这些都成为了我成长的动力。我相信，未来我会继续沿着这个方向前行，实现自己在操作系统和编译器领域的梦想。</p>
-<hr>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2024/12/22/2024a-stage4-yonchicy/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2024/12/22/2024a-stage4-yonchicy/" class="post-title-link" itemprop="url">2024a-stage4-yonchicy</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2024-12-22 12:32:26" itemprop="dateCreated datePublished" datetime="2024-12-22T12:32:26+00:00">2024-12-22</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:35" itemprop="dateModified" datetime="2026-06-30T02:01:35+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/report/" itemprop="url" rel="index"><span itemprop="name">report</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="stage4总结"><a href="#stage4总结" class="headerlink" title="stage4总结"></a>stage4总结</h2><p>stage 4 算是很扎实的一个阶段。这个阶段从头开始学习了我原来不怎么熟悉的异步运行时。整体上来说算是比较系统的学习了如何构建一个异步运行时，同时也阅读了不少tokio这种生产环境级别的异步运行时代码，受益良多。<br>本阶段还学习了一些关于 uring io 的知识，同时也顺便比较系统的梳理了 linux io 这块的知识点。通过每周一次的交流活动中能比较有效的调整自己的学习方向，同时也能补充很多有用的信息。很多同学水平很高，在交流过程中深感差距，还需要不断学习。</p>
-<h2 id="stage4-工作进度"><a href="#stage4-工作进度" class="headerlink" title="stage4 工作进度"></a>stage4 工作进度</h2><h3 id="本周工作（第一周）："><a href="#本周工作（第一周）：" class="headerlink" title="本周工作（第一周）："></a>本周工作（第一周）：</h3><p>阅读以下两个链接中文档，比较系统的了解了 rust 的异步原理</p>
-<ul>
-<li>Writing an OS in Rust async/await</li>
-<li><a href="https://rust-lang.github.io/async-book/" target="_blank" rel="noopener">https://rust-lang.github.io/async-book/</a></li>
-</ul>
-<p>####下周安排（第二周）：</p>
-<ul>
-<li>阅读 tokio 源码，学习生产环境中的异步运行时实现</li>
-</ul>
-<h3 id="本周工作（第二周）："><a href="#本周工作（第二周）：" class="headerlink" title="本周工作（第二周）："></a>本周工作（第二周）：</h3><p>由于本项目最终要实现一个基于 uring io 的异步运行时，于是决定从 io 的角度切入 tokio 的源码阅读。在阅读过程中发现 tokio 的文件 io 部分都是转发给某个独立线程，是基于阻塞式的操作。为了对比文件 io ，还阅读了部分 tcp 相关的源码，证实了的确网络 io 是使用了基于 epoll 的 mio 来做管理。而且本周对 uring io 有一个粗略地了解，目前看来 uring io 在文件 io 方面可能优势会更明显。 网络 io 这块相较于 epoll 优势没那么大，那么接下来第三周可能要优先实现基于 uring io 的文件 io 异步运行时的相关工作。</p>
-<p>此外本周还阅读了以下资料</p>
-<ul>
-<li>群友关于 smol 的博客<br><a href="https://systemxlabs.github.io/blog/smol-async-runtime/" target="_blank" rel="noopener">https://systemxlabs.github.io/blog/smol-async-runtime/</a></li>
-<li>uring_io 在 smol 中实现相关的 issue<br><a href="https://github.com/smol-rs/async-fs/issues/24" target="_blank" rel="noopener">https://github.com/smol-rs/async-fs/issues/24</a><br><a href="https://github.com/smol-rs/async-io/issues/39" target="_blank" rel="noopener">https://github.com/smol-rs/async-io/issues/39</a></li>
-<li>tokio uring io<br><a href="https://github.com/tokio-rs/tokio-uring" target="_blank" rel="noopener">https://github.com/tokio-rs/tokio-uring</a><br>这么看下来 smol 更为精简，而且文件 io 也是基于阻塞式操作。而且社区中也有想要让 smol 支持 uring io 的讨论，也许尝试移植一下 smol 会更有意思？</li>
-</ul>
-<h4 id="下周安排（第三周）："><a href="#下周安排（第三周）：" class="headerlink" title="下周安排（第三周）："></a>下周安排（第三周）：</h4><p>编写一个简易的基于 uring io 的文件 io 的异步运行时。</p>
-<h3 id="本周工作（第三周）："><a href="#本周工作（第三周）：" class="headerlink" title="本周工作（第三周）："></a>本周工作（第三周）：</h3><p>本周首先调研了一下在 smol 中实现基于 uring io 的可能性。首先 smol 社区中已经有一个 PR<br>async-io PR:Integrate io_uring in the Reactor<br>● 简要介绍了实现思路，<br>● 作者说要等等 <a href="https://github.com/smol-rs/polling/pull/39" target="_blank" rel="noopener">polling Expose raw handles for the Poller</a>  这个 issuing合并.<br>大概粗略浏览了一下，但是由于对 uring io 不太熟悉用法，还没有看懂，暂时搁置。</p>
-<p>然后继续阅读了 uring io 的相关资料，包括</p>
-<ul>
-<li><a href="https://kernel.dk/io_uring.pdf通过这个文档比较系统的了解了io" target="_blank" rel="noopener">https://kernel.dk/io_uring.pdf通过这个文档比较系统的了解了io</a> uring 的背景和、原理和用法。</li>
-<li><a href="https://github.com/tokio-rs/tokio-uring" target="_blank" rel="noopener">https://github.com/tokio-rs/tokio-uring</a> tokio 官方实现的基于 uring io 的异步运行时，在实现我自己的异步运行时的时候接口和一些比较棘手的问题有大量参考里面的实现方式。</li>
-<li><a href="https://github.com/tokio-rs/io-uringtokio" target="_blank" rel="noopener">https://github.com/tokio-rs/io-uringtokio</a> 官方封装的 io uring 库。我的异步运行时也基于这个库。</li>
-<li><a href="https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html参考这个文档，对基于" target="_blank" rel="noopener">https://rustmagazine.github.io/rust_magazine_2021/chapter_12/monoio.html参考这个文档，对基于</a> uring io 的异步运行时实现上可能遇到的问题和解决方案有了一个大概了解。</li>
-</ul>
-<p>最后是实现我自己的uring io异步运行时<br>我的async-fs-uring，这里实现了一个建议的基于 reactor 模式异步运行时，并实现了基于uring io的文件读。主要思想就是把 io 委托给 reactor 去提交，然后 reactor 不断轮询，如果有 io 完成了，就返回给对应的异步任务。实现过程中比较困难的点就是buf 管理，需要保证 buf 在异步读过程中一直有效。我这里做法是直接把 buf 的所有权移交给 UringReadFuture.这只是一个权宜之计，因为我这里实现的比较简单，在异步读进行过程中 UringReadFuture不会被 drop 掉。实际上后来也阅读了 tokio-uring 的相关设计文档，也了解到了一些更合理的设计方案，但是还没有时间来实现。</p>
-<p>未来计划：通过实现一个建议的基于 uring io 的异步运行时让我对 uring io 有了基本的了解。后续可能会进一步了解生产环境级的基于 uring io 的异步运行时的实现以及与传统阻塞式和epoll结合的异步运行时的实现差异</p>
 
       
     </div>

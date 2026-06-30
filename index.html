@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">783</span>
+          <span class="site-state-item-count">785</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">737</span>
+        <span class="site-state-item-count">745</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -264,7 +264,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -314,6 +314,1092 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/20260628-aptacc2421-StarryOS%E5%86%85%E6%A0%B8%E5%BC%80%E5%8F%91%E5%AE%9E%E8%B7%B5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/28/20260628-aptacc2421-StarryOS%E5%86%85%E6%A0%B8%E5%BC%80%E5%8F%91%E5%AE%9E%E8%B7%B5/" class="post-title-link" itemprop="url">StarryOS 内核开发实践：系统调用、/proc 内存计账与多场景应用支持——2026 春季训练营总结报告</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-28 16:40:28" itemprop="dateCreated datePublished" datetime="2026-06-28T16:40:28+00:00">2026-06-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <a id="more"></a>
+
+<p><strong>作者</strong>: 胡鑫鸿 (aptacc2421)<br><strong>仓库</strong>: <a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">rcore-os/tgoskits</a> | 个人 fork: <a href="https://github.com/aptacc2421/tgoskits" target="_blank" rel="noopener">aptacc2421/tgoskits</a><br><strong>跟踪 Issue</strong>: <a href="https://github.com/rcore-os/tgoskits/issues/580" target="_blank" rel="noopener">#580</a><br><strong>训练营时间</strong>: 2026-05-11 — 2026-06-26</p>
+<hr>
+<h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>七周内，在 StarryOS（基于 ArceOS 的 Linux 兼容内核）上完成 8 个 upstream merged PR，覆盖 syscall 语义对齐、<code>/proc</code> 进程内存统计、Redis 应用支持、RK3588 板级 SMP、ACT 模型推理五个方向。</p>
+<p>本次训练营最核心的技术故事是 <code>/proc</code> RSS 计账模块的开发与调试：初版设计在社区 review 中被推翻重构（从全局物理页框计数改为 per-VA BTreeMap），测试过程中又遭遇了”测量工具自身污染测量值”的问题——musl libc 的 <code>fopen</code> 在读取 <code>/proc/self/status</code> 时分配的匿名 mmap 被计入了进程自身的内存统计，导致断言恰好偏差 1 页（4KB）。定位这个根因的过程历时 12 小时、遍历了 6 条被逐一证伪的假说，最终通过内核 tracepoint 和 strace 对照实验找到了真相。</p>
+<p><strong>核心发现</strong>：在 OS 内核调试中，先验证观测手段、再怀疑内核；人懂底层约束（如 smp=1、fork 地址空间隔离、±1 页优先查 libc）是 AI 不可替代的环节。</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>内容</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>方案一</td>
+<td>syscall 语义（memfd/pidfd/mmap/waitpid）与 <code>/proc</code> 内存统计</td>
+<td>8 个 upstream merged PR</td>
+</tr>
+<tr>
+<td>方案二</td>
+<td>Redis 应用与 VFS/ext4</td>
+<td>#807 merged；#808 closed（被 Kevin #802 覆盖）</td>
+</tr>
+<tr>
+<td>方案三</td>
+<td>RK3588 SMP / ACT 推理</td>
+<td>#1196 merged；ACT QEMU 推理管线打通</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="一、背景：StarryOS-训练营选题"><a href="#一、背景：StarryOS-训练营选题" class="headerlink" title="一、背景：StarryOS 训练营选题"></a>一、背景：StarryOS 训练营选题</h2><p>StarryOS 是构建在 ArceOS 模块化内核之上的 Linux 兼容内核。它与传统宏内核不同——内核模块以 Rust crate 组织，通过 <code>#![no_std]</code> 在裸机上运行，目标是让未经修改的 Linux 用户程序（如 Redis、psutil、Python 推理引擎）在嵌入式设备上直接运行。</p>
+<p>训练营选题在 <a href="https://github.com/rcore-os/tgoskits/issues/580" target="_blank" rel="noopener">#580</a> 中拆为三条线：</p>
+<ol>
+<li><strong>Syscall 测例与语义完善</strong> — 补齐 StarryOS 缺少的 Linux 系统调用（memfd、pidfd、mmap、waitpid），使其通过现有的 Linux 测试套件</li>
+<li><strong>拟支持 Redis</strong> — 让 <code>redis-server</code> 在 StarryOS rootfs 上运行，排查文件系统层的阻塞点</li>
+<li><strong>RK3588 板级 SMP 与 ACT 推理</strong> — 板级 SMP bring-up（GIC v3 驱动、IPI readiness、TLB shootdown）；ACT（Action Chunking with Transformers）模型在 StarryOS 上的推理部署探索</li>
+</ol>
+<p>以下按技术主题组织，而非时间线复述。每个主题包含”问题 → 过程 → 结果 → 收获”的完整叙事。</p>
+<hr>
+<h2 id="二、中心故事：-proc-RSS-计账与-12-小时调试马拉松"><a href="#二、中心故事：-proc-RSS-计账与-12-小时调试马拉松" class="headerlink" title="二、中心故事：/proc RSS 计账与 12 小时调试马拉松"></a>二、中心故事：<code>/proc</code> RSS 计账与 12 小时调试马拉松</h2><p>这是训练营中技术深度最高、社区协作最密集、个人收获最大的模块。它包含了两个独立但接连发生的故事——一个是架构被 review 推倒重来的设计故事，另一个是测量工具自毁测量的调试故事。</p>
+<h3 id="2-1-问题：StarryOS-需要-per-process-RSS"><a href="#2-1-问题：StarryOS-需要-per-process-RSS" class="headerlink" title="2.1 问题：StarryOS 需要 per-process RSS"></a>2.1 问题：StarryOS 需要 per-process RSS</h3><p>Linux 通过 <code>/proc/[pid]/status</code> 和 <code>/proc/[pid]/statm</code> 向用户态暴露每个进程的 RSS（Resident Set Size，常驻内存页数），按页类型分为 Anon（匿名页，如堆/栈/COW 产物）、File（文件映射页）和 Shmem（共享内存页）。<code>top</code>、<code>psutil</code>、<code>htop</code> 等工具依赖这些字段。</p>
+<p>StarryOS 原有代码仅有几个 coarse-grained 原子计数器，无法区分页类型、无法处理 fork/COW 场景中的计账转移。目标是在两个 PR 中补齐 <code>/proc</code> 字段（Plan1）和 per-process RSS 计账（Plan2）。</p>
+<h3 id="2-2-初版的架构缺陷与-review-驱动的重构"><a href="#2-2-初版的架构缺陷与-review-驱动的重构" class="headerlink" title="2.2 初版的架构缺陷与 review 驱动的重构"></a>2.2 初版的架构缺陷与 review 驱动的重构</h3><p><strong>Plan1</strong>（PR #1171, 6 月 8 日 merge）：暴露 <code>/proc/[pid]/status</code> 的 VmRSS、VmSize 等字段，搭建 C 语言测试框架。</p>
+<p><strong>Plan2</strong>（PR #1173, 6 月 8 日开 PR，6 月 25 日 merge，持续 17 天）的核心挑战是 COW（Copy-on-Write）场景的计账：</p>
+<ul>
+<li><code>fork()</code> 后父子进程共享已映射页面。两个进程都可以读取，但一旦有一方写入，内核触发 COW——复制物理页并修改页表。</li>
+<li>COW break 将页面从 File 重分类为 Anon。这个变化需要同时反映在父进程和子进程各自的 RSS 中，且不能互相污染。</li>
+</ul>
+<p>我的初版设计在物理页框层面维护了一个全局的 <code>FrameRefCnt.kind</code> 字段，追踪每个物理页是 File 还是 Anon。提交 PR 后，社区 Maintainer <strong>ZR233</strong> 在第一轮 review 中就指出了根本性的架构问题：</p>
+<blockquote>
+<p>物理页框层面的全局类型标记无法区分不同进程对同一物理页的映射语义。一个进程以只读方式映射（记为 File），另一个进程写入后触发 COW（变为 Anon），但 <code>FrameRefCnt</code> 只存了一个 kind 值——必然有一个进程的统计是错误的。<strong>追踪状态的数据结构必须对齐隔离边界：如果隔离单位是进程，计账结构就应该是 per-process 的。</strong></p>
+</blockquote>
+<p>这句话成为了整个 redesign 的指导原则。最终架构改为每个 AddrSpace 持有一份独立的计账结构：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">struct MemoryAccounting &#123;</span><br><span class="line">    rss_anon: AtomicU64,                             &#x2F;&#x2F; Anon 页原子计数</span><br><span class="line">    rss_file: AtomicU64,                             &#x2F;&#x2F; File 页原子计数</span><br><span class="line">    rss_shmem: AtomicU64,                            &#x2F;&#x2F; Shmem 页原子计数</span><br><span class="line">    generation: AtomicU64,         &#x2F;&#x2F; 每次 BTreeMap 修改后单调递增</span><br><span class="line">    charges: BTreeMap&lt;VirtAddr, RssKind&gt;,  &#x2F;&#x2F; 虚拟地址 → 页类型</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>每个进程拥有独立的 BTreeMap，VA → RssKind 映射。populate（首次映射）、unmap（解除映射）、fork（clone_map 复制 charge map）、COW break（remove File + record Anon）四条路径各自通过 <code>record_charge</code>/<code>remove_charge</code> 调用更新计账。fork 时 <code>try_clone()</code> 创建全新的 AddrSpace，逐 VMA 调用 <code>clone_map</code> 将父进程的 charge 复制到子进程——父子进程的 MemoryAccounting 从 fork 完成那一刻起就是两块独立的物理内存。</p>
+<p><strong>这个架构不是 AI 设计的，也不是我独立设计的。它是在 ZR233 指出”从 global 到 per-process”的方向后，我在 review 讨论中逐步调整出来的。这是训练营最有价值的经历——不是”写对了代码”，而是”被指出了为什么原来的设计是错的”。</strong></p>
+<h3 id="2-3-现象：恰好差-1-页"><a href="#2-3-现象：恰好差-1-页" class="headerlink" title="2.3 现象：恰好差 1 页"></a>2.3 现象：恰好差 1 页</h3><p>测试由 Cursor autocomplete 参照 Linux kselftest 风格生成骨架，后经人工迭代重构。覆盖了以下场景：</p>
+<ul>
+<li>fork 后父子进程的 RSS 值是否一致（继承正确性）</li>
+<li>子进程对 COW 共享页写入后，Anon 是否 +1（COW break 计账）</li>
+<li>父进程的 RSS 在子进程写入后是否保持不变（计账隔离）</li>
+</ul>
+<p>就在验证 <code>test_fork_reclassify_writer_sibling_unmap</code> 这个用例时，遇到了训练营期间最诡异的问题：</p>
+<p>测试断言 fork 后子进程 RssAnon 应为 24 页（父进程 23 页 + COW 新增 1 页），但实际读到 23 页。进一步定位发现——父进程在读取 <code>/proc/self/status</code>（时刻 T1）时得到 anon=23，在调用 <code>fork()</code> 内部做计账快照（时刻 T2）时变成 anon=22。而 T1 和 T2 之间的用户代码只有两行 <code>pipe()</code> 系统调用。</p>
+<p>内核在没有 <code>munmap</code>/<code>mprotect</code>/<code>mmap</code> 的情况下，anon 自动少了 1 页。我开始追查”内核 charge 泄漏”。</p>
+<h3 id="2-4-6-条被逐一证伪的假说"><a href="#2-4-6-条被逐一证伪的假说" class="headerlink" title="2.4 6 条被逐一证伪的假说"></a>2.4 6 条被逐一证伪的假说</h3><p>在接下来的 12 小时内（跨越 6 月 13 日下午至 6 月 14 日凌晨，共 59 轮 CLI 对话），我通过 ChatGPT Web（对话策略规划）和 Claude CLI（内核代码搜索与日志分析）协同，在内核中添加了一系列 tracepoint（内核日志插桩），逐一提出并排除了以下假说：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>假说</th>
+<th>证伪过程和关键证据</th>
+<th>如果早知道的话…</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>clone_map 路径发生 AB-BA 死锁，导致测试超时后数值错乱</td>
+<td>在 fork 路径插入 <code>CLONE-PROGRESS</code> 日志，发现只是串口 115200 波特率下的日志输出瓶颈——串口打日志太慢导致 QEMU 超时</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2</td>
+<td>BTreeMap 中的 charge 条目消失（”138→95 泄漏”）</td>
+<td>早期分析混淆了全局 <code>RECORD_OK</code> 计数器（所有进程共享）和 per-process RSS。加了 pid 过滤的 <code>CHARGE-MUTATION</code> 日志后证明每个进程的 BTreeMap 条目数稳定</td>
+<td>—</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>sync_rss_atomics_from_charges()</code> 的 load-compare-store 被另一 CPU 并发修改，导致原子计数被错误覆写</td>
+<td>插入 <code>SYNC-OVERWRITE</code> 计数器，值永远为 0——sync 在任何调用中都是 no-op（atomics 在 sync 前后始终相等）</td>
+<td><strong>系统配置是 smp=1，只有一个 CPU 核心。不存在”另一 CPU 并发”。</strong> 这个信息写在配置文件里，不需要任何日志就能确认</td>
+</tr>
+<tr>
+<td>4</td>
+<td>fork 继承（clone_map）遗漏了某个 VMA，导致子进程少了一个 charge</td>
+<td>在 fork 路径插入 <code>FORK-INHERIT</code> 日志——每个 fork 边界上 parent_anon == child_anon 完全一致，继承完全正确</td>
+<td>—</td>
+</tr>
+<tr>
+<td>5</td>
+<td>子进程退出时的地址空间清理（<code>aspace_clear</code>）意外修改了父进程的 charge map</td>
+<td>给所有 unmap 路径添加 <code>caller=</code> tracepoint，发现 23→22 的 remove_charge 来源是 <code>sys_munmap</code>，不是 <code>aspace_clear</code>。不同 acct_ptr，不同地址空间</td>
+<td><strong>fork 创建独立的地址空间，子进程的页表和 BTreeMap 与父进程完全隔离。子进程退出时 unmap 的是自己的 VA，不可能碰到父进程的数据结构。</strong> 这是虚拟内存的基本语义</td>
+</tr>
+<tr>
+<td>6</td>
+<td>MemoryAccounting 对象被释放后，同一块内存被 allocator 复用给了新对象（”指针地址复用”），导致看起来像同一个对象在变异</td>
+<td>给 MemoryAccounting 加入单调递增的 <code>generation_id</code>：T1 时 gen=1168，T2 时 gen=1169，同一个 acct_ptr 上 generation 只增了 1——同一对象的连续 mutation，不是 allocator 复用</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p>假说 #3 和 #5 特别值得反思：smp=1 在 QEMU 配置文件里写着，fork 地址空间隔离在任何 OS 教材的第一章就讲了。这些不需要猜——是已知事实。但在密集的日志插桩和假说枚举中，这些”明显的事实”被绕过了。</p>
+<h3 id="2-5-突破：从-tracepoint-到-fopen"><a href="#2-5-突破：从-tracepoint-到-fopen" class="headerlink" title="2.5 突破：从 tracepoint 到 fopen"></a>2.5 突破：从 tracepoint 到 fopen</h3><p>转折点来自于新增的 <code>SYSCALL-MMAP</code>/<code>SYSCALL-MUNMAP</code> tracepoint（记录每个 mmap/munmap 系统调用的 VA、长度、是否为文件映射）。在 qemu9.log 中捕获到：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[SYSCALL-MMAP]  ts&#x3D;2697269616 pid&#x3D;23 va&#x3D;0x16000 len&#x3D;0x1000 file&#x3D;false</span><br><span class="line">[SYSCALL-MUNMAP] ts&#x3D;2699002320 pid&#x3D;23 va&#x3D;0x16000 len&#x3D;0x1000</span><br></pre></td></tr></table></figure>
+
+<p>三个关键线索：</p>
+<ol>
+<li><code>file=false</code> — 这是一个<strong>匿名</strong>映射，不是测试代码中创建的 MAP_PRIVATE 文件映射（后者的 VA 是 0x15000，<code>file=true</code>）</li>
+<li>映射长度恰好 4096 字节（1 页） — 不像数据区，像缓冲区</li>
+<li>mmap 时间在 T1（/proc 读取）之前，munmap 在 T2（fork）之前 — 它在测量窗口内存在，在测量窗口后消失</li>
+</ol>
+<p>回溯测试源码找到调用者：测试在读取 RSS 基线值时调用了 <code>fopen(&quot;/proc/self/status&quot;, &quot;r&quot;)</code>。问题的最后一块拼图来自 libc 实现差异的知识：</p>
+<p><strong>musl libc（StarryOS 使用的 C 标准库）的 <code>fopen</code> 为 <code>FILE</code> 结构体的缓冲区分配一个 4096 字节的匿名 mmap（<code>MAP_PRIVATE | MAP_ANONYMOUS</code>）。而 glibc 的 <code>fopen</code> 用 <code>brk</code> 分配堆内存——因此同样的测试代码在 glibc 环境下不会触发此问题。</strong></p>
+<p>完整的污染链：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">测试调用 fopen(&quot;&#x2F;proc&#x2F;self&#x2F;status&quot;)</span><br><span class="line">  → musl: mmap(4096, MAP_ANONYMOUS) → 内核 record_charge → anon: 22→23</span><br><span class="line">测试调用 fgets 读取 &quot;RssAnon: 92 kB&quot; → 读到 23 页（多了一页 fopen 的缓冲区）</span><br><span class="line">测试调用 fclose → musl: munmap(4096) → 内核 remove_charge → anon: 23→22</span><br><span class="line">测试调用 fork() → 子进程继承 anon&#x3D;22（此时 fopen 缓冲区已不存在）</span><br><span class="line">断言期望: anon&#x3D;23 + 1(COW) &#x3D; 24 → 实际 anon&#x3D;22 + 1 &#x3D; 23 → FAIL</span><br></pre></td></tr></table></figure>
+
+<p><strong>根因不是内核 bug，不是测试逻辑 bug，是测试工具本身改变了被测量的状态——这是”观察者效应”在内核调试中的实际案例。</strong></p>
+<h3 id="2-6-修复与验证"><a href="#2-6-修复与验证" class="headerlink" title="2.6 修复与验证"></a>2.6 修复与验证</h3><p>修复本身仅 62 行：将五个 <code>/proc</code> 读取函数从 <code>fopen</code>/<code>fgets</code>/<code>fclose</code> 改为 POSIX 原语 <code>open</code>/<code>read</code>/<code>close</code>——栈缓冲区不产生额外的 mmap，RSS 测量不再受测量工具污染。</p>
+<p>独立验证步骤：</p>
+<ol>
+<li>在 WSL（宿主机）上用 strace 对比 musl 和 glibc 的 <code>fopen</code> 行为——musl 确实多了一条 <code>mmap(NULL, 4096, ...)</code>，glibc 走 <code>brk</code></li>
+<li>StarryOS QEMU 上跑修改后的测试——所有断言通过</li>
+<li>在 StarryOS QEMU 上跑修改前的测试 + 手动 strace——确认 mmap 存在且 RSS 多一页</li>
+</ol>
+<hr>
+<h2 id="三、syscall-语义对齐：memfd、pidfd、mmap、waitpid"><a href="#三、syscall-语义对齐：memfd、pidfd、mmap、waitpid" class="headerlink" title="三、syscall 语义对齐：memfd、pidfd、mmap、waitpid"></a>三、syscall 语义对齐：memfd、pidfd、mmap、waitpid</h2><p>memfd 和 pidfd 是 Linux 较新的文件描述符类型。它们有一个共同的动机：传统的文件描述符依赖于文件路径或 PID 整数，前者需要管理命名空间，后者存在 PID 复用风险（进程退出后 PID 可能被分配给新进程）。memfd 创建匿名的内存文件（无磁盘路径），pidfd 以稳定的”进程引用”替代 PID 整数。</p>
+<p>StarryOS 需要支持这些 syscall 以通过现有的 Linux 测试套件。以下是对齐工作的四个 PR。</p>
+<h3 id="3-1-memfd-create-与-seals"><a href="#3-1-memfd-create-与-seals" class="headerlink" title="3.1 memfd_create 与 seals"></a>3.1 memfd_create 与 seals</h3><p><code>memfd_create(&quot;name&quot;, flags)</code> 创建一个只存在于内存中的匿名文件，返回 fd。访问方式与普通文件完全相同（read/write/mmap），但无磁盘后盾。</p>
+<p>在 StarryOS 中的实现：利用 tmpfs 创建匿名 inode，挂载到内部 tmpfs 实例。支持四种 seal（<code>F_SEAL_SHRINK</code>/<code>F_SEAL_GROW</code>/<code>F_SEAL_WRITE</code>/<code>F_SEAL_SEAL</code>）——一旦设置了某种 seal，对应操作被内核拒绝。测试使用 kselftest 风格，每个 seals 组合独立验证。</p>
+<p><strong>已知差距</strong>：<code>F_SEAL_FUTURE_WRITE</code>（阻止后续写映射）在当前实现中不支持；不支持 <code>MEMFD_NOEXEC_SEAL</code> 或大页（<code>MFD_HUGETLB</code>）。这些都是向后兼容的——不对现有功能造成回退。</p>
+<h3 id="3-2-pidfd：三个-syscall"><a href="#3-2-pidfd：三个-syscall" class="headerlink" title="3.2 pidfd：三个 syscall"></a>3.2 pidfd：三个 syscall</h3><table>
+<thead>
+<tr>
+<th>syscall</th>
+<th>行为</th>
+<th>实现要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pidfd_open(pid, flags)</code></td>
+<td>打开目标进程的 fd（不受 PID 复用影响）</td>
+<td>StarryOS 对 flags 严格检查，仅支持 <code>PIDFD_NONBLOCK</code></td>
+</tr>
+<tr>
+<td><code>pidfd_getfd(pidfd, targetfd, flags)</code></td>
+<td>从目标进程复制一个 fd 到当前进程</td>
+<td>flags 必须为 0；在内核中持有目标进程的 fd_table 锁进行复制</td>
+</tr>
+<tr>
+<td><code>pidfd_send_signal(pidfd, sig, info, flags)</code></td>
+<td>通过 pidfd 向目标进程发送信号</td>
+<td>siginfo 为 NULL 时使用默认值</td>
+</tr>
+</tbody></table>
+<p>测试覆盖了跨进程 fd 传递、进程回收后的 pidfd 行为、无效参数的 errno 检查。StarryOS 与 Linux 在语义上的主要差异是：StarryOS 对 flags 参数的检查比 Linux 更严格（未知 flag 返回 <code>EINVAL</code> 而非忽略）。</p>
+<h3 id="3-3-MAP-FIXED-与-waitpid：两个小语义修正"><a href="#3-3-MAP-FIXED-与-waitpid：两个小语义修正" class="headerlink" title="3.3 MAP_FIXED 与 waitpid：两个小语义修正"></a>3.3 MAP_FIXED 与 waitpid：两个小语义修正</h3><p><strong>MAP_FIXED</strong>（PR #691，7 行核心改动）：Linux 的 <code>mmap(MAP_FIXED)</code> 语义要求<strong>先做权限检查，再 unmap 旧映射</strong>——如果新映射的权限不足，必须保留旧映射不变（”原子”语义）。StarryOS 原实现先 unmap 再检查，导致权限不足时旧映射已丢失。修复为：先对重叠区域做权限预检，仅在通过后才执行 unmap+mmap。</p>
+<p><strong>waitpid</strong>（PR #686，4 行核心改动）：退出码写入（<code>vm_write</code>）必须在子进程从进程表中被移除（reap）之前完成——否则父进程可能读到未初始化的 <code>siginfo</code>。这是一个典型的多线程同步问题——“写完整才能读”的约束需要用正确的调用顺序保障，而非锁。</p>
+<h3 id="3-4-测试方法"><a href="#3-4-测试方法" class="headerlink" title="3.4 测试方法"></a>3.4 测试方法</h3><p>syscall 测试以 C 语言编写，组织在 StarryOS 的 grouped qemu-smp1 system test 框架下。测试模式参照 Linux kselftest：每个 syscall 先用正常参数验证功能，再用非法参数验证 errno（如给 <code>memfd_create</code> 传非法 flags、给 <code>pidfd_open</code> 传不存在的 PID）。</p>
+<p>测试骨架初期由 Cursor autocomplete 快速生成，后期人工补全——AI 擅长生成”一个正常参数的测试用例”骨架，但边角 case（seal 组合爆炸、标志位互斥）和 errno 对照表需要人逐条校对 Linux man page 确认。</p>
+<hr>
+<h2 id="四、应用与板级"><a href="#四、应用与板级" class="headerlink" title="四、应用与板级"></a>四、应用与板级</h2><h3 id="4-1-Redis：ext4-文件系统阻塞点"><a href="#4-1-Redis：ext4-文件系统阻塞点" class="headerlink" title="4.1 Redis：ext4 文件系统阻塞点"></a>4.1 Redis：ext4 文件系统阻塞点</h3><p>Redis 在 StarryOS 上启动后，AOF（Append-Only File）持久化流程的 rewrite 操作阻塞在 <code>rename(&quot;temp-rewriteaof-xxx&quot;, &quot;appendonlydir/&quot;)</code>，返回 <code>EINVAL</code>。AOF rewrite 是 Redis 保证数据持久性的关键流程——阻塞在此意味着 Redis 能启动但不能持久化。</p>
+<p>排查从症状收敛到两层缺陷：</p>
+<ol>
+<li><strong>VFS 层祖先检查过严</strong>：<code>axfs-ng-vfs</code> 的 rename 实现中，跨目录 rename 的合法性检查逻辑错误地将 <code>temp-rewriteaof</code> → <code>appendonlydir/</code> 判为非法——它误认为目标父目录和源文件不能在同一文件系统层级</li>
+<li><strong>ext4 层 hash-tree dentry delete</strong>：删除目标位置的旧目录项时，ext4 hash-tree 索引未正确更新，导致后续在目标路径上的查找操作失败</li>
+</ol>
+<p>PR #807 修复了这两个问题。整个过程是从症状逐步缩小到具体代码行的——初始假设（ext4 有通用 rename 问题）过于宽泛，最后发现是两个独立但需要同时修复的缺陷。</p>
+<p><strong>教训</strong>：开应用层 Redis test-suit PR（#808）前，未先检查社区是否有同类 PR——等我提交后发现 Kevin <a href="https://github.com/rcore-os/tgoskits/pull/802" target="_blank" rel="noopener">#802</a> 已经覆盖了相同的范围。#808 关闭。开源协作中，<strong>开 PR 前先搜索 upstream open PR 是基本流程</strong>。</p>
+<h3 id="4-2-真机-SMP：Orange-Pi-5-Plus-IPI-readiness"><a href="#4-2-真机-SMP：Orange-Pi-5-Plus-IPI-readiness" class="headerlink" title="4.2 真机 SMP：Orange Pi 5 Plus IPI readiness"></a>4.2 真机 SMP：Orange Pi 5 Plus IPI readiness</h3><p>在 Orange Pi 5 Plus（RK3588, 8 核 Cortex-A76 + Cortex-A55）真机上测试 StarryOS SMP 时，开启 <code>max_cpu_num&gt;1</code> 后立即触发 panic。</p>
+<p><strong>根因</strong>：TLB shootdown（多核间同步页表变更的操作）需要向所有 CPU 核心发送核间中断（IPI），但 IPI 子系统（GIC v3 中断控制器驱动 + 核心间通信队列）在启动早期尚未完成初始化。第一个 TLB shootdown 请求到达时，IPI 发送函数访问了未初始化的 GIC 寄存器，触发 panic。</p>
+<p><strong>修复</strong>（PR #1196）：在 <code>axruntime</code> 启动流程中插入 IPI 就绪同步屏障，确保 IPI 子系统在应用代码执行前完成初始化。关键改动在 GIC v3 驱动和 <code>axtask</code> 的 SMP online 流程中，保证 secondary CPU bring-up 与 IPI 初始化的顺序依赖。</p>
+<p>修复前曾使用 <code>max_cpu_num=1</code> workaround 临时绕过（仅启动单核），但最终交付的是根因 fix。workaround 是临时工具，upstream patch 需要解决根因——<strong>区分临时绕过与最终修复是参与开源项目的基本素养</strong>。</p>
+<h3 id="4-3-ACT-模型推理：认识-Transformer"><a href="#4-3-ACT-模型推理：认识-Transformer" class="headerlink" title="4.3 ACT 模型推理：认识 Transformer"></a>4.3 ACT 模型推理：认识 Transformer</h3><p>Pro57 比赛要求将 ACT（Action Chunking with Transformers）模型部署到嵌入式平台。ACT 是一个 Encoder-only 的 Transformer 变体，用于机器人动作预测。我的工作打通了从 PyTorch 模型到 StarryOS QEMU 的推理管线：从 PyTorch checkpoint 导出 ONNX 格式（194MB），用 Rust <code>tract</code> 推理引擎交叉编译为 riscv64 musl 静态二进制，在 StarryOS QEMU RISC-V 虚拟机上加载并成功推理。还做了 structured pruning 实验（按比例保留权重后逐层测量内存占用）和 RISC-V Vector 扩展 microbenchmark。</p>
+<p>在这个过程中，我对 Transformer 有了从”纸上公式”到实际计算图的认识：Multi-Head Self-Attention 的 Q/K/V 投影、Feed-Forward Network、Layer Normalization 这些组件在 ONNX 计算图中是什么形态，推理时内存主要消耗在哪（中间激活张量通常比权重矩阵更大），以及 tract 这类推理引擎在编译期做的图优化（常量折叠、算子融合）。这些认识来源于逐算子梳理计算图、测量每层内存占用的过程——不是读论文能得到的。</p>
+<p>StarryOS 侧的改动是 app 层 QEMU smoke，推理栈工作在独立工作区——将”内核能跑”和”推理栈优化”分开，互不阻塞。</p>
+<h2 id="五、量化成果"><a href="#五、量化成果" class="headerlink" title="五、量化成果"></a>五、量化成果</h2><h3 id="5-1-Upstream-merged-PR"><a href="#5-1-Upstream-merged-PR" class="headerlink" title="5.1 Upstream merged PR"></a>5.1 Upstream merged PR</h3><table>
+<thead>
+<tr>
+<th>PR</th>
+<th>合并日</th>
+<th>标题</th>
+<th>+/-</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/565" target="_blank" rel="noopener">#565</a></td>
+<td>05-19</td>
+<td>feat: anonymous memfd, seals, and pidfd tests</td>
+<td>+2064/-144</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/686" target="_blank" rel="noopener">#686</a></td>
+<td>05-19</td>
+<td>fix: waitpid reap order (exit code before reaping)</td>
+<td>+7/-3</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/691" target="_blank" rel="noopener">#691</a></td>
+<td>05-19</td>
+<td>fix: MAP_FIXED failure preserves prior mapping</td>
+<td>+106/-22</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/707" target="_blank" rel="noopener">#707</a></td>
+<td>05-24</td>
+<td>fix: pidfd open/getfd/send_signal conformance</td>
+<td>+1406/-30</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/807" target="_blank" rel="noopener">#807</a></td>
+<td>05-21</td>
+<td>fix: ext4 rename &amp; VFS ancestor check</td>
+<td>+477/-225</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1171" target="_blank" rel="noopener">#1171</a></td>
+<td>06-08</td>
+<td>feat: /proc memory stats exposure</td>
+<td>+869/-34</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1173" target="_blank" rel="noopener">#1173</a></td>
+<td>06-25</td>
+<td>fix: Cow RSS per-VA charge tracking</td>
+<td>+2270/-365</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1196" target="_blank" rel="noopener">#1196</a></td>
+<td>06-12</td>
+<td>fix: aarch64 SMP IPI readiness</td>
+<td>+159/-22</td>
+</tr>
+</tbody></table>
+<h3 id="5-2-Issue-580-完成度"><a href="#5-2-Issue-580-完成度" class="headerlink" title="5.2 Issue #580 完成度"></a>5.2 Issue #580 完成度</h3><table>
+<thead>
+<tr>
+<th>子项</th>
+<th>状态</th>
+<th>关键 PR</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>memfd + seals + pidfd</td>
+<td>✅ merged</td>
+<td>#565, #707</td>
+</tr>
+<tr>
+<td>waitpid / MAP_FIXED</td>
+<td>✅ merged</td>
+<td>#686, #691</td>
+</tr>
+<tr>
+<td>Redis VFS blocker</td>
+<td>✅ merged</td>
+<td>#807</td>
+</tr>
+<tr>
+<td><code>/proc</code> RSS</td>
+<td>✅ merged</td>
+<td>#1171, #1173</td>
+</tr>
+<tr>
+<td>Orange Pi SMP</td>
+<td>✅ merged</td>
+<td>#1196</td>
+</tr>
+<tr>
+<td>Redis app test-suit</td>
+<td>⏸ 被覆盖</td>
+<td>#808 closed（Kevin #802）</td>
+</tr>
+</tbody></table>
+<h3 id="5-3-其他统计"><a href="#5-3-其他统计" class="headerlink" title="5.3 其他统计"></a>5.3 其他统计</h3><ul>
+<li>Closed unmerged PR：5 个早期 fix 分支（内容并入 #565/#707）+ #808（被 Kevin 覆盖）</li>
+<li>对已有功能无 regression（所有 merged PR 通过了 QEMU CI 和板级测试）</li>
+</ul>
+<hr>
+<h2 id="六、经验与教训"><a href="#六、经验与教训" class="headerlink" title="六、经验与教训"></a>六、经验与教训</h2><h3 id="6-1-约束前置：设计函数时把所有不合法的路径判死"><a href="#6-1-约束前置：设计函数时把所有不合法的路径判死" class="headerlink" title="6.1 约束前置：设计函数时把所有不合法的路径判死"></a>6.1 约束前置：设计函数时把所有不合法的路径判死</h3><p>做 OS 不能假设调用者（用户程序）按预期行为，也不能假设内核自己的状态总是合法的。以 RSS 为例——如果 <code>snapshot_resident_charges()</code> 返回时断言 <code>BTreeMap 条目统计值 == 原子计数器值</code>，fopen 贡献的额外 1 页 Anon 会在第一次运行时就触发断言失败，直接定位到”有人多计了一页”，不需要追 12 小时。</p>
+<p>测例设计同理——AI 生成的测例倾向于假设”前面的步骤都正确”，断言只检查最终输出。但在后期遇到的一个动态链接缺页 bug 中，第一步就错了（共享库映射缺少一个页），后续所有断言都在错误的基础上推演。<strong>每个测试步骤都应独立自证前置条件。</strong></p>
+<h3 id="6-2-人依然需要懂底层：AI-不会主动排除不可能"><a href="#6-2-人依然需要懂底层：AI-不会主动排除不可能" class="headerlink" title="6.2 人依然需要懂底层：AI 不会主动排除不可能"></a>6.2 人依然需要懂底层：AI 不会主动排除不可能</h3><p>RSS 调查最值得反思的不是”AI 花了 12 小时才找到根因”，而是<strong>其中 4 条假说不应该被提出</strong>——它们违反了已知的约束条件：</p>
+<ul>
+<li>smp=1（单核）→ 不存在跨 CPU 并发修改 → sync 覆写假说自动作废</li>
+<li>fork 不共享地址空间 → 子进程退出清理不可能碰到父进程的 BTreeMap → aspace_clear 假说自动作废</li>
+<li>偏差恰好 1 页（4KB）→ 最可能的解释是 libc/动态链接产生的临时映射 → 应该先查 libc，再查内核</li>
+<li>已知 musl 用 mmap 做 FILE 缓冲区而 glibc 用 brk → 用 strace 在两种 libc 上对照测试，可以快速排除内核嫌疑</li>
+</ul>
+<p>这些不是需要”猜”的知识，是操作系统教材的第一章、man page、libc 源码。AI 在长上下文推理时会丢失这些”明显的事实”——smp=1 在 300 轮对话之前提过一次，之后不再是 active context。人会记住”我们只有一个核”因为这是物理直觉，AI 不会——除非被反复提醒。</p>
+<p><strong>人作为审计员的核心价值：当 AI 提出假说时，先问”这个假说违反了哪些已知约束”，而不是”这个假说有没有证据”。AI 擅长枚举可能性——从 100 种可能的原因中找出最像的 10 个。人擅长排除不可能性——从 10 个最像的原因中去掉违反物理/语义约束的 8 个。</strong></p>
+<h3 id="6-3-从-review-中学架构"><a href="#6-3-从-review-中学架构" class="headerlink" title="6.3 从 review 中学架构"></a>6.3 从 review 中学架构</h3><p>#1173 初版 global FrameRefCnt 被完全推翻，然后重新设计为 per-VA BTreeMap。ZR233 的那句”追踪状态的数据结构必须对齐隔离边界”不仅是代码修改建议——它是一条 OS 设计原理的具体应用：<strong>状态追踪的粒度不应小于隔离的粒度。</strong> 如果隔离单位是进程（每个进程有独立的地址空间），那么计账数据的归属就应该是 per-process 的。</p>
+<p>这种架构直觉不是 AI 能教的——它不仅需要读懂代码，还需要理解设计者的意图、识别意图与实现之间的偏差、并提出”向哪个方向改”的指导。这是 review 文化最宝贵的价值。</p>
+<h3 id="6-4-每个阶段写-blog，不要拖"><a href="#6-4-每个阶段写-blog，不要拖" class="headerlink" title="6.4 每个阶段写 blog，不要拖"></a>6.4 每个阶段写 blog，不要拖</h3><p>训练营第一周我完成了 memfd/pidfd 的 syscall 实现，当时的细节还很清晰——seal 的组合语义、pidfd 的 flags 检查与 Linux 的差异点、MAP_FIXED 的原子性保证。如果能在那时趁热写一篇 blog，不仅是给社区留下参考资料，更是对自己理解的一次强制检验——写清楚一件事情比做清楚一件事情更难。</p>
+<p>但我没有。我把 blog 拖到了训练营最后。结果是：6 月中下旬期末考试和各种实验同时压上来，memfd 的设计细节已经模糊了，只能靠着 git log 和 PR 描述来反推当时的决策。最终只来得及写 RSS 调查这一篇 blog，而 syscall、Redis ext4、Orange Pi SMP 的故事都没有被记录下来。</p>
+<p><strong>每个阶段结束时写 blog，把 blog 当成阶段交付物的一部分，而不是事后补的作业。</strong> 即时写 blog 的成本是半天，事后靠回忆重建的成本是同样的半天——但事后写的质量差得多，而且大概率根本没时间写。</p>
+<h3 id="6-5-先查规范，再读代码；先验证测量工具，再怀疑被测对象"><a href="#6-5-先查规范，再读代码；先验证测量工具，再怀疑被测对象" class="headerlink" title="6.5 先查规范，再读代码；先验证测量工具，再怀疑被测对象"></a>6.5 先查规范，再读代码；先验证测量工具，再怀疑被测对象</h3><p>三条具体教训：</p>
+<ol>
+<li><strong>先查社区 open PR</strong>：避免重复工作（#808）</li>
+<li><strong>先查 man page / 标准文档</strong>：确认”应该是怎样”——AI 擅长 grep 代码查”实际是怎样”，但规范回答得更快</li>
+<li><strong>先验证测量工具</strong>：<code>/proc</code> 的读取行为（fopen mmap）本身就是 RSS 测量的一部分——在 OS 调试中，观测手段往往是 bug 的一部分，而非独立于 bug 之外</li>
+</ol>
+<hr>
+<h2 id="七、AI-协作：放大器，不是替代品"><a href="#七、AI-协作：放大器，不是替代品" class="headerlink" title="七、AI 协作：放大器，不是替代品"></a>七、AI 协作：放大器，不是替代品</h2><p>本次训练营的主要生产工具是 AI（Cursor + Claude CLI + ChatGPT Web）。真实情况是三者在不同阶段犯错、也在不同阶段起到了不可替代的作用：</p>
+<ul>
+<li><strong>Cursor autocomplete</strong>：在 C 测试用例编写时提供了大量骨架代码，但也随手写了 <code>fopen</code>——它不知道 musl 的 fopen 会 mmap</li>
+<li><strong>Claude CLI（通过 DeepSeek API）</strong>：在内核代码搜索、tracepoint 插桩、日志 pattern 识别上远超人工速度——但它会在第 59 轮对话中忘记第 1 轮就确认过的 smp=1</li>
+<li><strong>ChatGPT Web</strong>：擅长规划结构化调查框架（如 “Audit Mode：Q1-Q5，只允许已证实事实，禁止猜测”），但不擅长从具体日志中推断因果关系</li>
+</ul>
+<p>人的不可替代部分：</p>
+<ul>
+<li><strong>物理世界验证</strong>：在 QEMU/真机上跑测试、读串口输出、用 strace 做对照实验——AI 只能生成命令，不能确认结果</li>
+<li><strong>读懂 review 并调整架构方向</strong>：从 “global FrameRefCnt 有缺陷” 到 “per-VA BTreeMap” 的跳跃不是 AI 独立完成的</li>
+<li><strong>判断什么是不可能的</strong>：知道 smp=1、fork 语义、libc 差异——这些是领域知识，不是 prompt 技巧</li>
+</ul>
+<p>AI 在此次训练营中的本质角色是<strong>认知放大器</strong>——放大生产力（快速生成代码骨架、批量搜索日志 pattern），也放大认知偏差（在错误前提下快速递推几十轮）。与 AI 协作最核心的技能不是”写好 prompt”，而是<strong>能在 AI 的输出中识别哪些结论违反了已知约束——然后删掉，不追</strong>。</p>
+<p>训练营让我意识到：AI 的好处和危险是同一个——它能让你以更快的速度到达任何地方，无论那个方向是对的还是错的。所以驾驭它需要驾驶者自己知道方向。</p>
+<hr>
+<h2 id="致谢"><a href="#致谢" class="headerlink" title="致谢"></a>致谢</h2><p>感谢周睿老师（ZR233）在 RSS 模块开发过程中给予的耐心指导。感谢陈渝老师在训练营期间的组织和指导，感谢 Mr Graveyard、Ajax 老师以及所有参与训练营的老师们提供的帮助。</p>
+<p>感谢一起参与训练营的同学们。许多问题的思路并不是在敲代码时产生的，而是在讨论、争论和交流中逐渐清晰的。感谢刘柯、王夯以及交流群中的伙伴们，大家分享的经验、踩过的坑和提出的问题，都让我受益匪浅。</p>
+<p>更要感谢开源社区。无论是 StarryOS、ArceOS，还是 Linux、RTEMS，这些项目背后无数开发者长期积累的工作，让后来者能够站在巨人的肩膀上学习。对于一个学生而言，能够参与真实项目、阅读真实代码、接受真实 review，本身就是一种幸运。</p>
+<p>从三月到六月，训练营持续了四个月。回头看，收获最大的并不是完成了多少 PR，也不是解决了多少 Bug，而是第一次真正接触到了系统软件开发的过程：阅读代码、理解设计、提出假设、验证实验、接受 review、推翻错误的方案，再重新构建更合理的实现。</p>
+<p>训练营期间最深刻的体会来自 RSS 调试。一个看似简单的”一页误差”，最终追查到了 libc 的实现细节；一个最初看起来合理的设计，在 review 中被指出了根本性的架构缺陷。相比于”找到答案”，这些经历让我学会了如何接近答案。</p>
+<p>参加训练营之前，我对操作系统的理解更多来自课本和课程实验。训练营结束后，我依然只是一个刚刚入门的学习者，但已经能够透过现象去观察系统背后的机制。那些曾经看起来理所当然的事情——进程、文件、内存、fork、COW、系统调用——不再是抽象概念，而是具体的数据结构、代码路径和硬件约束。</p>
+<p>计算机的世界里没有魔法。</p>
+<p>所谓操作系统，不过是把这些”魔法”拆开来看；而所谓成长，大概就是逐渐学会理解它们为何如此运作。</p>
+<p>感谢这段经历，也感谢一路上帮助过我的每一个人。</p>
+<hr>
+<h1 id="附录-A：技术地图"><a href="#附录-A：技术地图" class="headerlink" title="附录 A：技术地图"></a>附录 A：技术地图</h1><p>下图展示了本次训练营涉及的各模块及它们之间的关系。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Application Layer</span><br><span class="line">├── Redis ──→ VFS rename ──→ ext4 dentry hash-tree</span><br><span class="line">├── psutil&#x2F;top ──→ &#x2F;proc pseudo-fs ──→ MemoryAccounting (BTreeMap&lt;VA,Kind&gt;)</span><br><span class="line">└── ACT infer ──→ StarryOS QEMU RISC-V</span><br><span class="line"></span><br><span class="line">Kernel Layer</span><br><span class="line">├── Syscall: memfd_create &#x2F; pidfd_open &#x2F; pidfd_getfd &#x2F; pidfd_send_signal</span><br><span class="line">├── MM: COW break → remove_charge(File) + record_charge(Anon)</span><br><span class="line">├── fork: try_clone() → clone_map → reconcile_fork_charges_from_parent()</span><br><span class="line">└── aspace_clear: AddrSpace::clear() on process exit</span><br><span class="line"></span><br><span class="line">Hardware Layer</span><br><span class="line">└── RK3588 (Orange Pi 5 Plus) ──→ GIC v3 IPI ──→ SMP secondary CPU bring-up</span><br></pre></td></tr></table></figure>
+
+<h1 id="附录-B：工作时间线"><a href="#附录-B：工作时间线" class="headerlink" title="附录 B：工作时间线"></a>附录 B：工作时间线</h1><table>
+<thead>
+<tr>
+<th>时间段</th>
+<th>模块</th>
+<th>关键事件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>05-11 → 05-19</td>
+<td>Syscall</td>
+<td>memfd/pidfd 内核实现 + 测试；#565/#686/#691 merge</td>
+</tr>
+<tr>
+<td>05-16 → 05-22</td>
+<td>Redis</td>
+<td>诊断 rename EINVAL；#807 merge；#808 发现与 Kevin #802 重复后关闭</td>
+</tr>
+<tr>
+<td>05-20 → 05-24</td>
+<td>Syscall</td>
+<td>pidfd 完善 + #707 merge；MAP_FIXED 测试补全</td>
+</tr>
+<tr>
+<td>05-23 → 06-06</td>
+<td>ACT</td>
+<td>ONNX 计算图分析、tract 推理引擎集成、QEMU 推理验证、内存 profile</td>
+</tr>
+<tr>
+<td>06-07 → 06-08</td>
+<td>/proc RSS</td>
+<td>#1171（Plan1）merge：暴露 /proc 字段</td>
+</tr>
+<tr>
+<td>06-08 → 06-25</td>
+<td>/proc RSS</td>
+<td>#1173（Plan2）开发：global FrameRefCnt → per-VA BTreeMap；6 轮 review 迭代</td>
+</tr>
+<tr>
+<td>06-09 → 06-12</td>
+<td>Orange Pi</td>
+<td>#1179 真机 panic 诊断 → #1196 IPI readiness merge</td>
+</tr>
+<tr>
+<td>06-13 → 06-14</td>
+<td>/proc RSS</td>
+<td>RSS 12 小时调试马拉松：6 条假说证伪 → fopen 观察者效应根因 → 修复验证</td>
+</tr>
+<tr>
+<td>06-15 → 06-26</td>
+<td>/proc RSS</td>
+<td>COW PTE 修正、fork-rw 测试重构、musl 缺页文档、CI 重跑 → #1173 merge</td>
+</tr>
+</tbody></table>
+<hr>
+<p><em>报告日期：2026-06-27</em></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/" class="post-title-link" itemprop="url">20260628-Promin3-StarryOS GDB支持项目汇报</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-28 06:32:31" itemprop="dateCreated datePublished" datetime="2026-06-28T06:32:31+00:00">2026-06-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <a id="more"></a>
+
+<h1 id="StarryOS-宏内核-GDB支持项目汇报"><a href="#StarryOS-宏内核-GDB支持项目汇报" class="headerlink" title="StarryOS 宏内核 GDB支持项目汇报"></a>StarryOS 宏内核 GDB支持项目汇报</h1><h2 id="零、文档结构"><a href="#零、文档结构" class="headerlink" title="零、文档结构"></a>零、文档结构</h2><p><strong>背景</strong> 讲述本次项目做了什么内容，以及为什么做</p>
+<p><strong>第一二阶段工作</strong> 讲述 syscall 测例、语义修复、以及支持具体 linux 应用时做出的修复工作</p>
+<p><strong>第三阶段工作报告</strong> 细致讲述了 GDB 是如何通过 sys_ptrace 来支持的，讲解了 ptrace 里状态机迁移的细节过程，信号处理流程，以及多线程 ptrace是如何处理的，最后解读了我认为值得品味的代码</p>
+<p><strong>测试与成果</strong> 介绍了测试代码大致结构，展示了真实可用的 gdb demo 截图</p>
+<p><strong>PR 记录与工作仓库</strong> 记录了我的 issue 链接以及所有的 PR 链接</p>
+<p><strong>总结与感想</strong> 记录了我参加训练营的感悟</p>
+<p>文档中相当多内容都是我手敲的，虽然内容较冗长。</p>
+<h2 id="一、背景"><a href="#一、背景" class="headerlink" title="一、背景"></a>一、背景</h2><p>本阶段我的工作先完成文件权限相关 syscall 的语义对齐和测试补齐，再补充 BusyBox、Lua、Redis 等应用场景。随着应用支持逐渐深入，单纯依靠日志、panic 信息和测试输出已经不足以定位复杂用户态问题，因此后续目标转向支持 GDB。GDB 支持的意义不只是“能运行一个调试器”，更重要的是让 StarryOS 具备真实 Linux 应用调试链路：可以观察进程状态、设置断点、读取寄存器、查看调用栈、单步执行，并通过 gdbserver 与宿主机调试器交互。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">                用户态</span><br><span class="line">+---------------------------------------+</span><br><span class="line">|               GDB                     |</span><br><span class="line">|     或者 gdbserver                     |</span><br><span class="line">+-------------------▲-------------------+</span><br><span class="line">                    │ ptrace()</span><br><span class="line">                    │ waitpid()</span><br><span class="line">                    ▼</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; 系统调用 &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">                    │</span><br><span class="line">                内核态</span><br><span class="line">+---------------------------------------+</span><br><span class="line">|        ptrace subsystem               |</span><br><span class="line">|                                       |</span><br><span class="line">| TASK_TRACED                           |</span><br><span class="line">| signal delivery                       |</span><br><span class="line">| wait queue                            |</span><br><span class="line">| register access                       |</span><br><span class="line">| memory access                         |</span><br><span class="line">| scheduler                             |</span><br><span class="line">+-------------------▲-------------------+</span><br><span class="line">                    │</span><br><span class="line">                    ▼</span><br><span class="line">              被调试程序(tracee)</span><br></pre></td></tr></table></figure>
+
+<p>我的设计目标并不是一次性实现完整 Linux GDB/ptrace 兼容，而是先形成一个可用的调试子集。这个范围后来被收敛为“单进程 GDB 可用子集”：优先保证 riscv64 上 guest 内 native GDB、guest 内 gdbserver、host-to-guest remote GDB，以及简单 pthread 程序的可用调试语义。</p>
+<h2 id="二、宏内核项目第一、二阶段工作"><a href="#二、宏内核项目第一、二阶段工作" class="headerlink" title="二、宏内核项目第一、二阶段工作"></a>二、宏内核项目第一、二阶段工作</h2><h3 id="第一阶段：Linux-基础-syscall-语义补齐"><a href="#第一阶段：Linux-基础-syscall-语义补齐" class="headerlink" title="第一阶段：Linux 基础 syscall 语义补齐"></a>第一阶段：Linux 基础 syscall 语义补齐</h3><p>第一阶段主要围绕文件权限、所有权和基于 <code>dirfd</code> 的路径解析语义展开。目标让 StarryOS 对常见 POSIX 文件权限操作的行为更接近 Linux，并通过系统调用测例固化这些语义。</p>
+<p>这一阶段覆盖的 syscall 包括：</p>
+<ul>
+<li><code>chmod</code> / <code>fchmod</code> / <code>fchmodat</code></li>
+<li><code>chown</code> / <code>fchown</code> / <code>fchownat</code></li>
+<li><code>faccessat</code></li>
+<li><code>umask</code></li>
+</ul>
+<p>主要修复和设计点如下：</p>
+<ol>
+<li><p><strong>统一绝对路径与 <code>dirfd</code> 的处理规则</strong></p>
+<p>Linux 的 <code>*at</code> 系列 syscall 有一个关键语义：当传入路径是绝对路径时，<code>dirfd</code> 应该被忽略；只有相对路径才需要以 <code>dirfd</code> 指向的目录作为起点。早期实现中，不同 syscall 分散处理 <code>dirfd</code>，容易出现某个 syscall 行为和 Linux 不一致的问题。</p>
+<p>因此我将绝对路径处理下沉到统一路径解析逻辑中，避免每个 syscall 单独写一份 <code>lookup_dirfd</code> 分支。这样 <code>fchmodat</code>、<code>fchownat</code>、<code>faccessat</code> 等接口可以共享同一套路径解析语义，减少重复逻辑和边界条件不一致。</p>
+</li>
+<li><p><strong>修复 <code>fchownat</code> flags 与错误码语义</strong></p>
+<p><code>fchownat</code> 不只是 <code>chown</code> 的 dirfd 版本，它还涉及 flags 校验、符号链接处理、绝对路径忽略 dirfd、非法 fd 返回错误等语义。PR588 为 <code>fchownat</code> 增加了独立测例，覆盖 Linux 兼容行为，包括：</p>
+<ul>
+<li>绝对路径下忽略 <code>dirfd</code></li>
+<li>相对路径下使用 <code>dirfd</code></li>
+<li>非法 flags 返回错误</li>
+<li>符号链接相关行为</li>
+<li>bad dirfd 与普通路径的组合情况</li>
+</ul>
+</li>
+<li><p><strong>修复 <code>umask</code> 只保留低 9 位</strong></p>
+<p>Linux 中 <code>umask</code> 只使用权限掩码的低 9 位，也就是 <code>0o777</code> 范围。PR605 中将 <code>sys_umask</code> 的输入进行低 9 位截断，避免高位影响后续文件权限计算。</p>
+</li>
+<li><p><strong>补齐跨架构 syscall 回归测试</strong></p>
+<p>第一阶段不仅增加单个 riscv64 测试，还将新增 syscall 测例注册到多架构 QEMU 配置中，包括 riscv64、aarch64、loongarch64、x86_64。这样后续修改 VFS 或 syscall 语义时，可以避免只在一个架构上通过、其他架构退化的问题。</p>
+</li>
+</ol>
+<p>通过这一阶段，StarryOS 的文件权限和 <code>*at</code> 系列接口从“能调用”推进到“具备更接近 Linux 的路径解析、flags 校验和错误码语义”，为后续真实应用测试打基础。</p>
+<h3 id="第二阶段：应用场景驱动的兼容性修复"><a href="#第二阶段：应用场景驱动的兼容性修复" class="headerlink" title="第二阶段：应用场景驱动的兼容性修复"></a>第二阶段：应用场景驱动的兼容性修复</h3><p>第二阶段从单个 syscall 的语义补齐，推进到 BusyBox、Lua、Redis 等实际应用场景。相比第一阶段，这一阶段的特点是：测试不再只验证某个 syscall 的返回值，而是通过真实应用暴露内核缺失的 procfs、socket、文件系统和网络协议细节。</p>
+<h4 id="1-BusyBox-applet-测试与网络-procfs-兼容修复"><a href="#1-BusyBox-applet-测试与网络-procfs-兼容修复" class="headerlink" title="1. BusyBox applet 测试与网络/procfs 兼容修复"></a>1. BusyBox applet 测试与网络/procfs 兼容修复</h4><p>BusyBox 是一组高度依赖 Linux 基础接口的命令行工具集合。为了让 StarryOS 能稳定运行 BusyBox applet，我补充了多个 applet 场景，并根据测试暴露的问题修复内核语义。</p>
+<p>主要修复点包括：</p>
+<ol>
+<li><p><strong>补充网络设备 ioctl 支持</strong></p>
+<p>BusyBox 的 <code>ifconfig</code>、<code>ifenslave</code> 等工具会查询网络设备信息，依赖 <code>SIOCGIFCONF</code>、<code>SIOCGIFFLAGS</code>、<code>SIOCGIFADDR</code>、<code>SIOCGIFHWADDR</code>、<code>SIOCGIFMTU</code> 等 socket ioctl。早期 StarryOS 对这些 ioctl 支持不足，导致工具无法正常识别 <code>eth0</code> 和 <code>lo</code>。</p>
+<p>我在网络文件路径中补充了这些 ioctl 的兼容返回，使 BusyBox 能获得接口列表、接口 flags、IP 地址、MAC 地址和 MTU 等基础信息。</p>
+</li>
+<li><p><strong>补充 <code>/proc/net/dev</code></strong></p>
+<p>BusyBox 和一些网络工具会读取 <code>/proc/net/dev</code> 来获取网络设备统计信息。StarryOS 原来缺少该 procfs 节点，因此我在 pseudofs/proc 中补充了 <code>/proc/net/dev</code>，为 <code>eth0</code> 和 <code>lo</code> 提供基本设备条目。即使统计值暂时是简化的，也能满足用户态工具对接口存在性的探测（后续可能已经更改）</p>
+</li>
+<li><p><strong>修复 raw socket 下 ICMP loopback echo reply</strong></p>
+<p>BusyBox <code>ping -c 1 127.0.0.1</code> 需要 raw socket 能收到 loopback ICMP echo reply。早期实现中 loopback reply 的生成位置不合适，可能绕过正常网络栈路径，影响其他 raw socket 测例。</p>
+<p>后续修复将 ICMP loopback reply 的生成移动到 smoltcp 发送路径的合适位置：既能让 BusyBox ping 收到回包，又保持 raw socket 数据仍通过正常网络路径投递，避免破坏 <code>MSG_PEEK</code> 等测试。</p>
+</li>
+<li><p><strong>清理非语义 BusyBox 测例</strong></p>
+<p>PR752 对 BusyBox 测试做了整理，删除不稳定或不具备明确内核语义价值的检查，使 applet 测试更聚焦于 StarryOS 应该保证的 Linux 兼容行为，而不是测试环境偶然输出。</p>
+</li>
+</ol>
+<p>这一阶段 BusyBox 测试从“能启动部分命令”推进到覆盖更多网络、procfs 和 shell 工具场景，也暴露了仅靠 syscall 单测难以发现的接口组合问题。</p>
+<h4 id="2-Lua-LuaRocks-运行时测试与文件系统语义修复"><a href="#2-Lua-LuaRocks-运行时测试与文件系统语义修复" class="headerlink" title="2. Lua / LuaRocks 运行时测试与文件系统语义修复"></a>2. Lua / LuaRocks 运行时测试与文件系统语义修复</h4><p>Lua 场景的目标是验证解释器、脚本加载、模块 require、文件访问和 LuaRocks 安装使用链路</p>
+<p>主要工作包括：</p>
+<ol>
+<li><p><strong>新增 Lua 应用运行测试</strong></p>
+<p>我为 Lua 添加了 QEMU app 测试，覆盖 Lua 主脚本、辅助模块、<code>require</code>、文件加载等运行时行为。相比 syscall 单测，Lua 能更真实地覆盖动态解释器对文件系统、路径解析和运行时库的使用。</p>
+</li>
+<li><p><strong>新增 LuaRocks 测试</strong></p>
+<p>LuaRocks 会涉及包安装、模块路径、文件创建和 require 验证。我补充了 LuaRocks 相关测试，验证在 StarryOS 中安装并加载 Lua 包的基本流程。</p>
+</li>
+<li><p><strong>修复非空目录 rmdir 语义</strong></p>
+<p>Lua/LuaRocks 场景暴露出文件系统删除目录语义不完整的问题：对非空目录执行 <code>rmdir</code> 应该返回 <code>ENOTEMPTY</code>，而不是错误地允许删除或返回不符合 Linux 的错误。PR777 在 axfs-ng 的 high-level fs 路径中加入非空目录检查，并新增 <code>test-rmdir-nonempty</code> 回归测试，覆盖四个架构。</p>
+</li>
+</ol>
+<p>这一阶段的意义在于：Lua 作为解释型语言，能覆盖大量普通 C syscall 测例不容易组合出的路径，例如脚本查找、模块加载、目录删除、包管理器临时目录等。</p>
+<h4 id="3-Redis-应用测试与网络-文件系统稳定性修复"><a href="#3-Redis-应用测试与网络-文件系统稳定性修复" class="headerlink" title="3. Redis 应用测试与网络/文件系统稳定性修复"></a>3. Redis 应用测试与网络/文件系统稳定性修复</h4><p>Redis 是更复杂的真实服务端应用，涉及 TCP listen/accept、并发连接、非阻塞 connect、半关闭、recv、文件 rename 和压力场景</p>
+<p>主要工作包括：</p>
+<ol>
+<li><p><strong>设计 Redis normal 与 stress 测试</strong></p>
+<p>我将 Redis 场景整理为 Starry app，新增 normal 和 stress 两类测试：</p>
+<ul>
+<li>normal 测试验证 Redis server 基础启动、客户端连接和基础命令交互。</li>
+<li>stress 测试覆盖更高频连接和读写场景，用于暴露网络栈边界问题。</li>
+</ul>
+<p>同时为 riscv64、aarch64、loongarch64、x86_64 增加对应 build 和 QEMU 配置，使 Redis 测试可以跨架构运行。</p>
+</li>
+<li><p><strong>修复 TCP listen/accept 路径</strong></p>
+<p>Redis server 依赖稳定的监听和连接接受语义。PR802 修复了 ax-net-ng listen table 中和连接管理相关的问题，使 TCP server 能更可靠地处理客户端连接，避免并发连接或非阻塞 connect 场景下状态错误。</p>
+</li>
+<li><p><strong>修复 TCP half-close 与 recv 语义</strong></p>
+<p>Redis 和相关 socket 测例暴露出 <code>shutdown(SHUT_WR)</code> 后 <code>recv()</code> 行为不正确的问题。Linux TCP 半关闭语义要求：关闭写方向后，读方向仍然可以继续接收对端数据。原先实现把某些状态过早视为 closed，导致 recv 无法继续 drain 队列。</p>
+<p>修复后，<code>recv()</code> 不再简单以“不是 Connected”作为拒绝条件，而是区分真正关闭和半关闭状态；同时调整 recv 内部顺序，优先读取已排队数据，保证 RST/Closed 但仍有队列数据时也能按预期读出。</p>
+</li>
+<li><p><strong>补充并发 connect 和非阻塞 connect 回归测试</strong></p>
+<p>为防止网络状态机后续回退，我增加了：</p>
+<ul>
+<li><code>bug-tcp-concurrent-connect</code></li>
+<li><code>bug-tcp-nonblocking-connect-so-error</code></li>
+</ul>
+<p>并将它们加入多架构 bugfix 配置。这样不仅验证 Redis 场景，也沉淀成更小的网络栈回归测例。</p>
+</li>
+<li><p><strong>修复 rename 祖先目录检查</strong></p>
+<p>Redis 使用过程中还暴露出文件系统 rename 语义问题。PR802 增加 <code>bug-rename-file-into-child-dir</code>，修复 axfs-ng-vfs rename 祖先关系检查，使非法 rename 能按预期拒绝，避免破坏目录树结构。</p>
+</li>
+</ol>
+<p>通过第二阶段，StarryOS 的验证对象从“单个接口”扩展到“真实用户程序”。BusyBox 暴露了 procfs、socket ioctl 和 raw socket 问题；Lua 暴露了文件系统目录语义问题；Redis 暴露了 TCP 状态机、半关闭、并发连接和 rename 检查问题。这些工作也说明：越接近真实应用，调试复杂问题越依赖可观察性工具，第三阶段转向 GDB/ptrace 支持是自然延伸。</p>
+<h2 id="三、第三阶段工作、技术报告"><a href="#三、第三阶段工作、技术报告" class="headerlink" title="三、第三阶段工作、技术报告"></a>三、第三阶段工作、技术报告</h2><h3 id="1-技术路线总览"><a href="#1-技术路线总览" class="headerlink" title="1. 技术路线总览"></a>1. 技术路线总览</h3><p>本阶段在 StarryOS 内核中实现一个可用的 Linux ptrace 子集，使 GDB 能够通过标准接口控制用户态程序。GDB 的命令转化为 <code>ptrace()</code>、<code>waitpid()/waitid()</code>、<code>/proc</code> 文件读取等 Linux 兼容接口。</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x1.png" class="" title="x1">
+
+
+
+<h3 id="2-ptrace状态组织"><a href="#2-ptrace状态组织" class="headerlink" title="2. ptrace状态组织"></a>2. ptrace状态组织</h3><p>这条链路的核心是 <code>PtraceState</code>。它保存了 GDB 需要观察和修改的执行现场，早期 PR #931 实现了ptrace的大致框架，使得starryOS能够跑通单线程 RISC-V GDB，但它的 stop 状态为进程级，无法表达多个 LWP 同时存在时“哪个线程停住、读写哪个线程寄存器、恢复哪个线程”。后续提交的PR重构将 stop、resume、syscall trace、FP 状态改为按 TID 保存，使得多线程 GDB可用。</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x2.png" class="" title="x2">
+
+
+
+
+
+<h3 id="3-GDB-命令到内核路径状态机"><a href="#3-GDB-命令到内核路径状态机" class="headerlink" title="3. GDB 命令到内核路径状态机"></a>3. GDB 命令到内核路径状态机</h3><p>以断点为例，完整状态迁移如下：</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x3.png" class="" title="x3">
+
+<p>下面是更具体的几个命令对应执行流的讲解</p>
+<h5 id="3-1-启动目标程序：run"><a href="#3-1-启动目标程序：run" class="headerlink" title="3.1 启动目标程序：run"></a>3.1 启动目标程序：<code>run</code></h5><p>GDB 启动目标程序时，典型流程是 fork 出子进程，子进程执行 <code>PTRACE_TRACEME</code>，随后 <code>execve</code> 加载目标程序。StarryOS 内核处理流程为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">tracee: ptrace(PTRACE_TRACEME)</span><br><span class="line">    -&gt; sys_ptrace()</span><br><span class="line">    -&gt; ptrace_traceme()</span><br><span class="line">    -&gt; ProcessData::set_ptrace_traceme()</span><br><span class="line">    -&gt; 记录 tracer_pid 为父进程</span><br><span class="line"></span><br><span class="line">tracee: execve(target)</span><br><span class="line">    -&gt; sys_execve()</span><br><span class="line">    -&gt; 装载 ELF，重建用户地址空间、栈和 auxv</span><br><span class="line">    -&gt; ProcessData::set_ptrace_exec_stop_pending()</span><br><span class="line"></span><br><span class="line">tracee: 返回用户态前</span><br><span class="line">    -&gt; task&#x2F;user.rs 用户态返回循环</span><br><span class="line">    -&gt; take_ptrace_exec_stop_pending()</span><br><span class="line">    -&gt; ptrace_notify_exec()</span><br><span class="line">    -&gt; ptrace_stop_current(SIGTRAP)</span><br><span class="line"></span><br><span class="line">tracer: waitpid()</span><br><span class="line">    -&gt; sys_waitpid()</span><br><span class="line">    -&gt; 发现 tracee 的 ptrace stop</span><br><span class="line">    -&gt; 返回 SIGTRAP &#x2F; PTRACE_EVENT_EXEC stop</span><br></pre></td></tr></table></figure>
+
+<p>这一步的意义是让 GDB 在新程序镜像刚装载完成、还没有真正运行用户代码时获得同步点。GDB 可以在这个时机读取 <code>/proc/&lt;pid&gt;/maps</code>、<code>/proc/&lt;pid&gt;/auxv</code>，加载符号并设置断点。</p>
+<h5 id="3-2-设置断点：break"><a href="#3-2-设置断点：break" class="headerlink" title="3.2 设置断点：break"></a>3.2 设置断点：<code>break</code></h5><p>GDB 的软件断点不是一个单独的内核 syscall，而是通过 ptrace 写 tracee 内存实现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">GDB: break function</span><br><span class="line">    -&gt; 读取目标地址原始指令</span><br><span class="line">       ptrace(PTRACE_PEEKDATA)</span><br><span class="line">       -&gt; ptrace_peekdata()</span><br><span class="line">       -&gt; 从 tracee AddrSpace 读取用户内存</span><br><span class="line"></span><br><span class="line">    -&gt; 写入断点指令</span><br><span class="line">       ptrace(PTRACE_POKEDATA)</span><br><span class="line">       -&gt; ptrace_pokedata()</span><br><span class="line">       -&gt; 写 tracee AddrSpace</span><br><span class="line">       -&gt; 必要时 flush icache</span><br></pre></td></tr></table></figure>
+
+<p>当 tracee 执行到断点指令后，会从用户态陷入内核：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">tracee executes breakpoint instruction</span><br><span class="line">    -&gt; UserContext::run() 返回 Exception(Breakpoint)</span><br><span class="line">    -&gt; task&#x2F;user.rs 判断 tracee 正在被 ptrace</span><br><span class="line">    -&gt; ptrace_stop_current(SIGTRAP)</span><br><span class="line">    -&gt; 保存 UserContext &#x2F; siginfo &#x2F; stop record</span><br><span class="line">    -&gt; notify_ptrace_waiter()</span><br><span class="line">    -&gt; tracee 阻塞等待 tracer resume</span><br><span class="line"></span><br><span class="line">GDB: waitpid()</span><br><span class="line">    -&gt; 收到 SIGTRAP stop</span><br><span class="line">    -&gt; 读取寄存器，显示当前源码行</span><br></pre></td></tr></table></figure>
+
+<h5 id="3-3-继续执行：continue"><a href="#3-3-继续执行：continue" class="headerlink" title="3.3 继续执行：continue"></a>3.3 继续执行：<code>continue</code></h5><p>GDB 继续执行时调用 <code>PTRACE_CONT</code>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">GDB: continue</span><br><span class="line">    -&gt; ptrace(PTRACE_CONT, tid, 0, signo)</span><br><span class="line">    -&gt; sys_ptrace()</span><br><span class="line">    -&gt; ptrace_cont()</span><br><span class="line">    -&gt; ptrace_stopped_tracee_with_tid()</span><br><span class="line">    -&gt; 清除 single-step &#x2F; syscall trace 状态</span><br><span class="line">    -&gt; resume_ptrace_stop_with_signal_for(tid, signo)</span><br><span class="line">    -&gt; 清除 stop record 中的 signo</span><br><span class="line">    -&gt; wake ptrace_stop_event</span><br><span class="line"></span><br><span class="line">tracee:</span><br><span class="line">    -&gt; wait_ptrace_resume() 被唤醒</span><br><span class="line">    -&gt; take_ptrace_stop_user_context_for(tid)</span><br><span class="line">    -&gt; 应用 GDB 可能修改过的寄存器</span><br><span class="line">    -&gt; restore_current_fp_for_ptrace(tid)</span><br><span class="line">    -&gt; 返回用户态继续执行</span><br></pre></td></tr></table></figure>
+
+<p>这里的关键点是：tracee 在 <code>ptrace_stop_current()</code> 里睡眠，直到 GDB 通过 <code>PTRACE_CONT</code> 或其他 resume 请求清除对应 TID 的 stop 状态并唤醒它。</p>
+<h5 id="3-4-单步执行：stepi-nexti"><a href="#3-4-单步执行：stepi-nexti" class="headerlink" title="3.4 单步执行：stepi / nexti"></a>3.4 单步执行：<code>stepi</code> / <code>nexti</code></h5><p>GDB 单步执行依赖 <code>PTRACE_SINGLESTEP</code>。StarryOS 在不同架构上采用不同实现方式：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">GDB: stepi</span><br><span class="line">    -&gt; ptrace(PTRACE_SINGLESTEP, tid, 0, signo)</span><br><span class="line">    -&gt; ptrace_singlestep()</span><br><span class="line">    -&gt; set_ptrace_singlestep_for(tid, true)</span><br><span class="line">    -&gt; resume_ptrace_stop_with_signal_for(tid, signo)</span><br><span class="line"></span><br><span class="line">tracee 返回用户态前</span><br><span class="line">    -&gt; task&#x2F;user.rs 检查 is_ptrace_singlestep_for(tid)</span><br><span class="line">    -&gt; ptrace_setup_singlestep(...)</span><br><span class="line">    -&gt; 设置架构相关 single-step 机制</span><br><span class="line"></span><br><span class="line">tracee 执行一条指令</span><br><span class="line">    -&gt; 陷入 breakpoint&#x2F;debug exception</span><br><span class="line">    -&gt; ptrace_stop_current(SIGTRAP)</span><br><span class="line">    -&gt; GDB waitpid 收到单步完成 stop</span><br></pre></td></tr></table></figure>
+
+<p>在 RISC-V、AArch64、LoongArch64 上，single-step 主要通过计算下一条 PC 并在 next-PC 临时插入断点指令实现；命中后恢复原始指令。在 x86_64 上，后续实现可以使用 RFLAGS 的 TF 位触发 <code>#DB</code> debug exception。这个差异被封装在架构相关的 <code>ptrace_setup_singlestep()</code> 中，对上层 GDB 仍表现为统一的 <code>PTRACE_SINGLESTEP</code>。</p>
+<h5 id="3-5-查看寄存器：info-registers"><a href="#3-5-查看寄存器：info-registers" class="headerlink" title="3.5 查看寄存器：info registers"></a>3.5 查看寄存器：<code>info registers</code></h5><p>GDB 查看寄存器时会调用 legacy regs 或 regset 接口：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">GDB: info registers</span><br><span class="line">    -&gt; ptrace(PTRACE_GETREGS)</span><br><span class="line">       或 ptrace(PTRACE_GETREGSET, NT_PRSTATUS)</span><br><span class="line">    -&gt; ptrace_getregs() &#x2F; ptrace_getregset()</span><br><span class="line">    -&gt; ptrace_stop_user_context_for(tid)</span><br><span class="line">    -&gt; 将 UserContext 转换为目标架构 ABI 的用户寄存器结构</span><br><span class="line">    -&gt; vm_write 到 GDB 提供的用户缓冲区</span><br></pre></td></tr></table></figure>
+
+<p>GDB 修改寄存器时则反向执行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">GDB: set $pc &#x3D; ...</span><br><span class="line">    -&gt; ptrace(PTRACE_SETREGS)</span><br><span class="line">       或 ptrace(PTRACE_SETREGSET, NT_PRSTATUS)</span><br><span class="line">    -&gt; 从 GDB 用户缓冲区读取寄存器结构</span><br><span class="line">    -&gt; 转换回 UserContext</span><br><span class="line">    -&gt; set_ptrace_stop_user_context_for(tid, new_uctx)</span><br></pre></td></tr></table></figure>
+
+<p>真正写回 tracee 的时机不是 <code>PTRACE_SETREGS</code> 当场返回用户态，而是 tracee 被 resume 后在 <code>wait_ptrace_resume()</code> 中执行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">take_ptrace_stop_user_context_for(tid)</span><br><span class="line">*uctx &#x3D; resume_uctx</span><br></pre></td></tr></table></figure>
+
+<p>这样保证 GDB 对寄存器的修改会成为 tracee 下一次回到用户态时的真实执行现场。</p>
+<h5 id="3-6-查看内存和调用栈：x-bt"><a href="#3-6-查看内存和调用栈：x-bt" class="headerlink" title="3.6 查看内存和调用栈：x / bt"></a>3.6 查看内存和调用栈：<code>x</code> / <code>bt</code></h5><p>GDB 的内存查看命令，例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">x&#x2F;4gx $sp</span><br></pre></td></tr></table></figure>
+
+<p>会通过 <code>PTRACE_PEEKDATA</code> 读取 tracee 地址空间。内核路径为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ptrace(PTRACE_PEEKDATA, tid, addr, data)</span><br><span class="line">    -&gt; ptrace_peekdata()</span><br><span class="line">    -&gt; 找到 tracee ProcessData</span><br><span class="line">    -&gt; tracee.aspace().read(addr)</span><br><span class="line">    -&gt; 将读取结果写回 tracer data 指针</span><br></pre></td></tr></table></figure>
+
+<p><code>bt</code> 本身主要由 GDB 在用户态完成。内核需要提供以下基础信息：</p>
+<ul>
+<li>当前 PC、SP、FP、RA 等寄存器。</li>
+<li>tracee 栈内存读取能力。</li>
+<li><code>/proc/&lt;pid&gt;/maps</code> 用于判断地址属于哪个映射。</li>
+<li><code>/proc/&lt;pid&gt;/auxv</code> 用于获取入口、页大小、硬件能力等辅助信息。</li>
+<li>ELF 符号和 DWARF 调试信息由 GDB 从目标文件中读取。</li>
+</ul>
+<p>因此 StarryOS 内核并不直接实现完整 GDB backtrace 算法，而是提供 GDB unwind 所需的寄存器、内存和 procfs 信息。</p>
+<h3 id="4-信号处理流程"><a href="#4-信号处理流程" class="headerlink" title="4. 信号处理流程"></a>4. 信号处理流程</h3><p>GDB 支持里最重要的状态机之一是 signal-delivery-stop。tracee 收到普通信号时，内核不能马上执行默认动作或用户 handler，而是要先停给 tracer，让 GDB 决定这个信号是否真正交给程序。</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x4.png" class="" title="x4">
+
+
+
+<p>这里的 <code>resume_signal_bypass</code> 用于避免死循环。（后续代码解读里也有）例如 tracee 收到 <code>SIGTERM</code> 后停给 GDB，GDB 决定继续传递 <code>SIGTERM</code>。如果内核只是把 <code>SIGTERM</code> 重新放回信号队列，下一轮又会再次 ptrace stop。因此内核为 tracer 明确注入的信号设置一次性 bypass，使下一轮信号处理直接递送，不再重复停给 GDB。</p>
+<h3 id="5-多线程与-LWP-设计"><a href="#5-多线程与-LWP-设计" class="headerlink" title="5. 多线程与 LWP 设计"></a>5. 多线程与 LWP 设计</h3><p>StarryOS 的进程/线程关系可以简化为：</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x5.png" class="" title="x5">
+
+
+
+<p>GDB 中的 LWP 基本对应 StarryOS 的 TID。因此 ptrace 不能只保存一份进程级 stop，而需要按 TID 记录：</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x6.png" class="" title="x6">
+
+
+
+<p>ptrace 的设计采用“进程级容器 + TID-keyed 状态”：</p>
+<ul>
+<li><code>tracer_pid</code>、<code>traceme</code>、<code>attached</code> 表示进程级调试关系。</li>
+<li><code>stop[tid]</code> 保存每个 LWP 的停止现场。</li>
+<li><code>resume_signo[tid]</code> 保存每个 LWP resume 时的信号选择。</li>
+<li><code>syscall_trace[tid]</code> 保存每个 LWP 的 syscall entry/exit 状态。</li>
+<li><code>stop_fp_data[tid]</code> 保存每个 LWP 的 FP/SIMD/FPU 快照。</li>
+</ul>
+<p>这个设计支撑了以下命令：</p>
+<p><code>info threads</code>：通过 <code>/proc/&lt;pid&gt;/task</code> 发现线程。</p>
+<p><code>thread &lt;n&gt;</code>：后续 ptrace 操作绑定到具体 LWP/TID。</p>
+<p><code>info registers</code>：读取对应 TID 的 <code>UserContext</code>。</p>
+<p><code>continue</code> / <code>stepi</code>：只恢复或单步指定 TID 的 stop 状态。</p>
+<p><strong>！注</strong>：在第三或第四周会议时，陈老师表示当前 starryos 多线程还不完善，先保持单线程可用即可，之前 stop 状态为进程级虽然能达到要求，但难免有写了个 bug但能跑就不管了的意味，考虑到时间有限，做的多线程支持虽然仍是 all-stop 的，不追求完整 non-stop mode 和完整 Linux group-stop，但已经解决了早期“一个进程只有一份 stop 状态”无法表达 LWP 的问题。</p>
+<h3 id="6-三架构支持方式"><a href="#6-三架构支持方式" class="headerlink" title="6. 三架构支持方式"></a>6. 三架构支持方式</h3><p>ptrace 的公共流程是统一的，但寄存器布局、FP/SIMD/FPU 状态和 single-step 机制都依赖架构。因此实现拆成“公共 ptrace 状态机 + 架构适配层”。（x86 架构适配层由杨铮同学 GitHub <a href="https://github.com/rcore-os/tgoskits/commits?author=54dK3n&since=2026-05-31&until=2026-06-27" target="_blank" rel="noopener">54dK3n</a> 完成）</p>
+<table>
+<thead>
+<tr>
+<th>架构</th>
+<th>通用寄存器</th>
+<th>FP/SIMD/FPU</th>
+<th>single-step</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>riscv64</td>
+<td><code>pc/ra/sp/gp/tp/a0-a7/s0-s11/t0-t6</code> 与 <code>UserContext</code> 互转，支持 <code>NT_PRSTATUS</code> 读写通用寄存器。</td>
+<td>支持 <code>NT_FPREGSET</code> 和 legacy FP 接口读写浮点寄存器与 <code>fcsr</code>。</td>
+<td>使用临时 <code>ebreak</code> 实现 <code>PTRACE_SINGLESTEP</code>：计算下一条 PC，保存原始指令，写入断点指令，命中后恢复。</td>
+</tr>
+<tr>
+<td>aarch64</td>
+<td>将 <code>UserContext</code> 中的 <code>x0-x30</code>、<code>sp</code>、<code>pc</code>、<code>pstate</code> 映射为 AArch64 GDB 期望的通用寄存器结构。支持 <code>NT_PRSTATUS</code> 读写通用寄存器。</td>
+<td>支持 <code>NT_FPREGSET</code> 读写 <code>v0-v31</code>、<code>fpcr</code>、<code>fpsr</code>。进入 ptrace stop 时保存当前 FP/SIMD 状态，resume 时恢复，保证 GDB 修改 FP/SIMD 寄存器后能写回 tracee 执行态。</td>
+<td>single-step 同样通过架构相关 next-PC / 临时断点路径接入公共 <code>PTRACE_SINGLESTEP</code> 流程。</td>
+</tr>
+<tr>
+<td>loongarch64</td>
+<td>将 <code>UserContext</code> 中的 <code>r0-r31</code>、<code>era</code>、<code>badv</code> 等状态映射为 LoongArch GDB 期望的寄存器布局。支持 <code>NT_PRSTATUS</code> 读写通用寄存器。支持 <code>NT_FPREGSET</code>，并补充 legacy <code>PTRACE_GETFPREGS</code> / <code>PTRACE_SETFPREGS</code> 与 regset 路径复用。</td>
+<td>保存和恢复 FPU 扩展状态，包括普通 FP、<code>fcc</code>、<code>fcsr</code> 以及后续扩展状态。</td>
+<td>补充 LoongArch 分支/跳转等指令的 next-PC 处理接入<code>PTRACE_SINGLESTEP</code></td>
+</tr>
+</tbody></table>
+<p>在写入用户 text 指令后刷新 icache，保证 tracee 执行到新写入的断点指令。</p>
+<p><strong>！注：</strong>本科学过riscv 和一部分x86 指令集，但由于软件工程专业背景所限，硬件指令集这块了解不深，靠codex和 asm test 测试驱动开发完成的任务。（埋个伏笔，看我一年后能不能完成一生一芯…）</p>
+<h3 id="7-procfs-辅助信息"><a href="#7-procfs-辅助信息" class="headerlink" title="7. procfs 辅助信息"></a>7. procfs 辅助信息</h3><p>除了 ptrace syscall，GDB 还依赖 procfs 获取进程信息。为此本阶段补充和修复了以下路径：</p>
+<ul>
+<li><code>/proc/&lt;pid&gt;/maps</code>：提供用户地址空间映射，支持 GDB 判断 text/data/heap/stack 等区域。</li>
+<li><code>/proc/&lt;pid&gt;/auxv</code>：提供 auxiliary vector，例如 <code>AT_ENTRY</code>、<code>AT_PHDR</code>、<code>AT_PAGESZ</code>、<code>AT_HWCAP</code>。</li>
+<li><code>/proc/&lt;pid&gt;/status</code>：提供 <code>TracerPid</code>、线程数量、UID/GID 等状态信息。</li>
+<li><code>/proc/&lt;pid&gt;/task</code>：提供线程列表，使 GDB 能发现 LWP。</li>
+</ul>
+<p>这些接口不直接执行调试控制，但决定了 GDB 是否能正确加载符号、识别动态链接器、展示线程和解释目标进程内存布局。</p>
+<h3 id="8-当前能力边界"><a href="#8-当前能力边界" class="headerlink" title="8. 当前能力边界"></a>8. 当前能力边界</h3><p>当前实现已经能够支撑基础 GDB 使用：</p>
+<ul>
+<li>native GDB 调试用户程序。</li>
+<li>guest 内 gdbserver 调试。</li>
+<li>host-to-guest remote GDB。</li>
+<li>断点、继续、单步、寄存器查看/修改、内存查看、基础 backtrace。</li>
+<li>简单多线程程序的 LWP 发现和线程级寄存器/stop 操作。</li>
+<li>riscv64、aarch64、loongarch64 （x86）的基础寄存器和 FP/SIMD/FPU regset。</li>
+</ul>
+<p>但它仍然是可用子集，不是完整 Linux ptrace/GDB 语义。当前<strong>没有完成</strong>的有完整 non-stop mode、完整 group-stop / job-control 与 ptrace-stop 的 Linux 级细节、硬件断点和 watchpoint、core dump、所有复杂线程事件的完全 Linux 兼容、所有架构指令的完整 single-step next-PC 语义</p>
+<h3 id="9-代码解读"><a href="#9-代码解读" class="headerlink" title="9. 代码解读"></a>9. 代码解读</h3><p>本着学习的目的以及尽量不往 tgoskits 里塞屎山的态度，提交 PR 前我都会弄懂 codex 写了什么，也学习到一些我认为比较优质的代码设计。</p>
+<p>解读的代码版本为 dev 分支的Commit afad791</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new_user_task</span></span>(name: &amp;<span class="built_in">str</span>, <span class="keyword">mut</span> uctx: UserContext, set_child_tid: <span class="built_in">usize</span>) -&gt; TaskInner &#123;</span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">match</span> reason &#123;</span><br><span class="line">                    ReturnReason::Syscall =&gt; &#123;</span><br><span class="line">                        <span class="keyword">let</span> tid = thr.tid();</span><br><span class="line">                        <span class="keyword">let</span> trace_state = thr.proc_data.take_ptrace_syscall_trace_for(tid);</span><br><span class="line">                        <span class="keyword">if</span> matches!(trace_state, SyscallTraceState::Entry)</span><br><span class="line">                            &amp;&amp; ptrace_syscall_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx).is_some()</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="keyword">match</span> thr.proc_data.take_ptrace_syscall_trace_for(tid) &#123;         </span><br><span class="line">                                SyscallTraceState::Entry | SyscallTraceState::Exit =&gt; &#123;</span><br><span class="line">                                    thr.proc_data.set_ptrace_syscall_trace_state_for(</span><br><span class="line">                                        tid,</span><br><span class="line">                                        SyscallTraceState::Exit,</span><br><span class="line">                                    )</span><br><span class="line">                                &#125;</span><br><span class="line">                                SyscallTraceState::<span class="literal">None</span> =&gt; &#123;&#125;</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(exit_code) = ptrace_exit_event_code(saved_sysno, saved_a0)</span><br><span class="line">                            &amp;&amp; crate::syscall::ptrace_notify_exit(</span><br><span class="line">                                thr.proc_data.proc.pid(),</span><br><span class="line">                                exit_code,</span><br><span class="line">                            )</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="keyword">let</span> _ = ptrace_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx);</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        handle_syscall(&amp;<span class="keyword">mut</span> uctx);</span><br><span class="line">                        <span class="keyword">if</span> thr.proc_data.has_ptrace_pending_event_for(tid)</span><br><span class="line">                            &amp;&amp; <span class="keyword">let</span> <span class="literal">Some</span>(_resume_sig) =</span><br><span class="line">                                ptrace_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx)</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="keyword">continue</span>;</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> matches!(</span><br><span class="line">                            thr.proc_data.take_ptrace_syscall_trace_for(tid),</span><br><span class="line">                            SyscallTraceState::Exit</span><br><span class="line">                        ) &#123;</span><br><span class="line">                            <span class="keyword">let</span> _ = ptrace_syscall_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx);</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> thr.proc_data.take_ptrace_exec_stop_pending() &#123;</span><br><span class="line">                            <span class="keyword">let</span> _is_event =</span><br><span class="line">                                crate::syscall::ptrace_notify_exec(thr.proc_data.proc.pid());</span><br><span class="line">                            <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(_resume_sig) =</span><br><span class="line">                                ptrace_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx)</span><br><span class="line">                            &#123;</span><br><span class="line">                                <span class="keyword">continue</span>;</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读：</strong>User task 从用户态返回内核态时，内核会分析返回原因。当原因是 syscall时，会分析当前线程的 trace_state，如果是 SyscallTraceState::Entry，说明在实际 syscall 代码执行前，我们需要挂起当前tracee 线程，去唤醒 tracer 线程。</p>
+<p>然后 tracer 即 GDB 会做什么？</p>
+<p>可能 continue（PTRACE_CONT），把 None 写入 tracee 状态，<code>match thr.proc_data.take_ptrace_syscall_trace_for(tid)</code>会返回 None，后续不再追踪 syscall。 可能 stepi（PTRACE_SYSCALL），把Entry 写入状态，<code>set_ptrace_syscall_trace_state_for</code> 将 tracee 设为 Exit，syscall出口会再挂起 去唤醒 tracer。可能detach（PTRACE_DETA），后续脱离追踪。</p>
+<p>然后到PTRACE_EVENT_EXIT 通知，这段代码在 handle_syscall 之前执行，用于在进程调用 exit/exit_group 即将退出时，给调试器最后一次查看的机会。如果先 handle_syscall 再通知，do_exit 已经执行完了，进程没了，调试器看不到退出码。</p>
+<p>接着是handle_syscall 之后的三重 ptrace 事件处理</p>
+<p>第一重：pending event stop，handle_syscall 内部可能发生了：fork、vfork、clone、 seccomp 规则触发，这些事件往往伴随进程状态变化（fork 产生子进程、seccomp 修改了寄存器），调试器恢复后应该重新进入主循环检查新的状态，而不是继续跑完当前系统调用的后续处理。</p>
+<p>第二重：系统调用出口 stop，然后 wake tracer。</p>
+<p>第三重：take_ptrace_exec_stop_pending() 是 execve 在 handle_syscall 时设置的布尔标记，此时ptrace_notify_exec 将标记转为正式事件，如果 tracer 开了 PTRACE_O_TRACEEXEC  则 tracee.set_ptrace_pending_event(tid, PTRACE_EVENT_EXEC, 0);  execve 会完全替换进程地址空间——旧的可执行文件、栈、堆全没了，新程序加载完毕。调试器恢复后应该重新从主循环开始 所以 continue</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">ptrace_stop_current_impl</span></span>(</span><br><span class="line">    thr: &amp;Thread,</span><br><span class="line">    signo: Signo,</span><br><span class="line">    uctx: &amp;<span class="keyword">mut</span> UserContext,</span><br><span class="line">    is_syscall_stop: <span class="built_in">bool</span>,</span><br><span class="line">) -&gt; <span class="built_in">Option</span>&lt;<span class="built_in">Option</span>&lt;Signo&gt;&gt; &#123;</span><br><span class="line">	 ...</span><br><span class="line">    <span class="keyword">while</span> !thr.proc_data.claim_ptrace_stop(tid) &#123;</span><br><span class="line">        block_on(poll_fn(|cx| &#123;</span><br><span class="line">            <span class="keyword">if</span> !thr.proc_data.has_ptrace_stop(tid) &#123;</span><br><span class="line">                Poll::Ready(())</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                thr.proc_data.register_ptrace_stop_waker(cx.waker());</span><br><span class="line">                <span class="keyword">if</span> !thr.proc_data.has_ptrace_stop(tid) &#123;</span><br><span class="line">                    Poll::Ready(())</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    Poll::Pending</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;));</span><br><span class="line">    &#125;</span><br><span class="line">		···</span><br><span class="line">    &#123;</span><br><span class="line">        thr.proc_data.save_current_fp_for_ptrace(tid);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> is_syscall_stop &#123;</span><br><span class="line">        thr.proc_data.set_ptrace_syscall_stop(tid, signo, uctx);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        thr.proc_data.set_ptrace_stop(tid, signo, uctx);</span><br><span class="line">    &#125;</span><br><span class="line">    notify_ptrace_waiter(thr, signo);</span><br><span class="line"></span><br><span class="line">    wait_ptrace_resume(thr, tid, uctx);</span><br><span class="line">    <span class="literal">Some</span>(thr.proc_data.take_ptrace_resume_signo_for(tid))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读</strong>：claim_ptrace_stop 检查该线程是否有未消费的 stop 记录</p>
+<p>为什么注册 waker 后又检查一次？这是防止竞态情况发生：has_ptrace_stop == true，tracee 准备进pending 分支，tracer 恰好清掉 stop 并唤醒<br>当前线程还没注册 waker，可能错过唤醒</p>
+<p>thr.proc_data.save_current_fp_for_ptrace(tid);保存当前线程的 FP/SIMD 寄存器状态，原因是普通整数寄存器在 <code>uctx</code> 里，但浮点/SIMD 寄存器不完整保存在 <code>UserContext</code> 里，可能在 CPU lazy state 或架构专门的上下文里</p>
+<p>set_ptrace_stop 代码就很简单，略过。然后去通知tracer，给 tracer 发送 SIGCHLD / CLD_TRAPPED，唤醒 tracer 的 wait/waitpid。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">wait_ptrace_resume</span></span>(thr: &amp;Thread, tid: <span class="built_in">u32</span>, uctx: &amp;<span class="keyword">mut</span> UserContext) &#123;</span><br><span class="line">    current().clear_interrupt();</span><br><span class="line">    <span class="keyword">let</span> wait_result = block_on(interruptible(poll_fn(|cx| &#123;</span><br><span class="line">        <span class="keyword">if</span> thr.proc_data.ptrace_stop_signo_for(tid).is_none() &#123;</span><br><span class="line">            Poll::Ready(())</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            thr.proc_data.register_ptrace_stop_waker(cx.waker());</span><br><span class="line">            <span class="keyword">if</span> thr.proc_data.ptrace_stop_signo_for(tid).is_none() &#123;</span><br><span class="line">                Poll::Ready(())</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                Poll::Pending</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;)));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> wait_result.is_err() &#123;</span><br><span class="line">        thr.proc_data.clear_ptrace_stop();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(resume_uctx) = thr.proc_data.take_ptrace_stop_user_context_for(tid) &#123;</span><br><span class="line">        *uctx = resume_uctx;</span><br><span class="line">        thr.proc_data.restore_current_fp_for_ptrace(tid, uctx);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读：</strong>这个函数是tracer 已被通知、tracee 在 stop 状态中挂起，等待tracer 说”继续跑”</p>
+<p>第一行代码是因为当前线程上可能挂着未处理的中断标记（比如定时器中断正好在进入 stop 前触发）。不清掉的话 interruptible 会立即返回 Err，导致虚假唤醒。</p>
+<p>接下来异步轮询等待，如果 stop signo 被清理了，说明tracer执行了 resume_ptrace_stop → 清除 signo。 tracee 已经可以恢复执行了。否则注册唤醒器， 注册期间被清除了，立即恢复，否则继续 pending。 这里也有经典的双重检查模式和上面一样防止 TOCTOU 竞态</p>
+<p>wait result 为Err 表示 interruptible 被信号打断（比如 SIGKILL 来了）。直接清除 stop 状态，后续 check_signals 循环会出队 SIGKILL 并执行 do_exit。</p>
+<p>take_ptrace_stop_user_context_for 取出tracer可能修改过的 uctx，然后覆盖当前uctx。tracer 也可能通过 PTRACE_SETFPREGS 修改了浮点寄存器，恢复执行时必须把这些修改写回硬件。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">check_signals 中有如下代码片段</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> signo != Signo::SIGKILL</span><br><span class="line">        &amp;&amp; !thr</span><br><span class="line">            .proc_data</span><br><span class="line">            .take_ptrace_resume_signal_bypass_for(thr.tid(), signo)</span><br><span class="line">        &amp;&amp; <span class="keyword">let</span> <span class="literal">Some</span>(resume_signo) = ptrace_stop_current(thr, signo, uctx)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">match</span> resume_signo &#123;</span><br><span class="line">            <span class="literal">None</span> =&gt; <span class="keyword">return</span> <span class="literal">true</span>,</span><br><span class="line">            <span class="literal">Some</span>(new_signo) <span class="keyword">if</span> new_signo != signo =&gt; &#123;</span><br><span class="line">                thr.proc_data</span><br><span class="line">                    .set_ptrace_resume_signal_bypass_for(thr.tid(), new_signo);</span><br><span class="line">                <span class="keyword">let</span> _ = thr.signal.send_signal(SignalInfo::new_kernel(new_signo));</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="literal">Some</span>(_) =&gt; &#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读</strong> SIGKILL 不可拦截易理解，下面解释一下 bypass。</p>
+<p>假设调试器通过 PTRACE_CONT 注入信号 SIGSTOP：</p>
+<p>没有 bypass:</p>
+<p>信号 SIGSTOP 入队 → check_signals 出队 → ptrace_stop_current→ 调试器说”传 SIGSTOP” → 信号重新入队 → check_signals 再出队→ 又 ptrace_stop_current → 调试器又说”传 SIGSTOP” → 入队…→ 永远循环</p>
+<p>有 bypass:</p>
+<p>调试器注入 SIGSTOP 时 set_bypass(SIGSTOP) → 信号入队 → check_signals 出队 → take_bypass 返回 true → 跳过 ptrace stop → 直接往下处理</p>
+<p>后续 resume_signo 对应三种回复</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x7.png" class="" title="x7">
+
+
+
+
+
+<p>我在 ProcessData 里添加了很多 ptrace 实现所需的字段，下面会简单解释一下</p>
+<blockquote>
+<p>感觉这里应该把这些字段抽离出来成为一个结构体比如 ptraceInfo {···}，这样会让 ProcessData 更清晰，不过直接添加到ProcessData 里能跑，先不管了，后续可能有同学看不惯简单重构一下就行</p>
+</blockquote>
+<p><strong>身份与追踪关系</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_tracer_pid</code></td>
+<td><code>AtomicU32</code></td>
+<td>调试器的 PID。知道该给谁发 <code>SIGCHLD</code> 通知</td>
+</tr>
+<tr>
+<td><code>ptrace_traceme</code></td>
+<td><code>AtomicBool</code></td>
+<td>进程自己调用 <code>PTRACE_TRACEME</code>，声明”让父进程来追踪我”</td>
+</tr>
+<tr>
+<td><code>ptrace_attached</code></td>
+<td><code>AtomicBool</code></td>
+<td>调试器通过 <code>PTRACE_ATTACH</code> 强行附加到本进程</td>
+</tr>
+</tbody></table>
+<p><strong>stop 状态</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_stop</code></td>
+<td><code>BTreeMap&lt;tid, PtraceStopRecord&gt;</code></td>
+<td>per-thread 的 stop 快照：<code>signo</code>（停因）、<code>uctx</code>（寄存器）、<code>is_syscall</code>、<code>siginfo</code>、是否已报告给调试器</td>
+</tr>
+<tr>
+<td><code>ptrace_stop_tid</code></td>
+<td><code>AtomicU32</code></td>
+<td>当前正 stop 的线程 TID，供 <code>waitpid</code> 快速定位</td>
+</tr>
+<tr>
+<td><code>ptrace_stop_event</code></td>
+<td><code>Arc&lt;PollSet&gt;</code></td>
+<td>异步事件，stop 状态变化时唤醒 <code>waitpid</code> 的挂起线程</td>
+</tr>
+</tbody></table>
+<p><strong>恢复控制</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_resume_signo</code></td>
+<td><code>BTreeMap&lt;tid, signo&gt;</code></td>
+<td>调试器通过 <code>PTRACE_CONT</code> 注入的信号号</td>
+</tr>
+<tr>
+<td><code>ptrace_resume_signal_bypass</code></td>
+<td><code>BTreeMap&lt;tid, signo&gt;</code></td>
+<td>已获调试器批准的信号，下次出队时跳过 ptrace stop，防止死循环</td>
+</tr>
+</tbody></table>
+<p><strong>功能模式</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_singlestep_tid</code></td>
+<td><code>AtomicU32</code></td>
+<td>处于单步模式的线程 TID</td>
+</tr>
+<tr>
+<td><code>ptrace_syscall_trace</code></td>
+<td><code>BTreeMap&lt;tid, Entry/Exit/None&gt;</code></td>
+<td>系统调用追踪状态：<code>Entry</code>（入口停）、<code>Exit</code>（出口停）、<code>None</code>（不追踪）</td>
+</tr>
+<tr>
+<td><code>ptrace_options</code></td>
+<td><code>AtomicUsize</code></td>
+<td><code>PTRACE_O_TRACEFORK/EXEC/EXIT</code> 等选项位掩码</td>
+</tr>
+</tbody></table>
+<p><strong>事件系统</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_pending_event</code></td>
+<td><code>BTreeMap&lt;tid, PtracePendingEvent&gt;</code></td>
+<td><code>handle_syscall</code> 触发的延时事件（<code>PTRACE_EVENT_FORK/CLONE/VFORK/SECCOMP</code>），在 syscall 返回后补一次 stop</td>
+</tr>
+<tr>
+<td><code>ptrace_exec_stop_pending</code></td>
+<td><code>AtomicBool</code></td>
+<td><code>execve</code> 执行后置位，提示 syscall 出口处需要 <code>PTRACE_EVENT_EXEC</code> 通知</td>
+</tr>
+</tbody></table>
+<p><strong>硬件状态保存</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_ss_saved_insn</code></td>
+<td><code>BTreeMap&lt;tid, (地址, 原始指令)&gt;</code></td>
+<td>非 x86 架构单步时，用断点替代下一条指令，保存被替换的原始指令以便恢复</td>
+</tr>
+<tr>
+<td><code>ptrace_stop_fp_data</code></td>
+<td><code>BTreeMap&lt;tid, PtraceStopFpData&gt;</code></td>
+<td>stop 时的 FP/SSE 寄存器快照，调试器通过 <code>PTRACE_GETFPREGS/SETFPREGS</code> 读写此数据</td>
+</tr>
+</tbody></table>
+<p>ptrace.rs 是 sys ptrace 的具体实现，限于篇幅这里不详细讲了</p>
+<h2 id="四、测试与成果"><a href="#四、测试与成果" class="headerlink" title="四、测试与成果"></a>四、测试与成果</h2><h3 id="1-测试代码结构"><a href="#1-测试代码结构" class="headerlink" title="1. 测试代码结构"></a>1. 测试代码结构</h3><p>GDB 支持相关测试分为三层：内核 ptrace 语义回归测试、guest 内 GDB/gdbserver smoke 测试、压力测试。</p>
+<h4 id="1-1-ptrace-语义回归测试"><a href="#1-1-ptrace-语义回归测试" class="headerlink" title="1.1 ptrace 语义回归测试"></a>1.1 ptrace 语义回归测试</h4><p>核心测试位于：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-gdb&#x2F;src&#x2F;main.c</span><br></pre></td></tr></table></figure>
+
+<p>该测试不依赖真实 GDB，而是直接调用 Linux <code>ptrace</code> ABI，验证 GDB/gdbserver 所依赖的底层语义是否正确，覆盖内容包括：</p>
+<p>该测试的作用是把 GDB 的复杂行为拆成更稳定的 syscall 级语义检查。例如：</p>
+<ul>
+<li><code>PTRACE_GETREGSET / SETREGSET</code>：验证 GDB 能读取和修改 tracee 的 PC、SP、通用寄存器。</li>
+<li><code>PTRACE_PEEKDATA / POKEDATA</code>：验证 GDB 能读写 tracee 用户地址空间，用于软件断点。</li>
+<li><code>PTRACE_SINGLESTEP</code>：验证 <code>stepi</code> 能单步执行一条用户指令。</li>
+<li><code>PTRACE_SYSCALL</code>：验证 syscall entry/exit stop，可支撑 strace 类功能。</li>
+<li><code>PTRACE_O_TRACECLONE</code>：验证线程创建事件能够被 tracer 观察。</li>
+<li><code>PTRACE_GETSIGINFO / SETSIGINFO</code>：验证信号 stop 的 <code>siginfo</code> 能被 tracer 查询和修改。</li>
+<li><code>NT_FPREGSET</code>：验证浮点/SIMD regset 的读写路径。</li>
+</ul>
+<p>辅助测试包括：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-traceme-stop&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-wait-wall&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-thread-traceclone-wall&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-proc-status-tracerpid&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-gdb-native-batch&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>这些测试分别覆盖：</p>
+<ul>
+<li><code>PTRACE_TRACEME + execve</code> 后的 exec-stop。</li>
+<li><code>waitpid/__WALL</code> 对 traced LWP 的 stop 消费。</li>
+<li><code>TRACECLONE</code> 下新线程事件与新 TID 获取。</li>
+<li><code>/proc/&lt;pid&gt;/status</code> 中 <code>TracerPid</code> 展示。</li>
+<li>模拟 GDB 的动态链接程序调试流程。</li>
+</ul>
+<p>其中 <code>test-gdb-native-batch</code> 是 raw-ptrace 版本的 GDB 流程模拟，主要步骤为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">fork + PTRACE_TRACEME + execve</span><br><span class="line">读取 &#x2F;proc&#x2F;&lt;pid&gt;&#x2F;auxv 中的 AT_ENTRY</span><br><span class="line">在 AT_ENTRY 写入断点指令</span><br><span class="line">PTRACE_CONT 运行到断点</span><br><span class="line">恢复原指令并调整 PC</span><br><span class="line">PTRACE_SINGLESTEP 执行原指令</span><br><span class="line">PTRACE_CONT 继续运行到正常退出</span><br></pre></td></tr></table></figure>
+
+<p>它验证的是“不启动真实 GDB，也能通过 ptrace 完成一次简化调试会话”。</p>
+<h4 id="1-2-guest-内-GDB-smoke-测试"><a href="#1-2-guest-内-GDB-smoke-测试" class="headerlink" title="1.2 guest 内 GDB smoke 测试"></a>1.2 guest 内 GDB smoke 测试</h4><p>GDB 应用测试位于：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>主要结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native&#x2F;src&#x2F;main.c</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native&#x2F;gdb-native-smoke.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native-thread&#x2F;src&#x2F;main.c</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native-thread&#x2F;gdb-native-threads.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;src&#x2F;main.c</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;gdbserver-smoke.sh</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;gdbserver-smoke.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;host-manual.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;host-remote.gdb</span><br></pre></td></tr></table></figure>
+
+<p>其中 <code>native/src/main.c</code> 构造了一个清晰的调用链：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">main -&gt; demo_entry -&gt; demo_worker -&gt; native_marker</span><br></pre></td></tr></table></figure>
+
+<p>用于验证 GDB 的断点、运行、回溯、寄存器读取、内存查看和单步执行。</p>
+<p><code>native-thread/src/main.c</code> 创建两个 pthread 子线程，用于验证：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">info threads</span><br><span class="line">thread &lt;id&gt;</span><br><span class="line">bt</span><br><span class="line">&#x2F;proc&#x2F;&lt;pid&gt;&#x2F;task</span><br></pre></td></tr></table></figure>
+
+<p><code>gdbserver/src/main.c</code> 是远程调试目标程序，不是 gdbserver 本体。真实的 <code>gdbserver</code> 来自 rootfs 中的 <code>/usr/bin/gdbserver</code>。StarryOS 的工作是补齐其依赖的 ptrace/procfs 语义，使用户态 <code>gdbserver</code> 可以运行。</p>
+<h3 id="2-Demo-截图"><a href="#2-Demo-截图" class="headerlink" title="2. Demo 截图"></a>2. Demo 截图</h3><p>四架构均可正常使用，我选取 aarch64 架构下进行截图演示</p>
+<p>注：在 6.28 日我尝试在最新 dev 分支下验证 riscv 架构 gdb，出现了bfd requires flen 8, but target has flen 4 的问题。目标 ELF 为 double-float ABI，需要 flen=8，但 gdbserver 上报给 host GDB 的 target description 被识别为 flen=4。目标程序直接运行正常，说明 ELF 加载和执行路径可用，问题集中在 GDB/gdbserver 的 RISC-V target feature 描述或 FP regset 探测路径。</p>
+<p>但 aarch 没有问题，两周前四架构均能正常演示</p>
+<h4 id="Demo1-gdb-server"><a href="#Demo1-gdb-server" class="headerlink" title="Demo1  gdb server"></a><strong>Demo1  gdb server</strong></h4><p>在终端 1 启动 aarch64 guest：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev cargo xtask starry app qemu -t gdb-smoke --arch aarch64 \</span><br><span class="line">  --qemu-config qemu-aarch64-gdbserver-manual.toml</span><br></pre></td></tr></table></figure>
+
+<p>进入 StarryOS shell 后运行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gdbserver 0.0.0.0:1234 &#x2F;usr&#x2F;bin&#x2F;gdbserver-smoke-target</span><br></pre></td></tr></table></figure>
+
+<p>终端 2：host 侧连接</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev gdb-multiarch -q \</span><br><span class="line">  -x &#x2F;workspace&#x2F;apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;host-manual-aarch64.gdb \</span><br><span class="line">  &#x2F;workspace&#x2F;target&#x2F;gdb-smoke-host&#x2F;aarch64&#x2F;gdbserver-smoke-target</span><br></pre></td></tr></table></figure>
+
+<p>break compute_value<br>continue<br>bt<br>info registers<br>detach</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x8.png" class="" title="x8">
+
+<p>验证了StarryOS guest 内 <code>gdbserver</code> 可以启动并监听端口。</p>
+<p>Docker host 侧 <code>gdb-multiarch</code> 可以通过 QEMU <code>hostfwd</code> 连接 guest。</p>
+<p>GDB 可以对 guest 用户程序设置断点、继续执行、命中断点、读取 backtrace 和寄存器。</p>
+<p>这条链路覆盖：<code>gdbserver -&gt; ptrace -&gt; wait/stop -&gt; regset -&gt; host GDB remote protocol</code></p>
+<h4 id="Demo2-native-gdb"><a href="#Demo2-native-gdb" class="headerlink" title="Demo2 native gdb"></a><strong>Demo2 native gdb</strong></h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev cargo xtask starry app qemu -t gdb-smoke --arch aarch64 \</span><br><span class="line">  --qemu-config qemu-aarch64-gdbserver-manual.toml</span><br><span class="line"></span><br><span class="line">gdb &#x2F;usr&#x2F;bin&#x2F;gdb-native-smoke-target</span><br><span class="line"></span><br><span class="line">gdb内输入</span><br><span class="line">set pagination off</span><br><span class="line">break native_marker</span><br><span class="line">run</span><br><span class="line">bt</span><br><span class="line">info registers</span><br><span class="line">x&#x2F;4gx $sp</span><br><span class="line">info proc mappings</span><br><span class="line">info files</span><br><span class="line">info auxv</span><br><span class="line">shell pid&#x3D;&quot;$(pidof gdb-native-smoke-target)&quot; &amp;&amp; cat &quot;&#x2F;proc&#x2F;$pid&#x2F;status&quot;</span><br><span class="line">continue</span><br></pre></td></tr></table></figure>
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x9.png" class="" title="x9">
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x10.png" class="" title="x10">验证了aarch64 guest 内 native GDB 手工调试能力：断点、运行、回溯、寄存器、栈内存、procfs 信息读取。
+
+
+
+<h4 id="Demo3-TUI"><a href="#Demo3-TUI" class="headerlink" title="Demo3  TUI"></a><strong>Demo3  TUI</strong></h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev cargo xtask starry app qemu -t gdb-smoke --arch aarch64 \</span><br><span class="line">  --qemu-config qemu-aarch64-gdbserver-manual.toml</span><br><span class="line">  </span><br><span class="line">gdb -q -tui &#x2F;usr&#x2F;bin&#x2F;gdb-native-smoke-target</span><br><span class="line"></span><br><span class="line">break native_marker</span><br><span class="line">run</span><br><span class="line">layout asm</span><br><span class="line">layout regs</span><br><span class="line">refresh</span><br><span class="line">bt</span><br><span class="line">info registers</span><br><span class="line">tui disable</span><br><span class="line">continue</span><br></pre></td></tr></table></figure>
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x11.png" class="" title="x11">
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x12.png" class="" title="x12">
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x13.png" class="" title="x13">
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x14.png" class="" title="x14">
+
+
+
+<h4 id="Demo4-LWP-pthread-task"><a href="#Demo4-LWP-pthread-task" class="headerlink" title="Demo4 LWP/pthread task"></a>Demo4 LWP/pthread task</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">gdb &#x2F;usr&#x2F;bin&#x2F;gdb-native-thread-target</span><br><span class="line"></span><br><span class="line">set pagination off</span><br><span class="line">set print thread-events on</span><br><span class="line">set schedule-multiple on</span><br><span class="line">break thread_marker</span><br><span class="line">run</span><br><span class="line">info threads</span><br><span class="line">shell pid&#x3D;&quot;$(pidof gdb-native-thread-target)&quot; &amp;&amp; ls &quot;&#x2F;proc&#x2F;$pid&#x2F;task&quot;</span><br><span class="line">bt</span><br><span class="line">delete breakpoints</span><br><span class="line">continue</span><br></pre></td></tr></table></figure>
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x15.png" class="" title="x15">
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x16.png" class="" title="x16">
+
+
+
+<h2 id="五、工作-PR-记录、工作仓库"><a href="#五、工作-PR-记录、工作仓库" class="headerlink" title="五、工作 PR 记录、工作仓库"></a>五、工作 PR 记录、工作仓库</h2><p><strong>issue 记录：</strong><a href="https://github.com/rcore-os/tgoskits/issues/586" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/issues/586</a></p>
+<h3 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h3><p>Linux syscall 添加测例与修复 <a href="https://github.com/rcore-os/tgoskits/pull/588" target="_blank" rel="noopener">PR 588</a>  <a href="https://github.com/rcore-os/tgoskits/pull/605" target="_blank" rel="noopener">PR605</a></p>
+<p>包含：chmod、fchmod、chown、 fchown、faccessat、umask、fchmodat、fchownat  </p>
+<h3 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h3><ol>
+<li><p>busybox 十余个 applet 测例，修复内核语义 <a href="https://github.com/rcore-os/tgoskits/pull/668" target="_blank" rel="noopener">PR668</a> <a href="https://github.com/rcore-os/tgoskits/pull/752" target="_blank" rel="noopener">PR752</a></p>
+</li>
+<li><p>补齐 Lua 应用运行时的测试，修复阻碍 Lua 应用稳定运行的文件系统缺陷 <a href="https://github.com/rcore-os/tgoskits/pull/777" target="_blank" rel="noopener">PR777</a> </p>
+</li>
+<li><p>新增 Redis normal、stress测试，修复 ax-net-ng TCP listen/accept 路径、修复 TCP recv 路径、修复 axfs-ng-vfs rename 检查<a href="https://github.com/rcore-os/tgoskits/pull/802" target="_blank" rel="noopener">PR802</a></p>
+</li>
+</ol>
+<h3 id="第三阶段"><a href="#第三阶段" class="headerlink" title="第三阶段"></a>第三阶段</h3><ol>
+<li>ptrace 初步框架完成，初期设计问题在后续 PR 解决了，这是一个接近 5000行代码的提交，包括2000 余行测试相关代码与 2000 余行内核 feature 添加与语义修复。<a href="https://github.com/rcore-os/tgoskits/pull/931" target="_blank" rel="noopener">PR931</a></li>
+<li>修复上一 PR 设计问题，重构 ptrace stop 状态，调整 wait / waitid 语义，调整 clone/fork/vfork ptrace event，补充 procfs / GDB 可用性支持，增加测试，并在开会时准备了 demo 并演示 <a href="https://github.com/rcore-os/tgoskits/pull/1167" target="_blank" rel="noopener">PR1167</a></li>
+<li>前两个 PR 完成了 riscv64 的 gdb 可用，该 PR 完成了 aarch64、loongarch 的支持 <a href="https://github.com/rcore-os/tgoskits/pull/1247" target="_blank" rel="noopener">PR1247</a> </li>
+<li>修复和补充了上一 PR 的缺口 <a href="https://github.com/rcore-os/tgoskits/pull/1292" target="_blank" rel="noopener">PR1292</a></li>
+<li>review 了杨铮同学的 PR，发现了一些设计上的分歧，把x86 的实现与测例对齐到我前面的设计 <a href="https://github.com/rcore-os/tgoskits/pull/1314" target="_blank" rel="noopener">PR1314</a></li>
+</ol>
+<p><strong>上述 11 个 PR 即是我本次训练营的所有工作</strong></p>
+<h2 id="六、总结与感想"><a href="#六、总结与感想" class="headerlink" title="六、总结与感想"></a>六、总结与感想</h2><p>2024 秋冬第一次听说 os 训练营，参加第一阶段 rust 语言学习就十分折磨，深夜在武大宿舍里调 rustling 程序，最终完成了 100 多道题的练习，踩了很多坑 走了很多弯路（比如死磕 rust 语言圣经、rust 程序设计教材，然而里面的很多语法比如“无畏并发”等高级内容根本就没用上，看了一遍又一遍都无法理解，最后发现只有在项目里用上才能真正理解…）</p>
+<p>2025 春夏花了一整个月学 rCore，那时候本着学习的态度，古法编程，每行代码得去看去理解，犹记得文件系统章节看完了 easy fs 的所有代码，结果发现 lab 只需要写几行代码就能解决的无奈，不过学到知识就是胜利✌️后续有事没继续做最终阶段</p>
+<p>2026 春夏花了两个月，从啃 arceos 代码发现很多地方看不懂，到使用 codex 辅助编程完成了 starryos 里计划好的工作，我不仅学到了 os 的知识，也更加熟练地使用ai 辅助编程。感谢 oscamp 和 infiniTensor 训练营，让我学到了这么多！终于是都通关了，明年我要继续 compiler camp！</p>
+<p>关于第三阶段的项目，GDB 支持不是单个 syscall 的实现，而是一条完整链路。一个断点能否命中，背后涉及 ELF 加载、用户地址空间、信号投递、ptrace stop 状态、wait 语义、寄存器 ABI、跨进程内存访问、procfs、rootfs、gdbserver、QEMU 网络转发和测试组织。任何一环不稳定，最终都可能导致 GDB 卡住或超时，在实现过程中我对 os 的进程、信号 IPC、ELF、内存访问等等诸多方面都有了更深的了解，不过内核代码十分复杂，参加完训练营也仅对 os 了有了一些粗浅的理解，后续会继续读陈海波老师的《操作系统 原理与实现》，加深理解，继续努力提高工程能力</p>
+<p>最后感谢陈渝老师、向勇老师、朱懿学长以及训练营的各位助教老师们。受益于开源，也要回馈开源，未来有空了希望我也能参与贡献各种开源训练营</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-WellDown64/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -345,7 +1431,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
 
           
@@ -472,7 +1558,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
 
           
@@ -536,7 +1622,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -951,7 +2037,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1038,7 +2124,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1563,7 +2649,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4644,7 +5730,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4729,789 +5815,6 @@
 <p>与 <code>async-ffi</code> 的主要区别是, <code>async-ffi</code> 基于 <code>std</code> 环境, 做了一些额外的包装, 包括捕获 <code>unwind panic</code> 等问题。我在嵌入式领域做了相应的改造, 去除了一些不必要的功能, 同时可以与 <code>no-std</code> 环境适配。</p>
 <hr>
 <p>训练营到这里就结束了, 我接下来的想法是继续沿着 “同步与异步统一” 这个问题继续走下去, 先前的 FFIFuture 也是我在这个问题上的初步尝试, 最终形成成果。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/18/20260618-xianxw-SD%E9%A9%B1%E5%8A%A8%E5%BC%82%E6%AD%A5%E5%8C%96/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/06/18/20260618-xianxw-SD%E9%A9%B1%E5%8A%A8%E5%BC%82%E6%AD%A5%E5%8C%96/" class="post-title-link" itemprop="url">20260618-xianxw-SD驱动异步化</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-06-18 12:11:46" itemprop="dateCreated datePublished" datetime="2026-06-18T12:11:46+00:00">2026-06-18</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="SDMMC-驱动异步化技术总结"><a href="#SDMMC-驱动异步化技术总结" class="headerlink" title="SDMMC 驱动异步化技术总结"></a>SDMMC 驱动异步化技术总结</h1><p>本报告主要记录了我在2026春夏季开源操作系统训练营在 StarryOS 上开发 SDMMC 块设备驱动以及实现异步读写的全过程，包括最终完整的调用链路、同步与异步双通道设计思路以及遇到的相关技术细节。</p>
-<hr>
-<h2 id="一、-项目当前整体内容及当前完整调用链路"><a href="#一、-项目当前整体内容及当前完整调用链路" class="headerlink" title="一、 项目当前整体内容及当前完整调用链路"></a>一、 项目当前整体内容及当前完整调用链路</h2><h3 id="1-1-项目当前整体内容"><a href="#1-1-项目当前整体内容" class="headerlink" title="1.1 项目当前整体内容"></a>1.1 项目当前整体内容</h3><p>当前项目的开发分为两个流程,首先是原代码的复现工作,在复现过程中进行了部分的小段更改,其次是异步化改造工作,异步化改造主要对<code>axtask</code> 和 <code>simple-sdmmc</code>两个模块进行更改,同步的流程保持不变,异步的流程基于同步流程进行改造,最终改造后的调用链路如下:</p>
-<h3 id="1-2-驱动完整调用链路"><a href="#1-2-驱动完整调用链路" class="headerlink" title="1.2 驱动完整调用链路"></a>1.2 驱动完整调用链路</h3><p>支持两种调用链路，分别适配之前的同步调用与现代的异步协程调度：</p>
-<h4 id="1-2-1-同步通道完整调用链路-Synchronous-Flow"><a href="#1-2-1-同步通道完整调用链路-Synchronous-Flow" class="headerlink" title="1.2.1 同步通道完整调用链路 (Synchronous Flow)"></a>1.2.1 同步通道完整调用链路 (Synchronous Flow)</h4><p>同步通道核心是通过阻塞当前 OS 线程来等待硬件中断。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    autonumber</span><br><span class="line">    participant VFS as 虚拟文件系统 &#x2F; 块设备层</span><br><span class="line">    participant SdMmc as SdMmc 驱动 (同步接口)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant WaitQueue as OS 任务等待队列 (WaitQueue)</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    VFS -&gt;&gt; SdMmc: read_block(block_id, buf)</span><br><span class="line">    SdMmc -&gt;&gt; HW: 配置 DMA 描述符，启动 DMA 传输</span><br><span class="line">    SdMmc -&gt;&gt; WaitQueue: wait_timeout_until() 阻塞当前线程</span><br><span class="line">    Note over WaitQueue: 线程状态设为 Blocked&lt;br&#x2F;&gt;让出 CPU，被移出就绪队列</span><br><span class="line">    HW --&gt;&gt; ISR: 传输完成，触发硬件中断</span><br><span class="line">    ISR -&gt;&gt; SdMmc: 捕获中断，更新原子标志</span><br><span class="line">    ISR -&gt;&gt; WaitQueue: notify_one() 唤醒阻塞线程</span><br><span class="line">    WaitQueue -&gt;&gt; SdMmc: 线程恢复运行，执行数据拷贝与清理</span><br><span class="line">    SdMmc -&gt;&gt; VFS: 返回读取到的数据</span><br></pre></td></tr></table></figure>
-
-<p><strong>详细调用步骤分解：</strong></p>
-<ol>
-<li><strong>入口发起</strong>：上层文件系统/内核调用 <code>SdMmc::read_block(block_id, buf)</code> 或 <code>write_block</code>。</li>
-<li><strong>DMA 缓冲区准备</strong>：驱动配置传输大小，并获取物理上连续的一致性 DMA 缓存区。如果是写操作，将用户 <code>buf</code> 中的数据拷贝进 DMA 缓存。</li>
-<li><strong>进入 <code>send_cmd_idmac</code></strong>：<ul>
-<li><strong>创建描述符</strong>：分配一个 DMA 描述符 <code>IdmacDescriptor</code>，配置缓冲区物理地址与大小，并将描述符地址写入 <code>dbaddr</code> 寄存器。</li>
-<li><strong>重置标志位</strong>：将全局原子变量 <code>IDMAC_DONE_FLAG</code> 和 <code>IDMAC_ERROR_FLAG</code> 置为 <code>false</code>。</li>
-<li><strong>启动硬件</strong>：向 <code>cmdarg</code> 和 <code>cmd</code> 寄存器写入指令，并写入 <code>pldmnd</code> 寄存器，启动 SDMMC 硬件及内部 DMA 传输。</li>
-</ul>
-</li>
-<li><strong>线程阻塞等待</strong>：<ul>
-<li><strong>驱动调用</strong>：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">IDMAC_WAIT_QUEUE.wait_timeout_until(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>), </span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire)</span><br><span class="line">)</span><br></pre></td></tr></table></figure></li>
-<li><strong>底层动作</strong>：当前线程被放入等待队列，状态修改为 <code>Blocked</code>（阻塞态），当前 CPU 切换上下文去运行其他就绪线程。此时 CPU 没有任何忙等轮询。</li>
-</ul>
-</li>
-<li><strong>硬件中断触发与唤醒</strong>：<ul>
-<li>当 DMA 数据传输完毕，SD/MMC 控制器触发物理中断。</li>
-<li>CPU 跳转至中断服务程序（ISR）：<code>SdMmc::handle_interrupt()</code>。</li>
-<li>ISR 中更新状态：<code>IDMAC_DONE_FLAG.store(true)</code> 并调用 <code>IDMAC_WAIT_QUEUE.notify_one()</code>。</li>
-<li>调度器收到唤醒通知，将原阻塞线程放回就绪队列，并恢复其执行。</li>
-</ul>
-</li>
-<li><strong>收尾与返回</strong>：<ul>
-<li>线程恢复执行后，从 <code>wait_timeout_until</code> 返回，读取响应寄存器 <code>resp</code> 验证传输正确性。</li>
-<li>释放描述符内存，清理中断标志。</li>
-<li>如果是读操作，把数据从一致性 DMA 缓存拷贝回用户 <code>buf</code>，返回上层。</li>
-</ul>
-</li>
-</ol>
-<hr>
-<h4 id="1-2-2-异步通道完整调用链路-Asynchronous-Flow"><a href="#1-2-2-异步通道完整调用链路-Asynchronous-Flow" class="headerlink" title="1.2.2 异步通道完整调用链路 (Asynchronous Flow)"></a>1.2.2 异步通道完整调用链路 (Asynchronous Flow)</h4><p>异步通道专门为协程并发设计，其核心是通过 Rust Future 挂起协程，释放 OS 线程去运行其他任务，等待硬件中断精准唤醒。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    autonumber</span><br><span class="line">    participant App as 异步应用 &#x2F; 协程执行器 (Executor)</span><br><span class="line">    participant SdMmc as SdMmc 驱动 (异步接口)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant WaitQueue as 任务等待队列 (WaitQueue)</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    App -&gt;&gt; SdMmc: read_block_async(block_id, buf).await</span><br><span class="line">    SdMmc -&gt;&gt; HW: 配置 DMA 描述符，启动 DMA 传输</span><br><span class="line">    SdMmc -&gt;&gt; WaitQueue: wait_timeout_until_async().await 注册挂起</span><br><span class="line">    Note over WaitQueue: 创建 EventListener 并绑定 Waker&lt;br&#x2F;&gt;协程返回 Pending，让出执行权</span><br><span class="line">    Note over App: 协程挂起，Executor 调度同一线程下的其他协程</span><br><span class="line">    HW --&gt;&gt; ISR: 传输完成，触发硬件中断</span><br><span class="line">    ISR -&gt;&gt; SdMmc: 捕获中断，更新原子标志</span><br><span class="line">    ISR -&gt;&gt; WaitQueue: notify_one() 唤醒监听者</span><br><span class="line">    WaitQueue -&gt;&gt; App: 触发 waker.wake()，协程重新进入就绪队列</span><br><span class="line">    App -&gt;&gt; SdMmc: 执行器再次 poll 推进协程</span><br><span class="line">    SdMmc -&gt;&gt; SdMmc: 拷贝 DMA 缓冲区数据</span><br><span class="line">    SdMmc -&gt;&gt; App: 异步读取完成，返回数据</span><br></pre></td></tr></table></figure>
-
-<p><strong>详细调用步骤分解：</strong></p>
-<ol>
-<li><strong>入口发起</strong>：上层异步调用器 <code>.await</code> 执行 <code>SdMmc::read_block_async(block_id, buf)</code> 或 <code>write_block_async</code>。</li>
-<li><strong>DMA 缓冲区准备</strong>：与同步相同，配置大小，如果是写操作则将数据拷入 DMA 一致性内存中。</li>
-<li><strong>调用并 <code>.await</code> 执行 <code>send_cmd_idmac_async</code></strong>：<ul>
-<li><strong>描述符配置</strong>：构建 <code>IdmacDescriptor</code> 描述符，关联缓冲区物理地址并写入 <code>dbaddr</code>。</li>
-<li><strong>重置原子标志</strong>：重置 <code>IDMAC_DONE_FLAG</code> 与 <code>IDMAC_ERROR_FLAG</code>。</li>
-<li><strong>启动硬件</strong>：写入 <code>cmdarg</code> 和 <code>cmd</code> 寄存器启动命令，并写入 <code>pldmnd</code> 唤醒 DMA。</li>
-</ul>
-</li>
-<li><strong>协程挂起 (Yield)</strong>：<ul>
-<li><strong>驱动执行到异步等待处</strong>：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">IDMAC_WAIT_QUEUE.wait_timeout_until_async(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>), </span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire)</span><br><span class="line">).<span class="keyword">await</span></span><br></pre></td></tr></table></figure></li>
-<li><strong>底层动作</strong>：<ul>
-<li>该异步等待返回一个 Future 状态机。</li>
-<li>当执行器第一次 <code>poll</code> 该 Future 时，通过 <code>event-listener</code> 在栈上创建一个监听节点，将当前协程的 <code>Waker</code> 登记并挂载到 <code>IDMAC_WAIT_QUEUE</code> 中。</li>
-<li>检查条件不满足，返回 <code>Poll::Pending</code>。</li>
-<li>执行器（Executor）将此协程移出活跃调度链表，底层的 OS 线程立刻去执行其他协程。</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><strong>中断精准唤醒</strong>：<ul>
-<li>硬件传输完毕触发物理中断，CPU 进入 <code>SdMmc::handle_interrupt()</code>。</li>
-<li>中断程序将 <code>IDMAC_DONE_FLAG</code> 原子设为 <code>true</code>。</li>
-<li>调用 <code>IDMAC_WAIT_QUEUE.notify_one()</code> 找到链表里登记的协程 <code>Waker</code>，调用 <code>waker.wake()</code>。</li>
-<li>执行器把该协程重新放入就绪队列。</li>
-</ul>
-</li>
-<li><strong>协程恢复与完成</strong>：<ul>
-<li>执行器再次 <code>poll</code> 该协程，此时条件满足，<code>wait_timeout_until_async</code> 返回 <code>Poll::Ready</code>。</li>
-<li>协程退出 <code>.await</code>，读取并验证寄存器，释放描述符。</li>
-<li>读操作将数据从 DMA 缓冲搬运至用户 <code>buf</code>。异步读取结束。</li>
-</ul>
-</li>
-</ol>
-<hr>
-<h2 id="二、-初次复现代码的具体改动"><a href="#二、-初次复现代码的具体改动" class="headerlink" title="二、 初次复现代码的具体改动"></a>二、 初次复现代码的具体改动</h2><h3 id="2-1-整体代码结构分析-src-目录"><a href="#2-1-整体代码结构分析-src-目录" class="headerlink" title="2.1 整体代码结构分析 (src 目录)"></a>2.1 整体代码结构分析 (<code>src</code> 目录)</h3><p>以下是原代码 <code>src</code> 目录下的核心文件职责与作用分工：</p>
-<table>
-<thead>
-<tr>
-<th align="left">文件名称</th>
-<th align="left">核心职责</th>
-<th align="left">具体作用描述</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left">[lib.rs]</td>
-<td align="left">驱动模块入口</td>
-<td align="left">统一导出子模块，向外部公开核心驱动结构体 <code>SdMmc</code>。</td>
-</tr>
-<tr>
-<td align="left">[sdmmc.rs]</td>
-<td align="left">传输与控制逻辑</td>
-<td align="left">实现 <code>SdMmc</code> 生命周期与初始化配置流程（时钟配置、卡检测、OCR 协商、CID/CSD 获取等）；提供块读写接口 <code>read_block</code> 和 <code>write_block</code>（支持自动判定 DMA/PIO 模式）；实现具体命令发送函数 <code>send_cmd</code> 与 <code>send_cmd_idmac</code>；提供硬件中断处理函数 <code>handle_interrupt</code> 用于接收控制器和内部 DMA 的状态并反馈给等待任务。</td>
-</tr>
-<tr>
-<td align="left">[regs.rs]</td>
-<td align="left">底类寄存器定义</td>
-<td align="left">映射并定义控制器的寄存器块（<code>RegisterBlock</code>）布局，并利用 <code>bitfield-struct</code> 宏安全地建模各个寄存器的位域字段（如 <code>Ctrl</code>、<code>BMod</code>、<code>IdIntEn</code>、<code>IdSts</code>、<code>RIntSts</code> 等），保证寄存器读写的类型安全。</td>
-</tr>
-<tr>
-<td align="left">[cmd.rs]</td>
-<td align="left">命令与数据传输构建</td>
-<td align="left">定义 SD/MMC 命令枚举 <code>Command</code>（如 <code>GoIdleState</code>、<code>AppCmd</code>、<code>ReadSingleBlock</code> 等），构建出寄存器所需的命令控制字和参数值，并定义数据传输方向结构 <code>DataXfer</code>。</td>
-</tr>
-<tr>
-<td align="left">[dma.rs]</td>
-<td align="left">DMA 内存与描述符管理</td>
-<td align="left">定义符合 IDMAC 硬件接口要求的 DMA 描述符 <code>IdmacDescriptor</code> 结构；提供物理连续且对齐 of DMA 一致性内存的申请（<code>alloc_coherent</code>）与释放（<code>dealloc_coherent</code>）接口。</td>
-</tr>
-<tr>
-<td align="left">[utils.rs]</td>
-<td align="left">元数据解析辅助工具</td>
-<td align="left">定义并解析 CID（卡识别寄存器）与 CSD（卡特定数据寄存器），用于计算块设备的总容量、卡片块数量以及获取生产元数据。</td>
-</tr>
-</tbody></table>
-<hr>
-<hr>
-<h3 id="2-3-复现代码的具体改动"><a href="#2-3-复现代码的具体改动" class="headerlink" title="2.3 复现代码的具体改动"></a>2.3 复现代码的具体改动</h3><p>通过对旧版本 (<code>root-simple-sdmmc-extended</code>) 与新版本 (<code>retry-simple-sdmmc-extended-dma</code>) 进行深度代码比对，新版本在保持与旧版本时序对齐的同时，在以下几个关键维度进行了深入的修复与改善：</p>
-<blockquote>
-<p>[!WARNING]</p>
-<h4 id="1-内存泄漏与异常安全-Critical"><a href="#1-内存泄漏与异常安全-Critical" class="headerlink" title="1. 内存泄漏与异常安全 (Critical)"></a>1. 内存泄漏与异常安全 (Critical)</h4><ul>
-<li><strong>旧版本 (<code>root</code>)</strong>：如果在“第二阶段（命令响应等待）”中发生了超时，函数会直接返回 <code>None</code> 退出，而<strong>未能释放</strong>通过 <code>alloc_coherent</code> 申请的 <code>dma_desc_info</code> 物理连续内存。这在硬件超时或出错时会导致严重的系统内存泄漏。</li>
-<li><strong>新版本 (<code>retry</code>)</strong>：在此类所有异常分支（如超时、命令错误）中均补齐了 <code>dealloc_coherent</code> 释放操作，彻底消除了内存泄漏隐患，保证了底层的异常安全。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>[!IMPORTANT]</p>
-<h4 id="2-PIO-模式下-FIFO-地址访问-Bug-修复-Correctness"><a href="#2-PIO-模式下-FIFO-地址访问-Bug-修复-Correctness" class="headerlink" title="2. PIO 模式下 FIFO 地址访问 Bug 修复 (Correctness)"></a>2. PIO 模式下 FIFO 地址访问 Bug 修复 (Correctness)</h4><ul>
-<li><strong>旧版本 (<code>root</code>)</strong>：在数据传输循环中，使用 <code>fifo_base.byte_add(offset).read_volatile()</code>。这错误地将数据读写的字节偏移量（<code>offset</code>）加在了寄存器地址上。由于 FIFO 寄存器属于单一端口物理映射，偏移会导致读取非法的内存空间。</li>
-<li><strong>新版本 (<code>retry</code>)</strong>：完全修复了此 Bug。数据传输始终对固定的 <code>fifo_base</code> 地址执行 <code>read_volatile()</code>/<code>write_volatile()</code>，完全符合硬件规范。</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>[!IMPORTANT]</p>
-<h4 id="3-跨上下文错误传递机制-IDMAC-ERROR-FLAG-Robustness"><a href="#3-跨上下文错误传递机制-IDMAC-ERROR-FLAG-Robustness" class="headerlink" title="3. 跨上下文错误传递机制 IDMAC_ERROR_FLAG (Robustness)"></a>3. 跨上下文错误传递机制 <code>IDMAC_ERROR_FLAG</code> (Robustness)</h4><ul>
-<li><strong>旧版本 (<code>root</code>)</strong>：未定义任何全局错误同步标志位。当中断服务程序（ISR）捕获了致命总线错误（<code>FBE</code>）、描述符不可用（<code>DU</code>）或卡错误（<code>CES</code>），也无法安全地向主线程传递该错误信号，导致主线程在发生硬件故障时只能“假死”直至超时。</li>
-<li><strong>新版本 (<code>retry</code>)</strong>：引入了全局原子变量 <code>pub static IDMAC_ERROR_FLAG: AtomicBool = AtomicBool::new(false);</code>。<ul>
-<li><strong>职责</strong>：在 <code>handle_interrupt</code> (中断侧) 捕获硬件异常后，通过 <code>store(true, Release)</code> 原子地设置标志。</li>
-<li><strong>优势</strong>：在 <code>send_cmd_idmac</code> (主线程侧) 配合 <code>load(Acquire)</code> 进行检查。该机制利用底层 CPU 的缓存一致性协议，在无锁（Lock-free）且不引起死锁的前提下，将硬件级的故障快速、安全地通知给主线程，构成了驱动安全降级与错误恢复的通信基石。</li>
-</ul>
-</li>
-</ul>
-</blockquote>
-<blockquote>
-<p>[!TIP]</p>
-<h4 id="4-防御性状态轮询-Efficiency"><a href="#4-防御性状态轮询-Efficiency" class="headerlink" title="4. 防御性状态轮询 (Efficiency)"></a>4. 防御性状态轮询 (Efficiency)</h4><ul>
-<li><strong>旧版本 (<code>root</code>)</strong>：数据传输等待缺乏灵敏的中断级错误响应，在出错时只能依靠强行等待 5 秒超时来退出。</li>
-<li><strong>新版本 (<code>retry</code>)</strong>：在数据传输的第三阶段，引入了相较于初始基准状态的防御性错误校验（实时检测新发生的 <code>new_fbe</code>/<code>new_ces</code>/<code>new_du</code> 等），一旦检测到错误即刻跳出循环并释放资源，将故障恢复延迟缩短到微秒级。</li>
-</ul>
-</blockquote>
-<h4 id="5-数据结构与注释清理-Code-Health"><a href="#5-数据结构与注释清理-Code-Health" class="headerlink" title="5. 数据结构与注释清理 (Code Health)"></a>5. 数据结构与注释清理 (Code Health)</h4><ul>
-<li><strong>旧版本 (<code>root</code>)</strong>：<code>SdMmc</code> 结构体内部保留了大量前期调试残留的、被注释掉的未实现字段（如 <code>support_dma_64bit_address</code>、<code>sg_cpu</code> 等），代码冗余严重。</li>
-<li><strong>新版本 (<code>retry</code>)</strong>：彻底清理了这些冗余字段，使核心数据结构非常精简。同时，补充了详实的中文注释，解释了并发原子操作以及休眠唤醒逻辑。</li>
-</ul>
-<h4 id="6-调试日志降噪-Code-Health"><a href="#6-调试日志降噪-Code-Health" class="headerlink" title="6. 调试日志降噪 (Code Health)"></a>6. 调试日志降噪 (Code Health)</h4><ul>
-<li><strong>旧版本 (<code>root</code>)</strong>：在卡片初始化和时钟配置阶段，大量使用 <code>warn!</code> 级别输出过程日志，在操作系统正常启动时会产生大量无用日志垃圾。</li>
-<li><strong>新版本 (<code>retry</code>)</strong>：将正常的硬件状态快照和初始化过程日志降级为 <code>debug!</code> / <code>trace!</code>，仅在真正发生严重异常时才输出警告，使得内核终端输出更加整洁。</li>
-</ul>
-<hr>
-<h2 id="三、-完善异步机制的代码改动"><a href="#三、-完善异步机制的代码改动" class="headerlink" title="三、 完善异步机制的代码改动"></a>三、 完善异步机制的代码改动</h2><p>我的这次改造涉及模块 <code>axtask</code> 和 <code>simple-sdmmc</code> 两个组件，采用了<strong>同步与异步双独立通道</strong>的设计模式：</p>
-<h3 id="3-1-具体的改造内容"><a href="#3-1-具体的改造内容" class="headerlink" title="3.1 具体的改造内容"></a>3.1 具体的改造内容</h3><h4 id="3-1-1-axtask-模块：WaitQueue-异步等待扩展"><a href="#3-1-1-axtask-模块：WaitQueue-异步等待扩展" class="headerlink" title="3.1.1 axtask 模块：WaitQueue 异步等待扩展"></a>3.1.1 <code>axtask</code> 模块：WaitQueue 异步等待扩展</h4><p>在 <code>wait_queue.rs</code> 中，为底层基于 <code>event-listener</code> 的挂起队列 <code>WaitQueue</code> 扩展了 4 个非阻塞的异步等待方法，允许协程进行 <code>.await</code> 挂起而不阻塞底层 OS 线程：</p>
-<ul>
-<li><code>wait_async()</code>：异步等待事件通知。</li>
-<li><code>wait_until_async(condition)</code>：异步等待直到满足特定条件。</li>
-<li><code>wait_timeout_async(dur)</code>：异步等待带超时机制。</li>
-<li><code>wait_timeout_until_async(dur, condition)</code>：异步等待直到满足条件或超时（本项目核心依赖项）。</li>
-</ul>
-<h4 id="3-1-2-simple-sdmmc-驱动：非轮询化同步通道"><a href="#3-1-2-simple-sdmmc-驱动：非轮询化同步通道" class="headerlink" title="3.1.2 simple-sdmmc 驱动：非轮询化同步通道"></a>3.1.2 <code>simple-sdmmc</code> 驱动：非轮询化同步通道</h4><p>在同步 DMA 发送接口 <code>send_cmd_idmac</code> 中，<strong>彻底移除了原有的 CPU 忙轮询循环</strong>（原循环通过不断调用 <code>axtask::yield_now()</code> 轮询原子标志，浪费大量 CPU 周期并且无法真正让线程进入 Blocked 状态）：</p>
-<h5 id="修改前：忙轮询-CPU-忙等待"><a href="#修改前：忙轮询-CPU-忙等待" class="headerlink" title="修改前：忙轮询 (CPU 忙等待)"></a>修改前：忙轮询 (CPU 忙等待)</h5><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> !IDMAC_DONE_FLAG.load(Ordering::Acquire) &#123;</span><br><span class="line">    <span class="keyword">if</span> axhal::time::wall_time() &gt;= deadline &#123; ... &#125;</span><br><span class="line">    axtask::yield_now(); <span class="comment">// 忙等待，任务仍留在就绪队列</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h5 id="修改后：挂起阻塞-让出-CPU"><a href="#修改后：挂起阻塞-让出-CPU" class="headerlink" title="修改后：挂起阻塞 (让出 CPU)"></a>修改后：挂起阻塞 (让出 CPU)</h5><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> dma_irq_timed_out = IDMAC_WAIT_QUEUE.wait_timeout_until(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>),</span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire),</span><br><span class="line">); <span class="comment">// 真正的线程阻塞，被移出就绪队列</span></span><br></pre></td></tr></table></figure>
-
-<ul>
-<li><strong>同步读写映射</strong>：<code>read_block</code> 和 <code>write_block</code> 保持同步签名，并在内部直接调用该同步的 <code>send_cmd_idmac</code> 接口。当调用发生时，当前 OS 线程会被挂起进入睡眠状态，直到 DMA 中断到来触发 <code>IDMAC_WAIT_QUEUE.notify_one()</code> 或超时。</li>
-</ul>
-<h4 id="3-1-3-simple-sdmmc-驱动：原生异步协程通道"><a href="#3-1-3-simple-sdmmc-驱动：原生异步协程通道" class="headerlink" title="3.1.3 simple-sdmmc 驱动：原生异步协程通道"></a>3.1.3 <code>simple-sdmmc</code> 驱动：原生异步协程通道</h4><p>在 [sdmmc.rs] 中全面引入了原生的异步协程读写逻辑：</p>
-<ul>
-<li><strong><code>send_cmd_idmac_async</code> (异步 DMA 发送核心)</strong>：新建异步 DMA 命令发送接口。在等待 DMA 中断时，调用 <code>.wait_timeout_until_async(...).await</code> 将当前协程注册挂起。此过程<strong>完全不阻塞底层的 OS 线程</strong>，线程可以立刻去运行同一个线程内的其他协程。</li>
-<li><strong><code>read_block_async</code> 与 <code>write_block_async</code> (异步读写接口)</strong>：新增两个公共异步方法。它们通过 <code>.await</code> 挂起等待 <code>send_cmd_idmac_async</code> 执行完成。一旦中断触发唤醒，协程继续在用户态被 poll 推进，完成后续 of DMA 缓冲区数据搬运工作。</li>
-</ul>
-<hr>
-<h3 id="3-2-架构模式对比与优劣分析"><a href="#3-2-架构模式对比与优劣分析" class="headerlink" title="3.2 架构模式对比与优劣分析"></a>3.2 架构模式对比与优劣分析</h3><p>在开发过程中，我对两种主流的“同步/异步共存”设计模式进行了对比，最终选择了性能最优的<strong>独立双通道设计</strong>：</p>
-<table>
-<thead>
-<tr>
-<th align="left">维度</th>
-<th align="left">方案 A：统一异步内核 + <code>block_on</code> 包装（已废弃）</th>
-<th align="left">方案 B：独立双通道设计（当前采用）</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="left"><strong>具体实现</strong></td>
-<td align="left">同步的 <code>read_block</code> 内部直接调用 <code>block_on(read_block_async)</code>。</td>
-<td align="left">同步与异步各走一套底层的 <code>send_cmd_idmac</code> 接口。</td>
-</tr>
-<tr>
-<td align="left"><strong>代码复用性</strong></td>
-<td align="left"><strong>高</strong>。DMA 的设置和拷贝逻辑只写了一遍，没有冗余。</td>
-<td align="left"><strong>较低</strong>。同步路径和异步路径 of DMA 配置结构存在重复。</td>
-</tr>
-<tr>
-<td align="left"><strong>同步路径性能</strong></td>
-<td align="left"><strong>略低</strong>。每次同步调用都需要额外付出创建协程 Waker、Pin 状态机以及运行 <code>block_on</code> 循环的 CPU 额外开销。</td>
-<td align="left"><strong>极致（最高）</strong>。同步读写直接调用 <code>send_cmd_idmac</code>，为纯同步函数调用，没有任何运行时的额外损耗。</td>
-</tr>
-<tr>
-<td align="left"><strong>异步路径并发</strong></td>
-<td align="left"><strong>高</strong>。协程非阻塞挂起。</td>
-<td align="left"><strong>高</strong>。协程非阻塞挂起。</td>
-</tr>
-<tr>
-<td align="left"><strong>错误调试难度</strong></td>
-<td align="left"><strong>高</strong>。同步调用栈中会混入异步状态机的匿名类型与 runtime 调用栈。</td>
-<td align="left"><strong>极低</strong>。同步调用栈就是普通的底层寄存器和锁操作，易于定位。</td>
-</tr>
-</tbody></table>
-<p><strong>结论</strong>：在操作系统内核和设备驱动开发中，<strong>性能和低确定性延迟是第一优先级</strong>。因此，方案 B 虽然带来了少量的 DMA 配置逻辑重复，但保证了同步路径的极限吞吐量，是更为妥当的系统级驱动重构设计。</p>
-<hr>
-<h2 id="四、-完整的异步读-写执行流"><a href="#四、-完整的异步读-写执行流" class="headerlink" title="四、 完整的异步读/写执行流"></a>四、 完整的异步读/写执行流</h2><p>以异步读取 <code>read_block_async</code> 为例，下面详细展示其整体的事件传播与状态转换链路：</p>
-<h3 id="4-1-协程-Waker-唤醒机制与-event-listener-的绑定"><a href="#4-1-协程-Waker-唤醒机制与-event-listener-的绑定" class="headerlink" title="4.1 协程 Waker 唤醒机制与 event_listener 的绑定"></a>4.1 协程 Waker 唤醒机制与 <code>event_listener</code> 的绑定</h3><p>当底层没有数据到来或 DMA 未完成时，协程必须挂起。唤醒机制的底层运转如下：</p>
-<ul>
-<li><strong>挂起与登记</strong>：<ol>
-<li>协程在 <code>wait_timeout_until_async</code> 的 <code>.await</code> 处被执行器 <code>poll</code> 时，会在栈上构造一个 <code>EventListener</code>。</li>
-<li><code>EventListener</code> 将自身以链表节点的形式注册到全局 <code>IDMAC_WAIT_QUEUE</code> 中。</li>
-<li><code>event-listener</code> 会在 poll 过程中获取当前协程上下文的 <code>Waker</code>（由上层执行器传入），并将其克隆并绑定到该监听器节点上。</li>
-<li>如果等待的条件（例如 <code>IDMAC_DONE_FLAG</code>）尚未满足，则 poll 返回 <code>Poll::Pending</code>。执行器接收到 <code>Pending</code> 后，会把当前协程移出活跃就绪链表，暂停对其调度。</li>
-</ol>
-</li>
-<li><strong>中断精准唤醒</strong>：<ol>
-<li>DMA 数据传输完成，硬件触发物理中断，CPU 强行中断当前线程并跳转到 <code>SdMmc::handle_interrupt()</code> 中断服务程序（ISR）。</li>
-<li>ISR 中，驱动清除硬件中断状态并原子 store 将 <code>IDMAC_DONE_FLAG</code> 设为 <code>true</code>。</li>
-<li>接着调用 <code>IDMAC_WAIT_QUEUE.notify_one(true)</code>。</li>
-<li><code>notify_one</code> 会在等待队列链表中找到该协程对应的 <code>EventListener</code>，提取出其中的 <code>Waker</code>，并调用 <code>waker.wake()</code>。</li>
-<li>此时，该协程状态被标记为就绪，重新放回执行器的就绪调度队列中。</li>
-</ol>
-</li>
-</ul>
-<h3 id="4-2-原子变量的协作"><a href="#4-2-原子变量的协作" class="headerlink" title="4.2 原子变量的协作"></a>4.2 原子变量的协作</h3><p>在多核或中断可能抢占的环境下，使用原子变量来进行状态标志通信至关重要：</p>
-<ul>
-<li><strong><code>IDMAC_DONE_FLAG: AtomicBool</code></strong>：标明 DMA 传输是否成功结束。在触发 DMA 传输前置为 <code>false</code>，在硬件中断成功接收到完成信号时置为 <code>true</code>。</li>
-<li><strong><code>IDMAC_ERROR_FLAG: AtomicBool</code></strong>：标明硬件（如控制器或 DMA）是否发生了致命错误。在中断处理函数检测到错误位（如 FBE、DU、CES）时置为 <code>true</code>。</li>
-<li><strong>内存顺序（Ordering）</strong>：使用 <code>Ordering::Acquire</code> and <code>Ordering::Release</code> 保证多核/中断上下文之间的数据可见性与指令重排安全。</li>
-</ul>
-<h3 id="4-3-完整的调用与运转链路-Execution-Flow"><a href="#4-3-完整的调用与运转链路-Execution-Flow" class="headerlink" title="4.3 完整的调用与运转链路 (Execution Flow)"></a>4.3 完整的调用与运转链路 (Execution Flow)</h3><p>以异步读取 <code>read_block_async</code> 为例，完整的调用与运转链路如下：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant App as 上层应用&#x2F;执行器</span><br><span class="line">    participant Drv as SDMMC 驱动 (SdMmc)</span><br><span class="line">    participant WQ as 任务等待队列 (WaitQueue)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    App-&gt;&gt;Drv: 1. read_block_async().await 发起读取</span><br><span class="line">    Drv-&gt;&gt;Drv: 2. 映射配置一致性 DMA 描述符与缓冲区</span><br><span class="line">    Drv-&gt;&gt;HW: 3. 写寄存器，触发 DMA 传输</span><br><span class="line">    Drv-&gt;&gt;WQ: 4. wait_timeout_until_async() 异步等待</span><br><span class="line">    Note over WQ: 创建 EventListener&lt;br&#x2F;&gt;将 Waker 注册到等待队列</span><br><span class="line">    WQ--&gt;&gt;App: 5. 返回 Poll::Pending 挂起协程</span><br><span class="line">    Note over App: 执行器切走，CPU 运行其它任务</span><br><span class="line">    Note over HW: DMA 硬件自动搬运数据到内存...</span><br><span class="line">    HW--&gt;&gt;ISR: 6. 传输完成触发物理中断</span><br><span class="line">    ISR-&gt;&gt;ISR: 7. 清理中断位，设置原子标志 DONE&#x3D;true</span><br><span class="line">    ISR-&gt;&gt;WQ: 8. notify_one() 唤醒监听者</span><br><span class="line">    Note over WQ: 获取对应的 Waker，调用 waker.wake()</span><br><span class="line">    WQ--&gt;&gt;App: 9. 协程重新放入就绪队列</span><br><span class="line">    App-&gt;&gt;Drv: 10. 执行器再次 poll 协程</span><br><span class="line">    Drv-&gt;&gt;WQ: 11. 重新检测 DONE 状态，发现满足条件</span><br><span class="line">    WQ--&gt;&gt;Drv: 12. 退出异步等待，返回</span><br><span class="line">    Drv-&gt;&gt;Drv: 13. 从 DMA 缓冲区拷贝数据至用户缓冲区</span><br><span class="line">    Drv--&gt;&gt;App: 14. 异步读取圆满完成，返回数据</span><br></pre></td></tr></table></figure>
-
-<hr>
-<h2 id="五、-当前存在的问题"><a href="#五、-当前存在的问题" class="headerlink" title="五、 当前存在的问题"></a>五、 当前存在的问题</h2><p>由于我最终采用了物理隔离的同步和异步双通道设计（即独立的同步与异步底层接口），目前导致了以下两组函数在底层的 <strong>DMA 物理缓冲区分配</strong>、<strong>IDMAC 描述符链装配</strong>、以及<strong>读写的前后置数据同步搬运</strong>上存在约 <strong>80%</strong> 的代码逻辑重复：</p>
-<ul>
-<li><code>send_cmd_idmac</code> (同步) 与 <code>send_cmd_idmac_async</code> (异步)</li>
-<li><code>read_block</code> (同步) 与 <code>read_block_async</code> (异步)</li>
-<li><code>write_block</code> (同步) 与 <code>write_block_async</code> (异步)</li>
-</ul>
-<p>后续如果我要继续冗余代码的重构,大概就是把三个部分改造为辅助函数:</p>
-<h3 id="DMA-配置助手化"><a href="#DMA-配置助手化" class="headerlink" title="DMA 配置助手化"></a>DMA 配置助手化</h3><p>将当前冗余的一致性内存分配、<code>IdmacDescriptor</code> 结构体物理填充（包含控制字、缓冲区大小、缓冲区地址配置等）抽离为独立的公共辅助函数，例如：</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">prepare_dma_desc</span></span>(...) -&gt; <span class="built_in">Result</span>&lt;DmaDescInfo, DmaError&gt;</span><br></pre></td></tr></table></figure>
-
-<h3 id="读写前后置操作抽象"><a href="#读写前后置操作抽象" class="headerlink" title="读写前后置操作抽象"></a>读写前后置操作抽象</h3><p>将读操作的后置数据搬运拷贝（从物理连续的一致性 DMA 缓存拷贝至用户 buffer）、写操作的前置数据填充（从用户 buffer 拷贝至一致性 DMA 缓存）以及 DMA 一致性内存的释放生命周期管理，抽象出统一的辅助清理函数。</p>
-<h3 id="保持通道隔离并调用辅助函数"><a href="#保持通道隔离并调用辅助函数" class="headerlink" title="保持通道隔离并调用辅助函数"></a>保持通道隔离并调用辅助函数</h3><p>重构后，同步读写和异步读写只需在入口与出口分别调用上述公共抽象逻辑，而其核心等待与挂起机制（即同步直接阻塞 VS 异步协程挂起）依然维持完全隔离，在彻底消灭冗余代码的同时，完美保留同步路径的极限吞吐量性能。</p>
-<hr>
-<h2 id="六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答"><a href="#六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答" class="headerlink" title="六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答"></a>六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答</h2><p>首先其实无论时同步还是异步,他们的底层都是一样的中断处理函数,都是一样设置状态标记（<code>IDMAC_DONE_FLAG</code>/<code>IDMAC_ERROR_FLAG</code>），然后唤醒等待的任务/协程<br>只是在硬件读写处理前，我们必须使用<strong>互斥锁（Mutex）</strong>来进行并发保护，且唤醒后在系统调度上存在核心差异：</p>
-<h3 id="1-硬件互斥锁定与防死锁设计"><a href="#1-硬件互斥锁定与防死锁设计" class="headerlink" title="1. 硬件互斥锁定与防死锁设计"></a>1. 硬件互斥锁定与防死锁设计</h3><p>由于 SDMMC 硬件是单通道独占设备，我们在发起 DMA 读写前必须获取驱动锁：</p>
-<ul>
-<li><strong>同步端</strong>：在获取互斥锁（如 <code>SpinNoIrq</code> 或操作系统互斥量）后，如果等待中断，会挂起当前线程。此时其他尝试获取锁的线程会被排队，直至前一个线程在中断中被唤醒并释放锁。</li>
-<li><strong>异步端</strong>：为了防止协程挂起时导致底层线程“死锁”，我们不能在 <code>.await</code> 期间持有物理自旋锁。上层对接时使用<strong>异步互斥锁（Async Mutex）</strong>，当一个协程挂起时，它会主动把锁让出来，允许同一物理线程内的其他协程正常运行。</li>
-</ul>
-<h3 id="2-中断唤醒的多态分发（Waker-多态）"><a href="#2-中断唤醒的多态分发（Waker-多态）" class="headerlink" title="2. 中断唤醒的多态分发（Waker 多态）"></a>2. 中断唤醒的多态分发（Waker 多态）</h3><p>在中断触发并调用 <code>notify_one</code> 时，底层通过 Rust 标准库 <code>Waker</code> 的虚函数表实现多态性，自动完成同步与异步的区分唤醒：</p>
-<ul>
-<li><strong>同步的 Waker</strong>：对应 <code>AxWaker</code>。其 <code>wake()</code> 实现会通知操作系统的调度器，直接将对应的<strong>物理线程</strong>状态改为 <code>Runnable</code>，从而在中断返回后可以通过内核调度器触发抢占式切换，物理线程恢复运行并拷贝数据。</li>
-<li><strong>异步的 Waker</strong>：对应协程执行器的 Waker。其 <code>wake()</code> 实现仅仅是将<strong>协程状态机</strong>标为 Ready 放入执行器的就绪链表。中断返回后物理线程不阻塞，由执行器随后 poll 推进协程状态。</li>
-</ul>
-<p>相关的仓库地址</p>
-<ul>
-<li><a href="https://github.com/PassingThroughStarDust/starry-sdmmc-dma-temp/tree/main" target="_blank" rel="noopener">余泽铖原代码仓库</a></li>
-<li><a href="https://github.com/xianxw/SDMMC" target="_blank" rel="noopener">我初次复现的代码仓库</a></li>
-<li><a href="https://github.com/xianxw/RETRY-SDMMC/tree/main" target="_blank" rel="noopener">异步化完成后的代码仓库</a></li>
-<li><a href="https://github.com/xianxw/Asyncos/tree/main/%E6%8A%A5%E5%91%8A" target="_blank" rel="noopener">训练营六周周报</a></li>
-<li><a href="https://github.com/xianxw/Asyncos/tree/main" target="_blank" rel="noopener">训练营其他阶段的工作</a></li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/15/20260615-daivy2333-%E5%BC%82%E6%AD%A5%E4%B8%B2%E5%8F%A3%E9%A9%B1%E5%8A%A8/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/06/15/20260615-daivy2333-%E5%BC%82%E6%AD%A5%E4%B8%B2%E5%8F%A3%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">StarryOS 异步串口驱动</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-06-15 16:40:29" itemprop="dateCreated datePublished" datetime="2026-06-15T16:40:29+00:00">2026-06-15</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h2 id="一、项目背景"><a href="#一、项目背景" class="headerlink" title="一、项目背景"></a>一、项目背景</h2><p>StarryOS 是一个面向 RISC-V 的 Rust 内核项目，构建在 ArceOS 组件化框架之上。串口（UART）是内核与外界交互最重要的通道之一，承担三类任务：内核启动日志、Shell 终端交互、用户态高性能数据传输。</p>
-<p>项目原本使用同步阻塞式的串口实现。这种方式有两个问题：第一，用户态 Shell 的输入/输出会因串口速率阻塞调用方；第二，写多字节时 CPU 持续轮询硬件 FIFO，效率低下。我们的训练营阶段初步目标，就是在保留同步内核日志通道的同时，从零为用户态 Shell 提供一条非阻塞、可中断驱动、CPU 高效的异步串口通路。</p>
-<p>约束条件贯穿整个阶段：不修改任何上游框架、内核抽象层、硬件抽象层、底层驱动库；异步机制只引入社区主流的轻量级原子唤醒原语（<a href="https://docs.embassy.dev/embassy-sync/git/default/struct.AtomicWaker.html" target="_blank" rel="noopener"><code>embassy_sync::AtomicWaker</code></a>），禁止引入完整的异步入库。</p>
-<hr>
-<h2 id="二、训练营其他阶段工作"><a href="#二、训练营其他阶段工作" class="headerlink" title="二、训练营其他阶段工作"></a>二、训练营其他阶段工作</h2><p>训练营分阶段推进，前三个任务为后续主线工作奠定了协程与调度器的实践基础。</p>
-<p><strong>进程、线程、协程的性能对比</strong>。在统一数据量下对比三种并发模型，通过预取缓存、纯文件读取、可配置负载四步控制变量法排除了网络和解析的混淆。核心结论：I/O 密集型场景下协程较线程快 48% 至 82%，CPU 密集型场景下三者差异在 6% 以内，进程内存开销比线程和协程高 100 至 400 倍，结论经两轮独立运行验证零反转。</p>
-<p><strong>用户态线程与协程的深入实践</strong>。实现了一个支持优先级调度的用户态绿色线程库，通过裸函数栈布局手工实现上下文切换，支持 x86-64 Linux、Windows、RISC-V 64 三平台，全部代码可在 stable Rust 上编译运行。配套整理了无栈协程原理、绿色线程实现、执行流状态变迁三篇分析文档。</p>
-<p><strong>调度器对比与异步运行时优化</strong>。构建爬虫框架接入自研绿色线程和 Tokio 异步运行时，量化了四组调度配置在满载 CPU 与中量 I/O 场景下的差异。优化了 Tokio 优先级分发器：将基于二叉堆的逐任务分发改造为基于三队列的批量分发，使优先级模式与默认模式的实际耗时差距从 1.83 秒缩小至 0.11 秒，差距缩小 94%。</p>
-<hr>
-<h2 id="三、主要工作"><a href="#三、主要工作" class="headerlink" title="三、主要工作"></a>三、主要工作</h2><p>本阶段工作按三条主线展开。</p>
-<h3 id="主线一：从零实现-kernel-层异步串口驱动"><a href="#主线一：从零实现-kernel-层异步串口驱动" class="headerlink" title="主线一：从零实现 kernel 层异步串口驱动"></a>主线一：从零实现 kernel 层异步串口驱动</h3><h4 id="3-1-寄存器层验证"><a href="#3-1-寄存器层验证" class="headerlink" title="3.1 寄存器层验证"></a>3.1 寄存器层验证</h4><p>NS16550 UART 芯片只有 8 字节寄存器空间（偏移 0 到 7）。在早期验证中，由于对寄存器布局理解不到位，我们曾误用一个过大的寄存器步长，导致访问越界、触发总线错误。问题排查一度被误判为内存映射权限问题，使整体进度阻塞了将近一周。最终通过在同一页表映射内对比不同步长的读取结果，确认了是寄存器步长配置错误而非系统级权限问题，从而扫清了整个方向的最大障碍。这一教训让我们确立了「先排查代码 bug、再考虑系统级问题」的调试原则。</p>
-<blockquote>
-<p><strong>根因定位</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L27-L30" target="_blank" rel="noopener"><code>uart_init.rs:27-30</code></a> — <code>UART_STRIDE = 1</code> 及 LoadFault 注释</p>
-</blockquote>
-<p>寄存器操作通过本地 fork 的 <a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener"><code>uart_16550</code></a> 驱动库完成（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/Cargo.toml#L106" target="_blank" rel="noopener"><code>kernel/Cargo.toml:106</code></a> <code>path = &quot;../../uart_16550&quot;</code>），而非直接依赖 crates.io 版本。该库封装了 NS16550 的 <a href="https://github.com/daivy2333/uart_16550/blob/main/src/backend/mmio.rs" target="_blank" rel="noopener"><code>MMIO 后端</code></a>、<a href="https://github.com/daivy2333/uart_16550/blob/main/src/spec.rs" target="_blank" rel="noopener"><code>寄存器定义</code></a>（IER/ISR/LSR 等）和<a href="https://github.com/daivy2333/uart_16550/blob/main/src/spec.rs" target="_blank" rel="noopener"><code>中断类型枚举</code></a>，为上层提供安全的寄存器读写 API。我们在本地 fork 上的主要改动是为其新增了 <code>set_ier()</code> 公开写方法，使 IER 操作统一走安全 API 而非裸 <code>write_volatile</code>（详见 §3.6 修复三），后续 Q12 阶段还为其补充了 <a href="https://github.com/daivy2333/uart_16550/blob/main/src/embedded_io.rs" target="_blank" rel="noopener"><code>embedded_io_async</code> trait 实现</a>。</p>
-<h4 id="3-2-驱动三件套"><a href="#3-2-驱动三件套" class="headerlink" title="3.2 驱动三件套"></a>3.2 驱动三件套</h4><p>我们用三件套构成了异步串口的核心机制：</p>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>文件</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><strong>环形缓冲区</strong></td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a></td>
-<td>SPSC 无锁结构，64 KiB 每方向，使用 <code>atomic_ring_buffer</code> + <code>PollSet</code> 唤醒</td>
-</tr>
-<tr>
-<td><strong>中断服务程序（ISR）</strong></td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a></td>
-<td>25 行极简实现：读 ISR → 禁中断 → AtomicWaker::wake → 返回</td>
-</tr>
-<tr>
-<td><strong>后台搬运任务</strong></td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a></td>
-<td>RX/TX copier loop，NAPI 风格轮询/中断动态切换（阈值 16）</td>
-</tr>
-</tbody></table>
-<p>关键设计是 ISR 只做唤醒而不做数据搬运，搬运工作交给后台任务，保持 ISR 极简。整套三件套约 500 行代码，全部位于内核自身模块。</p>
-<blockquote>
-<p><strong>完整实现</strong>：<a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/drivers" target="_blank" rel="noopener"><code>kernel/src/drivers/</code></a></p>
-</blockquote>
-<h4 id="3-3-虚拟文件系统集成"><a href="#3-3-虚拟文件系统集成" class="headerlink" title="3.3 虚拟文件系统集成"></a>3.3 虚拟文件系统集成</h4><p>我们将异步串口封装为标准设备节点，对接现有的设备注册框架，使异步串口与项目内其他设备采用完全一致的接入方式。</p>
-<ul>
-<li>设备注册：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs#L222-L230" target="_blank" rel="noopener"><code>dev/mod.rs:222-230</code></a> — <code>/dev/console</code> (5,1) 绑定 <code>ASYNC_TTY</code></li>
-<li>设备操作：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/device_ops.rs" target="_blank" rel="noopener"><code>device_ops.rs</code></a> — <code>TtyRead</code>/<code>TtyWrite</code> + <code>embedded_io_async</code> trait 实现</li>
-<li>终端绑定：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ntty_async.rs" target="_blank" rel="noopener"><code>ntty_async.rs</code></a> — 泛型 <code>Tty&lt;AsyncUartReader, AsyncUartWriter&gt;</code>，<code>ProcessMode::External</code> 消除 yield storm</li>
-</ul>
-<p>终端层通过泛型绑定替换了 reader 和 writer 两个 trait，整个终端栈因此无须修改即可切换到异步通路。</p>
-<blockquote>
-<p><strong>TTY 层实现</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code> 行规则模块</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs" target="_blank" rel="noopener"><code>tty/mod.rs</code> Tty 泛型结构</a></p>
-</blockquote>
-<h4 id="3-4-Shell-双向异步打通"><a href="#3-4-Shell-双向异步打通" class="headerlink" title="3.4 Shell 双向异步打通"></a>3.4 Shell 双向异步打通</h4><p>在接收方向上，中断唤醒后台搬运任务，搬运任务填充环形缓冲区，用户态 Shell 从缓冲区读取，整条链路无阻塞。在发送方向上，用户态写入环形缓冲区，后台搬运任务将其送入硬件 FIFO，内核日志通道与异步通道共享同一个 UART 硬件但互不冲突，实现了「内核日志同步输出、用户态 Shell 异步交互」的共存架构。</p>
-<blockquote>
-<p><strong>共存实现</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs#L222-L230" target="_blank" rel="noopener"><code>dev/mod.rs:222-230</code></a> 设备注册 | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/entry.rs#L23-L28" target="_blank" rel="noopener"><code>entry.rs:23-28</code></a> 启动初始化 | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> copier 与 Console 互斥读 FIFO</p>
-</blockquote>
-<hr>
-<h3 id="主线二：性能与正确性的多轮打磨"><a href="#主线二：性能与正确性的多轮打磨" class="headerlink" title="主线二：性能与正确性的多轮打磨"></a>主线二：性能与正确性的多轮打磨</h3><p>异步通路打通后，我们用了八轮迭代打磨性能和正确性。</p>
-<blockquote>
-<p><strong>性能对比报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/benchmark-report-async.md" target="_blank" rel="noopener"><code>benchmark-report-async.md</code></a> | <strong>手动测试报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/manual-qa-report.md" target="_blank" rel="noopener"><code>manual-qa-report.md</code></a> | <strong>Console vs Async 对比</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a></p>
-</blockquote>
-<h4 id="3-5-热路径优化（Q5-阶段）"><a href="#3-5-热路径优化（Q5-阶段）" class="headerlink" title="3.5 热路径优化（Q5 阶段）"></a>3.5 热路径优化（Q5 阶段）</h4><p>对中断处理路径做了五项核心优化：</p>
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>优化</th>
-<th>代码位置</th>
-<th>效果</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>1</td>
-<td><strong>IER 值缓存为原子变量</strong>，读改写→单次写入</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L99-L109" target="_blank" rel="noopener"><code>uart_init.rs:99-109</code></a></td>
-<td>消除 MMIO RMW 开销</td>
-</tr>
-<tr>
-<td>2</td>
-<td><strong>RX/TX 独立锁</strong>，消除读写伪竞争</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> 分设 <code>RingBufRx</code>/<code>RingBufTx</code></td>
-<td>解除读写互斥</td>
-</tr>
-<tr>
-<td>3</td>
-<td><strong>批量读写接口</strong>替代逐字节操作</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L32-L35" target="_blank" rel="noopener"><code>uart_init.rs:32-35</code></a> <code>NAPI_BATCH_SIZE=64</code></td>
-<td>减少锁获取次数</td>
-</tr>
-<tr>
-<td>4</td>
-<td><strong>唤醒去重</strong>（will_wake 检查），避免无意义唤醒</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L41" target="_blank" rel="noopener"><code>async_driver.rs:41,61-65</code></a></td>
-<td>减少 CPU 空转</td>
-</tr>
-<tr>
-<td>5</td>
-<td><strong>NAPI 中断合并</strong>：连续成功≥16次切轮询，高吞吐减 90%+ IRQ</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L46-L60" target="_blank" rel="noopener"><code>async_driver.rs:46-60</code></a></td>
-<td>大幅降低中断频率</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p>以上 5 项优化的代码位置见表格中各行的链接，对应优化编号 O2/O25~O34。</p>
-</blockquote>
-<h4 id="3-6-三轮正确性修复（Q7-Q8-阶段）"><a href="#3-6-三轮正确性修复（Q7-Q8-阶段）" class="headerlink" title="3.6 三轮正确性修复（Q7~Q8 阶段）"></a>3.6 三轮正确性修复（Q7~Q8 阶段）</h4><table>
-<thead>
-<tr>
-<th>#</th>
-<th>缺陷</th>
-<th>修复</th>
-<th>代码位置</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>1</td>
-<td><strong>NAPI 退出缺陷</strong>：轮询模式计数器只增不减、空数据时无法重置 → CPU 空转</td>
-<td>总量为 0 时重置 <code>consecutive</code> 计数器</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a></td>
-</tr>
-<tr>
-<td>2</td>
-<td><strong>ISR 持锁</strong>：中断处理路径仍持有 <code>SpinNoIrq</code>，违反 ISR 极简原则</td>
-<td>移除 ISR 内所有锁，改用 <code>read_isr_unlocked</code>/<code>read_lsr_unlocked</code></td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L72-L96" target="_blank" rel="noopener"><code>uart_init.rs:72-96</code></a></td>
-</tr>
-<tr>
-<td>3</td>
-<td><strong>IER 裸写绕过安全 API</strong>：<code>write_volatile</code> 裸地址写 IER，违反 MMIO 封装规则</td>
-<td>给底层驱动库新增 <code>set_ier()</code> 公开方法，统一所有写入路径</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L102-L109" target="_blank" rel="noopener"><code>uart_init.rs:102-109</code></a> + <a href="https://github.com/daivy2333/uart_16550/blob/main/src/lib.rs" target="_blank" rel="noopener"><code>uart_16550/src/lib.rs</code></a></td>
-</tr>
-</tbody></table>
-<blockquote>
-<p>以上 3 项修复的代码位置见表格中各行的链接。</p>
-</blockquote>
-<h4 id="3-7-多轮迭代优化（Q9-Q12-阶段）"><a href="#3-7-多轮迭代优化（Q9-Q12-阶段）" class="headerlink" title="3.7 多轮迭代优化（Q9~Q12 阶段）"></a>3.7 多轮迭代优化（Q9~Q12 阶段）</h4><p>在三轮正确性修复之上，我们又进行了五轮优化迭代：</p>
-<table>
-<thead>
-<tr>
-<th>阶段</th>
-<th>优化内容</th>
-<th>关键指标变化</th>
-<th>变更记录</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><strong>Q9</strong></td>
-<td>超时机制：VTIME 读超时复用 <code>axtask::future::timeout</code></td>
-<td>—</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a> VTIME 处理</td>
-</tr>
-<tr>
-<td><strong>Q10</strong></td>
-<td>数据路径优化：批量写入改造、缓冲容量扩充 3 倍、ldisc 锁粒度细化</td>
-<td>1B 延迟 145→122 µs（↓16%）</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a></td>
-</tr>
-<tr>
-<td><strong>Q11</strong></td>
-<td>终端与内存子系统一般性优化（mm/access、close_range、sendfile、tty unwrap）</td>
-<td>1B 延迟 122→118 µs；软件开销峰值↓40%</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs" target="_blank" rel="noopener"><code>tty/mod.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/mm" target="_blank" rel="noopener"><code>mm/</code></a></td>
-</tr>
-<tr>
-<td><strong>Q12</strong></td>
-<td>Embassy 路径 A：<code>atomic_ring_buffer</code> 无锁化、<code>embedded_io_async</code> 标准化、TC 硬件寄存器 tcdrain</td>
-<td>1B 延迟 P50=115.7 µs；软件开销↓31%（53.9→37.1 µs）；唤醒延迟 <del>200→</del>50 ns（8 点应用）</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/device_ops.rs" target="_blank" rel="noopener"><code>device_ops.rs</code></a> + <a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener"><code>uart_16550</code></a></td>
-</tr>
-<tr>
-<td><strong>Q6</strong></td>
-<td>⏳ 真板验证（VisionFive2）— 等待硬件</td>
-<td>—</td>
-<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/Makefile" target="_blank" rel="noopener"><code>Makefile</code></a> vf2 目标</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>Q12 性能回归测试</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/tests/benchmark.c" target="_blank" rel="noopener"><code>tests/benchmark.c</code></a> 用户态 benchmark 源码</p>
-</blockquote>
-<h4 id="3-8-已识别的反优化（排除的错误方向）"><a href="#3-8-已识别的反优化（排除的错误方向）" class="headerlink" title="3.8 已识别的反优化（排除的错误方向）"></a>3.8 已识别的反优化（排除的错误方向）</h4><p>我们对五类主流异步入库原语替换提案进行了评估，最终全部判定为反优化：</p>
-<table>
-<thead>
-<tr>
-<th>提案</th>
-<th>排除原因</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>MPMC Channel 替换 SPSC Ring Buffer</td>
-<td>丢失无锁特性、引入不必要的间接层</td>
-</tr>
-<tr>
-<td>异步 Mutex 替换同步 SpinLock</td>
-<td>反而更慢且无法跨等待点持有</td>
-</tr>
-<tr>
-<td>Watch 包装单个 AtomicBool</td>
-<td>对单一标志而言过度设计</td>
-</tr>
-<tr>
-<td>Semaphore 做事件计数</td>
-<td>用错了工具</td>
-</tr>
-<tr>
-<td><code>select!</code> 宏替换手动 poll</td>
-<td>与 axtask 协程调度器不兼容</td>
-</tr>
-<tr>
-<td>通用分发结构替代静态 AtomicWaker</td>
-<td>唤醒目标固定且极少时，静态唤醒已是 O(1)，通用结构反引入开销</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p>上述反优化判定的对照实现：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> SPSC 无锁方案（对应 OE1 Channel）、<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> AtomicWaker 静态唤醒（对应 OE2/OE3/通用分发结构）</p>
-</blockquote>
-<hr>
-<h3 id="主线三：方法论与经验沉淀"><a href="#主线三：方法论与经验沉淀" class="headerlink" title="主线三：方法论与经验沉淀"></a>主线三：方法论与经验沉淀</h3><p>核心原则：<strong>「先用轻量原语、复杂方案需评估改动范围与性能基准」</strong>。在评估五类异步入库原语替换提案后全部判定为反优化（详见 §3.8），避免后续在错误抽象上投入精力。整个阶段的工程决策与踩坑经验均已记录在项目文档体系中，此处不再展开。</p>
-<hr>
-<h2 id="四、量化成果与达到的效果"><a href="#四、量化成果与达到的效果" class="headerlink" title="四、量化成果与达到的效果"></a>四、量化成果与达到的效果</h2><h3 id="4-1-功能交付"><a href="#4-1-功能交付" class="headerlink" title="4.1 功能交付"></a>4.1 功能交付</h3><p>完成了从概念到内核虚拟机完整验证的异步串口栈：用户态 Shell 双向异步输入输出、标准事件轮询接口、非阻塞读取与 tcdrain 真异步、内核日志与用户态通道共存共享硬件。Shell 基本交互均工作正常。</p>
-<blockquote>
-<p><strong>手动 QA 报告</strong>（12 项测试全部 PASS，含真实终端输出证据）：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/manual-qa-report.md" target="_blank" rel="noopener"><code>manual-qa-report.md</code></a></p>
-</blockquote>
-<h3 id="4-2-性能数据"><a href="#4-2-性能数据" class="headerlink" title="4.2 性能数据"></a>4.2 性能数据</h3><blockquote>
-<p><strong>完整报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/benchmark-report-async.md" target="_blank" rel="noopener"><code>benchmark-report-async.md</code></a> | <strong>同步 vs 异步对比</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a></p>
-</blockquote>
-<p><strong>CPU 占用效率</strong>（统一数据量 10 万字节，端到端对比）：</p>
-<table>
-<thead>
-<tr>
-<th>指标</th>
-<th>同步实现（Console）</th>
-<th>异步实现</th>
-<th>提升</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>CPU 周期 / 字节</td>
-<td>3,835</td>
-<td>268（Q7）/ ~13（Q12）</td>
-<td>14.3× → 295×</td>
-</tr>
-<tr>
-<td>延迟中位数</td>
-<td>17.5 µs</td>
-<td>6.5 µs（Q7）/ 7.9 µs（Q12 无 tcdrain）</td>
-<td>2.2~2.7×</td>
-</tr>
-<tr>
-<td>P99 延迟</td>
-<td>324.5 µs</td>
-<td>43.1 µs</td>
-<td>7.5×</td>
-</tr>
-</tbody></table>
-<blockquote>
-<p><strong>说明</strong>：上表中「268 cycles/byte」为 Q5/Q7 阶段数据（IER 缓存 + ISR 合并 + 批量 I/O 后），「~13 cycles/byte」为 Q12 阶段数据（<code>atomic_ring_buffer</code> 无锁化 + <code>embedded_io_async</code> 标准化后）。两个数据均来自 QEMU 实测，详见 <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a>。</p>
-</blockquote>
-<p><strong>环形缓冲区直测</strong>（绕过终端层，测量纯内核态通路）：每秒可搬运近 6 亿字节（RX 588,776 KB/s，TX 196,850 KB/s），延迟中位数 600 纳秒。</p>
-<p><strong>唤醒延迟</strong>：将异步唤醒从通用 <code>PollSet</code> 事件分发机制替换为静态 <code>AtomicWaker</code> 原子唤醒原语后，单次唤醒延迟从约 200 纳秒降至约 50 纳秒，提升约 4 倍。共有 8 处唤醒点应用了该优化（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> RX_WAKER/TX_WAKER/DRAIN_WAKER + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> copier 注册点）。</p>
-<p><strong>端到端预测</strong>（按 4096 字节数据量在真实硬件上估算）：吞吐量效率可达理论线速的 97.7%~97.9%，软件开销占比不足 2.3%；单字节平均延迟中，软件部分的开销约占三分之一（Q12 实测 37.1 µs）。</p>
-<p>需要说明的是，所有吞吐量数据在 QEMU 模拟器上<strong>不完全可信</strong>：QEMU 的 NS16550 设备模型不仿真真实的串口线延迟，因此真实硬件上的吞吐量会受 115200 波特率对应的每秒 11.5 KB 上限制约。可信的性能指标包括 CPU 周期占用、单字节延迟、唤醒延迟，这些在 QEMU 上也能准确反映。</p>
-<h3 id="4-3-代码与质量"><a href="#4-3-代码与质量" class="headerlink" title="4.3 代码与质量"></a>4.3 代码与质量</h3><ul>
-<li>新增代码约 500 行，全部位于 <a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/drivers" target="_blank" rel="noopener"><code>kernel/src/drivers/</code></a></li>
-<li>项目整体净增约 450 行（涉及 14 个内核侧文件 + 1 个底层驱动库文件）</li>
-<li>静态检查零错误零警告：编译器检查、代码风格检查、编译警告均清零</li>
-<li>死代码清理：移除 8 处确认无用的方法（共 76 行），保留 5 处预留接口</li>
-<li>多轮迭代全部通过完整的功能与性能回归测试</li>
-</ul>
-<hr>
-<h2 id="五、经验与教训"><a href="#五、经验与教训" class="headerlink" title="五、经验与教训"></a>五、经验与教训</h2><h3 id="5-1-根因复盘"><a href="#5-1-根因复盘" class="headerlink" title="5.1 根因复盘"></a>5.1 根因复盘</h3><p><strong>根因一：寄存器步长误用</strong>。NS16550 寄存器物理布局仅 8 字节，使用大于 1 的步长会导致寄存器访问超出硬件定义的范围。QEMU 模拟器对越界访问返回总线错误，在 RISC-V 上被解释为取指故障。在排查过程中，我们一度将故障归因于「内存映射权限不足」，并据此否决了多个上游修改方案。最终通过在同一页表映射内对比两种步长的访问结果，确认了真实根因是步长配置而非系统权限。</p>
-<blockquote>
-<p><strong>教训</strong>：硬件访问异常时，应优先排查寄存器布局与地址计算，再考虑页表权限等系统级问题。</p>
-<p><strong>代码证据</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L27-L30" target="_blank" rel="noopener"><code>uart_init.rs:27-30</code></a></p>
-</blockquote>
-<p><strong>根因二：非阻塞标志三入口未穷举</strong>。非阻塞读取标志需要从用户态一路传播到行规则模块。我们最初只在 ioctl 这一个入口做了处理，遗漏了文件打开和 fcntl 两个入口，导致用户在某些调用路径下设置了非阻塞标志却仍然阻塞等待。</p>
-<blockquote>
-<p><strong>教训</strong>：跨层状态传播必须穷举所有可能的入口路径，一个遗漏就意味着功能不完整。</p>
-<p><strong>三入口代码位置</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/syscall/fs/fd_ops.rs#L105-L107" target="_blank" rel="noopener"><code>fd_ops.rs:105-107</code> open</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/syscall/fs/fd_ops.rs#L280-L283" target="_blank" rel="noopener"><code>fd_ops.rs:280-283</code> fcntl</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs#L177-L179" target="_blank" rel="noopener"><code>tty/mod.rs:177-179</code> ioctl</a></p>
-</blockquote>
-<h3 id="5-2-可复用的设计模式"><a href="#5-2-可复用的设计模式" class="headerlink" title="5.2 可复用的设计模式"></a>5.2 可复用的设计模式</h3><p>以下九条设计模式在本项目中经过验证，未来可复用：</p>
-<ol>
-<li><strong>环形缓冲区 + 中断处理 + 后台搬运任务三件套</strong>：ISR 只唤醒、后台做数据搬运（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a>）</li>
-<li><strong>标准化设备注册框架</strong>：所有设备走同一接入路径（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs" target="_blank" rel="noopener"><code>dev/mod.rs</code></a>）</li>
-<li><strong>终端层通过读写 trait 泛型绑定</strong>：实现终端栈与具体驱动的解耦（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ntty_async.rs" target="_blank" rel="noopener"><code>ntty_async.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a>）</li>
-<li><strong>中断合并与轮询模式动态切换</strong>：高吞吐场景自动减少中断次数（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L32-L60" target="_blank" rel="noopener"><code>async_driver.rs:32-35,46-60</code></a>）</li>
-<li><strong>批量读写接口替代逐字节操作</strong>：减少系统调用开销（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L32-L35" target="_blank" rel="noopener"><code>uart_init.rs:32-35</code></a>）</li>
-<li><strong>本地游标追踪已发送位置</strong>：避免内核日志与用户态输出交错（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> TX copier 游标逻辑）</li>
-<li><strong>静态原子唤醒替代通用事件分发</strong>：固定唤醒目标场景下的最优选择（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> AtomicWaker）</li>
-<li><strong>中断处理极简原则</strong>：全程只读标志寄存器、关闭中断、唤醒、返回（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> 25 行实现）</li>
-<li><strong>寄存器值缓存为原子变量</strong>：读改写转化为单次写入（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L99-L109" target="_blank" rel="noopener"><code>uart_init.rs:99-109</code></a> <code>CACHED_IER</code>）</li>
-</ol>
-<h3 id="5-3-后续方向"><a href="#5-3-后续方向" class="headerlink" title="5.3 后续方向"></a>5.3 后续方向</h3><p>后续可能会参加实习继续完成向老师指出的后续方向：在真开发板上尝试（VisionFive2）、独立成 crate 用于多个 OS、完善驱动的文档；如果可能，对 I2C、SPI 驱动进行异步改进，看看尤予阳的工作并进行分析；尝试基于当前uart的异步实现总结异步开发范式（如果能做到）</p>
-<hr>
-<h2 id="六、工作仓库"><a href="#六、工作仓库" class="headerlink" title="六、工作仓库"></a>六、工作仓库</h2><table>
-<thead>
-<tr>
-<th>仓库</th>
-<th>链接</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>StarryOS（主仓库）</td>
-<td><a href="https://github.com/daivy2333/StarryOS" target="_blank" rel="noopener">https://github.com/daivy2333/StarryOS</a></td>
-</tr>
-<tr>
-<td>uart_16550（串口驱动库）</td>
-<td><a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener">https://github.com/daivy2333/uart_16550</a></td>
-</tr>
-<tr>
-<td>embassy（fork）</td>
-<td><a href="https://github.com/daivy2333/embassy" target="_blank" rel="noopener">https://github.com/daivy2333/embassy</a></td>
-</tr>
-<tr>
-<td>学习开发仓库</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport" target="_blank" rel="noopener">https://github.com/daivy2333/2026sOsReport</a></td>
-</tr>
-</tbody></table>
-<p>各阶段学习产出文档位于 <code>2026sOsReport</code> 仓库下：</p>
-<table>
-<thead>
-<tr>
-<th>文档</th>
-<th>链接</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>爬虫任务（任务一）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务一/docs/爬虫任务.md" target="_blank" rel="noopener"><code>产出/任务一/docs/爬虫任务.md</code></a></td>
-</tr>
-<tr>
-<td>绿色线程实验（任务二）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务二/green-thread/priority-extension.md" target="_blank" rel="noopener"><code>产出/任务二/green-thread/priority-extension.md</code></a></td>
-</tr>
-<tr>
-<td>优先级爬虫实验（任务三）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务三/docs/优先级调度在满负载下的效果分析.md" target="_blank" rel="noopener"><code>产出/任务三/docs/优先级调度在满负载下的效果分析.md</code></a></td>
-</tr>
-<tr>
-<td>异步数据库练习</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/一些别的/异步数据库练习.md" target="_blank" rel="noopener"><code>产出/一些别的/异步数据库练习.md</code></a></td>
-</tr>
-<tr>
-<td>六月第一周（周报）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/六月第一周.md" target="_blank" rel="noopener"><code>reports/六月第一周.md</code></a></td>
-</tr>
-<tr>
-<td>weekly-2026-W20（周报）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W20.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W20.md</code></a></td>
-</tr>
-<tr>
-<td>weekly-2026-W21（周报）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W21.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W21.md</code></a></td>
-</tr>
-<tr>
-<td>weekly-2026-W22（周报）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W22.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W22.md</code></a></td>
-</tr>
-<tr>
-<td>weekly-2026-W23（周报）</td>
-<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W23.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W23.md</code></a></td>
-</tr>
-</tbody></table>
-<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>转眼训练营就到结束的时候，还记得我参加这个完全就是为了提升自己的能力，我觉得算是初步达到了目的，不管是搜寻资料、总结信息的能力，还是编程开发的分支、工具管理能力，还是形而上的抽象知识实际运用起来的动手能力，甚至是紧跟时代的 AI 工具使用的能力，这些都在解决训练营难题的过程中得到了有效的提升，就有种从只会读书的学生转变成了能解决问题的学生的感觉，参加训练营真是受益匪浅。<br>我个人对于ai工具的想法，是挺乐观的，因为这是大趋势，我也是某种程度上的受益者。总的而言，ai是一个放大器、加速器，能在具体任务里面帮我加倍、加速的完成任务，这本身就需要我去掌握一些深度学习、提示词工程和理解运用专业知识（比如操作系统那些知识）的能力。所以，我认为是因为我本来就有点基础有点能力，在加上训练营的训练培养，才能用好ai，才能在老师的指导下完成当前这些工作。<br>感觉参与训练营之后，学校的课程作业都变得异常简单。感谢操作系统训练营，感谢向老师在项目阶段给的指导。</p>
 
       
     </div>

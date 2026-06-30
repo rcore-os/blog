@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="StarryOS 宏内核 GDB支持项目汇报零、文档结构背景 讲述本次项目做了什么内容，以及为什么做 第一二阶段工作 讲述 syscall 测例、语义修复、以及支持具体 linux 应用时做出的修复工作 第三阶段工作报告 细致讲述了 GDB 是如何通过 sys_ptrace 来支持的，讲解了 ptrace 里状态机迁移的细节过程，信号处理流程，以及多线程 ptrace是如何处理的，最后解读了我">
+<meta property="og:type" content="article">
+<meta property="og:title" content="20260628-Promin3-StarryOS GDB支持项目汇报">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="StarryOS 宏内核 GDB支持项目汇报零、文档结构背景 讲述本次项目做了什么内容，以及为什么做 第一二阶段工作 讲述 syscall 测例、语义修复、以及支持具体 linux 应用时做出的修复工作 第三阶段工作报告 细致讲述了 GDB 是如何通过 sys_ptrace 来支持的，讲解了 ptrace 里状态机迁移的细节过程，信号处理流程，以及多线程 ptrace是如何处理的，最后解读了我">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x1.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x2.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x3.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x4.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x5.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x6.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x7.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x8.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x9.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x10.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x11.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x12.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x13.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x14.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x15.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x16.png">
+<meta property="article:published_time" content="2026-06-28T06:32:31.000Z">
+<meta property="article:modified_time" content="2026-06-30T02:01:59.863Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="2026S">
+<meta property="article:tag" content="author:Promin3">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;rcore-os&#x2F;tgoskits">
+<meta property="article:tag" content="ptrace">
+<meta property="article:tag" content="IPC">
+<meta property="article:tag" content="GDB">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x1.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>20260628-Promin3-StarryOS GDB支持项目汇报 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#StarryOS-宏内核-GDB支持项目汇报"><span class="nav-number">1.</span> <span class="nav-text">StarryOS 宏内核 GDB支持项目汇报</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#零、文档结构"><span class="nav-number">1.1.</span> <span class="nav-text">零、文档结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#一、背景"><span class="nav-number">1.2.</span> <span class="nav-text">一、背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、宏内核项目第一、二阶段工作"><span class="nav-number">1.3.</span> <span class="nav-text">二、宏内核项目第一、二阶段工作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#第一阶段：Linux-基础-syscall-语义补齐"><span class="nav-number">1.3.1.</span> <span class="nav-text">第一阶段：Linux 基础 syscall 语义补齐</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第二阶段：应用场景驱动的兼容性修复"><span class="nav-number">1.3.2.</span> <span class="nav-text">第二阶段：应用场景驱动的兼容性修复</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-BusyBox-applet-测试与网络-procfs-兼容修复"><span class="nav-number">1.3.2.1.</span> <span class="nav-text">1. BusyBox applet 测试与网络&#x2F;procfs 兼容修复</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-Lua-LuaRocks-运行时测试与文件系统语义修复"><span class="nav-number">1.3.2.2.</span> <span class="nav-text">2. Lua &#x2F; LuaRocks 运行时测试与文件系统语义修复</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-Redis-应用测试与网络-文件系统稳定性修复"><span class="nav-number">1.3.2.3.</span> <span class="nav-text">3. Redis 应用测试与网络&#x2F;文件系统稳定性修复</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、第三阶段工作、技术报告"><span class="nav-number">1.4.</span> <span class="nav-text">三、第三阶段工作、技术报告</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-技术路线总览"><span class="nav-number">1.4.1.</span> <span class="nav-text">1. 技术路线总览</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-ptrace状态组织"><span class="nav-number">1.4.2.</span> <span class="nav-text">2. ptrace状态组织</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-GDB-命令到内核路径状态机"><span class="nav-number">1.4.3.</span> <span class="nav-text">3. GDB 命令到内核路径状态机</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#3-1-启动目标程序：run"><span class="nav-number">1.4.3.0.1.</span> <span class="nav-text">3.1 启动目标程序：run</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-2-设置断点：break"><span class="nav-number">1.4.3.0.2.</span> <span class="nav-text">3.2 设置断点：break</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-3-继续执行：continue"><span class="nav-number">1.4.3.0.3.</span> <span class="nav-text">3.3 继续执行：continue</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-4-单步执行：stepi-nexti"><span class="nav-number">1.4.3.0.4.</span> <span class="nav-text">3.4 单步执行：stepi &#x2F; nexti</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-5-查看寄存器：info-registers"><span class="nav-number">1.4.3.0.5.</span> <span class="nav-text">3.5 查看寄存器：info registers</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#3-6-查看内存和调用栈：x-bt"><span class="nav-number">1.4.3.0.6.</span> <span class="nav-text">3.6 查看内存和调用栈：x &#x2F; bt</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-信号处理流程"><span class="nav-number">1.4.4.</span> <span class="nav-text">4. 信号处理流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-多线程与-LWP-设计"><span class="nav-number">1.4.5.</span> <span class="nav-text">5. 多线程与 LWP 设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-三架构支持方式"><span class="nav-number">1.4.6.</span> <span class="nav-text">6. 三架构支持方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-procfs-辅助信息"><span class="nav-number">1.4.7.</span> <span class="nav-text">7. procfs 辅助信息</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-当前能力边界"><span class="nav-number">1.4.8.</span> <span class="nav-text">8. 当前能力边界</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-代码解读"><span class="nav-number">1.4.9.</span> <span class="nav-text">9. 代码解读</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、测试与成果"><span class="nav-number">1.5.</span> <span class="nav-text">四、测试与成果</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-测试代码结构"><span class="nav-number">1.5.1.</span> <span class="nav-text">1. 测试代码结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-1-ptrace-语义回归测试"><span class="nav-number">1.5.1.1.</span> <span class="nav-text">1.1 ptrace 语义回归测试</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-2-guest-内-GDB-smoke-测试"><span class="nav-number">1.5.1.2.</span> <span class="nav-text">1.2 guest 内 GDB smoke 测试</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Demo-截图"><span class="nav-number">1.5.2.</span> <span class="nav-text">2. Demo 截图</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Demo1-gdb-server"><span class="nav-number">1.5.2.1.</span> <span class="nav-text">Demo1  gdb server</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Demo2-native-gdb"><span class="nav-number">1.5.2.2.</span> <span class="nav-text">Demo2 native gdb</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Demo3-TUI"><span class="nav-number">1.5.2.3.</span> <span class="nav-text">Demo3  TUI</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Demo4-LWP-pthread-task"><span class="nav-number">1.5.2.4.</span> <span class="nav-text">Demo4 LWP&#x2F;pthread task</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#五、工作-PR-记录、工作仓库"><span class="nav-number">1.6.</span> <span class="nav-text">五、工作 PR 记录、工作仓库</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#第一阶段"><span class="nav-number">1.6.1.</span> <span class="nav-text">第一阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第二阶段"><span class="nav-number">1.6.2.</span> <span class="nav-text">第二阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第三阶段"><span class="nav-number">1.6.3.</span> <span class="nav-text">第三阶段</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#六、总结与感想"><span class="nav-number">1.7.</span> <span class="nav-text">六、总结与感想</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">785</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">745</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          20260628-Promin3-StarryOS GDB支持项目汇报
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-28 06:32:31" itemprop="dateCreated datePublished" datetime="2026-06-28T06:32:31+00:00">2026-06-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <a id="more"></a>
+
+<h1 id="StarryOS-宏内核-GDB支持项目汇报"><a href="#StarryOS-宏内核-GDB支持项目汇报" class="headerlink" title="StarryOS 宏内核 GDB支持项目汇报"></a>StarryOS 宏内核 GDB支持项目汇报</h1><h2 id="零、文档结构"><a href="#零、文档结构" class="headerlink" title="零、文档结构"></a>零、文档结构</h2><p><strong>背景</strong> 讲述本次项目做了什么内容，以及为什么做</p>
+<p><strong>第一二阶段工作</strong> 讲述 syscall 测例、语义修复、以及支持具体 linux 应用时做出的修复工作</p>
+<p><strong>第三阶段工作报告</strong> 细致讲述了 GDB 是如何通过 sys_ptrace 来支持的，讲解了 ptrace 里状态机迁移的细节过程，信号处理流程，以及多线程 ptrace是如何处理的，最后解读了我认为值得品味的代码</p>
+<p><strong>测试与成果</strong> 介绍了测试代码大致结构，展示了真实可用的 gdb demo 截图</p>
+<p><strong>PR 记录与工作仓库</strong> 记录了我的 issue 链接以及所有的 PR 链接</p>
+<p><strong>总结与感想</strong> 记录了我参加训练营的感悟</p>
+<p>文档中相当多内容都是我手敲的，虽然内容较冗长。</p>
+<h2 id="一、背景"><a href="#一、背景" class="headerlink" title="一、背景"></a>一、背景</h2><p>本阶段我的工作先完成文件权限相关 syscall 的语义对齐和测试补齐，再补充 BusyBox、Lua、Redis 等应用场景。随着应用支持逐渐深入，单纯依靠日志、panic 信息和测试输出已经不足以定位复杂用户态问题，因此后续目标转向支持 GDB。GDB 支持的意义不只是“能运行一个调试器”，更重要的是让 StarryOS 具备真实 Linux 应用调试链路：可以观察进程状态、设置断点、读取寄存器、查看调用栈、单步执行，并通过 gdbserver 与宿主机调试器交互。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">                用户态</span><br><span class="line">+---------------------------------------+</span><br><span class="line">|               GDB                     |</span><br><span class="line">|     或者 gdbserver                     |</span><br><span class="line">+-------------------▲-------------------+</span><br><span class="line">                    │ ptrace()</span><br><span class="line">                    │ waitpid()</span><br><span class="line">                    ▼</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; 系统调用 &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">                    │</span><br><span class="line">                内核态</span><br><span class="line">+---------------------------------------+</span><br><span class="line">|        ptrace subsystem               |</span><br><span class="line">|                                       |</span><br><span class="line">| TASK_TRACED                           |</span><br><span class="line">| signal delivery                       |</span><br><span class="line">| wait queue                            |</span><br><span class="line">| register access                       |</span><br><span class="line">| memory access                         |</span><br><span class="line">| scheduler                             |</span><br><span class="line">+-------------------▲-------------------+</span><br><span class="line">                    │</span><br><span class="line">                    ▼</span><br><span class="line">              被调试程序(tracee)</span><br></pre></td></tr></table></figure>
+
+<p>我的设计目标并不是一次性实现完整 Linux GDB/ptrace 兼容，而是先形成一个可用的调试子集。这个范围后来被收敛为“单进程 GDB 可用子集”：优先保证 riscv64 上 guest 内 native GDB、guest 内 gdbserver、host-to-guest remote GDB，以及简单 pthread 程序的可用调试语义。</p>
+<h2 id="二、宏内核项目第一、二阶段工作"><a href="#二、宏内核项目第一、二阶段工作" class="headerlink" title="二、宏内核项目第一、二阶段工作"></a>二、宏内核项目第一、二阶段工作</h2><h3 id="第一阶段：Linux-基础-syscall-语义补齐"><a href="#第一阶段：Linux-基础-syscall-语义补齐" class="headerlink" title="第一阶段：Linux 基础 syscall 语义补齐"></a>第一阶段：Linux 基础 syscall 语义补齐</h3><p>第一阶段主要围绕文件权限、所有权和基于 <code>dirfd</code> 的路径解析语义展开。目标让 StarryOS 对常见 POSIX 文件权限操作的行为更接近 Linux，并通过系统调用测例固化这些语义。</p>
+<p>这一阶段覆盖的 syscall 包括：</p>
+<ul>
+<li><code>chmod</code> / <code>fchmod</code> / <code>fchmodat</code></li>
+<li><code>chown</code> / <code>fchown</code> / <code>fchownat</code></li>
+<li><code>faccessat</code></li>
+<li><code>umask</code></li>
+</ul>
+<p>主要修复和设计点如下：</p>
+<ol>
+<li><p><strong>统一绝对路径与 <code>dirfd</code> 的处理规则</strong></p>
+<p>Linux 的 <code>*at</code> 系列 syscall 有一个关键语义：当传入路径是绝对路径时，<code>dirfd</code> 应该被忽略；只有相对路径才需要以 <code>dirfd</code> 指向的目录作为起点。早期实现中，不同 syscall 分散处理 <code>dirfd</code>，容易出现某个 syscall 行为和 Linux 不一致的问题。</p>
+<p>因此我将绝对路径处理下沉到统一路径解析逻辑中，避免每个 syscall 单独写一份 <code>lookup_dirfd</code> 分支。这样 <code>fchmodat</code>、<code>fchownat</code>、<code>faccessat</code> 等接口可以共享同一套路径解析语义，减少重复逻辑和边界条件不一致。</p>
+</li>
+<li><p><strong>修复 <code>fchownat</code> flags 与错误码语义</strong></p>
+<p><code>fchownat</code> 不只是 <code>chown</code> 的 dirfd 版本，它还涉及 flags 校验、符号链接处理、绝对路径忽略 dirfd、非法 fd 返回错误等语义。PR588 为 <code>fchownat</code> 增加了独立测例，覆盖 Linux 兼容行为，包括：</p>
+<ul>
+<li>绝对路径下忽略 <code>dirfd</code></li>
+<li>相对路径下使用 <code>dirfd</code></li>
+<li>非法 flags 返回错误</li>
+<li>符号链接相关行为</li>
+<li>bad dirfd 与普通路径的组合情况</li>
+</ul>
+</li>
+<li><p><strong>修复 <code>umask</code> 只保留低 9 位</strong></p>
+<p>Linux 中 <code>umask</code> 只使用权限掩码的低 9 位，也就是 <code>0o777</code> 范围。PR605 中将 <code>sys_umask</code> 的输入进行低 9 位截断，避免高位影响后续文件权限计算。</p>
+</li>
+<li><p><strong>补齐跨架构 syscall 回归测试</strong></p>
+<p>第一阶段不仅增加单个 riscv64 测试，还将新增 syscall 测例注册到多架构 QEMU 配置中，包括 riscv64、aarch64、loongarch64、x86_64。这样后续修改 VFS 或 syscall 语义时，可以避免只在一个架构上通过、其他架构退化的问题。</p>
+</li>
+</ol>
+<p>通过这一阶段，StarryOS 的文件权限和 <code>*at</code> 系列接口从“能调用”推进到“具备更接近 Linux 的路径解析、flags 校验和错误码语义”，为后续真实应用测试打基础。</p>
+<h3 id="第二阶段：应用场景驱动的兼容性修复"><a href="#第二阶段：应用场景驱动的兼容性修复" class="headerlink" title="第二阶段：应用场景驱动的兼容性修复"></a>第二阶段：应用场景驱动的兼容性修复</h3><p>第二阶段从单个 syscall 的语义补齐，推进到 BusyBox、Lua、Redis 等实际应用场景。相比第一阶段，这一阶段的特点是：测试不再只验证某个 syscall 的返回值，而是通过真实应用暴露内核缺失的 procfs、socket、文件系统和网络协议细节。</p>
+<h4 id="1-BusyBox-applet-测试与网络-procfs-兼容修复"><a href="#1-BusyBox-applet-测试与网络-procfs-兼容修复" class="headerlink" title="1. BusyBox applet 测试与网络/procfs 兼容修复"></a>1. BusyBox applet 测试与网络/procfs 兼容修复</h4><p>BusyBox 是一组高度依赖 Linux 基础接口的命令行工具集合。为了让 StarryOS 能稳定运行 BusyBox applet，我补充了多个 applet 场景，并根据测试暴露的问题修复内核语义。</p>
+<p>主要修复点包括：</p>
+<ol>
+<li><p><strong>补充网络设备 ioctl 支持</strong></p>
+<p>BusyBox 的 <code>ifconfig</code>、<code>ifenslave</code> 等工具会查询网络设备信息，依赖 <code>SIOCGIFCONF</code>、<code>SIOCGIFFLAGS</code>、<code>SIOCGIFADDR</code>、<code>SIOCGIFHWADDR</code>、<code>SIOCGIFMTU</code> 等 socket ioctl。早期 StarryOS 对这些 ioctl 支持不足，导致工具无法正常识别 <code>eth0</code> 和 <code>lo</code>。</p>
+<p>我在网络文件路径中补充了这些 ioctl 的兼容返回，使 BusyBox 能获得接口列表、接口 flags、IP 地址、MAC 地址和 MTU 等基础信息。</p>
+</li>
+<li><p><strong>补充 <code>/proc/net/dev</code></strong></p>
+<p>BusyBox 和一些网络工具会读取 <code>/proc/net/dev</code> 来获取网络设备统计信息。StarryOS 原来缺少该 procfs 节点，因此我在 pseudofs/proc 中补充了 <code>/proc/net/dev</code>，为 <code>eth0</code> 和 <code>lo</code> 提供基本设备条目。即使统计值暂时是简化的，也能满足用户态工具对接口存在性的探测（后续可能已经更改）</p>
+</li>
+<li><p><strong>修复 raw socket 下 ICMP loopback echo reply</strong></p>
+<p>BusyBox <code>ping -c 1 127.0.0.1</code> 需要 raw socket 能收到 loopback ICMP echo reply。早期实现中 loopback reply 的生成位置不合适，可能绕过正常网络栈路径，影响其他 raw socket 测例。</p>
+<p>后续修复将 ICMP loopback reply 的生成移动到 smoltcp 发送路径的合适位置：既能让 BusyBox ping 收到回包，又保持 raw socket 数据仍通过正常网络路径投递，避免破坏 <code>MSG_PEEK</code> 等测试。</p>
+</li>
+<li><p><strong>清理非语义 BusyBox 测例</strong></p>
+<p>PR752 对 BusyBox 测试做了整理，删除不稳定或不具备明确内核语义价值的检查，使 applet 测试更聚焦于 StarryOS 应该保证的 Linux 兼容行为，而不是测试环境偶然输出。</p>
+</li>
+</ol>
+<p>这一阶段 BusyBox 测试从“能启动部分命令”推进到覆盖更多网络、procfs 和 shell 工具场景，也暴露了仅靠 syscall 单测难以发现的接口组合问题。</p>
+<h4 id="2-Lua-LuaRocks-运行时测试与文件系统语义修复"><a href="#2-Lua-LuaRocks-运行时测试与文件系统语义修复" class="headerlink" title="2. Lua / LuaRocks 运行时测试与文件系统语义修复"></a>2. Lua / LuaRocks 运行时测试与文件系统语义修复</h4><p>Lua 场景的目标是验证解释器、脚本加载、模块 require、文件访问和 LuaRocks 安装使用链路</p>
+<p>主要工作包括：</p>
+<ol>
+<li><p><strong>新增 Lua 应用运行测试</strong></p>
+<p>我为 Lua 添加了 QEMU app 测试，覆盖 Lua 主脚本、辅助模块、<code>require</code>、文件加载等运行时行为。相比 syscall 单测，Lua 能更真实地覆盖动态解释器对文件系统、路径解析和运行时库的使用。</p>
+</li>
+<li><p><strong>新增 LuaRocks 测试</strong></p>
+<p>LuaRocks 会涉及包安装、模块路径、文件创建和 require 验证。我补充了 LuaRocks 相关测试，验证在 StarryOS 中安装并加载 Lua 包的基本流程。</p>
+</li>
+<li><p><strong>修复非空目录 rmdir 语义</strong></p>
+<p>Lua/LuaRocks 场景暴露出文件系统删除目录语义不完整的问题：对非空目录执行 <code>rmdir</code> 应该返回 <code>ENOTEMPTY</code>，而不是错误地允许删除或返回不符合 Linux 的错误。PR777 在 axfs-ng 的 high-level fs 路径中加入非空目录检查，并新增 <code>test-rmdir-nonempty</code> 回归测试，覆盖四个架构。</p>
+</li>
+</ol>
+<p>这一阶段的意义在于：Lua 作为解释型语言，能覆盖大量普通 C syscall 测例不容易组合出的路径，例如脚本查找、模块加载、目录删除、包管理器临时目录等。</p>
+<h4 id="3-Redis-应用测试与网络-文件系统稳定性修复"><a href="#3-Redis-应用测试与网络-文件系统稳定性修复" class="headerlink" title="3. Redis 应用测试与网络/文件系统稳定性修复"></a>3. Redis 应用测试与网络/文件系统稳定性修复</h4><p>Redis 是更复杂的真实服务端应用，涉及 TCP listen/accept、并发连接、非阻塞 connect、半关闭、recv、文件 rename 和压力场景</p>
+<p>主要工作包括：</p>
+<ol>
+<li><p><strong>设计 Redis normal 与 stress 测试</strong></p>
+<p>我将 Redis 场景整理为 Starry app，新增 normal 和 stress 两类测试：</p>
+<ul>
+<li>normal 测试验证 Redis server 基础启动、客户端连接和基础命令交互。</li>
+<li>stress 测试覆盖更高频连接和读写场景，用于暴露网络栈边界问题。</li>
+</ul>
+<p>同时为 riscv64、aarch64、loongarch64、x86_64 增加对应 build 和 QEMU 配置，使 Redis 测试可以跨架构运行。</p>
+</li>
+<li><p><strong>修复 TCP listen/accept 路径</strong></p>
+<p>Redis server 依赖稳定的监听和连接接受语义。PR802 修复了 ax-net-ng listen table 中和连接管理相关的问题，使 TCP server 能更可靠地处理客户端连接，避免并发连接或非阻塞 connect 场景下状态错误。</p>
+</li>
+<li><p><strong>修复 TCP half-close 与 recv 语义</strong></p>
+<p>Redis 和相关 socket 测例暴露出 <code>shutdown(SHUT_WR)</code> 后 <code>recv()</code> 行为不正确的问题。Linux TCP 半关闭语义要求：关闭写方向后，读方向仍然可以继续接收对端数据。原先实现把某些状态过早视为 closed，导致 recv 无法继续 drain 队列。</p>
+<p>修复后，<code>recv()</code> 不再简单以“不是 Connected”作为拒绝条件，而是区分真正关闭和半关闭状态；同时调整 recv 内部顺序，优先读取已排队数据，保证 RST/Closed 但仍有队列数据时也能按预期读出。</p>
+</li>
+<li><p><strong>补充并发 connect 和非阻塞 connect 回归测试</strong></p>
+<p>为防止网络状态机后续回退，我增加了：</p>
+<ul>
+<li><code>bug-tcp-concurrent-connect</code></li>
+<li><code>bug-tcp-nonblocking-connect-so-error</code></li>
+</ul>
+<p>并将它们加入多架构 bugfix 配置。这样不仅验证 Redis 场景，也沉淀成更小的网络栈回归测例。</p>
+</li>
+<li><p><strong>修复 rename 祖先目录检查</strong></p>
+<p>Redis 使用过程中还暴露出文件系统 rename 语义问题。PR802 增加 <code>bug-rename-file-into-child-dir</code>，修复 axfs-ng-vfs rename 祖先关系检查，使非法 rename 能按预期拒绝，避免破坏目录树结构。</p>
+</li>
+</ol>
+<p>通过第二阶段，StarryOS 的验证对象从“单个接口”扩展到“真实用户程序”。BusyBox 暴露了 procfs、socket ioctl 和 raw socket 问题；Lua 暴露了文件系统目录语义问题；Redis 暴露了 TCP 状态机、半关闭、并发连接和 rename 检查问题。这些工作也说明：越接近真实应用，调试复杂问题越依赖可观察性工具，第三阶段转向 GDB/ptrace 支持是自然延伸。</p>
+<h2 id="三、第三阶段工作、技术报告"><a href="#三、第三阶段工作、技术报告" class="headerlink" title="三、第三阶段工作、技术报告"></a>三、第三阶段工作、技术报告</h2><h3 id="1-技术路线总览"><a href="#1-技术路线总览" class="headerlink" title="1. 技术路线总览"></a>1. 技术路线总览</h3><p>本阶段在 StarryOS 内核中实现一个可用的 Linux ptrace 子集，使 GDB 能够通过标准接口控制用户态程序。GDB 的命令转化为 <code>ptrace()</code>、<code>waitpid()/waitid()</code>、<code>/proc</code> 文件读取等 Linux 兼容接口。</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x1.png" class="" title="x1">
+
+
+
+<h3 id="2-ptrace状态组织"><a href="#2-ptrace状态组织" class="headerlink" title="2. ptrace状态组织"></a>2. ptrace状态组织</h3><p>这条链路的核心是 <code>PtraceState</code>。它保存了 GDB 需要观察和修改的执行现场，早期 PR #931 实现了ptrace的大致框架，使得starryOS能够跑通单线程 RISC-V GDB，但它的 stop 状态为进程级，无法表达多个 LWP 同时存在时“哪个线程停住、读写哪个线程寄存器、恢复哪个线程”。后续提交的PR重构将 stop、resume、syscall trace、FP 状态改为按 TID 保存，使得多线程 GDB可用。</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x2.png" class="" title="x2">
+
+
+
+
+
+<h3 id="3-GDB-命令到内核路径状态机"><a href="#3-GDB-命令到内核路径状态机" class="headerlink" title="3. GDB 命令到内核路径状态机"></a>3. GDB 命令到内核路径状态机</h3><p>以断点为例，完整状态迁移如下：</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x3.png" class="" title="x3">
+
+<p>下面是更具体的几个命令对应执行流的讲解</p>
+<h5 id="3-1-启动目标程序：run"><a href="#3-1-启动目标程序：run" class="headerlink" title="3.1 启动目标程序：run"></a>3.1 启动目标程序：<code>run</code></h5><p>GDB 启动目标程序时，典型流程是 fork 出子进程，子进程执行 <code>PTRACE_TRACEME</code>，随后 <code>execve</code> 加载目标程序。StarryOS 内核处理流程为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">tracee: ptrace(PTRACE_TRACEME)</span><br><span class="line">    -&gt; sys_ptrace()</span><br><span class="line">    -&gt; ptrace_traceme()</span><br><span class="line">    -&gt; ProcessData::set_ptrace_traceme()</span><br><span class="line">    -&gt; 记录 tracer_pid 为父进程</span><br><span class="line"></span><br><span class="line">tracee: execve(target)</span><br><span class="line">    -&gt; sys_execve()</span><br><span class="line">    -&gt; 装载 ELF，重建用户地址空间、栈和 auxv</span><br><span class="line">    -&gt; ProcessData::set_ptrace_exec_stop_pending()</span><br><span class="line"></span><br><span class="line">tracee: 返回用户态前</span><br><span class="line">    -&gt; task&#x2F;user.rs 用户态返回循环</span><br><span class="line">    -&gt; take_ptrace_exec_stop_pending()</span><br><span class="line">    -&gt; ptrace_notify_exec()</span><br><span class="line">    -&gt; ptrace_stop_current(SIGTRAP)</span><br><span class="line"></span><br><span class="line">tracer: waitpid()</span><br><span class="line">    -&gt; sys_waitpid()</span><br><span class="line">    -&gt; 发现 tracee 的 ptrace stop</span><br><span class="line">    -&gt; 返回 SIGTRAP &#x2F; PTRACE_EVENT_EXEC stop</span><br></pre></td></tr></table></figure>
+
+<p>这一步的意义是让 GDB 在新程序镜像刚装载完成、还没有真正运行用户代码时获得同步点。GDB 可以在这个时机读取 <code>/proc/&lt;pid&gt;/maps</code>、<code>/proc/&lt;pid&gt;/auxv</code>，加载符号并设置断点。</p>
+<h5 id="3-2-设置断点：break"><a href="#3-2-设置断点：break" class="headerlink" title="3.2 设置断点：break"></a>3.2 设置断点：<code>break</code></h5><p>GDB 的软件断点不是一个单独的内核 syscall，而是通过 ptrace 写 tracee 内存实现：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">GDB: break function</span><br><span class="line">    -&gt; 读取目标地址原始指令</span><br><span class="line">       ptrace(PTRACE_PEEKDATA)</span><br><span class="line">       -&gt; ptrace_peekdata()</span><br><span class="line">       -&gt; 从 tracee AddrSpace 读取用户内存</span><br><span class="line"></span><br><span class="line">    -&gt; 写入断点指令</span><br><span class="line">       ptrace(PTRACE_POKEDATA)</span><br><span class="line">       -&gt; ptrace_pokedata()</span><br><span class="line">       -&gt; 写 tracee AddrSpace</span><br><span class="line">       -&gt; 必要时 flush icache</span><br></pre></td></tr></table></figure>
+
+<p>当 tracee 执行到断点指令后，会从用户态陷入内核：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">tracee executes breakpoint instruction</span><br><span class="line">    -&gt; UserContext::run() 返回 Exception(Breakpoint)</span><br><span class="line">    -&gt; task&#x2F;user.rs 判断 tracee 正在被 ptrace</span><br><span class="line">    -&gt; ptrace_stop_current(SIGTRAP)</span><br><span class="line">    -&gt; 保存 UserContext &#x2F; siginfo &#x2F; stop record</span><br><span class="line">    -&gt; notify_ptrace_waiter()</span><br><span class="line">    -&gt; tracee 阻塞等待 tracer resume</span><br><span class="line"></span><br><span class="line">GDB: waitpid()</span><br><span class="line">    -&gt; 收到 SIGTRAP stop</span><br><span class="line">    -&gt; 读取寄存器，显示当前源码行</span><br></pre></td></tr></table></figure>
+
+<h5 id="3-3-继续执行：continue"><a href="#3-3-继续执行：continue" class="headerlink" title="3.3 继续执行：continue"></a>3.3 继续执行：<code>continue</code></h5><p>GDB 继续执行时调用 <code>PTRACE_CONT</code>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">GDB: continue</span><br><span class="line">    -&gt; ptrace(PTRACE_CONT, tid, 0, signo)</span><br><span class="line">    -&gt; sys_ptrace()</span><br><span class="line">    -&gt; ptrace_cont()</span><br><span class="line">    -&gt; ptrace_stopped_tracee_with_tid()</span><br><span class="line">    -&gt; 清除 single-step &#x2F; syscall trace 状态</span><br><span class="line">    -&gt; resume_ptrace_stop_with_signal_for(tid, signo)</span><br><span class="line">    -&gt; 清除 stop record 中的 signo</span><br><span class="line">    -&gt; wake ptrace_stop_event</span><br><span class="line"></span><br><span class="line">tracee:</span><br><span class="line">    -&gt; wait_ptrace_resume() 被唤醒</span><br><span class="line">    -&gt; take_ptrace_stop_user_context_for(tid)</span><br><span class="line">    -&gt; 应用 GDB 可能修改过的寄存器</span><br><span class="line">    -&gt; restore_current_fp_for_ptrace(tid)</span><br><span class="line">    -&gt; 返回用户态继续执行</span><br></pre></td></tr></table></figure>
+
+<p>这里的关键点是：tracee 在 <code>ptrace_stop_current()</code> 里睡眠，直到 GDB 通过 <code>PTRACE_CONT</code> 或其他 resume 请求清除对应 TID 的 stop 状态并唤醒它。</p>
+<h5 id="3-4-单步执行：stepi-nexti"><a href="#3-4-单步执行：stepi-nexti" class="headerlink" title="3.4 单步执行：stepi / nexti"></a>3.4 单步执行：<code>stepi</code> / <code>nexti</code></h5><p>GDB 单步执行依赖 <code>PTRACE_SINGLESTEP</code>。StarryOS 在不同架构上采用不同实现方式：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">GDB: stepi</span><br><span class="line">    -&gt; ptrace(PTRACE_SINGLESTEP, tid, 0, signo)</span><br><span class="line">    -&gt; ptrace_singlestep()</span><br><span class="line">    -&gt; set_ptrace_singlestep_for(tid, true)</span><br><span class="line">    -&gt; resume_ptrace_stop_with_signal_for(tid, signo)</span><br><span class="line"></span><br><span class="line">tracee 返回用户态前</span><br><span class="line">    -&gt; task&#x2F;user.rs 检查 is_ptrace_singlestep_for(tid)</span><br><span class="line">    -&gt; ptrace_setup_singlestep(...)</span><br><span class="line">    -&gt; 设置架构相关 single-step 机制</span><br><span class="line"></span><br><span class="line">tracee 执行一条指令</span><br><span class="line">    -&gt; 陷入 breakpoint&#x2F;debug exception</span><br><span class="line">    -&gt; ptrace_stop_current(SIGTRAP)</span><br><span class="line">    -&gt; GDB waitpid 收到单步完成 stop</span><br></pre></td></tr></table></figure>
+
+<p>在 RISC-V、AArch64、LoongArch64 上，single-step 主要通过计算下一条 PC 并在 next-PC 临时插入断点指令实现；命中后恢复原始指令。在 x86_64 上，后续实现可以使用 RFLAGS 的 TF 位触发 <code>#DB</code> debug exception。这个差异被封装在架构相关的 <code>ptrace_setup_singlestep()</code> 中，对上层 GDB 仍表现为统一的 <code>PTRACE_SINGLESTEP</code>。</p>
+<h5 id="3-5-查看寄存器：info-registers"><a href="#3-5-查看寄存器：info-registers" class="headerlink" title="3.5 查看寄存器：info registers"></a>3.5 查看寄存器：<code>info registers</code></h5><p>GDB 查看寄存器时会调用 legacy regs 或 regset 接口：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">GDB: info registers</span><br><span class="line">    -&gt; ptrace(PTRACE_GETREGS)</span><br><span class="line">       或 ptrace(PTRACE_GETREGSET, NT_PRSTATUS)</span><br><span class="line">    -&gt; ptrace_getregs() &#x2F; ptrace_getregset()</span><br><span class="line">    -&gt; ptrace_stop_user_context_for(tid)</span><br><span class="line">    -&gt; 将 UserContext 转换为目标架构 ABI 的用户寄存器结构</span><br><span class="line">    -&gt; vm_write 到 GDB 提供的用户缓冲区</span><br></pre></td></tr></table></figure>
+
+<p>GDB 修改寄存器时则反向执行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">GDB: set $pc &#x3D; ...</span><br><span class="line">    -&gt; ptrace(PTRACE_SETREGS)</span><br><span class="line">       或 ptrace(PTRACE_SETREGSET, NT_PRSTATUS)</span><br><span class="line">    -&gt; 从 GDB 用户缓冲区读取寄存器结构</span><br><span class="line">    -&gt; 转换回 UserContext</span><br><span class="line">    -&gt; set_ptrace_stop_user_context_for(tid, new_uctx)</span><br></pre></td></tr></table></figure>
+
+<p>真正写回 tracee 的时机不是 <code>PTRACE_SETREGS</code> 当场返回用户态，而是 tracee 被 resume 后在 <code>wait_ptrace_resume()</code> 中执行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">take_ptrace_stop_user_context_for(tid)</span><br><span class="line">*uctx &#x3D; resume_uctx</span><br></pre></td></tr></table></figure>
+
+<p>这样保证 GDB 对寄存器的修改会成为 tracee 下一次回到用户态时的真实执行现场。</p>
+<h5 id="3-6-查看内存和调用栈：x-bt"><a href="#3-6-查看内存和调用栈：x-bt" class="headerlink" title="3.6 查看内存和调用栈：x / bt"></a>3.6 查看内存和调用栈：<code>x</code> / <code>bt</code></h5><p>GDB 的内存查看命令，例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">x&#x2F;4gx $sp</span><br></pre></td></tr></table></figure>
+
+<p>会通过 <code>PTRACE_PEEKDATA</code> 读取 tracee 地址空间。内核路径为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ptrace(PTRACE_PEEKDATA, tid, addr, data)</span><br><span class="line">    -&gt; ptrace_peekdata()</span><br><span class="line">    -&gt; 找到 tracee ProcessData</span><br><span class="line">    -&gt; tracee.aspace().read(addr)</span><br><span class="line">    -&gt; 将读取结果写回 tracer data 指针</span><br></pre></td></tr></table></figure>
+
+<p><code>bt</code> 本身主要由 GDB 在用户态完成。内核需要提供以下基础信息：</p>
+<ul>
+<li>当前 PC、SP、FP、RA 等寄存器。</li>
+<li>tracee 栈内存读取能力。</li>
+<li><code>/proc/&lt;pid&gt;/maps</code> 用于判断地址属于哪个映射。</li>
+<li><code>/proc/&lt;pid&gt;/auxv</code> 用于获取入口、页大小、硬件能力等辅助信息。</li>
+<li>ELF 符号和 DWARF 调试信息由 GDB 从目标文件中读取。</li>
+</ul>
+<p>因此 StarryOS 内核并不直接实现完整 GDB backtrace 算法，而是提供 GDB unwind 所需的寄存器、内存和 procfs 信息。</p>
+<h3 id="4-信号处理流程"><a href="#4-信号处理流程" class="headerlink" title="4. 信号处理流程"></a>4. 信号处理流程</h3><p>GDB 支持里最重要的状态机之一是 signal-delivery-stop。tracee 收到普通信号时，内核不能马上执行默认动作或用户 handler，而是要先停给 tracer，让 GDB 决定这个信号是否真正交给程序。</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x4.png" class="" title="x4">
+
+
+
+<p>这里的 <code>resume_signal_bypass</code> 用于避免死循环。（后续代码解读里也有）例如 tracee 收到 <code>SIGTERM</code> 后停给 GDB，GDB 决定继续传递 <code>SIGTERM</code>。如果内核只是把 <code>SIGTERM</code> 重新放回信号队列，下一轮又会再次 ptrace stop。因此内核为 tracer 明确注入的信号设置一次性 bypass，使下一轮信号处理直接递送，不再重复停给 GDB。</p>
+<h3 id="5-多线程与-LWP-设计"><a href="#5-多线程与-LWP-设计" class="headerlink" title="5. 多线程与 LWP 设计"></a>5. 多线程与 LWP 设计</h3><p>StarryOS 的进程/线程关系可以简化为：</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x5.png" class="" title="x5">
+
+
+
+<p>GDB 中的 LWP 基本对应 StarryOS 的 TID。因此 ptrace 不能只保存一份进程级 stop，而需要按 TID 记录：</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x6.png" class="" title="x6">
+
+
+
+<p>ptrace 的设计采用“进程级容器 + TID-keyed 状态”：</p>
+<ul>
+<li><code>tracer_pid</code>、<code>traceme</code>、<code>attached</code> 表示进程级调试关系。</li>
+<li><code>stop[tid]</code> 保存每个 LWP 的停止现场。</li>
+<li><code>resume_signo[tid]</code> 保存每个 LWP resume 时的信号选择。</li>
+<li><code>syscall_trace[tid]</code> 保存每个 LWP 的 syscall entry/exit 状态。</li>
+<li><code>stop_fp_data[tid]</code> 保存每个 LWP 的 FP/SIMD/FPU 快照。</li>
+</ul>
+<p>这个设计支撑了以下命令：</p>
+<p><code>info threads</code>：通过 <code>/proc/&lt;pid&gt;/task</code> 发现线程。</p>
+<p><code>thread &lt;n&gt;</code>：后续 ptrace 操作绑定到具体 LWP/TID。</p>
+<p><code>info registers</code>：读取对应 TID 的 <code>UserContext</code>。</p>
+<p><code>continue</code> / <code>stepi</code>：只恢复或单步指定 TID 的 stop 状态。</p>
+<p><strong>！注</strong>：在第三或第四周会议时，陈老师表示当前 starryos 多线程还不完善，先保持单线程可用即可，之前 stop 状态为进程级虽然能达到要求，但难免有写了个 bug但能跑就不管了的意味，考虑到时间有限，做的多线程支持虽然仍是 all-stop 的，不追求完整 non-stop mode 和完整 Linux group-stop，但已经解决了早期“一个进程只有一份 stop 状态”无法表达 LWP 的问题。</p>
+<h3 id="6-三架构支持方式"><a href="#6-三架构支持方式" class="headerlink" title="6. 三架构支持方式"></a>6. 三架构支持方式</h3><p>ptrace 的公共流程是统一的，但寄存器布局、FP/SIMD/FPU 状态和 single-step 机制都依赖架构。因此实现拆成“公共 ptrace 状态机 + 架构适配层”。（x86 架构适配层由杨铮同学 GitHub <a href="https://github.com/rcore-os/tgoskits/commits?author=54dK3n&since=2026-05-31&until=2026-06-27" target="_blank" rel="noopener">54dK3n</a> 完成）</p>
+<table>
+<thead>
+<tr>
+<th>架构</th>
+<th>通用寄存器</th>
+<th>FP/SIMD/FPU</th>
+<th>single-step</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>riscv64</td>
+<td><code>pc/ra/sp/gp/tp/a0-a7/s0-s11/t0-t6</code> 与 <code>UserContext</code> 互转，支持 <code>NT_PRSTATUS</code> 读写通用寄存器。</td>
+<td>支持 <code>NT_FPREGSET</code> 和 legacy FP 接口读写浮点寄存器与 <code>fcsr</code>。</td>
+<td>使用临时 <code>ebreak</code> 实现 <code>PTRACE_SINGLESTEP</code>：计算下一条 PC，保存原始指令，写入断点指令，命中后恢复。</td>
+</tr>
+<tr>
+<td>aarch64</td>
+<td>将 <code>UserContext</code> 中的 <code>x0-x30</code>、<code>sp</code>、<code>pc</code>、<code>pstate</code> 映射为 AArch64 GDB 期望的通用寄存器结构。支持 <code>NT_PRSTATUS</code> 读写通用寄存器。</td>
+<td>支持 <code>NT_FPREGSET</code> 读写 <code>v0-v31</code>、<code>fpcr</code>、<code>fpsr</code>。进入 ptrace stop 时保存当前 FP/SIMD 状态，resume 时恢复，保证 GDB 修改 FP/SIMD 寄存器后能写回 tracee 执行态。</td>
+<td>single-step 同样通过架构相关 next-PC / 临时断点路径接入公共 <code>PTRACE_SINGLESTEP</code> 流程。</td>
+</tr>
+<tr>
+<td>loongarch64</td>
+<td>将 <code>UserContext</code> 中的 <code>r0-r31</code>、<code>era</code>、<code>badv</code> 等状态映射为 LoongArch GDB 期望的寄存器布局。支持 <code>NT_PRSTATUS</code> 读写通用寄存器。支持 <code>NT_FPREGSET</code>，并补充 legacy <code>PTRACE_GETFPREGS</code> / <code>PTRACE_SETFPREGS</code> 与 regset 路径复用。</td>
+<td>保存和恢复 FPU 扩展状态，包括普通 FP、<code>fcc</code>、<code>fcsr</code> 以及后续扩展状态。</td>
+<td>补充 LoongArch 分支/跳转等指令的 next-PC 处理接入<code>PTRACE_SINGLESTEP</code></td>
+</tr>
+</tbody></table>
+<p>在写入用户 text 指令后刷新 icache，保证 tracee 执行到新写入的断点指令。</p>
+<p><strong>！注：</strong>本科学过riscv 和一部分x86 指令集，但由于软件工程专业背景所限，硬件指令集这块了解不深，靠codex和 asm test 测试驱动开发完成的任务。（埋个伏笔，看我一年后能不能完成一生一芯…）</p>
+<h3 id="7-procfs-辅助信息"><a href="#7-procfs-辅助信息" class="headerlink" title="7. procfs 辅助信息"></a>7. procfs 辅助信息</h3><p>除了 ptrace syscall，GDB 还依赖 procfs 获取进程信息。为此本阶段补充和修复了以下路径：</p>
+<ul>
+<li><code>/proc/&lt;pid&gt;/maps</code>：提供用户地址空间映射，支持 GDB 判断 text/data/heap/stack 等区域。</li>
+<li><code>/proc/&lt;pid&gt;/auxv</code>：提供 auxiliary vector，例如 <code>AT_ENTRY</code>、<code>AT_PHDR</code>、<code>AT_PAGESZ</code>、<code>AT_HWCAP</code>。</li>
+<li><code>/proc/&lt;pid&gt;/status</code>：提供 <code>TracerPid</code>、线程数量、UID/GID 等状态信息。</li>
+<li><code>/proc/&lt;pid&gt;/task</code>：提供线程列表，使 GDB 能发现 LWP。</li>
+</ul>
+<p>这些接口不直接执行调试控制，但决定了 GDB 是否能正确加载符号、识别动态链接器、展示线程和解释目标进程内存布局。</p>
+<h3 id="8-当前能力边界"><a href="#8-当前能力边界" class="headerlink" title="8. 当前能力边界"></a>8. 当前能力边界</h3><p>当前实现已经能够支撑基础 GDB 使用：</p>
+<ul>
+<li>native GDB 调试用户程序。</li>
+<li>guest 内 gdbserver 调试。</li>
+<li>host-to-guest remote GDB。</li>
+<li>断点、继续、单步、寄存器查看/修改、内存查看、基础 backtrace。</li>
+<li>简单多线程程序的 LWP 发现和线程级寄存器/stop 操作。</li>
+<li>riscv64、aarch64、loongarch64 （x86）的基础寄存器和 FP/SIMD/FPU regset。</li>
+</ul>
+<p>但它仍然是可用子集，不是完整 Linux ptrace/GDB 语义。当前<strong>没有完成</strong>的有完整 non-stop mode、完整 group-stop / job-control 与 ptrace-stop 的 Linux 级细节、硬件断点和 watchpoint、core dump、所有复杂线程事件的完全 Linux 兼容、所有架构指令的完整 single-step next-PC 语义</p>
+<h3 id="9-代码解读"><a href="#9-代码解读" class="headerlink" title="9. 代码解读"></a>9. 代码解读</h3><p>本着学习的目的以及尽量不往 tgoskits 里塞屎山的态度，提交 PR 前我都会弄懂 codex 写了什么，也学习到一些我认为比较优质的代码设计。</p>
+<p>解读的代码版本为 dev 分支的Commit afad791</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">new_user_task</span></span>(name: &amp;<span class="built_in">str</span>, <span class="keyword">mut</span> uctx: UserContext, set_child_tid: <span class="built_in">usize</span>) -&gt; TaskInner &#123;</span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">match</span> reason &#123;</span><br><span class="line">                    ReturnReason::Syscall =&gt; &#123;</span><br><span class="line">                        <span class="keyword">let</span> tid = thr.tid();</span><br><span class="line">                        <span class="keyword">let</span> trace_state = thr.proc_data.take_ptrace_syscall_trace_for(tid);</span><br><span class="line">                        <span class="keyword">if</span> matches!(trace_state, SyscallTraceState::Entry)</span><br><span class="line">                            &amp;&amp; ptrace_syscall_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx).is_some()</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="keyword">match</span> thr.proc_data.take_ptrace_syscall_trace_for(tid) &#123;         </span><br><span class="line">                                SyscallTraceState::Entry | SyscallTraceState::Exit =&gt; &#123;</span><br><span class="line">                                    thr.proc_data.set_ptrace_syscall_trace_state_for(</span><br><span class="line">                                        tid,</span><br><span class="line">                                        SyscallTraceState::Exit,</span><br><span class="line">                                    )</span><br><span class="line">                                &#125;</span><br><span class="line">                                SyscallTraceState::<span class="literal">None</span> =&gt; &#123;&#125;</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(exit_code) = ptrace_exit_event_code(saved_sysno, saved_a0)</span><br><span class="line">                            &amp;&amp; crate::syscall::ptrace_notify_exit(</span><br><span class="line">                                thr.proc_data.proc.pid(),</span><br><span class="line">                                exit_code,</span><br><span class="line">                            )</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="keyword">let</span> _ = ptrace_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx);</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        handle_syscall(&amp;<span class="keyword">mut</span> uctx);</span><br><span class="line">                        <span class="keyword">if</span> thr.proc_data.has_ptrace_pending_event_for(tid)</span><br><span class="line">                            &amp;&amp; <span class="keyword">let</span> <span class="literal">Some</span>(_resume_sig) =</span><br><span class="line">                                ptrace_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx)</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="keyword">continue</span>;</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> matches!(</span><br><span class="line">                            thr.proc_data.take_ptrace_syscall_trace_for(tid),</span><br><span class="line">                            SyscallTraceState::Exit</span><br><span class="line">                        ) &#123;</span><br><span class="line">                            <span class="keyword">let</span> _ = ptrace_syscall_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx);</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> thr.proc_data.take_ptrace_exec_stop_pending() &#123;</span><br><span class="line">                            <span class="keyword">let</span> _is_event =</span><br><span class="line">                                crate::syscall::ptrace_notify_exec(thr.proc_data.proc.pid());</span><br><span class="line">                            <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(_resume_sig) =</span><br><span class="line">                                ptrace_stop_current(thr, Signo::SIGTRAP, &amp;<span class="keyword">mut</span> uctx)</span><br><span class="line">                            &#123;</span><br><span class="line">                                <span class="keyword">continue</span>;</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读：</strong>User task 从用户态返回内核态时，内核会分析返回原因。当原因是 syscall时，会分析当前线程的 trace_state，如果是 SyscallTraceState::Entry，说明在实际 syscall 代码执行前，我们需要挂起当前tracee 线程，去唤醒 tracer 线程。</p>
+<p>然后 tracer 即 GDB 会做什么？</p>
+<p>可能 continue（PTRACE_CONT），把 None 写入 tracee 状态，<code>match thr.proc_data.take_ptrace_syscall_trace_for(tid)</code>会返回 None，后续不再追踪 syscall。 可能 stepi（PTRACE_SYSCALL），把Entry 写入状态，<code>set_ptrace_syscall_trace_state_for</code> 将 tracee 设为 Exit，syscall出口会再挂起 去唤醒 tracer。可能detach（PTRACE_DETA），后续脱离追踪。</p>
+<p>然后到PTRACE_EVENT_EXIT 通知，这段代码在 handle_syscall 之前执行，用于在进程调用 exit/exit_group 即将退出时，给调试器最后一次查看的机会。如果先 handle_syscall 再通知，do_exit 已经执行完了，进程没了，调试器看不到退出码。</p>
+<p>接着是handle_syscall 之后的三重 ptrace 事件处理</p>
+<p>第一重：pending event stop，handle_syscall 内部可能发生了：fork、vfork、clone、 seccomp 规则触发，这些事件往往伴随进程状态变化（fork 产生子进程、seccomp 修改了寄存器），调试器恢复后应该重新进入主循环检查新的状态，而不是继续跑完当前系统调用的后续处理。</p>
+<p>第二重：系统调用出口 stop，然后 wake tracer。</p>
+<p>第三重：take_ptrace_exec_stop_pending() 是 execve 在 handle_syscall 时设置的布尔标记，此时ptrace_notify_exec 将标记转为正式事件，如果 tracer 开了 PTRACE_O_TRACEEXEC  则 tracee.set_ptrace_pending_event(tid, PTRACE_EVENT_EXEC, 0);  execve 会完全替换进程地址空间——旧的可执行文件、栈、堆全没了，新程序加载完毕。调试器恢复后应该重新从主循环开始 所以 continue</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">ptrace_stop_current_impl</span></span>(</span><br><span class="line">    thr: &amp;Thread,</span><br><span class="line">    signo: Signo,</span><br><span class="line">    uctx: &amp;<span class="keyword">mut</span> UserContext,</span><br><span class="line">    is_syscall_stop: <span class="built_in">bool</span>,</span><br><span class="line">) -&gt; <span class="built_in">Option</span>&lt;<span class="built_in">Option</span>&lt;Signo&gt;&gt; &#123;</span><br><span class="line">	 ...</span><br><span class="line">    <span class="keyword">while</span> !thr.proc_data.claim_ptrace_stop(tid) &#123;</span><br><span class="line">        block_on(poll_fn(|cx| &#123;</span><br><span class="line">            <span class="keyword">if</span> !thr.proc_data.has_ptrace_stop(tid) &#123;</span><br><span class="line">                Poll::Ready(())</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                thr.proc_data.register_ptrace_stop_waker(cx.waker());</span><br><span class="line">                <span class="keyword">if</span> !thr.proc_data.has_ptrace_stop(tid) &#123;</span><br><span class="line">                    Poll::Ready(())</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    Poll::Pending</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;));</span><br><span class="line">    &#125;</span><br><span class="line">		···</span><br><span class="line">    &#123;</span><br><span class="line">        thr.proc_data.save_current_fp_for_ptrace(tid);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> is_syscall_stop &#123;</span><br><span class="line">        thr.proc_data.set_ptrace_syscall_stop(tid, signo, uctx);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        thr.proc_data.set_ptrace_stop(tid, signo, uctx);</span><br><span class="line">    &#125;</span><br><span class="line">    notify_ptrace_waiter(thr, signo);</span><br><span class="line"></span><br><span class="line">    wait_ptrace_resume(thr, tid, uctx);</span><br><span class="line">    <span class="literal">Some</span>(thr.proc_data.take_ptrace_resume_signo_for(tid))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读</strong>：claim_ptrace_stop 检查该线程是否有未消费的 stop 记录</p>
+<p>为什么注册 waker 后又检查一次？这是防止竞态情况发生：has_ptrace_stop == true，tracee 准备进pending 分支，tracer 恰好清掉 stop 并唤醒<br>当前线程还没注册 waker，可能错过唤醒</p>
+<p>thr.proc_data.save_current_fp_for_ptrace(tid);保存当前线程的 FP/SIMD 寄存器状态，原因是普通整数寄存器在 <code>uctx</code> 里，但浮点/SIMD 寄存器不完整保存在 <code>UserContext</code> 里，可能在 CPU lazy state 或架构专门的上下文里</p>
+<p>set_ptrace_stop 代码就很简单，略过。然后去通知tracer，给 tracer 发送 SIGCHLD / CLD_TRAPPED，唤醒 tracer 的 wait/waitpid。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">wait_ptrace_resume</span></span>(thr: &amp;Thread, tid: <span class="built_in">u32</span>, uctx: &amp;<span class="keyword">mut</span> UserContext) &#123;</span><br><span class="line">    current().clear_interrupt();</span><br><span class="line">    <span class="keyword">let</span> wait_result = block_on(interruptible(poll_fn(|cx| &#123;</span><br><span class="line">        <span class="keyword">if</span> thr.proc_data.ptrace_stop_signo_for(tid).is_none() &#123;</span><br><span class="line">            Poll::Ready(())</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            thr.proc_data.register_ptrace_stop_waker(cx.waker());</span><br><span class="line">            <span class="keyword">if</span> thr.proc_data.ptrace_stop_signo_for(tid).is_none() &#123;</span><br><span class="line">                Poll::Ready(())</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                Poll::Pending</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;)));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> wait_result.is_err() &#123;</span><br><span class="line">        thr.proc_data.clear_ptrace_stop();</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(resume_uctx) = thr.proc_data.take_ptrace_stop_user_context_for(tid) &#123;</span><br><span class="line">        *uctx = resume_uctx;</span><br><span class="line">        thr.proc_data.restore_current_fp_for_ptrace(tid, uctx);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读：</strong>这个函数是tracer 已被通知、tracee 在 stop 状态中挂起，等待tracer 说”继续跑”</p>
+<p>第一行代码是因为当前线程上可能挂着未处理的中断标记（比如定时器中断正好在进入 stop 前触发）。不清掉的话 interruptible 会立即返回 Err，导致虚假唤醒。</p>
+<p>接下来异步轮询等待，如果 stop signo 被清理了，说明tracer执行了 resume_ptrace_stop → 清除 signo。 tracee 已经可以恢复执行了。否则注册唤醒器， 注册期间被清除了，立即恢复，否则继续 pending。 这里也有经典的双重检查模式和上面一样防止 TOCTOU 竞态</p>
+<p>wait result 为Err 表示 interruptible 被信号打断（比如 SIGKILL 来了）。直接清除 stop 状态，后续 check_signals 循环会出队 SIGKILL 并执行 do_exit。</p>
+<p>take_ptrace_stop_user_context_for 取出tracer可能修改过的 uctx，然后覆盖当前uctx。tracer 也可能通过 PTRACE_SETFPREGS 修改了浮点寄存器，恢复执行时必须把这些修改写回硬件。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">check_signals 中有如下代码片段</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> signo != Signo::SIGKILL</span><br><span class="line">        &amp;&amp; !thr</span><br><span class="line">            .proc_data</span><br><span class="line">            .take_ptrace_resume_signal_bypass_for(thr.tid(), signo)</span><br><span class="line">        &amp;&amp; <span class="keyword">let</span> <span class="literal">Some</span>(resume_signo) = ptrace_stop_current(thr, signo, uctx)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">match</span> resume_signo &#123;</span><br><span class="line">            <span class="literal">None</span> =&gt; <span class="keyword">return</span> <span class="literal">true</span>,</span><br><span class="line">            <span class="literal">Some</span>(new_signo) <span class="keyword">if</span> new_signo != signo =&gt; &#123;</span><br><span class="line">                thr.proc_data</span><br><span class="line">                    .set_ptrace_resume_signal_bypass_for(thr.tid(), new_signo);</span><br><span class="line">                <span class="keyword">let</span> _ = thr.signal.send_signal(SignalInfo::new_kernel(new_signo));</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="literal">Some</span>(_) =&gt; &#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>解读</strong> SIGKILL 不可拦截易理解，下面解释一下 bypass。</p>
+<p>假设调试器通过 PTRACE_CONT 注入信号 SIGSTOP：</p>
+<p>没有 bypass:</p>
+<p>信号 SIGSTOP 入队 → check_signals 出队 → ptrace_stop_current→ 调试器说”传 SIGSTOP” → 信号重新入队 → check_signals 再出队→ 又 ptrace_stop_current → 调试器又说”传 SIGSTOP” → 入队…→ 永远循环</p>
+<p>有 bypass:</p>
+<p>调试器注入 SIGSTOP 时 set_bypass(SIGSTOP) → 信号入队 → check_signals 出队 → take_bypass 返回 true → 跳过 ptrace stop → 直接往下处理</p>
+<p>后续 resume_signo 对应三种回复</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x7.png" class="" title="x7">
+
+
+
+
+
+<p>我在 ProcessData 里添加了很多 ptrace 实现所需的字段，下面会简单解释一下</p>
+<blockquote>
+<p>感觉这里应该把这些字段抽离出来成为一个结构体比如 ptraceInfo {···}，这样会让 ProcessData 更清晰，不过直接添加到ProcessData 里能跑，先不管了，后续可能有同学看不惯简单重构一下就行</p>
+</blockquote>
+<p><strong>身份与追踪关系</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_tracer_pid</code></td>
+<td><code>AtomicU32</code></td>
+<td>调试器的 PID。知道该给谁发 <code>SIGCHLD</code> 通知</td>
+</tr>
+<tr>
+<td><code>ptrace_traceme</code></td>
+<td><code>AtomicBool</code></td>
+<td>进程自己调用 <code>PTRACE_TRACEME</code>，声明”让父进程来追踪我”</td>
+</tr>
+<tr>
+<td><code>ptrace_attached</code></td>
+<td><code>AtomicBool</code></td>
+<td>调试器通过 <code>PTRACE_ATTACH</code> 强行附加到本进程</td>
+</tr>
+</tbody></table>
+<p><strong>stop 状态</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_stop</code></td>
+<td><code>BTreeMap&lt;tid, PtraceStopRecord&gt;</code></td>
+<td>per-thread 的 stop 快照：<code>signo</code>（停因）、<code>uctx</code>（寄存器）、<code>is_syscall</code>、<code>siginfo</code>、是否已报告给调试器</td>
+</tr>
+<tr>
+<td><code>ptrace_stop_tid</code></td>
+<td><code>AtomicU32</code></td>
+<td>当前正 stop 的线程 TID，供 <code>waitpid</code> 快速定位</td>
+</tr>
+<tr>
+<td><code>ptrace_stop_event</code></td>
+<td><code>Arc&lt;PollSet&gt;</code></td>
+<td>异步事件，stop 状态变化时唤醒 <code>waitpid</code> 的挂起线程</td>
+</tr>
+</tbody></table>
+<p><strong>恢复控制</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_resume_signo</code></td>
+<td><code>BTreeMap&lt;tid, signo&gt;</code></td>
+<td>调试器通过 <code>PTRACE_CONT</code> 注入的信号号</td>
+</tr>
+<tr>
+<td><code>ptrace_resume_signal_bypass</code></td>
+<td><code>BTreeMap&lt;tid, signo&gt;</code></td>
+<td>已获调试器批准的信号，下次出队时跳过 ptrace stop，防止死循环</td>
+</tr>
+</tbody></table>
+<p><strong>功能模式</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_singlestep_tid</code></td>
+<td><code>AtomicU32</code></td>
+<td>处于单步模式的线程 TID</td>
+</tr>
+<tr>
+<td><code>ptrace_syscall_trace</code></td>
+<td><code>BTreeMap&lt;tid, Entry/Exit/None&gt;</code></td>
+<td>系统调用追踪状态：<code>Entry</code>（入口停）、<code>Exit</code>（出口停）、<code>None</code>（不追踪）</td>
+</tr>
+<tr>
+<td><code>ptrace_options</code></td>
+<td><code>AtomicUsize</code></td>
+<td><code>PTRACE_O_TRACEFORK/EXEC/EXIT</code> 等选项位掩码</td>
+</tr>
+</tbody></table>
+<p><strong>事件系统</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_pending_event</code></td>
+<td><code>BTreeMap&lt;tid, PtracePendingEvent&gt;</code></td>
+<td><code>handle_syscall</code> 触发的延时事件（<code>PTRACE_EVENT_FORK/CLONE/VFORK/SECCOMP</code>），在 syscall 返回后补一次 stop</td>
+</tr>
+<tr>
+<td><code>ptrace_exec_stop_pending</code></td>
+<td><code>AtomicBool</code></td>
+<td><code>execve</code> 执行后置位，提示 syscall 出口处需要 <code>PTRACE_EVENT_EXEC</code> 通知</td>
+</tr>
+</tbody></table>
+<p><strong>硬件状态保存</strong></p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ptrace_ss_saved_insn</code></td>
+<td><code>BTreeMap&lt;tid, (地址, 原始指令)&gt;</code></td>
+<td>非 x86 架构单步时，用断点替代下一条指令，保存被替换的原始指令以便恢复</td>
+</tr>
+<tr>
+<td><code>ptrace_stop_fp_data</code></td>
+<td><code>BTreeMap&lt;tid, PtraceStopFpData&gt;</code></td>
+<td>stop 时的 FP/SSE 寄存器快照，调试器通过 <code>PTRACE_GETFPREGS/SETFPREGS</code> 读写此数据</td>
+</tr>
+</tbody></table>
+<p>ptrace.rs 是 sys ptrace 的具体实现，限于篇幅这里不详细讲了</p>
+<h2 id="四、测试与成果"><a href="#四、测试与成果" class="headerlink" title="四、测试与成果"></a>四、测试与成果</h2><h3 id="1-测试代码结构"><a href="#1-测试代码结构" class="headerlink" title="1. 测试代码结构"></a>1. 测试代码结构</h3><p>GDB 支持相关测试分为三层：内核 ptrace 语义回归测试、guest 内 GDB/gdbserver smoke 测试、压力测试。</p>
+<h4 id="1-1-ptrace-语义回归测试"><a href="#1-1-ptrace-语义回归测试" class="headerlink" title="1.1 ptrace 语义回归测试"></a>1.1 ptrace 语义回归测试</h4><p>核心测试位于：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-gdb&#x2F;src&#x2F;main.c</span><br></pre></td></tr></table></figure>
+
+<p>该测试不依赖真实 GDB，而是直接调用 Linux <code>ptrace</code> ABI，验证 GDB/gdbserver 所依赖的底层语义是否正确，覆盖内容包括：</p>
+<p>该测试的作用是把 GDB 的复杂行为拆成更稳定的 syscall 级语义检查。例如：</p>
+<ul>
+<li><code>PTRACE_GETREGSET / SETREGSET</code>：验证 GDB 能读取和修改 tracee 的 PC、SP、通用寄存器。</li>
+<li><code>PTRACE_PEEKDATA / POKEDATA</code>：验证 GDB 能读写 tracee 用户地址空间，用于软件断点。</li>
+<li><code>PTRACE_SINGLESTEP</code>：验证 <code>stepi</code> 能单步执行一条用户指令。</li>
+<li><code>PTRACE_SYSCALL</code>：验证 syscall entry/exit stop，可支撑 strace 类功能。</li>
+<li><code>PTRACE_O_TRACECLONE</code>：验证线程创建事件能够被 tracer 观察。</li>
+<li><code>PTRACE_GETSIGINFO / SETSIGINFO</code>：验证信号 stop 的 <code>siginfo</code> 能被 tracer 查询和修改。</li>
+<li><code>NT_FPREGSET</code>：验证浮点/SIMD regset 的读写路径。</li>
+</ul>
+<p>辅助测试包括：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-traceme-stop&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-wait-wall&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-ptrace-thread-traceclone-wall&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-proc-status-tracerpid&#x2F;</span><br><span class="line">test-suit&#x2F;starryos&#x2F;qemu-smp1&#x2F;system&#x2F;test-gdb-native-batch&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>这些测试分别覆盖：</p>
+<ul>
+<li><code>PTRACE_TRACEME + execve</code> 后的 exec-stop。</li>
+<li><code>waitpid/__WALL</code> 对 traced LWP 的 stop 消费。</li>
+<li><code>TRACECLONE</code> 下新线程事件与新 TID 获取。</li>
+<li><code>/proc/&lt;pid&gt;/status</code> 中 <code>TracerPid</code> 展示。</li>
+<li>模拟 GDB 的动态链接程序调试流程。</li>
+</ul>
+<p>其中 <code>test-gdb-native-batch</code> 是 raw-ptrace 版本的 GDB 流程模拟，主要步骤为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">fork + PTRACE_TRACEME + execve</span><br><span class="line">读取 &#x2F;proc&#x2F;&lt;pid&gt;&#x2F;auxv 中的 AT_ENTRY</span><br><span class="line">在 AT_ENTRY 写入断点指令</span><br><span class="line">PTRACE_CONT 运行到断点</span><br><span class="line">恢复原指令并调整 PC</span><br><span class="line">PTRACE_SINGLESTEP 执行原指令</span><br><span class="line">PTRACE_CONT 继续运行到正常退出</span><br></pre></td></tr></table></figure>
+
+<p>它验证的是“不启动真实 GDB，也能通过 ptrace 完成一次简化调试会话”。</p>
+<h4 id="1-2-guest-内-GDB-smoke-测试"><a href="#1-2-guest-内-GDB-smoke-测试" class="headerlink" title="1.2 guest 内 GDB smoke 测试"></a>1.2 guest 内 GDB smoke 测试</h4><p>GDB 应用测试位于：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;</span><br></pre></td></tr></table></figure>
+
+<p>主要结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native&#x2F;src&#x2F;main.c</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native&#x2F;gdb-native-smoke.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native-thread&#x2F;src&#x2F;main.c</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;native-thread&#x2F;gdb-native-threads.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;src&#x2F;main.c</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;gdbserver-smoke.sh</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;gdbserver-smoke.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;host-manual.gdb</span><br><span class="line">apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;host-remote.gdb</span><br></pre></td></tr></table></figure>
+
+<p>其中 <code>native/src/main.c</code> 构造了一个清晰的调用链：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">main -&gt; demo_entry -&gt; demo_worker -&gt; native_marker</span><br></pre></td></tr></table></figure>
+
+<p>用于验证 GDB 的断点、运行、回溯、寄存器读取、内存查看和单步执行。</p>
+<p><code>native-thread/src/main.c</code> 创建两个 pthread 子线程，用于验证：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">info threads</span><br><span class="line">thread &lt;id&gt;</span><br><span class="line">bt</span><br><span class="line">&#x2F;proc&#x2F;&lt;pid&gt;&#x2F;task</span><br></pre></td></tr></table></figure>
+
+<p><code>gdbserver/src/main.c</code> 是远程调试目标程序，不是 gdbserver 本体。真实的 <code>gdbserver</code> 来自 rootfs 中的 <code>/usr/bin/gdbserver</code>。StarryOS 的工作是补齐其依赖的 ptrace/procfs 语义，使用户态 <code>gdbserver</code> 可以运行。</p>
+<h3 id="2-Demo-截图"><a href="#2-Demo-截图" class="headerlink" title="2. Demo 截图"></a>2. Demo 截图</h3><p>四架构均可正常使用，我选取 aarch64 架构下进行截图演示</p>
+<p>注：在 6.28 日我尝试在最新 dev 分支下验证 riscv 架构 gdb，出现了bfd requires flen 8, but target has flen 4 的问题。目标 ELF 为 double-float ABI，需要 flen=8，但 gdbserver 上报给 host GDB 的 target description 被识别为 flen=4。目标程序直接运行正常，说明 ELF 加载和执行路径可用，问题集中在 GDB/gdbserver 的 RISC-V target feature 描述或 FP regset 探测路径。</p>
+<p>但 aarch 没有问题，两周前四架构均能正常演示</p>
+<h4 id="Demo1-gdb-server"><a href="#Demo1-gdb-server" class="headerlink" title="Demo1  gdb server"></a><strong>Demo1  gdb server</strong></h4><p>在终端 1 启动 aarch64 guest：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev cargo xtask starry app qemu -t gdb-smoke --arch aarch64 \</span><br><span class="line">  --qemu-config qemu-aarch64-gdbserver-manual.toml</span><br></pre></td></tr></table></figure>
+
+<p>进入 StarryOS shell 后运行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">gdbserver 0.0.0.0:1234 &#x2F;usr&#x2F;bin&#x2F;gdbserver-smoke-target</span><br></pre></td></tr></table></figure>
+
+<p>终端 2：host 侧连接</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev gdb-multiarch -q \</span><br><span class="line">  -x &#x2F;workspace&#x2F;apps&#x2F;starry&#x2F;gdb-smoke&#x2F;gdbserver&#x2F;host-manual-aarch64.gdb \</span><br><span class="line">  &#x2F;workspace&#x2F;target&#x2F;gdb-smoke-host&#x2F;aarch64&#x2F;gdbserver-smoke-target</span><br></pre></td></tr></table></figure>
+
+<p>break compute_value<br>continue<br>bt<br>info registers<br>detach</p>
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x8.png" class="" title="x8">
+
+<p>验证了StarryOS guest 内 <code>gdbserver</code> 可以启动并监听端口。</p>
+<p>Docker host 侧 <code>gdb-multiarch</code> 可以通过 QEMU <code>hostfwd</code> 连接 guest。</p>
+<p>GDB 可以对 guest 用户程序设置断点、继续执行、命中断点、读取 backtrace 和寄存器。</p>
+<p>这条链路覆盖：<code>gdbserver -&gt; ptrace -&gt; wait/stop -&gt; regset -&gt; host GDB remote protocol</code></p>
+<h4 id="Demo2-native-gdb"><a href="#Demo2-native-gdb" class="headerlink" title="Demo2 native gdb"></a><strong>Demo2 native gdb</strong></h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev cargo xtask starry app qemu -t gdb-smoke --arch aarch64 \</span><br><span class="line">  --qemu-config qemu-aarch64-gdbserver-manual.toml</span><br><span class="line"></span><br><span class="line">gdb &#x2F;usr&#x2F;bin&#x2F;gdb-native-smoke-target</span><br><span class="line"></span><br><span class="line">gdb内输入</span><br><span class="line">set pagination off</span><br><span class="line">break native_marker</span><br><span class="line">run</span><br><span class="line">bt</span><br><span class="line">info registers</span><br><span class="line">x&#x2F;4gx $sp</span><br><span class="line">info proc mappings</span><br><span class="line">info files</span><br><span class="line">info auxv</span><br><span class="line">shell pid&#x3D;&quot;$(pidof gdb-native-smoke-target)&quot; &amp;&amp; cat &quot;&#x2F;proc&#x2F;$pid&#x2F;status&quot;</span><br><span class="line">continue</span><br></pre></td></tr></table></figure>
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x9.png" class="" title="x9">
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x10.png" class="" title="x10">验证了aarch64 guest 内 native GDB 手工调试能力：断点、运行、回溯、寄存器、栈内存、procfs 信息读取。
+
+
+
+<h4 id="Demo3-TUI"><a href="#Demo3-TUI" class="headerlink" title="Demo3  TUI"></a><strong>Demo3  TUI</strong></h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it tgoskits-dev cargo xtask starry app qemu -t gdb-smoke --arch aarch64 \</span><br><span class="line">  --qemu-config qemu-aarch64-gdbserver-manual.toml</span><br><span class="line">  </span><br><span class="line">gdb -q -tui &#x2F;usr&#x2F;bin&#x2F;gdb-native-smoke-target</span><br><span class="line"></span><br><span class="line">break native_marker</span><br><span class="line">run</span><br><span class="line">layout asm</span><br><span class="line">layout regs</span><br><span class="line">refresh</span><br><span class="line">bt</span><br><span class="line">info registers</span><br><span class="line">tui disable</span><br><span class="line">continue</span><br></pre></td></tr></table></figure>
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x11.png" class="" title="x11">
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x12.png" class="" title="x12">
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x13.png" class="" title="x13">
+
+
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x14.png" class="" title="x14">
+
+
+
+<h4 id="Demo4-LWP-pthread-task"><a href="#Demo4-LWP-pthread-task" class="headerlink" title="Demo4 LWP/pthread task"></a>Demo4 LWP/pthread task</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">gdb &#x2F;usr&#x2F;bin&#x2F;gdb-native-thread-target</span><br><span class="line"></span><br><span class="line">set pagination off</span><br><span class="line">set print thread-events on</span><br><span class="line">set schedule-multiple on</span><br><span class="line">break thread_marker</span><br><span class="line">run</span><br><span class="line">info threads</span><br><span class="line">shell pid&#x3D;&quot;$(pidof gdb-native-thread-target)&quot; &amp;&amp; ls &quot;&#x2F;proc&#x2F;$pid&#x2F;task&quot;</span><br><span class="line">bt</span><br><span class="line">delete breakpoints</span><br><span class="line">continue</span><br></pre></td></tr></table></figure>
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x15.png" class="" title="x15">
+
+<img src="/blog/2026/06/28/StarryOS-%E5%AE%8F%E5%86%85%E6%A0%B8-GDB%E6%94%AF%E6%8C%81%E9%A1%B9%E7%9B%AE%E6%B1%87%E6%8A%A5/x16.png" class="" title="x16">
+
+
+
+<h2 id="五、工作-PR-记录、工作仓库"><a href="#五、工作-PR-记录、工作仓库" class="headerlink" title="五、工作 PR 记录、工作仓库"></a>五、工作 PR 记录、工作仓库</h2><p><strong>issue 记录：</strong><a href="https://github.com/rcore-os/tgoskits/issues/586" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/issues/586</a></p>
+<h3 id="第一阶段"><a href="#第一阶段" class="headerlink" title="第一阶段"></a>第一阶段</h3><p>Linux syscall 添加测例与修复 <a href="https://github.com/rcore-os/tgoskits/pull/588" target="_blank" rel="noopener">PR 588</a>  <a href="https://github.com/rcore-os/tgoskits/pull/605" target="_blank" rel="noopener">PR605</a></p>
+<p>包含：chmod、fchmod、chown、 fchown、faccessat、umask、fchmodat、fchownat  </p>
+<h3 id="第二阶段"><a href="#第二阶段" class="headerlink" title="第二阶段"></a>第二阶段</h3><ol>
+<li><p>busybox 十余个 applet 测例，修复内核语义 <a href="https://github.com/rcore-os/tgoskits/pull/668" target="_blank" rel="noopener">PR668</a> <a href="https://github.com/rcore-os/tgoskits/pull/752" target="_blank" rel="noopener">PR752</a></p>
+</li>
+<li><p>补齐 Lua 应用运行时的测试，修复阻碍 Lua 应用稳定运行的文件系统缺陷 <a href="https://github.com/rcore-os/tgoskits/pull/777" target="_blank" rel="noopener">PR777</a> </p>
+</li>
+<li><p>新增 Redis normal、stress测试，修复 ax-net-ng TCP listen/accept 路径、修复 TCP recv 路径、修复 axfs-ng-vfs rename 检查<a href="https://github.com/rcore-os/tgoskits/pull/802" target="_blank" rel="noopener">PR802</a></p>
+</li>
+</ol>
+<h3 id="第三阶段"><a href="#第三阶段" class="headerlink" title="第三阶段"></a>第三阶段</h3><ol>
+<li>ptrace 初步框架完成，初期设计问题在后续 PR 解决了，这是一个接近 5000行代码的提交，包括2000 余行测试相关代码与 2000 余行内核 feature 添加与语义修复。<a href="https://github.com/rcore-os/tgoskits/pull/931" target="_blank" rel="noopener">PR931</a></li>
+<li>修复上一 PR 设计问题，重构 ptrace stop 状态，调整 wait / waitid 语义，调整 clone/fork/vfork ptrace event，补充 procfs / GDB 可用性支持，增加测试，并在开会时准备了 demo 并演示 <a href="https://github.com/rcore-os/tgoskits/pull/1167" target="_blank" rel="noopener">PR1167</a></li>
+<li>前两个 PR 完成了 riscv64 的 gdb 可用，该 PR 完成了 aarch64、loongarch 的支持 <a href="https://github.com/rcore-os/tgoskits/pull/1247" target="_blank" rel="noopener">PR1247</a> </li>
+<li>修复和补充了上一 PR 的缺口 <a href="https://github.com/rcore-os/tgoskits/pull/1292" target="_blank" rel="noopener">PR1292</a></li>
+<li>review 了杨铮同学的 PR，发现了一些设计上的分歧，把x86 的实现与测例对齐到我前面的设计 <a href="https://github.com/rcore-os/tgoskits/pull/1314" target="_blank" rel="noopener">PR1314</a></li>
+</ol>
+<p><strong>上述 11 个 PR 即是我本次训练营的所有工作</strong></p>
+<h2 id="六、总结与感想"><a href="#六、总结与感想" class="headerlink" title="六、总结与感想"></a>六、总结与感想</h2><p>2024 秋冬第一次听说 os 训练营，参加第一阶段 rust 语言学习就十分折磨，深夜在武大宿舍里调 rustling 程序，最终完成了 100 多道题的练习，踩了很多坑 走了很多弯路（比如死磕 rust 语言圣经、rust 程序设计教材，然而里面的很多语法比如“无畏并发”等高级内容根本就没用上，看了一遍又一遍都无法理解，最后发现只有在项目里用上才能真正理解…）</p>
+<p>2025 春夏花了一整个月学 rCore，那时候本着学习的态度，古法编程，每行代码得去看去理解，犹记得文件系统章节看完了 easy fs 的所有代码，结果发现 lab 只需要写几行代码就能解决的无奈，不过学到知识就是胜利✌️后续有事没继续做最终阶段</p>
+<p>2026 春夏花了两个月，从啃 arceos 代码发现很多地方看不懂，到使用 codex 辅助编程完成了 starryos 里计划好的工作，我不仅学到了 os 的知识，也更加熟练地使用ai 辅助编程。感谢 oscamp 和 infiniTensor 训练营，让我学到了这么多！终于是都通关了，明年我要继续 compiler camp！</p>
+<p>关于第三阶段的项目，GDB 支持不是单个 syscall 的实现，而是一条完整链路。一个断点能否命中，背后涉及 ELF 加载、用户地址空间、信号投递、ptrace stop 状态、wait 语义、寄存器 ABI、跨进程内存访问、procfs、rootfs、gdbserver、QEMU 网络转发和测试组织。任何一环不稳定，最终都可能导致 GDB 卡住或超时，在实现过程中我对 os 的进程、信号 IPC、ELF、内存访问等等诸多方面都有了更深的了解，不过内核代码十分复杂，参加完训练营也仅对 os 了有了一些粗浅的理解，后续会继续读陈海波老师的《操作系统 原理与实现》，加深理解，继续努力提高工程能力</p>
+<p>最后感谢陈渝老师、向勇老师、朱懿学长以及训练营的各位助教老师们。受益于开源，也要回馈开源，未来有空了希望我也能参与贡献各种开源训练营</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/2026S/" rel="tag"># 2026S</a>
+              <a href="/blog/tags/author-Promin3/" rel="tag"># author:Promin3</a>
+              <a href="/blog/tags/repo-https-github-com-rcore-os-tgoskits/" rel="tag"># repo:https://github.com/rcore-os/tgoskits</a>
+              <a href="/blog/tags/ptrace/" rel="tag"># ptrace</a>
+              <a href="/blog/tags/IPC/" rel="tag"># IPC</a>
+              <a href="/blog/tags/GDB/" rel="tag"># GDB</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/28/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-WellDown64/" rel="prev" title="2026春夏开源操作系统训练营总结-WellDown64">
+      <i class="fa fa-chevron-left"></i> 2026春夏开源操作系统训练营总结-WellDown64
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/28/20260628-aptacc2421-StarryOS%E5%86%85%E6%A0%B8%E5%BC%80%E5%8F%91%E5%AE%9E%E8%B7%B5/" rel="next" title="StarryOS 内核开发实践：系统调用、/proc 内存计账与多场景应用支持——2026 春季训练营总结报告">
+      StarryOS 内核开发实践：系统调用、/proc 内存计账与多场景应用支持——2026 春季训练营总结报告 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

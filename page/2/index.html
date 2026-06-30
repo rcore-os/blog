@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">783</span>
+          <span class="site-state-item-count">785</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">737</span>
+        <span class="site-state-item-count">745</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,789 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/18/20260618-xianxw-SD%E9%A9%B1%E5%8A%A8%E5%BC%82%E6%AD%A5%E5%8C%96/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/18/20260618-xianxw-SD%E9%A9%B1%E5%8A%A8%E5%BC%82%E6%AD%A5%E5%8C%96/" class="post-title-link" itemprop="url">20260618-xianxw-SD驱动异步化</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-18 12:11:46" itemprop="dateCreated datePublished" datetime="2026-06-18T12:11:46+00:00">2026-06-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="SDMMC-驱动异步化技术总结"><a href="#SDMMC-驱动异步化技术总结" class="headerlink" title="SDMMC 驱动异步化技术总结"></a>SDMMC 驱动异步化技术总结</h1><p>本报告主要记录了我在2026春夏季开源操作系统训练营在 StarryOS 上开发 SDMMC 块设备驱动以及实现异步读写的全过程，包括最终完整的调用链路、同步与异步双通道设计思路以及遇到的相关技术细节。</p>
+<hr>
+<h2 id="一、-项目当前整体内容及当前完整调用链路"><a href="#一、-项目当前整体内容及当前完整调用链路" class="headerlink" title="一、 项目当前整体内容及当前完整调用链路"></a>一、 项目当前整体内容及当前完整调用链路</h2><h3 id="1-1-项目当前整体内容"><a href="#1-1-项目当前整体内容" class="headerlink" title="1.1 项目当前整体内容"></a>1.1 项目当前整体内容</h3><p>当前项目的开发分为两个流程,首先是原代码的复现工作,在复现过程中进行了部分的小段更改,其次是异步化改造工作,异步化改造主要对<code>axtask</code> 和 <code>simple-sdmmc</code>两个模块进行更改,同步的流程保持不变,异步的流程基于同步流程进行改造,最终改造后的调用链路如下:</p>
+<h3 id="1-2-驱动完整调用链路"><a href="#1-2-驱动完整调用链路" class="headerlink" title="1.2 驱动完整调用链路"></a>1.2 驱动完整调用链路</h3><p>支持两种调用链路，分别适配之前的同步调用与现代的异步协程调度：</p>
+<h4 id="1-2-1-同步通道完整调用链路-Synchronous-Flow"><a href="#1-2-1-同步通道完整调用链路-Synchronous-Flow" class="headerlink" title="1.2.1 同步通道完整调用链路 (Synchronous Flow)"></a>1.2.1 同步通道完整调用链路 (Synchronous Flow)</h4><p>同步通道核心是通过阻塞当前 OS 线程来等待硬件中断。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    autonumber</span><br><span class="line">    participant VFS as 虚拟文件系统 &#x2F; 块设备层</span><br><span class="line">    participant SdMmc as SdMmc 驱动 (同步接口)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant WaitQueue as OS 任务等待队列 (WaitQueue)</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    VFS -&gt;&gt; SdMmc: read_block(block_id, buf)</span><br><span class="line">    SdMmc -&gt;&gt; HW: 配置 DMA 描述符，启动 DMA 传输</span><br><span class="line">    SdMmc -&gt;&gt; WaitQueue: wait_timeout_until() 阻塞当前线程</span><br><span class="line">    Note over WaitQueue: 线程状态设为 Blocked&lt;br&#x2F;&gt;让出 CPU，被移出就绪队列</span><br><span class="line">    HW --&gt;&gt; ISR: 传输完成，触发硬件中断</span><br><span class="line">    ISR -&gt;&gt; SdMmc: 捕获中断，更新原子标志</span><br><span class="line">    ISR -&gt;&gt; WaitQueue: notify_one() 唤醒阻塞线程</span><br><span class="line">    WaitQueue -&gt;&gt; SdMmc: 线程恢复运行，执行数据拷贝与清理</span><br><span class="line">    SdMmc -&gt;&gt; VFS: 返回读取到的数据</span><br></pre></td></tr></table></figure>
+
+<p><strong>详细调用步骤分解：</strong></p>
+<ol>
+<li><strong>入口发起</strong>：上层文件系统/内核调用 <code>SdMmc::read_block(block_id, buf)</code> 或 <code>write_block</code>。</li>
+<li><strong>DMA 缓冲区准备</strong>：驱动配置传输大小，并获取物理上连续的一致性 DMA 缓存区。如果是写操作，将用户 <code>buf</code> 中的数据拷贝进 DMA 缓存。</li>
+<li><strong>进入 <code>send_cmd_idmac</code></strong>：<ul>
+<li><strong>创建描述符</strong>：分配一个 DMA 描述符 <code>IdmacDescriptor</code>，配置缓冲区物理地址与大小，并将描述符地址写入 <code>dbaddr</code> 寄存器。</li>
+<li><strong>重置标志位</strong>：将全局原子变量 <code>IDMAC_DONE_FLAG</code> 和 <code>IDMAC_ERROR_FLAG</code> 置为 <code>false</code>。</li>
+<li><strong>启动硬件</strong>：向 <code>cmdarg</code> 和 <code>cmd</code> 寄存器写入指令，并写入 <code>pldmnd</code> 寄存器，启动 SDMMC 硬件及内部 DMA 传输。</li>
+</ul>
+</li>
+<li><strong>线程阻塞等待</strong>：<ul>
+<li><strong>驱动调用</strong>：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">IDMAC_WAIT_QUEUE.wait_timeout_until(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>), </span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire)</span><br><span class="line">)</span><br></pre></td></tr></table></figure></li>
+<li><strong>底层动作</strong>：当前线程被放入等待队列，状态修改为 <code>Blocked</code>（阻塞态），当前 CPU 切换上下文去运行其他就绪线程。此时 CPU 没有任何忙等轮询。</li>
+</ul>
+</li>
+<li><strong>硬件中断触发与唤醒</strong>：<ul>
+<li>当 DMA 数据传输完毕，SD/MMC 控制器触发物理中断。</li>
+<li>CPU 跳转至中断服务程序（ISR）：<code>SdMmc::handle_interrupt()</code>。</li>
+<li>ISR 中更新状态：<code>IDMAC_DONE_FLAG.store(true)</code> 并调用 <code>IDMAC_WAIT_QUEUE.notify_one()</code>。</li>
+<li>调度器收到唤醒通知，将原阻塞线程放回就绪队列，并恢复其执行。</li>
+</ul>
+</li>
+<li><strong>收尾与返回</strong>：<ul>
+<li>线程恢复执行后，从 <code>wait_timeout_until</code> 返回，读取响应寄存器 <code>resp</code> 验证传输正确性。</li>
+<li>释放描述符内存，清理中断标志。</li>
+<li>如果是读操作，把数据从一致性 DMA 缓存拷贝回用户 <code>buf</code>，返回上层。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h4 id="1-2-2-异步通道完整调用链路-Asynchronous-Flow"><a href="#1-2-2-异步通道完整调用链路-Asynchronous-Flow" class="headerlink" title="1.2.2 异步通道完整调用链路 (Asynchronous Flow)"></a>1.2.2 异步通道完整调用链路 (Asynchronous Flow)</h4><p>异步通道专门为协程并发设计，其核心是通过 Rust Future 挂起协程，释放 OS 线程去运行其他任务，等待硬件中断精准唤醒。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    autonumber</span><br><span class="line">    participant App as 异步应用 &#x2F; 协程执行器 (Executor)</span><br><span class="line">    participant SdMmc as SdMmc 驱动 (异步接口)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant WaitQueue as 任务等待队列 (WaitQueue)</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    App -&gt;&gt; SdMmc: read_block_async(block_id, buf).await</span><br><span class="line">    SdMmc -&gt;&gt; HW: 配置 DMA 描述符，启动 DMA 传输</span><br><span class="line">    SdMmc -&gt;&gt; WaitQueue: wait_timeout_until_async().await 注册挂起</span><br><span class="line">    Note over WaitQueue: 创建 EventListener 并绑定 Waker&lt;br&#x2F;&gt;协程返回 Pending，让出执行权</span><br><span class="line">    Note over App: 协程挂起，Executor 调度同一线程下的其他协程</span><br><span class="line">    HW --&gt;&gt; ISR: 传输完成，触发硬件中断</span><br><span class="line">    ISR -&gt;&gt; SdMmc: 捕获中断，更新原子标志</span><br><span class="line">    ISR -&gt;&gt; WaitQueue: notify_one() 唤醒监听者</span><br><span class="line">    WaitQueue -&gt;&gt; App: 触发 waker.wake()，协程重新进入就绪队列</span><br><span class="line">    App -&gt;&gt; SdMmc: 执行器再次 poll 推进协程</span><br><span class="line">    SdMmc -&gt;&gt; SdMmc: 拷贝 DMA 缓冲区数据</span><br><span class="line">    SdMmc -&gt;&gt; App: 异步读取完成，返回数据</span><br></pre></td></tr></table></figure>
+
+<p><strong>详细调用步骤分解：</strong></p>
+<ol>
+<li><strong>入口发起</strong>：上层异步调用器 <code>.await</code> 执行 <code>SdMmc::read_block_async(block_id, buf)</code> 或 <code>write_block_async</code>。</li>
+<li><strong>DMA 缓冲区准备</strong>：与同步相同，配置大小，如果是写操作则将数据拷入 DMA 一致性内存中。</li>
+<li><strong>调用并 <code>.await</code> 执行 <code>send_cmd_idmac_async</code></strong>：<ul>
+<li><strong>描述符配置</strong>：构建 <code>IdmacDescriptor</code> 描述符，关联缓冲区物理地址并写入 <code>dbaddr</code>。</li>
+<li><strong>重置原子标志</strong>：重置 <code>IDMAC_DONE_FLAG</code> 与 <code>IDMAC_ERROR_FLAG</code>。</li>
+<li><strong>启动硬件</strong>：写入 <code>cmdarg</code> 和 <code>cmd</code> 寄存器启动命令，并写入 <code>pldmnd</code> 唤醒 DMA。</li>
+</ul>
+</li>
+<li><strong>协程挂起 (Yield)</strong>：<ul>
+<li><strong>驱动执行到异步等待处</strong>：<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">IDMAC_WAIT_QUEUE.wait_timeout_until_async(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>), </span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire)</span><br><span class="line">).<span class="keyword">await</span></span><br></pre></td></tr></table></figure></li>
+<li><strong>底层动作</strong>：<ul>
+<li>该异步等待返回一个 Future 状态机。</li>
+<li>当执行器第一次 <code>poll</code> 该 Future 时，通过 <code>event-listener</code> 在栈上创建一个监听节点，将当前协程的 <code>Waker</code> 登记并挂载到 <code>IDMAC_WAIT_QUEUE</code> 中。</li>
+<li>检查条件不满足，返回 <code>Poll::Pending</code>。</li>
+<li>执行器（Executor）将此协程移出活跃调度链表，底层的 OS 线程立刻去执行其他协程。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>中断精准唤醒</strong>：<ul>
+<li>硬件传输完毕触发物理中断，CPU 进入 <code>SdMmc::handle_interrupt()</code>。</li>
+<li>中断程序将 <code>IDMAC_DONE_FLAG</code> 原子设为 <code>true</code>。</li>
+<li>调用 <code>IDMAC_WAIT_QUEUE.notify_one()</code> 找到链表里登记的协程 <code>Waker</code>，调用 <code>waker.wake()</code>。</li>
+<li>执行器把该协程重新放入就绪队列。</li>
+</ul>
+</li>
+<li><strong>协程恢复与完成</strong>：<ul>
+<li>执行器再次 <code>poll</code> 该协程，此时条件满足，<code>wait_timeout_until_async</code> 返回 <code>Poll::Ready</code>。</li>
+<li>协程退出 <code>.await</code>，读取并验证寄存器，释放描述符。</li>
+<li>读操作将数据从 DMA 缓冲搬运至用户 <code>buf</code>。异步读取结束。</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="二、-初次复现代码的具体改动"><a href="#二、-初次复现代码的具体改动" class="headerlink" title="二、 初次复现代码的具体改动"></a>二、 初次复现代码的具体改动</h2><h3 id="2-1-整体代码结构分析-src-目录"><a href="#2-1-整体代码结构分析-src-目录" class="headerlink" title="2.1 整体代码结构分析 (src 目录)"></a>2.1 整体代码结构分析 (<code>src</code> 目录)</h3><p>以下是原代码 <code>src</code> 目录下的核心文件职责与作用分工：</p>
+<table>
+<thead>
+<tr>
+<th align="left">文件名称</th>
+<th align="left">核心职责</th>
+<th align="left">具体作用描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">[lib.rs]</td>
+<td align="left">驱动模块入口</td>
+<td align="left">统一导出子模块，向外部公开核心驱动结构体 <code>SdMmc</code>。</td>
+</tr>
+<tr>
+<td align="left">[sdmmc.rs]</td>
+<td align="left">传输与控制逻辑</td>
+<td align="left">实现 <code>SdMmc</code> 生命周期与初始化配置流程（时钟配置、卡检测、OCR 协商、CID/CSD 获取等）；提供块读写接口 <code>read_block</code> 和 <code>write_block</code>（支持自动判定 DMA/PIO 模式）；实现具体命令发送函数 <code>send_cmd</code> 与 <code>send_cmd_idmac</code>；提供硬件中断处理函数 <code>handle_interrupt</code> 用于接收控制器和内部 DMA 的状态并反馈给等待任务。</td>
+</tr>
+<tr>
+<td align="left">[regs.rs]</td>
+<td align="left">底类寄存器定义</td>
+<td align="left">映射并定义控制器的寄存器块（<code>RegisterBlock</code>）布局，并利用 <code>bitfield-struct</code> 宏安全地建模各个寄存器的位域字段（如 <code>Ctrl</code>、<code>BMod</code>、<code>IdIntEn</code>、<code>IdSts</code>、<code>RIntSts</code> 等），保证寄存器读写的类型安全。</td>
+</tr>
+<tr>
+<td align="left">[cmd.rs]</td>
+<td align="left">命令与数据传输构建</td>
+<td align="left">定义 SD/MMC 命令枚举 <code>Command</code>（如 <code>GoIdleState</code>、<code>AppCmd</code>、<code>ReadSingleBlock</code> 等），构建出寄存器所需的命令控制字和参数值，并定义数据传输方向结构 <code>DataXfer</code>。</td>
+</tr>
+<tr>
+<td align="left">[dma.rs]</td>
+<td align="left">DMA 内存与描述符管理</td>
+<td align="left">定义符合 IDMAC 硬件接口要求的 DMA 描述符 <code>IdmacDescriptor</code> 结构；提供物理连续且对齐 of DMA 一致性内存的申请（<code>alloc_coherent</code>）与释放（<code>dealloc_coherent</code>）接口。</td>
+</tr>
+<tr>
+<td align="left">[utils.rs]</td>
+<td align="left">元数据解析辅助工具</td>
+<td align="left">定义并解析 CID（卡识别寄存器）与 CSD（卡特定数据寄存器），用于计算块设备的总容量、卡片块数量以及获取生产元数据。</td>
+</tr>
+</tbody></table>
+<hr>
+<hr>
+<h3 id="2-3-复现代码的具体改动"><a href="#2-3-复现代码的具体改动" class="headerlink" title="2.3 复现代码的具体改动"></a>2.3 复现代码的具体改动</h3><p>通过对旧版本 (<code>root-simple-sdmmc-extended</code>) 与新版本 (<code>retry-simple-sdmmc-extended-dma</code>) 进行深度代码比对，新版本在保持与旧版本时序对齐的同时，在以下几个关键维度进行了深入的修复与改善：</p>
+<blockquote>
+<p>[!WARNING]</p>
+<h4 id="1-内存泄漏与异常安全-Critical"><a href="#1-内存泄漏与异常安全-Critical" class="headerlink" title="1. 内存泄漏与异常安全 (Critical)"></a>1. 内存泄漏与异常安全 (Critical)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：如果在“第二阶段（命令响应等待）”中发生了超时，函数会直接返回 <code>None</code> 退出，而<strong>未能释放</strong>通过 <code>alloc_coherent</code> 申请的 <code>dma_desc_info</code> 物理连续内存。这在硬件超时或出错时会导致严重的系统内存泄漏。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：在此类所有异常分支（如超时、命令错误）中均补齐了 <code>dealloc_coherent</code> 释放操作，彻底消除了内存泄漏隐患，保证了底层的异常安全。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>[!IMPORTANT]</p>
+<h4 id="2-PIO-模式下-FIFO-地址访问-Bug-修复-Correctness"><a href="#2-PIO-模式下-FIFO-地址访问-Bug-修复-Correctness" class="headerlink" title="2. PIO 模式下 FIFO 地址访问 Bug 修复 (Correctness)"></a>2. PIO 模式下 FIFO 地址访问 Bug 修复 (Correctness)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：在数据传输循环中，使用 <code>fifo_base.byte_add(offset).read_volatile()</code>。这错误地将数据读写的字节偏移量（<code>offset</code>）加在了寄存器地址上。由于 FIFO 寄存器属于单一端口物理映射，偏移会导致读取非法的内存空间。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：完全修复了此 Bug。数据传输始终对固定的 <code>fifo_base</code> 地址执行 <code>read_volatile()</code>/<code>write_volatile()</code>，完全符合硬件规范。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>[!IMPORTANT]</p>
+<h4 id="3-跨上下文错误传递机制-IDMAC-ERROR-FLAG-Robustness"><a href="#3-跨上下文错误传递机制-IDMAC-ERROR-FLAG-Robustness" class="headerlink" title="3. 跨上下文错误传递机制 IDMAC_ERROR_FLAG (Robustness)"></a>3. 跨上下文错误传递机制 <code>IDMAC_ERROR_FLAG</code> (Robustness)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：未定义任何全局错误同步标志位。当中断服务程序（ISR）捕获了致命总线错误（<code>FBE</code>）、描述符不可用（<code>DU</code>）或卡错误（<code>CES</code>），也无法安全地向主线程传递该错误信号，导致主线程在发生硬件故障时只能“假死”直至超时。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：引入了全局原子变量 <code>pub static IDMAC_ERROR_FLAG: AtomicBool = AtomicBool::new(false);</code>。<ul>
+<li><strong>职责</strong>：在 <code>handle_interrupt</code> (中断侧) 捕获硬件异常后，通过 <code>store(true, Release)</code> 原子地设置标志。</li>
+<li><strong>优势</strong>：在 <code>send_cmd_idmac</code> (主线程侧) 配合 <code>load(Acquire)</code> 进行检查。该机制利用底层 CPU 的缓存一致性协议，在无锁（Lock-free）且不引起死锁的前提下，将硬件级的故障快速、安全地通知给主线程，构成了驱动安全降级与错误恢复的通信基石。</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>[!TIP]</p>
+<h4 id="4-防御性状态轮询-Efficiency"><a href="#4-防御性状态轮询-Efficiency" class="headerlink" title="4. 防御性状态轮询 (Efficiency)"></a>4. 防御性状态轮询 (Efficiency)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：数据传输等待缺乏灵敏的中断级错误响应，在出错时只能依靠强行等待 5 秒超时来退出。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：在数据传输的第三阶段，引入了相较于初始基准状态的防御性错误校验（实时检测新发生的 <code>new_fbe</code>/<code>new_ces</code>/<code>new_du</code> 等），一旦检测到错误即刻跳出循环并释放资源，将故障恢复延迟缩短到微秒级。</li>
+</ul>
+</blockquote>
+<h4 id="5-数据结构与注释清理-Code-Health"><a href="#5-数据结构与注释清理-Code-Health" class="headerlink" title="5. 数据结构与注释清理 (Code Health)"></a>5. 数据结构与注释清理 (Code Health)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：<code>SdMmc</code> 结构体内部保留了大量前期调试残留的、被注释掉的未实现字段（如 <code>support_dma_64bit_address</code>、<code>sg_cpu</code> 等），代码冗余严重。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：彻底清理了这些冗余字段，使核心数据结构非常精简。同时，补充了详实的中文注释，解释了并发原子操作以及休眠唤醒逻辑。</li>
+</ul>
+<h4 id="6-调试日志降噪-Code-Health"><a href="#6-调试日志降噪-Code-Health" class="headerlink" title="6. 调试日志降噪 (Code Health)"></a>6. 调试日志降噪 (Code Health)</h4><ul>
+<li><strong>旧版本 (<code>root</code>)</strong>：在卡片初始化和时钟配置阶段，大量使用 <code>warn!</code> 级别输出过程日志，在操作系统正常启动时会产生大量无用日志垃圾。</li>
+<li><strong>新版本 (<code>retry</code>)</strong>：将正常的硬件状态快照和初始化过程日志降级为 <code>debug!</code> / <code>trace!</code>，仅在真正发生严重异常时才输出警告，使得内核终端输出更加整洁。</li>
+</ul>
+<hr>
+<h2 id="三、-完善异步机制的代码改动"><a href="#三、-完善异步机制的代码改动" class="headerlink" title="三、 完善异步机制的代码改动"></a>三、 完善异步机制的代码改动</h2><p>我的这次改造涉及模块 <code>axtask</code> 和 <code>simple-sdmmc</code> 两个组件，采用了<strong>同步与异步双独立通道</strong>的设计模式：</p>
+<h3 id="3-1-具体的改造内容"><a href="#3-1-具体的改造内容" class="headerlink" title="3.1 具体的改造内容"></a>3.1 具体的改造内容</h3><h4 id="3-1-1-axtask-模块：WaitQueue-异步等待扩展"><a href="#3-1-1-axtask-模块：WaitQueue-异步等待扩展" class="headerlink" title="3.1.1 axtask 模块：WaitQueue 异步等待扩展"></a>3.1.1 <code>axtask</code> 模块：WaitQueue 异步等待扩展</h4><p>在 <code>wait_queue.rs</code> 中，为底层基于 <code>event-listener</code> 的挂起队列 <code>WaitQueue</code> 扩展了 4 个非阻塞的异步等待方法，允许协程进行 <code>.await</code> 挂起而不阻塞底层 OS 线程：</p>
+<ul>
+<li><code>wait_async()</code>：异步等待事件通知。</li>
+<li><code>wait_until_async(condition)</code>：异步等待直到满足特定条件。</li>
+<li><code>wait_timeout_async(dur)</code>：异步等待带超时机制。</li>
+<li><code>wait_timeout_until_async(dur, condition)</code>：异步等待直到满足条件或超时（本项目核心依赖项）。</li>
+</ul>
+<h4 id="3-1-2-simple-sdmmc-驱动：非轮询化同步通道"><a href="#3-1-2-simple-sdmmc-驱动：非轮询化同步通道" class="headerlink" title="3.1.2 simple-sdmmc 驱动：非轮询化同步通道"></a>3.1.2 <code>simple-sdmmc</code> 驱动：非轮询化同步通道</h4><p>在同步 DMA 发送接口 <code>send_cmd_idmac</code> 中，<strong>彻底移除了原有的 CPU 忙轮询循环</strong>（原循环通过不断调用 <code>axtask::yield_now()</code> 轮询原子标志，浪费大量 CPU 周期并且无法真正让线程进入 Blocked 状态）：</p>
+<h5 id="修改前：忙轮询-CPU-忙等待"><a href="#修改前：忙轮询-CPU-忙等待" class="headerlink" title="修改前：忙轮询 (CPU 忙等待)"></a>修改前：忙轮询 (CPU 忙等待)</h5><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> !IDMAC_DONE_FLAG.load(Ordering::Acquire) &#123;</span><br><span class="line">    <span class="keyword">if</span> axhal::time::wall_time() &gt;= deadline &#123; ... &#125;</span><br><span class="line">    axtask::yield_now(); <span class="comment">// 忙等待，任务仍留在就绪队列</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="修改后：挂起阻塞-让出-CPU"><a href="#修改后：挂起阻塞-让出-CPU" class="headerlink" title="修改后：挂起阻塞 (让出 CPU)"></a>修改后：挂起阻塞 (让出 CPU)</h5><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> dma_irq_timed_out = IDMAC_WAIT_QUEUE.wait_timeout_until(</span><br><span class="line">    Duration::from_secs(<span class="number">1</span>),</span><br><span class="line">    || IDMAC_DONE_FLAG.load(Ordering::Acquire) || IDMAC_ERROR_FLAG.load(Ordering::Acquire),</span><br><span class="line">); <span class="comment">// 真正的线程阻塞，被移出就绪队列</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>同步读写映射</strong>：<code>read_block</code> 和 <code>write_block</code> 保持同步签名，并在内部直接调用该同步的 <code>send_cmd_idmac</code> 接口。当调用发生时，当前 OS 线程会被挂起进入睡眠状态，直到 DMA 中断到来触发 <code>IDMAC_WAIT_QUEUE.notify_one()</code> 或超时。</li>
+</ul>
+<h4 id="3-1-3-simple-sdmmc-驱动：原生异步协程通道"><a href="#3-1-3-simple-sdmmc-驱动：原生异步协程通道" class="headerlink" title="3.1.3 simple-sdmmc 驱动：原生异步协程通道"></a>3.1.3 <code>simple-sdmmc</code> 驱动：原生异步协程通道</h4><p>在 [sdmmc.rs] 中全面引入了原生的异步协程读写逻辑：</p>
+<ul>
+<li><strong><code>send_cmd_idmac_async</code> (异步 DMA 发送核心)</strong>：新建异步 DMA 命令发送接口。在等待 DMA 中断时，调用 <code>.wait_timeout_until_async(...).await</code> 将当前协程注册挂起。此过程<strong>完全不阻塞底层的 OS 线程</strong>，线程可以立刻去运行同一个线程内的其他协程。</li>
+<li><strong><code>read_block_async</code> 与 <code>write_block_async</code> (异步读写接口)</strong>：新增两个公共异步方法。它们通过 <code>.await</code> 挂起等待 <code>send_cmd_idmac_async</code> 执行完成。一旦中断触发唤醒，协程继续在用户态被 poll 推进，完成后续 of DMA 缓冲区数据搬运工作。</li>
+</ul>
+<hr>
+<h3 id="3-2-架构模式对比与优劣分析"><a href="#3-2-架构模式对比与优劣分析" class="headerlink" title="3.2 架构模式对比与优劣分析"></a>3.2 架构模式对比与优劣分析</h3><p>在开发过程中，我对两种主流的“同步/异步共存”设计模式进行了对比，最终选择了性能最优的<strong>独立双通道设计</strong>：</p>
+<table>
+<thead>
+<tr>
+<th align="left">维度</th>
+<th align="left">方案 A：统一异步内核 + <code>block_on</code> 包装（已废弃）</th>
+<th align="left">方案 B：独立双通道设计（当前采用）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>具体实现</strong></td>
+<td align="left">同步的 <code>read_block</code> 内部直接调用 <code>block_on(read_block_async)</code>。</td>
+<td align="left">同步与异步各走一套底层的 <code>send_cmd_idmac</code> 接口。</td>
+</tr>
+<tr>
+<td align="left"><strong>代码复用性</strong></td>
+<td align="left"><strong>高</strong>。DMA 的设置和拷贝逻辑只写了一遍，没有冗余。</td>
+<td align="left"><strong>较低</strong>。同步路径和异步路径 of DMA 配置结构存在重复。</td>
+</tr>
+<tr>
+<td align="left"><strong>同步路径性能</strong></td>
+<td align="left"><strong>略低</strong>。每次同步调用都需要额外付出创建协程 Waker、Pin 状态机以及运行 <code>block_on</code> 循环的 CPU 额外开销。</td>
+<td align="left"><strong>极致（最高）</strong>。同步读写直接调用 <code>send_cmd_idmac</code>，为纯同步函数调用，没有任何运行时的额外损耗。</td>
+</tr>
+<tr>
+<td align="left"><strong>异步路径并发</strong></td>
+<td align="left"><strong>高</strong>。协程非阻塞挂起。</td>
+<td align="left"><strong>高</strong>。协程非阻塞挂起。</td>
+</tr>
+<tr>
+<td align="left"><strong>错误调试难度</strong></td>
+<td align="left"><strong>高</strong>。同步调用栈中会混入异步状态机的匿名类型与 runtime 调用栈。</td>
+<td align="left"><strong>极低</strong>。同步调用栈就是普通的底层寄存器和锁操作，易于定位。</td>
+</tr>
+</tbody></table>
+<p><strong>结论</strong>：在操作系统内核和设备驱动开发中，<strong>性能和低确定性延迟是第一优先级</strong>。因此，方案 B 虽然带来了少量的 DMA 配置逻辑重复，但保证了同步路径的极限吞吐量，是更为妥当的系统级驱动重构设计。</p>
+<hr>
+<h2 id="四、-完整的异步读-写执行流"><a href="#四、-完整的异步读-写执行流" class="headerlink" title="四、 完整的异步读/写执行流"></a>四、 完整的异步读/写执行流</h2><p>以异步读取 <code>read_block_async</code> 为例，下面详细展示其整体的事件传播与状态转换链路：</p>
+<h3 id="4-1-协程-Waker-唤醒机制与-event-listener-的绑定"><a href="#4-1-协程-Waker-唤醒机制与-event-listener-的绑定" class="headerlink" title="4.1 协程 Waker 唤醒机制与 event_listener 的绑定"></a>4.1 协程 Waker 唤醒机制与 <code>event_listener</code> 的绑定</h3><p>当底层没有数据到来或 DMA 未完成时，协程必须挂起。唤醒机制的底层运转如下：</p>
+<ul>
+<li><strong>挂起与登记</strong>：<ol>
+<li>协程在 <code>wait_timeout_until_async</code> 的 <code>.await</code> 处被执行器 <code>poll</code> 时，会在栈上构造一个 <code>EventListener</code>。</li>
+<li><code>EventListener</code> 将自身以链表节点的形式注册到全局 <code>IDMAC_WAIT_QUEUE</code> 中。</li>
+<li><code>event-listener</code> 会在 poll 过程中获取当前协程上下文的 <code>Waker</code>（由上层执行器传入），并将其克隆并绑定到该监听器节点上。</li>
+<li>如果等待的条件（例如 <code>IDMAC_DONE_FLAG</code>）尚未满足，则 poll 返回 <code>Poll::Pending</code>。执行器接收到 <code>Pending</code> 后，会把当前协程移出活跃就绪链表，暂停对其调度。</li>
+</ol>
+</li>
+<li><strong>中断精准唤醒</strong>：<ol>
+<li>DMA 数据传输完成，硬件触发物理中断，CPU 强行中断当前线程并跳转到 <code>SdMmc::handle_interrupt()</code> 中断服务程序（ISR）。</li>
+<li>ISR 中，驱动清除硬件中断状态并原子 store 将 <code>IDMAC_DONE_FLAG</code> 设为 <code>true</code>。</li>
+<li>接着调用 <code>IDMAC_WAIT_QUEUE.notify_one(true)</code>。</li>
+<li><code>notify_one</code> 会在等待队列链表中找到该协程对应的 <code>EventListener</code>，提取出其中的 <code>Waker</code>，并调用 <code>waker.wake()</code>。</li>
+<li>此时，该协程状态被标记为就绪，重新放回执行器的就绪调度队列中。</li>
+</ol>
+</li>
+</ul>
+<h3 id="4-2-原子变量的协作"><a href="#4-2-原子变量的协作" class="headerlink" title="4.2 原子变量的协作"></a>4.2 原子变量的协作</h3><p>在多核或中断可能抢占的环境下，使用原子变量来进行状态标志通信至关重要：</p>
+<ul>
+<li><strong><code>IDMAC_DONE_FLAG: AtomicBool</code></strong>：标明 DMA 传输是否成功结束。在触发 DMA 传输前置为 <code>false</code>，在硬件中断成功接收到完成信号时置为 <code>true</code>。</li>
+<li><strong><code>IDMAC_ERROR_FLAG: AtomicBool</code></strong>：标明硬件（如控制器或 DMA）是否发生了致命错误。在中断处理函数检测到错误位（如 FBE、DU、CES）时置为 <code>true</code>。</li>
+<li><strong>内存顺序（Ordering）</strong>：使用 <code>Ordering::Acquire</code> and <code>Ordering::Release</code> 保证多核/中断上下文之间的数据可见性与指令重排安全。</li>
+</ul>
+<h3 id="4-3-完整的调用与运转链路-Execution-Flow"><a href="#4-3-完整的调用与运转链路-Execution-Flow" class="headerlink" title="4.3 完整的调用与运转链路 (Execution Flow)"></a>4.3 完整的调用与运转链路 (Execution Flow)</h3><p>以异步读取 <code>read_block_async</code> 为例，完整的调用与运转链路如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant App as 上层应用&#x2F;执行器</span><br><span class="line">    participant Drv as SDMMC 驱动 (SdMmc)</span><br><span class="line">    participant WQ as 任务等待队列 (WaitQueue)</span><br><span class="line">    participant HW as SDMMC DMA 硬件</span><br><span class="line">    participant ISR as 中断服务程序 (ISR)</span><br><span class="line"></span><br><span class="line">    App-&gt;&gt;Drv: 1. read_block_async().await 发起读取</span><br><span class="line">    Drv-&gt;&gt;Drv: 2. 映射配置一致性 DMA 描述符与缓冲区</span><br><span class="line">    Drv-&gt;&gt;HW: 3. 写寄存器，触发 DMA 传输</span><br><span class="line">    Drv-&gt;&gt;WQ: 4. wait_timeout_until_async() 异步等待</span><br><span class="line">    Note over WQ: 创建 EventListener&lt;br&#x2F;&gt;将 Waker 注册到等待队列</span><br><span class="line">    WQ--&gt;&gt;App: 5. 返回 Poll::Pending 挂起协程</span><br><span class="line">    Note over App: 执行器切走，CPU 运行其它任务</span><br><span class="line">    Note over HW: DMA 硬件自动搬运数据到内存...</span><br><span class="line">    HW--&gt;&gt;ISR: 6. 传输完成触发物理中断</span><br><span class="line">    ISR-&gt;&gt;ISR: 7. 清理中断位，设置原子标志 DONE&#x3D;true</span><br><span class="line">    ISR-&gt;&gt;WQ: 8. notify_one() 唤醒监听者</span><br><span class="line">    Note over WQ: 获取对应的 Waker，调用 waker.wake()</span><br><span class="line">    WQ--&gt;&gt;App: 9. 协程重新放入就绪队列</span><br><span class="line">    App-&gt;&gt;Drv: 10. 执行器再次 poll 协程</span><br><span class="line">    Drv-&gt;&gt;WQ: 11. 重新检测 DONE 状态，发现满足条件</span><br><span class="line">    WQ--&gt;&gt;Drv: 12. 退出异步等待，返回</span><br><span class="line">    Drv-&gt;&gt;Drv: 13. 从 DMA 缓冲区拷贝数据至用户缓冲区</span><br><span class="line">    Drv--&gt;&gt;App: 14. 异步读取圆满完成，返回数据</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="五、-当前存在的问题"><a href="#五、-当前存在的问题" class="headerlink" title="五、 当前存在的问题"></a>五、 当前存在的问题</h2><p>由于我最终采用了物理隔离的同步和异步双通道设计（即独立的同步与异步底层接口），目前导致了以下两组函数在底层的 <strong>DMA 物理缓冲区分配</strong>、<strong>IDMAC 描述符链装配</strong>、以及<strong>读写的前后置数据同步搬运</strong>上存在约 <strong>80%</strong> 的代码逻辑重复：</p>
+<ul>
+<li><code>send_cmd_idmac</code> (同步) 与 <code>send_cmd_idmac_async</code> (异步)</li>
+<li><code>read_block</code> (同步) 与 <code>read_block_async</code> (异步)</li>
+<li><code>write_block</code> (同步) 与 <code>write_block_async</code> (异步)</li>
+</ul>
+<p>后续如果我要继续冗余代码的重构,大概就是把三个部分改造为辅助函数:</p>
+<h3 id="DMA-配置助手化"><a href="#DMA-配置助手化" class="headerlink" title="DMA 配置助手化"></a>DMA 配置助手化</h3><p>将当前冗余的一致性内存分配、<code>IdmacDescriptor</code> 结构体物理填充（包含控制字、缓冲区大小、缓冲区地址配置等）抽离为独立的公共辅助函数，例如：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">prepare_dma_desc</span></span>(...) -&gt; <span class="built_in">Result</span>&lt;DmaDescInfo, DmaError&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="读写前后置操作抽象"><a href="#读写前后置操作抽象" class="headerlink" title="读写前后置操作抽象"></a>读写前后置操作抽象</h3><p>将读操作的后置数据搬运拷贝（从物理连续的一致性 DMA 缓存拷贝至用户 buffer）、写操作的前置数据填充（从用户 buffer 拷贝至一致性 DMA 缓存）以及 DMA 一致性内存的释放生命周期管理，抽象出统一的辅助清理函数。</p>
+<h3 id="保持通道隔离并调用辅助函数"><a href="#保持通道隔离并调用辅助函数" class="headerlink" title="保持通道隔离并调用辅助函数"></a>保持通道隔离并调用辅助函数</h3><p>重构后，同步读写和异步读写只需在入口与出口分别调用上述公共抽象逻辑，而其核心等待与挂起机制（即同步直接阻塞 VS 异步协程挂起）依然维持完全隔离，在彻底消灭冗余代码的同时，完美保留同步路径的极限吞吐量性能。</p>
+<hr>
+<h2 id="六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答"><a href="#六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答" class="headerlink" title="六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答"></a>六、对于向老师所说的中断处理过程中的同步异步分别如何处理的问题的回答</h2><p>首先其实无论时同步还是异步,他们的底层都是一样的中断处理函数,都是一样设置状态标记（<code>IDMAC_DONE_FLAG</code>/<code>IDMAC_ERROR_FLAG</code>），然后唤醒等待的任务/协程<br>只是在硬件读写处理前，我们必须使用<strong>互斥锁（Mutex）</strong>来进行并发保护，且唤醒后在系统调度上存在核心差异：</p>
+<h3 id="1-硬件互斥锁定与防死锁设计"><a href="#1-硬件互斥锁定与防死锁设计" class="headerlink" title="1. 硬件互斥锁定与防死锁设计"></a>1. 硬件互斥锁定与防死锁设计</h3><p>由于 SDMMC 硬件是单通道独占设备，我们在发起 DMA 读写前必须获取驱动锁：</p>
+<ul>
+<li><strong>同步端</strong>：在获取互斥锁（如 <code>SpinNoIrq</code> 或操作系统互斥量）后，如果等待中断，会挂起当前线程。此时其他尝试获取锁的线程会被排队，直至前一个线程在中断中被唤醒并释放锁。</li>
+<li><strong>异步端</strong>：为了防止协程挂起时导致底层线程“死锁”，我们不能在 <code>.await</code> 期间持有物理自旋锁。上层对接时使用<strong>异步互斥锁（Async Mutex）</strong>，当一个协程挂起时，它会主动把锁让出来，允许同一物理线程内的其他协程正常运行。</li>
+</ul>
+<h3 id="2-中断唤醒的多态分发（Waker-多态）"><a href="#2-中断唤醒的多态分发（Waker-多态）" class="headerlink" title="2. 中断唤醒的多态分发（Waker 多态）"></a>2. 中断唤醒的多态分发（Waker 多态）</h3><p>在中断触发并调用 <code>notify_one</code> 时，底层通过 Rust 标准库 <code>Waker</code> 的虚函数表实现多态性，自动完成同步与异步的区分唤醒：</p>
+<ul>
+<li><strong>同步的 Waker</strong>：对应 <code>AxWaker</code>。其 <code>wake()</code> 实现会通知操作系统的调度器，直接将对应的<strong>物理线程</strong>状态改为 <code>Runnable</code>，从而在中断返回后可以通过内核调度器触发抢占式切换，物理线程恢复运行并拷贝数据。</li>
+<li><strong>异步的 Waker</strong>：对应协程执行器的 Waker。其 <code>wake()</code> 实现仅仅是将<strong>协程状态机</strong>标为 Ready 放入执行器的就绪链表。中断返回后物理线程不阻塞，由执行器随后 poll 推进协程状态。</li>
+</ul>
+<p>相关的仓库地址</p>
+<ul>
+<li><a href="https://github.com/PassingThroughStarDust/starry-sdmmc-dma-temp/tree/main" target="_blank" rel="noopener">余泽铖原代码仓库</a></li>
+<li><a href="https://github.com/xianxw/SDMMC" target="_blank" rel="noopener">我初次复现的代码仓库</a></li>
+<li><a href="https://github.com/xianxw/RETRY-SDMMC/tree/main" target="_blank" rel="noopener">异步化完成后的代码仓库</a></li>
+<li><a href="https://github.com/xianxw/Asyncos/tree/main/%E6%8A%A5%E5%91%8A" target="_blank" rel="noopener">训练营六周周报</a></li>
+<li><a href="https://github.com/xianxw/Asyncos/tree/main" target="_blank" rel="noopener">训练营其他阶段的工作</a></li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/15/20260615-daivy2333-%E5%BC%82%E6%AD%A5%E4%B8%B2%E5%8F%A3%E9%A9%B1%E5%8A%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/15/20260615-daivy2333-%E5%BC%82%E6%AD%A5%E4%B8%B2%E5%8F%A3%E9%A9%B1%E5%8A%A8/" class="post-title-link" itemprop="url">StarryOS 异步串口驱动</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-15 16:40:29" itemprop="dateCreated datePublished" datetime="2026-06-15T16:40:29+00:00">2026-06-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="一、项目背景"><a href="#一、项目背景" class="headerlink" title="一、项目背景"></a>一、项目背景</h2><p>StarryOS 是一个面向 RISC-V 的 Rust 内核项目，构建在 ArceOS 组件化框架之上。串口（UART）是内核与外界交互最重要的通道之一，承担三类任务：内核启动日志、Shell 终端交互、用户态高性能数据传输。</p>
+<p>项目原本使用同步阻塞式的串口实现。这种方式有两个问题：第一，用户态 Shell 的输入/输出会因串口速率阻塞调用方；第二，写多字节时 CPU 持续轮询硬件 FIFO，效率低下。我们的训练营阶段初步目标，就是在保留同步内核日志通道的同时，从零为用户态 Shell 提供一条非阻塞、可中断驱动、CPU 高效的异步串口通路。</p>
+<p>约束条件贯穿整个阶段：不修改任何上游框架、内核抽象层、硬件抽象层、底层驱动库；异步机制只引入社区主流的轻量级原子唤醒原语（<a href="https://docs.embassy.dev/embassy-sync/git/default/struct.AtomicWaker.html" target="_blank" rel="noopener"><code>embassy_sync::AtomicWaker</code></a>），禁止引入完整的异步入库。</p>
+<hr>
+<h2 id="二、训练营其他阶段工作"><a href="#二、训练营其他阶段工作" class="headerlink" title="二、训练营其他阶段工作"></a>二、训练营其他阶段工作</h2><p>训练营分阶段推进，前三个任务为后续主线工作奠定了协程与调度器的实践基础。</p>
+<p><strong>进程、线程、协程的性能对比</strong>。在统一数据量下对比三种并发模型，通过预取缓存、纯文件读取、可配置负载四步控制变量法排除了网络和解析的混淆。核心结论：I/O 密集型场景下协程较线程快 48% 至 82%，CPU 密集型场景下三者差异在 6% 以内，进程内存开销比线程和协程高 100 至 400 倍，结论经两轮独立运行验证零反转。</p>
+<p><strong>用户态线程与协程的深入实践</strong>。实现了一个支持优先级调度的用户态绿色线程库，通过裸函数栈布局手工实现上下文切换，支持 x86-64 Linux、Windows、RISC-V 64 三平台，全部代码可在 stable Rust 上编译运行。配套整理了无栈协程原理、绿色线程实现、执行流状态变迁三篇分析文档。</p>
+<p><strong>调度器对比与异步运行时优化</strong>。构建爬虫框架接入自研绿色线程和 Tokio 异步运行时，量化了四组调度配置在满载 CPU 与中量 I/O 场景下的差异。优化了 Tokio 优先级分发器：将基于二叉堆的逐任务分发改造为基于三队列的批量分发，使优先级模式与默认模式的实际耗时差距从 1.83 秒缩小至 0.11 秒，差距缩小 94%。</p>
+<hr>
+<h2 id="三、主要工作"><a href="#三、主要工作" class="headerlink" title="三、主要工作"></a>三、主要工作</h2><p>本阶段工作按三条主线展开。</p>
+<h3 id="主线一：从零实现-kernel-层异步串口驱动"><a href="#主线一：从零实现-kernel-层异步串口驱动" class="headerlink" title="主线一：从零实现 kernel 层异步串口驱动"></a>主线一：从零实现 kernel 层异步串口驱动</h3><h4 id="3-1-寄存器层验证"><a href="#3-1-寄存器层验证" class="headerlink" title="3.1 寄存器层验证"></a>3.1 寄存器层验证</h4><p>NS16550 UART 芯片只有 8 字节寄存器空间（偏移 0 到 7）。在早期验证中，由于对寄存器布局理解不到位，我们曾误用一个过大的寄存器步长，导致访问越界、触发总线错误。问题排查一度被误判为内存映射权限问题，使整体进度阻塞了将近一周。最终通过在同一页表映射内对比不同步长的读取结果，确认了是寄存器步长配置错误而非系统级权限问题，从而扫清了整个方向的最大障碍。这一教训让我们确立了「先排查代码 bug、再考虑系统级问题」的调试原则。</p>
+<blockquote>
+<p><strong>根因定位</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L27-L30" target="_blank" rel="noopener"><code>uart_init.rs:27-30</code></a> — <code>UART_STRIDE = 1</code> 及 LoadFault 注释</p>
+</blockquote>
+<p>寄存器操作通过本地 fork 的 <a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener"><code>uart_16550</code></a> 驱动库完成（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/Cargo.toml#L106" target="_blank" rel="noopener"><code>kernel/Cargo.toml:106</code></a> <code>path = &quot;../../uart_16550&quot;</code>），而非直接依赖 crates.io 版本。该库封装了 NS16550 的 <a href="https://github.com/daivy2333/uart_16550/blob/main/src/backend/mmio.rs" target="_blank" rel="noopener"><code>MMIO 后端</code></a>、<a href="https://github.com/daivy2333/uart_16550/blob/main/src/spec.rs" target="_blank" rel="noopener"><code>寄存器定义</code></a>（IER/ISR/LSR 等）和<a href="https://github.com/daivy2333/uart_16550/blob/main/src/spec.rs" target="_blank" rel="noopener"><code>中断类型枚举</code></a>，为上层提供安全的寄存器读写 API。我们在本地 fork 上的主要改动是为其新增了 <code>set_ier()</code> 公开写方法，使 IER 操作统一走安全 API 而非裸 <code>write_volatile</code>（详见 §3.6 修复三），后续 Q12 阶段还为其补充了 <a href="https://github.com/daivy2333/uart_16550/blob/main/src/embedded_io.rs" target="_blank" rel="noopener"><code>embedded_io_async</code> trait 实现</a>。</p>
+<h4 id="3-2-驱动三件套"><a href="#3-2-驱动三件套" class="headerlink" title="3.2 驱动三件套"></a>3.2 驱动三件套</h4><p>我们用三件套构成了异步串口的核心机制：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>环形缓冲区</strong></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a></td>
+<td>SPSC 无锁结构，64 KiB 每方向，使用 <code>atomic_ring_buffer</code> + <code>PollSet</code> 唤醒</td>
+</tr>
+<tr>
+<td><strong>中断服务程序（ISR）</strong></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a></td>
+<td>25 行极简实现：读 ISR → 禁中断 → AtomicWaker::wake → 返回</td>
+</tr>
+<tr>
+<td><strong>后台搬运任务</strong></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a></td>
+<td>RX/TX copier loop，NAPI 风格轮询/中断动态切换（阈值 16）</td>
+</tr>
+</tbody></table>
+<p>关键设计是 ISR 只做唤醒而不做数据搬运，搬运工作交给后台任务，保持 ISR 极简。整套三件套约 500 行代码，全部位于内核自身模块。</p>
+<blockquote>
+<p><strong>完整实现</strong>：<a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/drivers" target="_blank" rel="noopener"><code>kernel/src/drivers/</code></a></p>
+</blockquote>
+<h4 id="3-3-虚拟文件系统集成"><a href="#3-3-虚拟文件系统集成" class="headerlink" title="3.3 虚拟文件系统集成"></a>3.3 虚拟文件系统集成</h4><p>我们将异步串口封装为标准设备节点，对接现有的设备注册框架，使异步串口与项目内其他设备采用完全一致的接入方式。</p>
+<ul>
+<li>设备注册：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs#L222-L230" target="_blank" rel="noopener"><code>dev/mod.rs:222-230</code></a> — <code>/dev/console</code> (5,1) 绑定 <code>ASYNC_TTY</code></li>
+<li>设备操作：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/device_ops.rs" target="_blank" rel="noopener"><code>device_ops.rs</code></a> — <code>TtyRead</code>/<code>TtyWrite</code> + <code>embedded_io_async</code> trait 实现</li>
+<li>终端绑定：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ntty_async.rs" target="_blank" rel="noopener"><code>ntty_async.rs</code></a> — 泛型 <code>Tty&lt;AsyncUartReader, AsyncUartWriter&gt;</code>，<code>ProcessMode::External</code> 消除 yield storm</li>
+</ul>
+<p>终端层通过泛型绑定替换了 reader 和 writer 两个 trait，整个终端栈因此无须修改即可切换到异步通路。</p>
+<blockquote>
+<p><strong>TTY 层实现</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code> 行规则模块</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs" target="_blank" rel="noopener"><code>tty/mod.rs</code> Tty 泛型结构</a></p>
+</blockquote>
+<h4 id="3-4-Shell-双向异步打通"><a href="#3-4-Shell-双向异步打通" class="headerlink" title="3.4 Shell 双向异步打通"></a>3.4 Shell 双向异步打通</h4><p>在接收方向上，中断唤醒后台搬运任务，搬运任务填充环形缓冲区，用户态 Shell 从缓冲区读取，整条链路无阻塞。在发送方向上，用户态写入环形缓冲区，后台搬运任务将其送入硬件 FIFO，内核日志通道与异步通道共享同一个 UART 硬件但互不冲突，实现了「内核日志同步输出、用户态 Shell 异步交互」的共存架构。</p>
+<blockquote>
+<p><strong>共存实现</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs#L222-L230" target="_blank" rel="noopener"><code>dev/mod.rs:222-230</code></a> 设备注册 | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/entry.rs#L23-L28" target="_blank" rel="noopener"><code>entry.rs:23-28</code></a> 启动初始化 | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> copier 与 Console 互斥读 FIFO</p>
+</blockquote>
+<hr>
+<h3 id="主线二：性能与正确性的多轮打磨"><a href="#主线二：性能与正确性的多轮打磨" class="headerlink" title="主线二：性能与正确性的多轮打磨"></a>主线二：性能与正确性的多轮打磨</h3><p>异步通路打通后，我们用了八轮迭代打磨性能和正确性。</p>
+<blockquote>
+<p><strong>性能对比报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/benchmark-report-async.md" target="_blank" rel="noopener"><code>benchmark-report-async.md</code></a> | <strong>手动测试报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/manual-qa-report.md" target="_blank" rel="noopener"><code>manual-qa-report.md</code></a> | <strong>Console vs Async 对比</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a></p>
+</blockquote>
+<h4 id="3-5-热路径优化（Q5-阶段）"><a href="#3-5-热路径优化（Q5-阶段）" class="headerlink" title="3.5 热路径优化（Q5 阶段）"></a>3.5 热路径优化（Q5 阶段）</h4><p>对中断处理路径做了五项核心优化：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>优化</th>
+<th>代码位置</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>IER 值缓存为原子变量</strong>，读改写→单次写入</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L99-L109" target="_blank" rel="noopener"><code>uart_init.rs:99-109</code></a></td>
+<td>消除 MMIO RMW 开销</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>RX/TX 独立锁</strong>，消除读写伪竞争</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> 分设 <code>RingBufRx</code>/<code>RingBufTx</code></td>
+<td>解除读写互斥</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>批量读写接口</strong>替代逐字节操作</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L32-L35" target="_blank" rel="noopener"><code>uart_init.rs:32-35</code></a> <code>NAPI_BATCH_SIZE=64</code></td>
+<td>减少锁获取次数</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>唤醒去重</strong>（will_wake 检查），避免无意义唤醒</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L41" target="_blank" rel="noopener"><code>async_driver.rs:41,61-65</code></a></td>
+<td>减少 CPU 空转</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>NAPI 中断合并</strong>：连续成功≥16次切轮询，高吞吐减 90%+ IRQ</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L46-L60" target="_blank" rel="noopener"><code>async_driver.rs:46-60</code></a></td>
+<td>大幅降低中断频率</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>以上 5 项优化的代码位置见表格中各行的链接，对应优化编号 O2/O25~O34。</p>
+</blockquote>
+<h4 id="3-6-三轮正确性修复（Q7-Q8-阶段）"><a href="#3-6-三轮正确性修复（Q7-Q8-阶段）" class="headerlink" title="3.6 三轮正确性修复（Q7~Q8 阶段）"></a>3.6 三轮正确性修复（Q7~Q8 阶段）</h4><table>
+<thead>
+<tr>
+<th>#</th>
+<th>缺陷</th>
+<th>修复</th>
+<th>代码位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>NAPI 退出缺陷</strong>：轮询模式计数器只增不减、空数据时无法重置 → CPU 空转</td>
+<td>总量为 0 时重置 <code>consecutive</code> 计数器</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a></td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>ISR 持锁</strong>：中断处理路径仍持有 <code>SpinNoIrq</code>，违反 ISR 极简原则</td>
+<td>移除 ISR 内所有锁，改用 <code>read_isr_unlocked</code>/<code>read_lsr_unlocked</code></td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L72-L96" target="_blank" rel="noopener"><code>uart_init.rs:72-96</code></a></td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>IER 裸写绕过安全 API</strong>：<code>write_volatile</code> 裸地址写 IER，违反 MMIO 封装规则</td>
+<td>给底层驱动库新增 <code>set_ier()</code> 公开方法，统一所有写入路径</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L102-L109" target="_blank" rel="noopener"><code>uart_init.rs:102-109</code></a> + <a href="https://github.com/daivy2333/uart_16550/blob/main/src/lib.rs" target="_blank" rel="noopener"><code>uart_16550/src/lib.rs</code></a></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>以上 3 项修复的代码位置见表格中各行的链接。</p>
+</blockquote>
+<h4 id="3-7-多轮迭代优化（Q9-Q12-阶段）"><a href="#3-7-多轮迭代优化（Q9-Q12-阶段）" class="headerlink" title="3.7 多轮迭代优化（Q9~Q12 阶段）"></a>3.7 多轮迭代优化（Q9~Q12 阶段）</h4><p>在三轮正确性修复之上，我们又进行了五轮优化迭代：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>优化内容</th>
+<th>关键指标变化</th>
+<th>变更记录</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Q9</strong></td>
+<td>超时机制：VTIME 读超时复用 <code>axtask::future::timeout</code></td>
+<td>—</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a> VTIME 处理</td>
+</tr>
+<tr>
+<td><strong>Q10</strong></td>
+<td>数据路径优化：批量写入改造、缓冲容量扩充 3 倍、ldisc 锁粒度细化</td>
+<td>1B 延迟 145→122 µs（↓16%）</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a></td>
+</tr>
+<tr>
+<td><strong>Q11</strong></td>
+<td>终端与内存子系统一般性优化（mm/access、close_range、sendfile、tty unwrap）</td>
+<td>1B 延迟 122→118 µs；软件开销峰值↓40%</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs" target="_blank" rel="noopener"><code>tty/mod.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/mm" target="_blank" rel="noopener"><code>mm/</code></a></td>
+</tr>
+<tr>
+<td><strong>Q12</strong></td>
+<td>Embassy 路径 A：<code>atomic_ring_buffer</code> 无锁化、<code>embedded_io_async</code> 标准化、TC 硬件寄存器 tcdrain</td>
+<td>1B 延迟 P50=115.7 µs；软件开销↓31%（53.9→37.1 µs）；唤醒延迟 <del>200→</del>50 ns（8 点应用）</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/device_ops.rs" target="_blank" rel="noopener"><code>device_ops.rs</code></a> + <a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener"><code>uart_16550</code></a></td>
+</tr>
+<tr>
+<td><strong>Q6</strong></td>
+<td>⏳ 真板验证（VisionFive2）— 等待硬件</td>
+<td>—</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/Makefile" target="_blank" rel="noopener"><code>Makefile</code></a> vf2 目标</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Q12 性能回归测试</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/tests/benchmark.c" target="_blank" rel="noopener"><code>tests/benchmark.c</code></a> 用户态 benchmark 源码</p>
+</blockquote>
+<h4 id="3-8-已识别的反优化（排除的错误方向）"><a href="#3-8-已识别的反优化（排除的错误方向）" class="headerlink" title="3.8 已识别的反优化（排除的错误方向）"></a>3.8 已识别的反优化（排除的错误方向）</h4><p>我们对五类主流异步入库原语替换提案进行了评估，最终全部判定为反优化：</p>
+<table>
+<thead>
+<tr>
+<th>提案</th>
+<th>排除原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>MPMC Channel 替换 SPSC Ring Buffer</td>
+<td>丢失无锁特性、引入不必要的间接层</td>
+</tr>
+<tr>
+<td>异步 Mutex 替换同步 SpinLock</td>
+<td>反而更慢且无法跨等待点持有</td>
+</tr>
+<tr>
+<td>Watch 包装单个 AtomicBool</td>
+<td>对单一标志而言过度设计</td>
+</tr>
+<tr>
+<td>Semaphore 做事件计数</td>
+<td>用错了工具</td>
+</tr>
+<tr>
+<td><code>select!</code> 宏替换手动 poll</td>
+<td>与 axtask 协程调度器不兼容</td>
+</tr>
+<tr>
+<td>通用分发结构替代静态 AtomicWaker</td>
+<td>唤醒目标固定且极少时，静态唤醒已是 O(1)，通用结构反引入开销</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>上述反优化判定的对照实现：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ring_buffer.rs" target="_blank" rel="noopener"><code>ring_buffer.rs</code></a> SPSC 无锁方案（对应 OE1 Channel）、<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> AtomicWaker 静态唤醒（对应 OE2/OE3/通用分发结构）</p>
+</blockquote>
+<hr>
+<h3 id="主线三：方法论与经验沉淀"><a href="#主线三：方法论与经验沉淀" class="headerlink" title="主线三：方法论与经验沉淀"></a>主线三：方法论与经验沉淀</h3><p>核心原则：<strong>「先用轻量原语、复杂方案需评估改动范围与性能基准」</strong>。在评估五类异步入库原语替换提案后全部判定为反优化（详见 §3.8），避免后续在错误抽象上投入精力。整个阶段的工程决策与踩坑经验均已记录在项目文档体系中，此处不再展开。</p>
+<hr>
+<h2 id="四、量化成果与达到的效果"><a href="#四、量化成果与达到的效果" class="headerlink" title="四、量化成果与达到的效果"></a>四、量化成果与达到的效果</h2><h3 id="4-1-功能交付"><a href="#4-1-功能交付" class="headerlink" title="4.1 功能交付"></a>4.1 功能交付</h3><p>完成了从概念到内核虚拟机完整验证的异步串口栈：用户态 Shell 双向异步输入输出、标准事件轮询接口、非阻塞读取与 tcdrain 真异步、内核日志与用户态通道共存共享硬件。Shell 基本交互均工作正常。</p>
+<blockquote>
+<p><strong>手动 QA 报告</strong>（12 项测试全部 PASS，含真实终端输出证据）：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/manual-qa-report.md" target="_blank" rel="noopener"><code>manual-qa-report.md</code></a></p>
+</blockquote>
+<h3 id="4-2-性能数据"><a href="#4-2-性能数据" class="headerlink" title="4.2 性能数据"></a>4.2 性能数据</h3><blockquote>
+<p><strong>完整报告</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/benchmark-report-async.md" target="_blank" rel="noopener"><code>benchmark-report-async.md</code></a> | <strong>同步 vs 异步对比</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a></p>
+</blockquote>
+<p><strong>CPU 占用效率</strong>（统一数据量 10 万字节，端到端对比）：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>同步实现（Console）</th>
+<th>异步实现</th>
+<th>提升</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU 周期 / 字节</td>
+<td>3,835</td>
+<td>268（Q7）/ ~13（Q12）</td>
+<td>14.3× → 295×</td>
+</tr>
+<tr>
+<td>延迟中位数</td>
+<td>17.5 µs</td>
+<td>6.5 µs（Q7）/ 7.9 µs（Q12 无 tcdrain）</td>
+<td>2.2~2.7×</td>
+</tr>
+<tr>
+<td>P99 延迟</td>
+<td>324.5 µs</td>
+<td>43.1 µs</td>
+<td>7.5×</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>说明</strong>：上表中「268 cycles/byte」为 Q5/Q7 阶段数据（IER 缓存 + ISR 合并 + 批量 I/O 后），「~13 cycles/byte」为 Q12 阶段数据（<code>atomic_ring_buffer</code> 无锁化 + <code>embedded_io_async</code> 标准化后）。两个数据均来自 QEMU 实测，详见 <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/docs/uart-performance-comparison.md" target="_blank" rel="noopener"><code>uart-performance-comparison.md</code></a>。</p>
+</blockquote>
+<p><strong>环形缓冲区直测</strong>（绕过终端层，测量纯内核态通路）：每秒可搬运近 6 亿字节（RX 588,776 KB/s，TX 196,850 KB/s），延迟中位数 600 纳秒。</p>
+<p><strong>唤醒延迟</strong>：将异步唤醒从通用 <code>PollSet</code> 事件分发机制替换为静态 <code>AtomicWaker</code> 原子唤醒原语后，单次唤醒延迟从约 200 纳秒降至约 50 纳秒，提升约 4 倍。共有 8 处唤醒点应用了该优化（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> RX_WAKER/TX_WAKER/DRAIN_WAKER + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> copier 注册点）。</p>
+<p><strong>端到端预测</strong>（按 4096 字节数据量在真实硬件上估算）：吞吐量效率可达理论线速的 97.7%~97.9%，软件开销占比不足 2.3%；单字节平均延迟中，软件部分的开销约占三分之一（Q12 实测 37.1 µs）。</p>
+<p>需要说明的是，所有吞吐量数据在 QEMU 模拟器上<strong>不完全可信</strong>：QEMU 的 NS16550 设备模型不仿真真实的串口线延迟，因此真实硬件上的吞吐量会受 115200 波特率对应的每秒 11.5 KB 上限制约。可信的性能指标包括 CPU 周期占用、单字节延迟、唤醒延迟，这些在 QEMU 上也能准确反映。</p>
+<h3 id="4-3-代码与质量"><a href="#4-3-代码与质量" class="headerlink" title="4.3 代码与质量"></a>4.3 代码与质量</h3><ul>
+<li>新增代码约 500 行，全部位于 <a href="https://github.com/daivy2333/StarryOS/tree/asyncuart-dev/kernel/src/drivers" target="_blank" rel="noopener"><code>kernel/src/drivers/</code></a></li>
+<li>项目整体净增约 450 行（涉及 14 个内核侧文件 + 1 个底层驱动库文件）</li>
+<li>静态检查零错误零警告：编译器检查、代码风格检查、编译警告均清零</li>
+<li>死代码清理：移除 8 处确认无用的方法（共 76 行），保留 5 处预留接口</li>
+<li>多轮迭代全部通过完整的功能与性能回归测试</li>
+</ul>
+<hr>
+<h2 id="五、经验与教训"><a href="#五、经验与教训" class="headerlink" title="五、经验与教训"></a>五、经验与教训</h2><h3 id="5-1-根因复盘"><a href="#5-1-根因复盘" class="headerlink" title="5.1 根因复盘"></a>5.1 根因复盘</h3><p><strong>根因一：寄存器步长误用</strong>。NS16550 寄存器物理布局仅 8 字节，使用大于 1 的步长会导致寄存器访问超出硬件定义的范围。QEMU 模拟器对越界访问返回总线错误，在 RISC-V 上被解释为取指故障。在排查过程中，我们一度将故障归因于「内存映射权限不足」，并据此否决了多个上游修改方案。最终通过在同一页表映射内对比两种步长的访问结果，确认了真实根因是步长配置而非系统权限。</p>
+<blockquote>
+<p><strong>教训</strong>：硬件访问异常时，应优先排查寄存器布局与地址计算，再考虑页表权限等系统级问题。</p>
+<p><strong>代码证据</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L27-L30" target="_blank" rel="noopener"><code>uart_init.rs:27-30</code></a></p>
+</blockquote>
+<p><strong>根因二：非阻塞标志三入口未穷举</strong>。非阻塞读取标志需要从用户态一路传播到行规则模块。我们最初只在 ioctl 这一个入口做了处理，遗漏了文件打开和 fcntl 两个入口，导致用户在某些调用路径下设置了非阻塞标志却仍然阻塞等待。</p>
+<blockquote>
+<p><strong>教训</strong>：跨层状态传播必须穷举所有可能的入口路径，一个遗漏就意味着功能不完整。</p>
+<p><strong>三入口代码位置</strong>：<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/syscall/fs/fd_ops.rs#L105-L107" target="_blank" rel="noopener"><code>fd_ops.rs:105-107</code> open</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/syscall/fs/fd_ops.rs#L280-L283" target="_blank" rel="noopener"><code>fd_ops.rs:280-283</code> fcntl</a> | <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/mod.rs#L177-L179" target="_blank" rel="noopener"><code>tty/mod.rs:177-179</code> ioctl</a></p>
+</blockquote>
+<h3 id="5-2-可复用的设计模式"><a href="#5-2-可复用的设计模式" class="headerlink" title="5.2 可复用的设计模式"></a>5.2 可复用的设计模式</h3><p>以下九条设计模式在本项目中经过验证，未来可复用：</p>
+<ol>
+<li><strong>环形缓冲区 + 中断处理 + 后台搬运任务三件套</strong>：ISR 只唤醒、后台做数据搬运（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a>）</li>
+<li><strong>标准化设备注册框架</strong>：所有设备走同一接入路径（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/mod.rs" target="_blank" rel="noopener"><code>dev/mod.rs</code></a>）</li>
+<li><strong>终端层通过读写 trait 泛型绑定</strong>：实现终端栈与具体驱动的解耦（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/ntty_async.rs" target="_blank" rel="noopener"><code>ntty_async.rs</code></a> + <a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/pseudofs/dev/tty/terminal/ldisc.rs" target="_blank" rel="noopener"><code>ldisc.rs</code></a>）</li>
+<li><strong>中断合并与轮询模式动态切换</strong>：高吞吐场景自动减少中断次数（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs#L32-L60" target="_blank" rel="noopener"><code>async_driver.rs:32-35,46-60</code></a>）</li>
+<li><strong>批量读写接口替代逐字节操作</strong>：减少系统调用开销（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L32-L35" target="_blank" rel="noopener"><code>uart_init.rs:32-35</code></a>）</li>
+<li><strong>本地游标追踪已发送位置</strong>：避免内核日志与用户态输出交错（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/async_driver.rs" target="_blank" rel="noopener"><code>async_driver.rs</code></a> TX copier 游标逻辑）</li>
+<li><strong>静态原子唤醒替代通用事件分发</strong>：固定唤醒目标场景下的最优选择（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> AtomicWaker）</li>
+<li><strong>中断处理极简原则</strong>：全程只读标志寄存器、关闭中断、唤醒、返回（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/isr.rs" target="_blank" rel="noopener"><code>isr.rs</code></a> 25 行实现）</li>
+<li><strong>寄存器值缓存为原子变量</strong>：读改写转化为单次写入（<a href="https://github.com/daivy2333/StarryOS/blob/asyncuart-dev/kernel/src/drivers/uart_init.rs#L99-L109" target="_blank" rel="noopener"><code>uart_init.rs:99-109</code></a> <code>CACHED_IER</code>）</li>
+</ol>
+<h3 id="5-3-后续方向"><a href="#5-3-后续方向" class="headerlink" title="5.3 后续方向"></a>5.3 后续方向</h3><p>后续可能会参加实习继续完成向老师指出的后续方向：在真开发板上尝试（VisionFive2）、独立成 crate 用于多个 OS、完善驱动的文档；如果可能，对 I2C、SPI 驱动进行异步改进，看看尤予阳的工作并进行分析；尝试基于当前uart的异步实现总结异步开发范式（如果能做到）</p>
+<hr>
+<h2 id="六、工作仓库"><a href="#六、工作仓库" class="headerlink" title="六、工作仓库"></a>六、工作仓库</h2><table>
+<thead>
+<tr>
+<th>仓库</th>
+<th>链接</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>StarryOS（主仓库）</td>
+<td><a href="https://github.com/daivy2333/StarryOS" target="_blank" rel="noopener">https://github.com/daivy2333/StarryOS</a></td>
+</tr>
+<tr>
+<td>uart_16550（串口驱动库）</td>
+<td><a href="https://github.com/daivy2333/uart_16550" target="_blank" rel="noopener">https://github.com/daivy2333/uart_16550</a></td>
+</tr>
+<tr>
+<td>embassy（fork）</td>
+<td><a href="https://github.com/daivy2333/embassy" target="_blank" rel="noopener">https://github.com/daivy2333/embassy</a></td>
+</tr>
+<tr>
+<td>学习开发仓库</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport" target="_blank" rel="noopener">https://github.com/daivy2333/2026sOsReport</a></td>
+</tr>
+</tbody></table>
+<p>各阶段学习产出文档位于 <code>2026sOsReport</code> 仓库下：</p>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>链接</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>爬虫任务（任务一）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务一/docs/爬虫任务.md" target="_blank" rel="noopener"><code>产出/任务一/docs/爬虫任务.md</code></a></td>
+</tr>
+<tr>
+<td>绿色线程实验（任务二）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务二/green-thread/priority-extension.md" target="_blank" rel="noopener"><code>产出/任务二/green-thread/priority-extension.md</code></a></td>
+</tr>
+<tr>
+<td>优先级爬虫实验（任务三）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/任务三/docs/优先级调度在满负载下的效果分析.md" target="_blank" rel="noopener"><code>产出/任务三/docs/优先级调度在满负载下的效果分析.md</code></a></td>
+</tr>
+<tr>
+<td>异步数据库练习</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/产出/一些别的/异步数据库练习.md" target="_blank" rel="noopener"><code>产出/一些别的/异步数据库练习.md</code></a></td>
+</tr>
+<tr>
+<td>六月第一周（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/六月第一周.md" target="_blank" rel="noopener"><code>reports/六月第一周.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W20（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W20.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W20.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W21（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W21.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W21.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W22（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W22.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W22.md</code></a></td>
+</tr>
+<tr>
+<td>weekly-2026-W23（周报）</td>
+<td><a href="https://github.com/daivy2333/2026sOsReport/blob/main/reports/weekly-2026-W23.md" target="_blank" rel="noopener"><code>reports/weekly-2026-W23.md</code></a></td>
+</tr>
+</tbody></table>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>转眼训练营就到结束的时候，还记得我参加这个完全就是为了提升自己的能力，我觉得算是初步达到了目的，不管是搜寻资料、总结信息的能力，还是编程开发的分支、工具管理能力，还是形而上的抽象知识实际运用起来的动手能力，甚至是紧跟时代的 AI 工具使用的能力，这些都在解决训练营难题的过程中得到了有效的提升，就有种从只会读书的学生转变成了能解决问题的学生的感觉，参加训练营真是受益匪浅。<br>我个人对于ai工具的想法，是挺乐观的，因为这是大趋势，我也是某种程度上的受益者。总的而言，ai是一个放大器、加速器，能在具体任务里面帮我加倍、加速的完成任务，这本身就需要我去掌握一些深度学习、提示词工程和理解运用专业知识（比如操作系统那些知识）的能力。所以，我认为是因为我本来就有点基础有点能力，在加上训练营的训练培养，才能用好ai，才能在老师的指导下完成当前这些工作。<br>感觉参与训练营之后，学校的课程作业都变得异常简单。感谢操作系统训练营，感谢向老师在项目阶段给的指导。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/05/06/Leo%20Cheng%EF%BC%9A%E7%A1%AC%E4%BB%B6%E4%B9%8B%E4%B8%8A%E7%9A%84%E8%B5%84%E6%BA%90%E7%AE%A1%E7%90%86%E4%B8%8E%E5%88%86%E9%85%8D/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +1047,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -401,7 +1184,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -615,7 +1398,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -901,7 +1684,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2981,7 +3764,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3148,7 +3931,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4116,7 +4899,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4297,7 +5080,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 02:01:59" itemprop="dateModified" datetime="2026-06-30T02:01:59+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4364,461 +5147,6 @@
 <li><strong>确定性验证标准</strong> ：每一步必须给出明确可验证的测试/日志/行为变化，通过后再做下一步</li>
 </ol>
 <p>这套策略在专业阶段帮我避免了“AI 幻觉导致底层数据结构被悄悄破坏”的风险，也提高了推进效率，这也是我在本次训练营中领悟出来的使用技巧。从代码的写作转到审查代码，把控架构，也许我感觉这是能否在Vibe Coding的冲击中站稳脚跟的关键，以操作系统的设计为例，后者更考验对整个复杂系统的掌握，这就驱使着我们要加速脚步增加对知识的汲取。AI Coding 的效率不取决于模型的能力，而是取决于所使用的架构是否支持多工作树低冲突合并；AI 的能力边界也不取决于模型的能力，而是取决于工程过程可被 token 化的范围边界在哪里。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/28/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-rknpu%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/04/28/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-rknpu%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/" class="post-title-link" itemprop="url">实习总结报告:rknpu技术报告</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-04-28 12:47:28" itemprop="dateCreated datePublished" datetime="2026-04-28T12:47:28+00:00">2026-04-28</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <a id="more"></a>
-
-<h1 id="RKNPU驱动3个月开发技术总结"><a href="#RKNPU驱动3个月开发技术总结" class="headerlink" title="RKNPU驱动3个月开发技术总结"></a>RKNPU驱动3个月开发技术总结</h1><h1 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h1><p>本报告记录我在泉城实验室三个月实习期间针对Rockchip RK3588芯片，为其中的NPU构建一套可运行于StarryOS和其它OS上的驱动，覆盖从寄存器映射、DMA缓冲管理、任务描述符组装到多核调度与中断回收的完整链路。核心工作包括三项：三核并行执行路径的设计与实现，使同一批任务可按 lane 分发到不同 NPU core；统一排队调度器，支持多线程共享 NPU 并通过 per-submit waiter 保持阻塞式 ioctl 语义；以及基于 SVD/svd2rust 生成的 <code>rknpu-regs</code> 寄存器访问库，以类型化接口替代裸地址编程。在此基础上，通过四个 benchmark 场景验证了三核算力收益，所有场景均实现正加速</p>
-<h2 id="一、项目内容与用途"><a href="#一、项目内容与用途" class="headerlink" title="一、项目内容与用途"></a>一、项目内容与用途</h2><p>这个项目的对象是 RK3588 NPU 驱动及其在 StarryOS 上的系统集成。它的作用：让上层推理程序、benchmark 或后续 runtime 能稳定地把任务提交给 NPU 执行，而不是只能依赖 Linux 或闭源用户态库环境。</p>
-<p>当前驱动已经覆盖了几条基础链路：</p>
-<ol>
-<li>寄存器/MMIO 访问：能够映射 RK3588 RKNPU 三个 core 的寄存器窗口，并通过寄存器接口完成 PC、CNA、DPU 等硬件模块的配置。</li>
-<li>GEM/DMA 缓冲管理：支持用户态创建、映射、同步和销毁 NPU 可访问的 DMA buffer。</li>
-<li>任务描述符组织：支持 <code>RknpuTask</code>、regcmd、输入/权重/输出 buffer 的组合，并把这些描述符作为 submit 的基本执行单元。</li>
-<li>ioctl 服务：支持 <code>Submit</code>、<code>MemCreate</code>、<code>MemMap</code>、<code>MemDestroy</code>、<code>MemSync</code>、<code>Action</code> 等 RKNPU 专用入口。</li>
-<li>中断与 completion 回收：IRQ handler 负责读取硬件完成状态，调度器再根据 core 绑定关系把 completion 还原到具体任务。</li>
-<li>多核调度：在一个 submit 中按 lane 把任务切到不同 core，同时支持多个 submit 进入队列等待。</li>
-</ol>
-<h2 id="二、本轮二次开发重点"><a href="#二、本轮二次开发重点" class="headerlink" title="二、本轮二次开发重点"></a>二、本轮二次开发重点</h2><h3 id="2-1-支持-RK3588-三核-NPU-执行"><a href="#2-1-支持-RK3588-三核-NPU-执行" class="headerlink" title="2.1 支持 RK3588 三核 NPU 执行"></a>2.1 支持 RK3588 三核 NPU 执行</h3><p>RK3588 的 RKNPU 不是单个执行核心，而是三个可以并行工作的 NPU core。早期单核路径只证明了“任务能跑”，但没有把硬件并行能力发挥出来。本轮二次开发首先把提交路径改成能够识别 <code>core_mask</code> 和 <code>subcore_task</code>，让同一批任务可以被拆成多个 lane 分发到不同 core。</p>
-<p>当前的三核执行模型可以概括为：</p>
-<ol>
-<li>用户态仍然通过一个 <code>RknpuSubmit</code> 提交任务批次。</li>
-<li><code>subcore_task[]</code> 描述每个 lane 的任务范围；如果用户态没有显式填写 lane，队列层会把任务归一化到默认 lane。</li>
-<li><code>core_mask</code> 决定这次 submit 允许使用哪些物理 core，例如 <code>0x1</code> 表示只用 core0，<code>0x7</code> 表示三个 core 都可用。</li>
-<li>调度器为每个空闲 core 挑选一个可派发 lane，然后调用底层 driver 对该 core 编程。</li>
-<li>core 完成后，IRQ 路径发布 raw completion，调度器再回收并推进对应 lane 的 cursor。</li>
-</ol>
-<p>这部分工作的重点不是简单把同一条命令发三遍，而是要保证每个 core 跑的是正确的 task slice，同一条 lane 不会被重复派发，completion 也能回到正确的 submit 和 task index。只有这些状态对齐，多核数据才有意义。</p>
-<h3 id="2-2-任务调度器与多线程共享-NPU"><a href="#2-2-任务调度器与多线程共享-NPU" class="headerlink" title="2.2 任务调度器与多线程共享 NPU"></a>2.2 任务调度器与多线程共享 NPU</h3><p>第二个是任务调度器。NPU 是共享硬件资源，不能让多个线程各自直接碰寄存器，否则很容易出现 core 状态、任务进度和 completion 归属混乱。当前实现保留外部的 blocking submit 语义，但内部引入了调度队列和 worker 线程：</p>
-<ol>
-<li>调用线程进入 <code>Submit</code> ioctl 后，不直接独占 NPU 跑完整批任务，而是把 submit 放进 scheduler。</li>
-<li>每个 submit 有自己的 waiter。调用线程只等待“自己的 submit 是否完成”。</li>
-<li>全局 worker 负责真正的 dispatch 和 harvest。它被 kick 唤醒后，先回收已完成 core，再给空闲 core 下发新任务。</li>
-<li>scheduler 维护 ready、running、complete 这些状态。ready 表示还没开始跑的 submit，running 表示已有 lane 在跑或还有 lane 可继续派发，complete 表示终态结果等待 ioctl 路径取回。</li>
-<li>如果 running submit 还有可派发 lane，会优先继续推进 running，而不是马上切到一个全新的 ready submit。这样可以减少同一 submit 内部的等待空洞。</li>
-</ol>
-<p>service 层的 blocking submit 通过 per-submit waiter 阻塞：调用线程在 <code>wait_for_submit()</code> 上等待，直到 worker 将该 submit 移入 complete 并调用 <code>waiter.complete()</code> 唤醒它，再通过 <code>take_terminal_submit()</code> 取回终态结果。多个用户线程同时提交 NPU 任务时，线程可以各自阻塞在自己的 waiter 上，NPU 由全局 worker 串行管理硬件状态并并行利用多个 core。换句话说，NPU 对外看起来仍是阻塞式设备，对内已经具备”多线程共享、队列化提交、三核流式执行”的基础形态。</p>
-<p>这版调度器的价值就在这里：它没有把用户态 ABI 改复杂，但把内核侧的执行模型从”谁提交谁跑”推进到了”统一排队、统一分发、统一回收”。</p>
-<h3 id="2-3-引入-rknpu-regs-寄存器库"><a href="#2-3-引入-rknpu-regs-寄存器库" class="headerlink" title="2.3 引入 rknpu-regs 寄存器库"></a>2.3 引入 <code>rknpu-regs</code> 寄存器库</h3><p>寄存器访问层也做了工程化整理，引入了基于 SVD / <code>svd2rust</code> 生成的 <a href="/home/inkbottle/othersrc/npu/drivers/rknpu-regs">drivers/rknpu-regs</a>。驱动开发里手写寄存器偏移和位域非常容易出错，尤其是 NPU 这种寄存器块多、字段分散、不同 core 地址重复的硬件。</p>
-<p><code>rknpu-regs</code>：</p>
-<ol>
-<li>用类型化寄存器接口替代裸地址和 magic number。</li>
-<li>减少手工抄写偏移、位宽、mask 时的错误。</li>
-<li>让寄存器访问代码更接近硬件文档，后续查错更方便。</li>
-<li>把”访问寄存器”和”调度策略”拆开，避免调度器里混入大量底层地址细节。</li>
-</ol>
-<h2 id="三、benchmark-测试内容"><a href="#三、benchmark-测试内容" class="headerlink" title="三、benchmark 测试内容"></a>三、benchmark 测试内容</h2><h3 id="3-1-测量范围与方法"><a href="#3-1-测量范围与方法" class="headerlink" title="3.1 测量范围与方法"></a>3.1 测量范围与方法</h3><p>本次性能数据来自 <a href="/home/inkbottle/othersrc/npu/log.txt">log.txt</a> 中运行的 <code>./core_scaling_benchmark</code>，对应测试程序是 <a href="/home/inkbottle/othersrc/npu/demo/npu_benchmark/tests/core_scaling_benchmark.c">core_scaling_benchmark.c</a>。</p>
-<p><strong>测量窗口</strong>：仅覆盖 blocking <code>DRM_IOCTL_RKNPU_SUBMIT</code> 的完整往返时间，即 submit ioctl 从进入到返回。operand packing 和 regcmd generation 单独打印，不计入对比窗口。因此下面的数据反映的是 driver submit、scheduler dispatch/harvest、硬件执行和 completion 回收的综合耗时</p>
-<p><strong>指标定义</strong>：</p>
-<ul>
-<li><code>speedup = T_1core / T_3core</code>（同一批任务 1-core 与 3-core 的平均 submit 时间之比）</li>
-<li><code>parallel efficiency = speedup / 3</code>（理想三核加速为 3x，efficiency 衡量实际利用率）</li>
-<li><code>GFLOP/s = 2 × GMAC/s</code>（1 MAC = 1 乘 + 1 加 = 2 FLOP）</li>
-<li><code>jitter span = (T_max - T_min) / T_avg</code>（衡量单次 submit 时间的波动幅度）</li>
-</ul>
-<p><strong>正确性校验</strong>：第一轮 measured round 会对输出抽样与 CPU reference 比较，并检查每个 task 的 <code>int_status == 0x300</code>。这是抽样校验，不是全量验证。</p>
-<h3 id="3-2-测试环境"><a href="#3-2-测试环境" class="headerlink" title="3.2 测试环境"></a>3.2 测试环境</h3><ul>
-<li><strong>硬件平台</strong>：RK3588 SoC（三核 NPU）</li>
-<li><strong>操作系统</strong>：StarryOS比赛版本</li>
-<li><strong>Benchmark 程序</strong>：<code>core_scaling_benchmark</code>（4 场景 × 2 operand 模式）</li>
-<li><strong>测量轮次</strong>：每场景 warmup 2 轮 + measured 5-12 轮（场景相关）</li>
-<li><strong>频率/电源控制</strong>：未控制（默认 governor）</li>
-<li><strong>热稳态控制</strong>：未控制</li>
-<li><strong>IRQ 亲和性</strong>：未设置</li>
-</ul>
-<h3 id="3-3-测试场景"><a href="#3-3-测试场景" class="headerlink" title="3.3 测试场景"></a>3.3 测试场景</h3><p>每个场景一般又分两种 operand 模式：</p>
-<ol>
-<li><code>shared-operands</code>：所有任务复用同一份 input/weight，只有 output slice 私有。这更偏向测试调度和计算本身，DMA footprint 较小。</li>
-<li><code>unique-operands</code>：每个 task 有自己的 input/weight/output slice。这更接近多任务独立数据的情况，内存占用和准备成本更高。</li>
-</ol>
-<p>测试程序里固定了四个场景。它们不是随便取的矩阵形状，而是分别压不同瓶颈：</p>
-<table>
-<thead>
-<tr>
-<th>场景</th>
-<th>矩阵形状</th>
-<th align="right">shared tasks</th>
-<th align="right">unique tasks</th>
-<th align="right">warmup</th>
-<th align="right">measured</th>
-<th>主要验证点</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>tiny_dispatch</code></td>
-<td><code>M=4 K=32 N=16</code></td>
-<td align="right">96</td>
-<td align="right">96</td>
-<td align="right">2</td>
-<td align="right">12</td>
-<td>小矩阵，submit/scheduler 固定开销占比最高，用来观察多核调度在短任务下是否会被开销吞掉。</td>
-</tr>
-<tr>
-<td><code>mid_balanced</code></td>
-<td><code>M=64 K=512 N=512</code></td>
-<td align="right">48</td>
-<td align="right">12</td>
-<td align="right">2</td>
-<td align="right">8</td>
-<td>中等矩阵，调度开销和计算吞吐都会影响结果，用来判断调度器是否进入稳定可用区间。</td>
-</tr>
-<tr>
-<td><code>throughput_heavy</code></td>
-<td><code>M=128 K=1024 N=1024</code></td>
-<td align="right">24</td>
-<td align="right">4</td>
-<td align="right">2</td>
-<td align="right">5</td>
-<td>大矩阵，目标是把瓶颈推向 NPU 计算吞吐；unique 任务数较少，是为了控制 DMA footprint。</td>
-</tr>
-<tr>
-<td><code>llama_decode_like</code></td>
-<td><code>M=1 K=4096 N=4096</code></td>
-<td align="right">48</td>
-<td align="right">0</td>
-<td align="right">2</td>
-<td align="right">8</td>
-<td>低 M、高 K、高 N，接近 LLM decode 阶段线性层投影形状，更关注长任务延迟和尾部波动。</td>
-</tr>
-</tbody></table>
-<p><code>tiny_dispatch</code> 主要看调度器的“底噪”。如果这个场景三核退化，说明每次 dispatch、IRQ 回收、worker yield、waiter 唤醒的成本已经压过了硬件并行收益。它使用 96 个 task，任务数足够多，可以持续给三个 core 喂任务，但单 task 计算量非常小。</p>
-<p><code>mid_balanced</code> 是更接近日常 benchmark 的中间档。shared 模式有 48 个 task，unique 模式只有 12 个 task，因为 unique 模式每个 task 都有独立 input/weight/output，内存占用增长更快。这个场景用来观察调度器在“既有计算量、又有一定任务数量”的情况下是否稳定。</p>
-<p><code>throughput_heavy</code> 则故意把矩阵放大。shared 模式有 24 个 task，unique 模式只有 4 个 task。这里不是为了追求任务数，而是为了让每个 task 本身足够重，看三核并行能否把 GFLOP/s 拉上去。unique 任务数少也会暴露另一个问题：当任务批次太短时，三核并行窗口会变窄。</p>
-<p><code>llama_decode_like</code> 只跑 shared 模式，unique tasks 在测试程序里设为 0，所以日志里会跳过 unique。它模拟的是 decode 阶段常见的投影类 workload：M 很低，但 K 和 N 很大。这个场景不一定追求最高吞吐，更关心一次 submit 的阻塞时间能不能被多核明显压下来。</p>
-<p>输入和权重不是随机数，而是由 <code>deterministic_input_value()</code> 和 <code>deterministic_weight_value()</code> 生成的整数模式；输出会抽样和 CPU reference 比较。每个 task 的 <code>int_status</code> 也会检查，期望值是 <code>0x300</code>。任务分发时，<code>distribute_tasks_to_cores()</code> 会按 core 数把 task range 平均切到 <code>subcore_task[]</code>，1 core 时只填 core0，3 cores 时填 core0/core1/core2 并设置对应 <code>core_mask</code>。因此这个 benchmark 测到的不是单纯的 C 程序循环，而是完整覆盖了 submit ABI、调度器 lane 切分、三核 dispatch、IRQ completion 和 copy-back 这些路径。</p>
-<h2 id="四、benchmark-结果与性能分析"><a href="#四、benchmark-结果与性能分析" class="headerlink" title="四、benchmark 结果与性能分析"></a>四、benchmark 结果与性能分析</h2><h3 id="4-1-总体结论"><a href="#4-1-总体结论" class="headerlink" title="4.1 总体结论"></a>4.1 总体结论</h3><p>所有有效场景里，三核都比单核快，没有出现最终退化。最好的场景是 <code>llama_decode_like/shared-operands</code>，从 <code>344.354 ms</code> 降到 <code>137.000 ms</code>，speedup 达到 <code>2.514x</code>，parallel efficiency 为 <code>83.78%</code>。这说明调度器已经能把 RK3588 三个 NPU core 的并行能力用起来。</p>
-<p>三核都有正收益,但大多数场景的 parallel efficiency 仍在 <code>57%</code> 到 <code>68%</code> 左右</p>
-<h3 id="4-2-结果汇总"><a href="#4-2-结果汇总" class="headerlink" title="4.2 结果汇总"></a>4.2 结果汇总</h3><table>
-<thead>
-<tr>
-<th>场景</th>
-<th>模式</th>
-<th align="right">任务数</th>
-<th align="right">1-core avg submit</th>
-<th align="right">3-core avg submit</th>
-<th align="right">speedup</th>
-<th align="right">parallel efficiency</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>tiny_dispatch</code></td>
-<td>shared</td>
-<td align="right">96</td>
-<td align="right"><code>2.533 ms</code></td>
-<td align="right"><code>1.423 ms</code></td>
-<td align="right"><code>1.780x</code></td>
-<td align="right"><code>59.32%</code></td>
-</tr>
-<tr>
-<td><code>tiny_dispatch</code></td>
-<td>unique</td>
-<td align="right">96</td>
-<td align="right"><code>3.478 ms</code></td>
-<td align="right"><code>1.739 ms</code></td>
-<td align="right"><code>2.000x</code></td>
-<td align="right"><code>66.67%</code></td>
-</tr>
-<tr>
-<td><code>mid_balanced</code></td>
-<td>shared</td>
-<td align="right">48</td>
-<td align="right"><code>32.496 ms</code></td>
-<td align="right"><code>18.746 ms</code></td>
-<td align="right"><code>1.733x</code></td>
-<td align="right"><code>57.78%</code></td>
-</tr>
-<tr>
-<td><code>mid_balanced</code></td>
-<td>unique</td>
-<td align="right">12</td>
-<td align="right"><code>10.459 ms</code></td>
-<td align="right"><code>6.065 ms</code></td>
-<td align="right"><code>1.724x</code></td>
-<td align="right"><code>57.48%</code></td>
-</tr>
-<tr>
-<td><code>throughput_heavy</code></td>
-<td>shared</td>
-<td align="right">24</td>
-<td align="right"><code>42.656 ms</code></td>
-<td align="right"><code>20.864 ms</code></td>
-<td align="right"><code>2.044x</code></td>
-<td align="right"><code>68.15%</code></td>
-</tr>
-<tr>
-<td><code>throughput_heavy</code></td>
-<td>unique</td>
-<td align="right">4</td>
-<td align="right"><code>6.781 ms</code></td>
-<td align="right"><code>3.939 ms</code></td>
-<td align="right"><code>1.721x</code></td>
-<td align="right"><code>57.38%</code></td>
-</tr>
-<tr>
-<td><code>llama_decode_like</code></td>
-<td>shared</td>
-<td align="right">48</td>
-<td align="right"><code>344.354 ms</code></td>
-<td align="right"><code>137.000 ms</code></td>
-<td align="right"><code>2.514x</code></td>
-<td align="right"><code>83.78%</code></td>
-</tr>
-</tbody></table>
-<h3 id="4-3-tiny-dispatch：小任务也有明显收益"><a href="#4-3-tiny-dispatch：小任务也有明显收益" class="headerlink" title="4.3 tiny_dispatch：小任务也有明显收益"></a>4.3 <code>tiny_dispatch</code>：小任务也有明显收益</h3><p><code>tiny_dispatch</code> 的矩阵规模很小，单 task 的计算量低。当前结果里，shared 模式从 <code>2.533 ms</code> 降到 <code>1.423 ms</code>，unique 模式从 <code>3.478 ms</code> 降到 <code>1.739 ms</code>。这说明当前调度器的固定开销没有大到完全吞掉三核收益，小任务也能加速。</p>
-<p>但是这个场景的性能不能过度解读。shared 模式 parallel efficiency 是 <code>59.32%</code>，unique 模式是 <code>66.67%</code>，距离理想三核加速2x以上仍有明显差距。小任务下，每次 dispatch 和 completion 的成本占比很高，真正花在矩阵计算上的时间太短。后续如果要优化小任务，需要减少每 task 的下发/回收成本，或者把更多小 task 合并成更粗粒度的 batch。</p>
-<h3 id="4-4-mid-balanced：中等任务证明调度器进入显著加速区间"><a href="#4-4-mid-balanced：中等任务证明调度器进入显著加速区间" class="headerlink" title="4.4 mid_balanced：中等任务证明调度器进入显著加速区间"></a>4.4 <code>mid_balanced</code>：中等任务证明调度器进入显著加速区间</h3><p><code>mid_balanced</code> 是这次比较有代表性的场景。shared 模式中，1 core 平均 submit 为 <code>32.496 ms</code>，3 core 为 <code>18.746 ms</code>，speedup 为 <code>1.733x</code>。unique 模式中，1 core 为 <code>10.459 ms</code>，3 core 为 <code>6.065 ms</code>，speedup 为 <code>1.724x</code>。</p>
-<p>这个结果说明，调度器在中等任务规模下已经进入稳定可用区间。两种 operand 模式都接近 <code>1.7x</code>，没有只在某一种特殊数据复用方式下才有效。它也说明当前瓶颈不只是数据准备，因为 benchmark 的 measured window 没把 operand packing 算进去；submit 阶段本身确实因为多核并行缩短了。</p>
-<h3 id="4-5-throughput-heavy：吞吐型任务收益更明显"><a href="#4-5-throughput-heavy：吞吐型任务收益更明显" class="headerlink" title="4.5 throughput_heavy：吞吐型任务收益更明显"></a>4.5 <code>throughput_heavy</code>：吞吐型任务收益更明显</h3><p><code>throughput_heavy</code> 的 shared 模式从 <code>42.656 ms</code> 降到 <code>20.864 ms</code>，speedup 达到 <code>2.044x</code>，parallel efficiency 为 <code>68.15%</code>。同时 GFLOP/s 从 <code>151.033</code> 提升到 <code>308.786</code>，基本也是 <code>2.044x</code> 的增益。这个场景最能说明三核调度的直接价值：任务足够重之后，固定调度开销被摊薄，硬件并行执行开始成为主导因素。</p>
-<p>unique 模式任务数只有 4 个，这是为了控制 DMA footprint。它仍然从 <code>6.781 ms</code> 降到 <code>3.939 ms</code>，speedup 为 <code>1.721x</code>。任务数少会限制三核利用率，因为 worker 能同时派发的 lane 数量和后续补发机会都变少。这个结果没有 shared 模式好，但仍然是稳定正收益。</p>
-<h3 id="4-6-llama-decode-like：长任务场景收益最好，但-jitter-较大"><a href="#4-6-llama-decode-like：长任务场景收益最好，但-jitter-较大" class="headerlink" title="4.6 llama_decode_like：长任务场景收益最好，但 jitter 较大"></a>4.6 <code>llama_decode_like</code>：长任务场景收益最好，但 jitter 较大</h3><p><code>llama_decode_like</code> 是本次最强的结果。它的 shared 模式从 <code>344.354 ms</code> 降到 <code>137.000 ms</code>，speedup 达到 <code>2.514x</code>，parallel efficiency 为 <code>83.78%</code>，GFLOP/s 从 <code>4.677</code> 提升到 <code>11.756</code>。这说明在低 M、高 K、高 N 的投影类 workload 下，当前三核调度能显著降低 submit 阻塞时间。</p>
-<p>但这个场景也反应出在3-core 的 min/max 为 <code>126.027 / 139.504 ms</code>时，jitter span 达到 <code>9.84%</code>，明显高于 1-core 的 <code>0.03%</code>。也就是说，平均值很好，但三核路径下仍有一定波动。可能原因包括 worker harvest 时机、core completion 到达顺序、yield 后重新调度的时间差，以及更长任务下不同 core 之间的尾部等待。</p>
-<h3 id="4-7-这轮结果说明"><a href="#4-7-这轮结果说明" class="headerlink" title="4.7 这轮结果说明"></a>4.7 这轮结果说明</h3><ol>
-<li>三核支持已经有效。所有有效 benchmark 场景都显示 3-core submit 时间低于 1-core。</li>
-<li>调度器设计已在真实 benchmark 中转化为性能收益。ready/running 队列推进、core binding 和 completion 回收这套机制能够有效利用三核并行。需要注意的是，当前 benchmark 验证的是单次 blocking submit 内的多核扩展收益，而非多线程并发提交的竞争场景——后者是调度器设计支持的能力，但尚未专项测试。</li>
-<li>软件开销仍然存在。大多数场景没有接近理想 <code>3x</code>，说明 dispatch、harvest、同步和调度唤醒成本仍然需要优化。</li>
-</ol>
-<h2 id="五、功能模块分层与实现思想"><a href="#五、功能模块分层与实现思想" class="headerlink" title="五、功能模块分层与实现思想"></a>五、功能模块分层与实现思想</h2><p>当前实现可以按从上到下的链路理解。</p>
-<p>最上层是用户态 benchmark 或 runtime。它负责准备输入、权重、输出、regcmd 和 task array，然后通过 ioctl 提交任务。benchmark 还负责构造不同矩阵规模和不同 operand 共享模式，用来观察调度器在不同负载下的行为。</p>
-<p>再往下是 ioctl / service 边界层。它负责把用户态传进来的 <code>RknpuSubmit</code>、<code>RknpuTask[]</code> 和内存管理请求拷入内核，转换成驱动内部可以处理的数据。这里不应该保存太多调度状态，否则 ioctl 层会变成第二个 scheduler。</p>
-<p>scheduler 层负责 submit 生命周期。它维护 ready、running、complete 三个 bucket，管理每个 submit 的 waiter，也负责唤醒全局 worker。waiter 和 kick 的职责要分清：waiter 是 per-submit 的，回答”这个 submit 完成了吗”；kick 是全局 worker 信号，回答”现在有没有新活需要 worker 醒来处理”。这两个东西混在一起，调度器会很难读，也很容易漏唤醒。</p>
-<p>driver / dispatch / IRQ 层负责硬件事实。driver 给某个 core 编程，IRQ handler 读取和清除硬件中断，completion 只表示”某个 core 有原始完成状态”。至于这个 completion 属于哪个 submit、哪个 lane、哪个 task index，应由 scheduler 根据 core_binding 还原，而不是让 driver 反向保存一堆队列语义。</p>
-<p>最底层是寄存器访问层，也就是 <code>rknpu-regs</code>。它提供类型化 register API。调度器不应该知道太多寄存器细节，寄存器层也不应该知道队列策略。这个分层让后续工作可以分开推进：寄存器访问继续补全，调度策略继续优化，ioctl ABI 保持稳定。</p>
-<h2 id="六、当前限制与问题分析"><a href="#六、当前限制与问题分析" class="headerlink" title="六、当前限制与问题分析"></a>六、当前限制与问题分析</h2><ol>
-<li>三核收益仍然低于理想值。除了 <code>llama_decode_like</code> 达到 <code>83.78%</code> efficiency，多数场景仍在 <code>57%</code> 到 <code>68%</code> 左右。说明当前并行并不是完全线性扩展，软件路径还有明显成本。</li>
-<li>小任务场景仍然敏感。<code>tiny_dispatch</code> 虽然这次有正收益，但它的绝对 submit 时间只有毫秒级，任何一次额外调度、yield、IRQ 回收或锁竞争都会改变结果。后续如果要跑大量小算子，必须继续压低固定开销。</li>
-<li>3-core 路径存在尾延迟波动。<code>llama_decode_like</code> 的平均 speedup 很好，但 3-core jitter span 到了 <code>9.84%</code>。这提示我们不能只盯 avg submit，还要看 min/max 和尾延迟。</li>
-</ol>
-<h2 id="七、调度器的执行时序"><a href="#七、调度器的执行时序" class="headerlink" title="七、调度器的执行时序"></a>七、调度器的执行时序</h2><p>本节描述调度器的内部机制和执行流程，内容基于 <code>drivers/rknpu/src/service/scheduler.rs</code> 和 <code>drivers/rknpu/src/task/taskqueen.rs</code> 的实现。</p>
-<h3 id="7-1-核心数据结构"><a href="#7-1-核心数据结构" class="headerlink" title="7.1 核心数据结构"></a>7.1 核心数据结构</h3><p><strong><code>NpuSchedulerState</code></strong>（调度器全局状态，受单一 mutex 保护）：</p>
-<ul>
-<li><code>tasks: BTreeMap&lt;RknpuQueueTaskId, RknpuQueueTask&gt;</code> — 所有活跃 submit 的唯一所有者</li>
-<li><code>ready: BTreeMap&lt;i32, VecDeque&lt;RknpuQueueTaskId&gt;&gt;</code> — 按优先级分桶，尚未开始执行的 submit</li>
-<li><code>running: BTreeMap&lt;i32, VecDeque&lt;RknpuQueueTaskId&gt;&gt;</code> — 按优先级分桶，已有 lane 在执行或还有 lane 可派发的 submit</li>
-<li><code>complete: BTreeMap&lt;RknpuQueueTaskId, RknpuQueueTask&gt;</code> — 已终态，等待 ioctl 路径取回</li>
-<li><code>core_binding: BTreeMap&lt;usize, CoreRunBinding&gt;</code> — 物理 core → <code>{task_id, lane_slot, task_index}</code> 的归属映射</li>
-<li><code>waiters: BTreeMap&lt;RknpuQueueTaskId, Arc&lt;W&gt;&gt;</code> — per-submit 的阻塞等待器</li>
-</ul>
-<p><strong><code>RknpuQueueTask</code></strong>（单个 submit 的运行时状态）：</p>
-<ul>
-<li><code>lane_isrun: [bool; 5]</code> — 每条 lane 是否有任务在飞</li>
-<li><code>subcore_cursors: [u32; 5]</code> — 每条 lane 已完成的 task 数量</li>
-<li><code>last_error: Option&lt;RknpuError&gt;</code> — 错误状态</li>
-</ul>
-<p>submit 的生命周期状态（ready/running/complete）不是单独维护的枚举，而是由 <code>lane_isrun</code>、<code>subcore_cursors</code>、<code>last_error</code> 的组合派生，并通过 <code>reclassify_task()</code> 决定 submit 应归入哪个 bucket。</p>
-<h3 id="7-2-调度策略"><a href="#7-2-调度策略" class="headerlink" title="7.2 调度策略"></a>7.2 调度策略</h3><p><strong>running-before-ready</strong>：<code>dispatch_idle_cores()</code> 为每个空闲 core 选择候选时，优先从 <code>running</code> bucket 中找可继续派发的 submit（<code>prepare_dispatch_from_running</code>），只有当没有 running submit 可用时，才从 <code>ready</code> 提升新 submit（<code>promote_ready_and_prepare_dispatch</code>）。这减少了同一 submit 内部的等待空洞，但对等待中的 ready submit 不是严格公平的。</p>
-<p><strong>内存同步边界</strong>：</p>
-<ul>
-<li><code>comfirm_write_all()</code>：在一次 <code>dispatch_idle_cores()</code> 调用中，对某个 submit 首次派发前调用，确保 DMA 写入对硬件可见</li>
-<li><code>prepare_read_all()</code>：在 terminal submit 唤醒 waiter 前调用，确保硬件写回对 CPU 可见</li>
-</ul>
-<h3 id="7-3-图一：Submit-生命周期"><a href="#7-3-图一：Submit-生命周期" class="headerlink" title="7.3 图一：Submit 生命周期"></a>7.3 图一：Submit 生命周期</h3><p>注意:函数签名可能随着更新而改变实际函数签名以代码仓库中为准，此处只做流程解读</p>
-<p>下图展示单个 submit 从 ioctl 入队到 copy-back 返回的完整路径，以及多个并发 submit 线程如何通过独立 waiter 共享同一个 worker。</p>
-<img src="/blog/2026/04/28/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-rknpu%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/sumit_life_cycle.svg" class="" title="Logo">
-
-<h3 id="7-4-图二：Worker-主循环与多核派发"><a href="#7-4-图二：Worker-主循环与多核派发" class="headerlink" title="7.4 图二：Worker 主循环与多核派发"></a>7.4 图二：Worker 主循环与多核派发</h3><p>注意:函数签名可能随着更新而改变实际函数签名以代码仓库中为准，此处只做流程解读</p>
-<p>下图展示 worker 线程的主循环结构，以及 harvest 和 dispatch 如何交替推进多个 submit 的执行。</p>
-<img src="/blog/2026/04/28/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-rknpu%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A/worker_main.svg" class="" title="Logo">
-
-
-<h2 id="相关仓库"><a href="#相关仓库" class="headerlink" title="相关仓库"></a>相关仓库</h2><h3 id="驱动主仓库"><a href="#驱动主仓库" class="headerlink" title="驱动主仓库"></a>驱动主仓库</h3><p><a href="https://github.com/qc-gpu-driver/RKNPU" target="_blank" rel="noopener">RKNPU</a></p>
-<h3 id="StarryOS与驱动的桥接层"><a href="#StarryOS与驱动的桥接层" class="headerlink" title="StarryOS与驱动的桥接层"></a>StarryOS与驱动的桥接层</h3><p><a href="https://github.com/qc-gpu-driver/rknpu-starry-adapter" target="_blank" rel="noopener">rknpu-starry-adapter</a></p>
-<h2 id="效果视频，使用请看readme"><a href="#效果视频，使用请看readme" class="headerlink" title="效果视频，使用请看readme"></a>效果视频，使用请看readme</h2><p><a href="https://pan.baidu.com/s/1evJunV6zBck-QZ5HVqKMcQ?pwd=1234" target="_blank" rel="noopener">Video</a></p>
-<h2 id="PPT"><a href="#PPT" class="headerlink" title="PPT"></a>PPT</h2><p><a href="https://pan.baidu.com/s/1RGDsclfVY1zVTF6EM8dYkQ?pwd=1234" target="_blank" rel="noopener">PPT</a></p>
-<h2 id="开发日志"><a href="#开发日志" class="headerlink" title="开发日志"></a>开发日志</h2><p><a href="https://qc-gpu-driver.github.io/starryos-pulsar/" target="_blank" rel="noopener">Log</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/" class="post-title-link" itemprop="url">自动测试系统 与 starry-vdso 完善</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-04-27 21:27:01" itemprop="dateCreated datePublished" datetime="2026-04-27T21:27:01+00:00">2026-04-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 02:01:36" itemprop="dateModified" datetime="2026-06-30T02:01:36+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="本次实习工作总结"><a href="#本次实习工作总结" class="headerlink" title="本次实习工作总结"></a>本次实习工作总结</h1><h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>本次实习围绕 x86 自动化测试体系构建、starry-vdso 完善、以及基于自定义 vDSO 接口的 fast path 设计与实现 三条主线展开。完成了从 PXE 自动化部署验证、CI 集成、多组织资源锁适配，到多架构 vDSO/getcpu 支持、vvar 映射优化、自定义 fast path 加载与调用、eBPF→vDSO 数据通路打通等一系列工作。整体实现了 vDSO 基础设施、以及低延迟 fast path 机制上的重要增强，为后续可插拔调度器、动态 eBPF 策略与用户态零系统调用访问奠定了基础。</p>
-<h2 id="x86-自动化测试支持"><a href="#x86-自动化测试支持" class="headerlink" title="x86 自动化测试支持"></a>x86 自动化测试支持</h2><ol>
-<li><p>验证了 x86 平台使用 pxe 进行自动测试部署的流程，并编写<a href="https://github.com/HoshimiP/internship-log/blob/main/notes/pxe_boot_validation.md" target="_blank" rel="noopener">验证报告</a></p>
-</li>
-<li><p>拆分 pxe 部署脚本，并与已有 <a href="https://github.com/HoshimiP/github-runners/tree/feat/pxe-setup" target="_blank" rel="noopener">github-runners</a> 结合，使其能够在 CI 中自动触发测试</p>
-</li>
-<li><p>验证了部署流程与多组织资源锁 runner-wrapper 的适配，在 ubuntu+qemu 环境成功触发资源锁并执行完整测试</p>
-<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_1.jpg" class="" title="alt text">
-<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_2.jpg" class="" title="alt text">
-<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86_3.jpg" class="" title="alt text">
-</li>
-<li><p>由于本地环境限制（缺少物理开发板），将已完成部分交付给柏乔森老师负责真实硬件上的验证</p>
-</li>
-</ol>
-<h2 id="starry-vdso-的完善"><a href="#starry-vdso-的完善" class="headerlink" title="starry-vdso 的完善"></a>starry-vdso 的完善</h2><ol>
-<li>将 <a href="https://github.com/HoshimiP/starry-vdso" target="_blank" rel="noopener">starry-vdso</a> 接入 starryOS 验证时间相关函数已经能够走 vdso 路径 具体验证结果见<a href="https://github.com/HoshimiP/internship-log/blob/main/notes/vdso.md" target="_blank" rel="noopener">笔记</a></li>
-<li>修改了 x86 架构 getcpu 的初始化实现 为每个 cpu 分配独立 GDT 空间 解决多核场景下 CPU ID 获取不准确的问题<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/x86getcpu.png" class="" title="alt text"></li>
-<li>实现了 loongarch64 架构的 vdso_getcpu<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/loongarchgetcpu.png" class="" title="alt text">
-
-</li>
-</ol>
-<h2 id="基于自定义-vDSO-接口的-fast-path-设计与实现"><a href="#基于自定义-vDSO-接口的-fast-path-设计与实现" class="headerlink" title="基于自定义 vDSO 接口的 fast path 设计与实现"></a>基于自定义 vDSO 接口的 fast path 设计与实现</h2><ol>
-<li><p>使用 <a href="https://crates.io/crates/vdso_helper" target="_blank" rel="noopener">vdso-helper</a> 编译包含自定义 fast path 的 <code>.so</code> 文件，并完成在 StarryOS 中的加载与调用</p>
-<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/kvdso_api.png" class="" title="alt text">
-<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/kvdso_fast_path.png" class="" title="alt text">
-</li>
-<li><p>优化 starry-vdso 的 vvar 映射逻辑 使用户态可以正常通过 vdso基地址+偏移量 访问自定义 vdso 接口</p>
-</li>
-<li><p>在已有可加载模块 <code>modules/kebpf</code> 中增加 vdso 数据页的更新逻辑。当 eBPF 程序执行时，将结果从 map 写入 vvar，使用户态可以零系统调用读取结果，显著降低延迟</p>
-<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/fast_path.png" class="" title="alt text">
-</li>
-<li><p>在 <code>api/src/lib.rs</code> 处增加 vdso 数据页的更新逻辑，在 <code>register_timer_callback</code> 时同步更新 vvar 中的任务快照，确保 fast path 始终读取到最新状态</p>
-<img src="/blog/2026/04/27/%E8%87%AA%E5%8A%A8%E6%B5%8B%E8%AF%95%E7%B3%BB%E7%BB%9F-%E4%B8%8E-starry-vdso-%E5%AE%8C%E5%96%84/timer_callback_update.png" class="" title="alt text">
-
-</li>
-</ol>
-<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><h3 id="项目工程仓库"><a href="#项目工程仓库" class="headerlink" title="项目工程仓库"></a>项目工程仓库</h3><ul>
-<li>starry-vdso <a href="https://github.com/HoshimiP/starry-vdso" target="_blank" rel="noopener">https://github.com/HoshimiP/starry-vdso</a></li>
-<li>StarryOS/tree/vdso_for_ebpf <a href="https://github.com/HoshimiP/StarryOS/tree/vdso_for_ebpf" target="_blank" rel="noopener">https://github.com/HoshimiP/StarryOS/tree/vdso_for_ebpf</a></li>
-</ul>
-<h3 id="周报和工作总结"><a href="#周报和工作总结" class="headerlink" title="周报和工作总结"></a>周报和工作总结</h3><ul>
-<li>周报 <a href="https://github.com/HoshimiP/internship-log/blob/main/README.md" target="_blank" rel="noopener">README.md</a></li>
-<li>工作总结ppt <a href="https://docs.qq.com/slide/DWktBc2d4WEhkYnFM" target="_blank" rel="noopener">https://docs.qq.com/slide/DWktBc2d4WEhkYnFM</a></li>
-</ul>
-<h3 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h3><ul>
-<li>github-runners <a href="https://github.com/arceos-hypervisor/github-runners" target="_blank" rel="noopener">https://github.com/arceos-hypervisor/github-runners</a></li>
-<li>在 x86 物理机验证通过的自动测试文档 <a href="https://github.com/arceos-hypervisor/github-runners/blob/x86/docs/PXE%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md" target="_blank" rel="noopener">https://github.com/arceos-hypervisor/github-runners/blob/x86/docs/PXE%E9%83%A8%E7%BD%B2%E8%AF%B4%E6%98%8E.md</a></li>
-<li>vdso-helper <a href="https://crates.io/crates/vdso_helper" target="_blank" rel="noopener">https://crates.io/crates/vdso_helper</a></li>
-<li>StarryOS 支持内核可加载模块和 ebpf 的分支 <a href="https://github.com/Starry-OS/StarryOS/tree/kmod" target="_blank" rel="noopener">https://github.com/Starry-OS/StarryOS/tree/kmod</a></li>
-</ul>
 
       
     </div>
@@ -4934,59 +5262,6 @@
   
 
   
-      
-
-<script>
-  if (typeof MathJax === 'undefined') {
-    window.MathJax = {
-      loader: {
-        source: {
-          '[tex]/amsCd': '[tex]/amscd',
-          '[tex]/AMScd': '[tex]/amscd'
-        }
-      },
-      tex: {
-        inlineMath: {'[+]': [['$', '$']]},
-        tags: 'ams'
-      },
-      options: {
-        renderActions: {
-          findScript: [10, doc => {
-            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
-              const display = !!node.type.match(/; *mode=display/);
-              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
-              const text = document.createTextNode('');
-              node.parentNode.replaceChild(text, node);
-              math.start = {node: text, delim: '', n: 0};
-              math.end = {node: text, delim: '', n: 0};
-              doc.math.push(math);
-            });
-          }, '', false],
-          insertedScript: [200, () => {
-            document.querySelectorAll('mjx-container').forEach(node => {
-              let target = node.parentNode;
-              if (target.nodeName.toLowerCase() === 'li') {
-                target.parentNode.classList.add('has-jax');
-              }
-            });
-          }, '', false]
-        }
-      }
-    };
-    (function () {
-      var script = document.createElement('script');
-      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-      script.defer = true;
-      document.head.appendChild(script);
-    })();
-  } else {
-    MathJax.startup.document.state(0);
-    MathJax.texReset();
-    MathJax.typeset();
-  }
-</script>
-
-    
 
   
 
