@@ -184,7 +184,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">778</span>
+          <span class="site-state-item-count">779</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -197,7 +197,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">725</span>
+        <span class="site-state-item-count">727</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,133 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-WellDown64/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/28/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-WellDown64/" class="post-title-link" itemprop="url">2026春夏开源操作系统训练营总结-WellDown64</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-28 04:33:22" itemprop="dateCreated datePublished" datetime="2026-06-28T04:33:22+00:00">2026-06-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="方案一：以-syscall-为引导的改进"><a href="#方案一：以-syscall-为引导的改进" class="headerlink" title="方案一：以 syscall 为引导的改进"></a>方案一：以 syscall 为引导的改进</h3><p>这一阶段主要做的是进程控制与资源相关的 syscall 的测试。</p>
+<ul>
+<li><code>prlimit64</code> <a href="https://github.com/rcore-os/tgoskits/pull/801" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/801</a></li>
+<li><code>capget</code> <a href="https://github.com/rcore-os/tgoskits/pull/863" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/863</a></li>
+<li><code>capset</code> <a href="https://github.com/rcore-os/tgoskits/pull/898" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/898</a></li>
+<li><code>getrusage</code> <a href="https://github.com/rcore-os/tgoskits/pull/902" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/902</a></li>
+<li><code>arch_prctl</code> <a href="https://github.com/rcore-os/tgoskits/pull/1049" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1049</a></li>
+</ul>
+<p>这个方向的整体思路来自 <a href="https://github.com/rcore-os/tgoskits/issues/650" target="_blank" rel="noopener">Issue #650</a>：挑几个 StarryOS 里尚未覆盖或实现有问题的系统调用，补测试、修 bug，一个个啃过去。最终合了 5 个 PR，还有 1 个在 review 中。有两个 syscall（<code>prctl</code>、<code>riscv_flush_icache</code>）因为工作量和优先级原因搁置了。</p>
+<p><strong>PR #801 — feat(starry): 为 prlimit64 添加用户态测试</strong> </p>
+<ul>
+<li>修正了 <code>sys_prlimit64</code> 的错误优先级：无效 pid 应该比非法 resource 更早返回 <code>ESRCH</code></li>
+<li>对提高 <code>rlim_max</code> 的路径补上了 <code>CAP_SYS_RESOURCE</code> 权限检查</li>
+</ul>
+<p><strong>PR #863 — test(starryos): capget 系统调用测试与 NULL datap 修复</strong> </p>
+<ul>
+<li>发现并修复了一个 bug：<code>datap=NULL</code> 时应视为版本探测，返回 <code>EINVAL</code> 并写回支持的版本号（对齐 Linux 行为）。StarryOS 原来的实现直接漏掉了这个分支</li>
+</ul>
+<p><strong>PR #1049 — fix(starry): arch_prctl 地址校验 + 异常信号映射修正</strong> </p>
+<ul>
+<li>看了 Linux 源码才发现，<code>ARCH_SET_FS</code>/<code>ARCH_SET_GS</code> 是有地址合法性校验的——超过 47-bit 规范边界的非 canonical 地址应该返回 <code>EPERM</code>，StarryOS 之前没做这个检查</li>
+<li>把用户态 <code>#GP</code>、<code>#SS</code>、<code>#NP</code>、<code>#TS</code> 等保护异常从 <code>SIGTRAP</code> 改成了 <code>SIGSEGV</code>（对齐 Linux/POSIX）</li>
+<li>附带了一份 CPUID faulting 的后续支持方案（<code>GetCpuid</code>/<code>SetCpuid</code> 的占位实现）</li>
+<li>这个 PR 改动涉及面比较广，还在完善中。</li>
+</ul>
+<h3 id="方案二：以-Linux-App-为引导的改进"><a href="#方案二：以-Linux-App-为引导的改进" class="headerlink" title="方案二：以 Linux App 为引导的改进"></a>方案二：以 Linux App 为引导的改进</h3><p>从“跑通真实 Linux 应用”出发来改善 StarryOS 的兼容性。这个方向的工作记录在 <a href="https://github.com/rcore-os/tgoskits/issues/1153" target="_blank" rel="noopener">Issue #1153</a>（procps 支持分析）和 <a href="https://github.com/rcore-os/tgoskits/issues/1324" target="_blank" rel="noopener">Issue #1324</a>（strace 支持）中。</p>
+<p>对 procps(ps/top/kill) 的支持分析：目前的 <code>ps</code> 和 <code>kill</code> 命令均可以正常运行，但是在测试过程中发现运行 <code>top</code> 命令会直接退出，没有结果输出。我主要针对这一问题进行了修复。</p>
+<p><strong>PR #1194 — fix(tui): 在 init.sh 中设置 TERM 环境变量</strong> </p>
+<ul>
+<li>在 <code>init.sh</code> 里加了 <code>export TERM=xterm</code>，修复了 TUI 应用因为缺少 <code>TERM</code> 环境变量而无法启动的问题</li>
+<li>改动虽然小，但是发现这个错误费了比较长的时间。我在让 AI 排查原因的时候 AI 产生了幻觉，提供了一些无用的建议，我的想法是让 AI 阅读 <code>top</code> 的源码，让它判断在哪一步出现问题了。</li>
+<li>这件事给我的体会是，使用 AI 的关键是给它提供全面的 context. 而如何给出合适的 context 取决于使用者对问题的理解。</li>
+</ul>
+<p>在排查 <code>top</code> 的问题时，我尝试使用 <code>strace</code> 来查看 <code>top</code> 的系统调用，但是发现 StarryOS 上目前还不支持 <code>strace</code>, 因此我又做了 <code>strace</code> 的支持。</p>
+<p><strong>PR #1323 — feat(starry-kernel): 实现 PTRACE_LISTEN（strace 支持）</strong> </p>
+<p>这个 PR 的目标是让 <code>strace</code> 能在 StarryOS 上跑起来。一开始以为“实现 <code>PTRACE_LISTEN</code> 就行了”，结果发现远不止如此——<code>strace</code> 使用的是 ptrace 的 SEIZE 流程而非传统的 TRACEME，对内核的要求比想象中多得多。这一系列改动涉及 7 个文件，新增约 380 行代码（含 179 行的 C 测试用例），按依赖关系可以分为三个层次：</p>
+<p><strong>第一层：信号与时序（修不好这个，后面都无从谈起）</strong></p>
+<p><code>must</code> — <strong>SIGCONT 不产生虚假 ptrace stop</strong>（<code>signal.rs</code>）。这个问题非常隐蔽：shell 启动前台作业时发送的 <code>SIGCONT</code> 可能在 strace child 自己发出的 <code>SIGSTOP</code> 之前被出队。此时内核会错误地产生一个 <code>SIGCONT</code> stop，把 strace 的初始化状态机彻底打乱。不修这个，无论是 TRACEME 还是 SEIZE 路径都起不来。修复方式是在信号处理中对 <code>SIGCONT</code> 类信号（以及 <code>SIGKILL</code>、<code>SIGSTOP</code> 等不可屏蔽信号）做特殊判断，跳过 ptrace stop 的生成。</p>
+<p><strong>第二层：SEIZE 流程核心机制</strong></p>
+<p>这一层是让 strace 能跑起来的“骨架”，缺一个都会导致 strace 直接退出或行为异常：</p>
+<p><code>must</code> — <strong>PTRACE_LISTEN 实现</strong>（<code>ptrace.rs</code>，opcode <code>0x4208</code>）。strace 在 SEIZE 流程中会将 <code>TE_GROUP_STOP</code> 转为 job-control stop，而这一步依赖 <code>PTRACE_LISTEN</code> 让 tracee 进入 listening 状态。没有它，strace 直接报 <code>Unsupported</code> 退出——这也是整个 PR 命名的由来。</p>
+<p><code>must</code> — <strong>exec 时跳过 syscall exit stop</strong>（<code>user.rs</code>）。这是一个非常微妙的细节：在 execve 的处理中，如果先触发了 syscall exit stop，<code>TCB_INSYSCALL</code> 标志会被清除。之后 exec event 到达时，因为标志已清，strace 会报 <code>Stray PTRACE_EVENT_EXEC</code>，并进入错误恢复路径——更致命的是，这会导致后续所有 syscall 的 entry/exit 判定永久反转，整个 trace 输出完全错乱。修复方式是在 exec 路径上跳过 exit stop，确保 exec event 到达时 <code>TCB_INSYSCALL</code> 仍然置位。</p>
+<p><code>high</code> — <strong>PTRACE_EVENT_STOP 编码</strong>（<code>ptrace.rs</code>）。<code>PTRACE_INTERRUPT</code> 触发的 stop 需要在 wait status 的高 16 位标记 <code>PTRACE_EVENT_STOP(128)</code>。strace 正是根据这个标记来区分 group-stop 和普通信号 stop，从而走 <code>TE_RESTART</code> 而非 <code>TE_GROUP_STOP</code> 路径。没有这个标记，strace 的 ptrace 状态机会做出错误的决策。</p>
+<p><code>high</code> — <strong>SEIZE 接收 options</strong>（<code>ptrace.rs</code>）。strace 调用 <code>ptrace(PTRACE_SEIZE, pid, NULL, ptrace_setoptions)</code> 时，会把 options（如 <code>0x51</code>）作为第 4 参数传入。StarryOS 原来的 SEIZE 实现忽略了 data 参数，导致 options（如 <code>PTRACE_O_TRACESYSGOOD</code>、<code>PTRACE_O_TRACEEXEC</code>）全部丢失。后果是 exec stop 没有 event tag，strace 会把它误判为普通的信号投递。</p>
+<p><code>high</code> — <strong>ATTACHED 也触发 exec stop</strong>（<code>execve.rs</code>）。这是 SEIZE 和 TRACEME 的一个重要差异：TRACEME 的 tracee 会主动调用 <code>ptrace(TRACEME)</code> 标记自己，而 SEIZE 的 tracee 是被动的，从未调用过 <code>TRACEME</code>。原来的代码只用 <code>is_ptrace_traceme()</code> 判断是否触发 exec stop，对于 SEIZE 的 child 永远为 false。需要额外加上 <code>is_ptrace_attached()</code> 的判断，否则 SEIZE 路径的 exec stop 永远不会触发。</p>
+<p><strong>第三层：兼容性打磨</strong></p>
+<p><code>medium</code> — <strong>TRACESECCOMP/EXITKILL 加入 valid_mask</strong>（<code>ptrace.rs</code>）。strace 在启用 seccomp 过滤或 <code>--kill-on-exit</code> 选项时，会在 <code>PTRACE_SETOPTIONS</code> 中传入 <code>PTRACE_O_TRACESECCOMP</code> 和 <code>PTRACE_O_EXITKILL</code>。这些 bit 不在 valid_mask 中的话，<code>SETOPTIONS</code> 返回 <code>EINVAL</code>，导致所有 options（包括前面那些关键的 exec/trace 相关选项）全部丢失。虽然不是 SEIZE 流程必需的，但缺了它，strace 的 seccomp 相关功能和 <code>--kill-on-exit</code> 就无法正常工作。</p>
+<p><code>low</code> — <strong>SEIZE self 恢复 EPERM</strong>（<code>ptrace.rs</code>）。之前的 workaround 在 SEIZE 自身时返回 <code>EIO</code>，现在 SEIZE 流程完整实现后改回 <code>EPERM</code>，对齐 Linux ABI 行为。</p>
+<p><strong>调试过程与测试</strong></p>
+<p>为验证这些修改，我写了一个 179 行的 C 用户态测试用例（<code>test-ptrace-listen</code>），覆盖 PTRACE_SEIZE → PTRACE_LISTEN 的基本流程。</p>
+<p>在 riscv64 QEMU 上验证了 <code>strace</code> 的基本功能可以正常工作，能输出完整的系统调用追踪。不过，运行 <code>strace -d</code> 时仍然会看到：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">strace: do_test_ptrace_get_syscall_info: PTRACE_GET_SYSCALL_INFO: Function not implemented</span><br><span class="line">strace: PTRACE_SET_SYSCALL_INFO does not work</span><br></pre></td></tr></table></figure>
+
+<p>这是因为 <code>PTRACE_GET_SYSCALL_INFO</code> 还没实现——strace 在调试模式下会探测这个接口的可用性，但这不影响基本的 syscall trace 功能。这是一个后续可以继续完善的点。</p>
+<p>另外，其他架构（x86_64、aarch64、loongarch64）的 ptrace 支持已有其他同学贡献（PR #1062, #1247, #1292），但 strace 还未在这些架构上测试过，也是后续可以做的事情。</p>
+<p>这次 strace 适配让我对 ptrace 子系统有了比较深入的理解。最大的感受是：像 <code>strace</code> 这种看起来“只差一个接口”的工具，实际上对内核的 ptrace 实现要求非常严格——从信号处理到 exec 流程再到 wait status 编码，环环相扣，任何一个环节的遗漏都会导致整个链路断裂。做这类兼容性工作，不能只看单个接口的实现，需要把工具的实际使用流程（特别是像 SEIZE 这种复杂流程）完整走一遍，才能发现那些隐藏在调用序列中的隐含依赖。</p>
+<h2 id="后续的计划"><a href="#后续的计划" class="headerlink" title="后续的计划"></a>后续的计划</h2><p>短期来看，先把手里两个未合并的 PR 收尾(#1049 #1323)，争取尽快合入。strace 这边还有一些可以完善的地方，比如 <code>PTRACE_GET_SYSCALL_INFO</code> 的实现、以及在其他架构上的测试验证，都是值得跟进的后续工作。</p>
+<p>长远一点来说，这次训练营让我对操作系统内核开发有了比较切实的感受，而不只是停留在看书的层面。如果有机会的话，希望可以参加相关实习，继续往这个方向深入下去。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>回过头来看这几个月，从 Rust 基础到 rCore 手写内核，再到给 StarryOS 提 PR、修 bug、补系统调用——每一步都在加深我对操作系统的理解。</p>
+<p>项目阶段是最有收获的部分。给一个真实的开源内核项目贡献代码，跟在教程框架里写实验是完全不同的体验。最大的区别在于：教程里的问题是有答案的，而真实项目中的问题没有现成的标准答案，需要自己去分析、去摸索。比如 strace 那条链路，一开始只想着”实现 PTRACE_LISTEN 就行了”，结果发现上游的 SIGCONT 时序、exec 的 stop 语义、甚至 wait status 的编码格式，一环扣一环，缺一个整个链路就断。这种 debug 不是”某个地方写错了”，而是”缺少了一整块逻辑”——能定位到问题本身，就已经是能力提升的体现。</p>
+<p>比较遗憾的是，由于我几乎比别人晚开始一周，方案二这边其实有不少想法还没来得及展开。像 strace 的 <code>PTRACE_GET_SYSCALL_INFO</code> 支持、其他架构上的测试验证，这些都是后续可以继续深入的方向。</p>
+<p>关于 AI 的使用，也是这次项目阶段体会比较深的一点。AI 确实很强，合理使用的话效率提升肉眼可见。但用下来的一个感受是：AI 特别容易在一个地方钻牛角尖，死磕某个错误的思路不肯回头。这时候就得靠人去给它指方向、补充相关的 context，帮它跳出那个坑。说到底，复杂的问题永远都是复杂的——AI 可以帮忙搬砖，但想清楚要搬什么、往哪搬，还是得靠自己。</p>
+<p>最后感谢训练营中各位老师的指导，感谢 OS 训练营提供这样一个平台供我学习，感谢与我热心交流的各位同学们，祝 OS 训练营越办越好。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-SongShiQ-StarryOS%E4%BF%AE%E5%A4%8D%E4%B8%8Ecgroupv2%E6%A8%A1%E5%9D%97%E5%8C%96%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%A4%8D%E7%9B%98/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +391,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -789,7 +916,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3870,7 +3997,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4005,7 +4132,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
 
           
@@ -4349,7 +4476,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4788,7 +4915,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -4925,7 +5052,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -5139,7 +5266,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -5425,7 +5552,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
+                <time title="Modified: 2026-06-30 01:59:24" itemprop="dateModified" datetime="2026-06-30T01:59:24+00:00">2026-06-30</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -7456,173 +7583,6 @@
 </blockquote>
 <hr>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/05/02/Leo%20Cheng%EF%BC%9A%E5%BC%82%E6%AD%A5%E4%B8%8E%E5%8E%9F%E5%AD%90%E4%BB%A5%E5%8F%8A%E5%85%B6%E4%BB%96%E7%9B%B8%E5%85%B3%E8%A1%A5%E5%85%85/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/05/02/Leo%20Cheng%EF%BC%9A%E5%BC%82%E6%AD%A5%E4%B8%8E%E5%8E%9F%E5%AD%90%E4%BB%A5%E5%8F%8A%E5%85%B6%E4%BB%96%E7%9B%B8%E5%85%B3%E8%A1%A5%E5%85%85/" class="post-title-link" itemprop="url">Leo Cheng: 异步、原子，以及其他相关补充</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-05-02 21:43:45" itemprop="dateCreated datePublished" datetime="2026-05-02T21:43:45+00:00">2026-05-02</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-06-30 01:58:03" itemprop="dateModified" datetime="2026-06-30T01:58:03+00:00">2026-06-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/" itemprop="url" rel="index"><span itemprop="name">Zig</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/" itemprop="url" rel="index"><span itemprop="name">Go</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/" itemprop="url" rel="index"><span itemprop="name">Kotlin</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/" itemprop="url" rel="index"><span itemprop="name">ES6</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/" itemprop="url" rel="index"><span itemprop="name">Cpp</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/" itemprop="url" rel="index"><span itemprop="name">Tokio</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/" itemprop="url" rel="index"><span itemprop="name">Monoio</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/" itemprop="url" rel="index"><span itemprop="name">Itertools</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/" itemprop="url" rel="index"><span itemprop="name">Generator</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/" itemprop="url" rel="index"><span itemprop="name">Corosensei</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/" itemprop="url" rel="index"><span itemprop="name">May</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/" itemprop="url" rel="index"><span itemprop="name">Smol</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/" itemprop="url" rel="index"><span itemprop="name">AsyncStd</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/" itemprop="url" rel="index"><span itemprop="name">Futures</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/" itemprop="url" rel="index"><span itemprop="name">Async Runtime</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/" itemprop="url" rel="index"><span itemprop="name">Async Programming</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/Atomic-Operations/" itemprop="url" rel="index"><span itemprop="name">Atomic Operations</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/Atomic-Operations/Atomic-Instructions/" itemprop="url" rel="index"><span itemprop="name">Atomic Instructions</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Go/Kotlin/Python/ES6/Cpp/Tokio/Monoio/Itertools/Generator/Corosensei/May/Smol/AsyncStd/Futures/Async-Runtime/Async-Programming/Atomic-Operations/Atomic-Instructions/Green-Threads/" itemprop="url" rel="index"><span itemprop="name">Green Threads</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <!-- Fiber-纤程/有栈协程 Generator-生成器/受限协程 -->
-<!-- Stackless Coroutine    Rust async/await、Python async、C++20 coroutines -->
-<!-- Stackful Coroutine    Go goroutine、Erlang process、Lua coroutine -->
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2026/05/02/Leo%20Cheng%EF%BC%9A%E5%BC%82%E6%AD%A5%E4%B8%8E%E5%8E%9F%E5%AD%90%E4%BB%A5%E5%8F%8A%E5%85%B6%E4%BB%96%E7%9B%B8%E5%85%B3%E8%A1%A5%E5%85%85/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 
