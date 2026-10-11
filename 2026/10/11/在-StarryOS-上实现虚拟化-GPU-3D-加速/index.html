@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="1. 摘要2026 年 7 月到 10 月,我在 rcore-os&#x2F;TGOSKits 社区实习,任务是给 StarryOS 实现 virgl 虚拟化 GPU(virtio-gpu 3D)加速,并让它的图形性能尽可能接近同机 Linux 虚拟机。实习结束时:  功能:StarryOS 上 Weston + glmark2-es2-wayland 完整跑通 33 个场景,GL_RENDERER&#x3D;vir">
+<meta property="og:type" content="article">
+<meta property="og:title" content="在 StarryOS 上实现虚拟化 GPU 3D 加速">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="1. 摘要2026 年 7 月到 10 月,我在 rcore-os&#x2F;TGOSKits 社区实习,任务是给 StarryOS 实现 virgl 虚拟化 GPU(virtio-gpu 3D)加速,并让它的图形性能尽可能接近同机 Linux 虚拟机。实习结束时:  功能:StarryOS 上 Weston + glmark2-es2-wayland 完整跑通 33 个场景,GL_RENDERER&#x3D;vir">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/baseline-alpine-vs-starryos.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/glmark2-virgl-weston.png">
+<meta property="article:published_time" content="2026-10-11T02:37:37.000Z">
+<meta property="article:modified_time" content="2026-10-11T03:29:19.647Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="author:zyc107109102">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;zyc107109102&#x2F;tgoskits&#x2F;wiki&#x2F;%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A">
+<meta property="article:tag" content="opengl">
+<meta property="article:tag" content="gpu">
+<meta property="article:tag" content="虚拟化">
+<meta property="article:tag" content="mesa">
+<meta property="article:tag" content="virtio">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/baseline-alpine-vs-starryos.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>在 StarryOS 上实现虚拟化 GPU 3D 加速 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-摘要"><span class="nav-number">1.</span> <span class="nav-text">1. 摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-项目目标与起点"><span class="nav-number">2.</span> <span class="nav-text">2. 项目目标与起点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-任务定义"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 任务定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-基线-先造标尺"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 基线:先造标尺</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-总体架构"><span class="nav-number">3.</span> <span class="nav-text">3. 总体架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-软件栈分层"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 软件栈分层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-一帧的生命周期"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 一帧的生命周期</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-同步模型与异步模型"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 同步模型与异步模型</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-功能打通-第-1-5-周"><span class="nav-number">4.</span> <span class="nav-text">4. 功能打通(第 1~5 周)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-协议调研"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 协议调研</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-驱动层-virtio-drivers-的-3D-扩展"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 驱动层:virtio-drivers 的 3D 扩展</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-从驱动到内核-三层封装与-DRM-设备层"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 从驱动到内核:三层封装与 DRM 设备层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-让-Mesa-认出这块”显卡”"><span class="nav-number">4.4.</span> <span class="nav-text">4.4 让 Mesa 认出这块”显卡”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-5-黑屏-把宿主纹理送上扫描口"><span class="nav-number">4.5.</span> <span class="nav-text">4.5 黑屏:把宿主纹理送上扫描口</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-性能优化战役-第-7-11-周"><span class="nav-number">5.</span> <span class="nav-text">5. 性能优化战役(第 7~11 周)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-方法论-帧时间为北极星"><span class="nav-number">5.1.</span> <span class="nav-text">5.1 方法论:帧时间为北极星</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-异步化的第一次失败"><span class="nav-number">5.2.</span> <span class="nav-text">5.2 异步化的第一次失败</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-kick-合并-把-MMIO-税摊到整个事务"><span class="nav-number">5.3.</span> <span class="nav-text">5.3 kick 合并:把 MMIO 税摊到整个事务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-真-fence-每帧一个-8×1-像素的线索"><span class="nav-number">5.4.</span> <span class="nav-text">5.4 真 fence:每帧一个 8×1 像素的线索</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-5-完成通知链-中断为什么没进来"><span class="nav-number">5.5.</span> <span class="nav-text">5.5 完成通知链:中断为什么没进来</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-6-epoll-自唤醒循环"><span class="nav-number">5.6.</span> <span class="nav-text">5.6 epoll 自唤醒循环</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-7-后台噪音治理"><span class="nav-number">5.7.</span> <span class="nav-text">5.7 后台噪音治理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-8-差距账本-剩下的是什么"><span class="nav-number">5.8.</span> <span class="nav-text">5.8 差距账本:剩下的是什么</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-9-大重构适配与一个被底座暴露的地址翻译缺陷"><span class="nav-number">5.9.</span> <span class="nav-text">5.9 大重构适配与一个被底座暴露的地址翻译缺陷</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-10-fence-延迟-41-倍的最大单项"><span class="nav-number">5.10.</span> <span class="nav-text">5.10 fence 延迟:41 倍的最大单项</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-工程化落地-第-10-12-周"><span class="nav-number">6.</span> <span class="nav-text">6. 工程化落地(第 10~12 周)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-异步控制队列的工程化"><span class="nav-number">6.1.</span> <span class="nav-text">6.1 异步控制队列的工程化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-合入主线-从同步版到异步版"><span class="nav-number">6.2.</span> <span class="nav-text">6.2 合入主线:从同步版到异步版</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-环绕点丢-kick-一个规格级的正确性缺陷"><span class="nav-number">6.3.</span> <span class="nav-text">6.3 环绕点丢 kick:一个规格级的正确性缺陷</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-4-等待结构改造与锁外等待"><span class="nav-number">6.4.</span> <span class="nav-text">6.4 等待结构改造与锁外等待</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-5-稳定性-从三次冻结到十轮浸泡零冻结"><span class="nav-number">6.5.</span> <span class="nav-text">6.5 稳定性:从三次冻结到十轮浸泡零冻结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-组件化设计"><span class="nav-number">7.</span> <span class="nav-text">7. 组件化设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-接口合同与能力门控"><span class="nav-number">7.1.</span> <span class="nav-text">7.1 接口合同与能力门控</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-依赖方向与跨层服务注入"><span class="nav-number">7.2.</span> <span class="nav-text">7.2 依赖方向与跨层服务注入</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-能力组合与无设备退化"><span class="nav-number">7.3.</span> <span class="nav-text">7.3 能力组合与无设备退化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-4-错误域边界"><span class="nav-number">7.4.</span> <span class="nav-text">7.4 错误域边界</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-成果汇总"><span class="nav-number">8.</span> <span class="nav-text">8. 成果汇总</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#8-1-性能轨迹"><span class="nav-number">8.1.</span> <span class="nav-text">8.1 性能轨迹</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-2-拉取请求清单"><span class="nav-number">8.2.</span> <span class="nav-text">8.2 拉取请求清单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-3-沉淀的测量资产"><span class="nav-number">8.3.</span> <span class="nav-text">8.3 沉淀的测量资产</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-边界与后续工作"><span class="nav-number">9.</span> <span class="nav-text">9. 边界与后续工作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-结语"><span class="nav-number">10.</span> <span class="nav-text">10. 结语</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关链接"><span class="nav-number">11.</span> <span class="nav-text">相关链接</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">794</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">782</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          在 StarryOS 上实现虚拟化 GPU 3D 加速
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2026-10-11 02:37:37 / Modified: 03:29:19" itemprop="dateCreated datePublished" datetime="2026-10-11T02:37:37+00:00">2026-10-11</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="1-摘要"><a href="#1-摘要" class="headerlink" title="1. 摘要"></a>1. 摘要</h2><p>2026 年 7 月到 10 月,我在 rcore-os/TGOSKits 社区实习,任务是给 StarryOS 实现 virgl 虚拟化 GPU(virtio-gpu 3D)加速,并让它的图形性能尽可能接近同机 Linux 虚拟机。实习结束时:</p>
+<ul>
+<li><strong>功能</strong>:StarryOS 上 Weston + glmark2-es2-wayland 完整跑通 33 个场景,<code>GL_RENDERER=virgl</code>,宿主机真实 GPU(AMD Radeon 780M)完成渲染,用户态 Mesa 零改动;</li>
+<li><strong>性能</strong>:glmark2 总分从第一次跑通的 69 分提升到 3000 分上下,约为同机 Linux 虚拟机(6100~7000 分)的一半;渲染循环帧时间从 2.17 ms 压到 0.33 ms;</li>
+<li><strong>正确性</strong>:guest 侧三类会整机冻结的结构性缺陷被根除,重场景 10 轮浸泡测试 50/50 退出码全 0、零冻结;</li>
+<li><strong>产出</strong>:向 rcore-os/virtio-drivers 与 rcore-os/tgoskits 提交 7 个拉取请求,6 个已合入主线,1 个开放(virtio-drivers 的异步控制队列 #265)。</li>
+</ul>
+<p>本报告按三个阶段组织:功能打通(第 4 章)、性能优化战役(第 5 章)、工程化落地(第 6 章)。第 3 章先给出整体架构与”一帧的生命周期”,作为后文所有讨论的地图;第 7 章单独讨论贯穿三个阶段的组件化设计;第 8 章汇总成果与数据,第 9 章如实声明边界与后续工作。</p>
+<h2 id="2-项目目标与起点"><a href="#2-项目目标与起点" class="headerlink" title="2. 项目目标与起点"></a>2. 项目目标与起点</h2><h3 id="2-1-任务定义"><a href="#2-1-任务定义" class="headerlink" title="2.1 任务定义"></a>2.1 任务定义</h3><p>StarryOS 是 TGOSKits 仓库中面向 Linux 用户态二进制接口的研究用宏内核,此前图形栈只有 2D dumb buffer 路径,应用没有 OpenGL 可用。任务目标:在组件化内核中实现 virgl 驱动——通过 PCI 枚举发现设备并初始化 virtqueue,实现 DRM 设备节点及约 10 个核心 ioctl,把 Mesa virgl 用户态封装的 Gallium 命令流经 virtqueue 转发到 QEMU 宿主机,由宿主机 GPU 完成渲染。验收口径从第一天起就是可量化的:Weston + glmark2 能否完整出分,以及分数与同机 Linux 虚拟机的比值。</p>
+<h3 id="2-2-基线-先造标尺"><a href="#2-2-基线-先造标尺" class="headerlink" title="2.2 基线:先造标尺"></a>2.2 基线:先造标尺</h3><p>动手写代码之前,先做了同法对照实验:同一台宿主机、同一套 QEMU 参数,先跑 Alpine Linux 虚拟机(装 Weston + glmark2)作为参照系;再保持其他变量完全一致,只把内核换成 StarryOS。结果如下。</p>
+<table>
+<thead>
+<tr>
+<th>环境</th>
+<th>内核</th>
+<th>CPU 渲染(llvmpipe)</th>
+<th>GPU 渲染(virgl)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>QEMU + KVM,4 vCPU</td>
+<td>Alpine Linux</td>
+<td>约 700~800 FPS</td>
+<td>约 9000 FPS(宿主核显直通)</td>
+</tr>
+<tr>
+<td>同上,仅换内核</td>
+<td>StarryOS</td>
+<td>约 500 FPS</td>
+<td><strong>不支持</strong></td>
+</tr>
+</tbody></table>
+<img src="/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/baseline-alpine-vs-starryos.png" class="" title="第一周基线:Alpine Linux 与 StarryOS 同法对照">
+
+<p>这组数字在动手前就确立了两件事:硬件加速对图形场景的收益是数量级的;而两侧用户态完全相同,差距全部来自内核侧。此后三个月,所有性能结论都遵守同一条纪律——同机、同用户态、唯一变量,背靠背 A/B。</p>
+<h2 id="3-总体架构"><a href="#3-总体架构" class="headerlink" title="3. 总体架构"></a>3. 总体架构</h2><h3 id="3-1-软件栈分层"><a href="#3-1-软件栈分层" class="headerlink" title="3.1 软件栈分层"></a>3.1 软件栈分层</h3><p>最终落地的图形栈自上而下分为 guest 侧五层与宿主机侧三段,每层只依赖下一层的接口。理解这张分层图是理解后文所有修改的前提:同一个问题可能出在任意一层,而修复必须落在语义上属于它的那一层。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">flowchart TB</span><br><span class="line">    subgraph guest[&quot;StarryOS guest(QEMU 虚拟机)&quot;]</span><br><span class="line">        U[&quot;用户态&lt;br&#x2F;&gt;Weston + Mesa virgl(libEGL&#x2F;libGL)&quot;]</span><br><span class="line">        K1[&quot;DRM 设备层&lt;br&#x2F;&gt;card0.rs(DRM ioctl)+ drm.rs(UAPI 布局)&lt;br&#x2F;&gt;sync_file.rs(fence 语义)&quot;]</span><br><span class="line">        G1[&quot;axgpu 门面&lt;br&#x2F;&gt;with_gpu &#x2F; wait_gpu_condition &#x2F; wait_completion&quot;]</span><br><span class="line">        T1[&quot;rdif-gpu 接口层&lt;br&#x2F;&gt;VirglOps trait:submit 返回 Completion&quot;]</span><br><span class="line">        D1[&quot;ax-driver 适配层&lt;br&#x2F;&gt;VirtIoGpu:时钟注入、IRQ endpoint&quot;]</span><br><span class="line">        V1[&quot;virtio-gpu 驱动&lt;br&#x2F;&gt;ctrl.rs 异步控制队列 + 真 fence&quot;]</span><br><span class="line">        VQ[&quot;virtqueue(控制队列 64 深度 &#x2F; 游标队列 16)&quot;]</span><br><span class="line">        U --&gt;|&quot;libdrm ioctl&quot;| K1</span><br><span class="line">        K1 --&gt; G1</span><br><span class="line">        G1 --&gt; T1</span><br><span class="line">        T1 --&gt; D1</span><br><span class="line">        D1 --&gt; V1</span><br><span class="line">        V1 --&gt; VQ</span><br><span class="line">    end</span><br><span class="line">    subgraph host[&quot;QEMU 宿主机&quot;]</span><br><span class="line">        Q1[&quot;virtio-gpu 设备模型&quot;]</span><br><span class="line">        Q2[&quot;virglrenderer:翻译为宿主 GL 调用&quot;]</span><br><span class="line">        GPU[&quot;物理 GPU(AMD Radeon 780M)&quot;]</span><br><span class="line">        Q1 --&gt; Q2 --&gt; GPU</span><br><span class="line">    end</span><br><span class="line">    VQ --&gt;|&quot;kick(MMIO 写,触发 VM-exit)&quot;| Q1</span><br><span class="line">    VQ -.-&gt;|&quot;完成写 used ring → 中断 guest&quot;| V1</span><br></pre></td></tr></table></figure>
+
+<p>各层的职责与关键代码锚点如下。<code>card0.rs</code>(约 4300 行,内核 DRM 层)实现 Linux 同款 <code>VIRTGPU_*</code> ioctl 与每上下文资源管理;<code>sync_file.rs</code> 实现 Linux <code>sync_file</code> 语义(<code>SYNC_IOC_WAIT</code>、poll、真 fence 翻转);<code>axgpu</code> 是 OS 侧 GPU 门面,对外提供 <code>with_gpu</code> 系列闭包、<code>wait_gpu_condition</code>/<code>wait_completion</code> 锁外等待原语与 <code>set_completion_notifier</code> 完成通知注册;<code>rdif-gpu</code> 以 <code>VirglOps</code> trait 定义驱动合同,<code>submit</code> 返回 <code>Completion</code> 完成令牌;<code>drivers/gpu/virtio-gpu/src/ctrl.rs</code> 是异步控制队列本体;<code>ax-driver</code> 负责把驱动接入平台(时钟注入、中断注册、<code>Hal</code> 地址翻译)。设备可见地址的最终设计很克制:异步热路径的命令字节全部拷进驱动自有、地址稳定的 DMA arena,翻译由 <code>ax-driver</code> 实现的 <code>Hal::share</code> 承担;仅存的零拷贝同步路径 <code>request_sync</code> 以文档契约要求调用方传入地址可忠实翻译的内存——这段设计的由来见 5.9 节,合同本身见 7.2 节。</p>
+<h3 id="3-2-一帧的生命周期"><a href="#3-2-一帧的生命周期" class="headerlink" title="3.2 一帧的生命周期"></a>3.2 一帧的生命周期</h3><p>性能优化的对象是”一帧的时间都花在哪”。把渲染循环拆开,一帧的构成如下。</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>发生什么</th>
+<th>耗时属性</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>① 应用渲染</td>
+<td>glmark2 经 EGL 画一帧,提交给 Weston</td>
+<td>guest CPU</td>
+</tr>
+<tr>
+<td>② Mesa 编码</td>
+<td>Gallium virgl 驱动把 GL 状态变化编码为 virgl 命令流(每帧几十~几百条 GPU 命令)</td>
+<td>guest CPU</td>
+</tr>
+<tr>
+<td>③ EXECBUFFER ioctl</td>
+<td>Mesa 携命令流指针 + BO 句柄进内核;内核分配 fence_id,调 <code>submit</code>,末尾统一 kick</td>
+<td>guest CPU + 1 次 MMIO</td>
+</tr>
+<tr>
+<td>④ 队列传输</td>
+<td>驱动把 CtrlHeader + 命令流挂上 virtqueue(indirect 描述符)</td>
+<td>µs 级</td>
+</tr>
+<tr>
+<td>⑤ 宿主处理</td>
+<td>QEMU 取命令 → virglrenderer 翻译成宿主 GL → 真实 GPU 渲染</td>
+<td>宿主 CPU/GPU,帧的主要耗时</td>
+</tr>
+<tr>
+<td>⑥ fence 完成</td>
+<td>渲染完成后设备写 used ring → 注入中断</td>
+<td>中断延迟</td>
+</tr>
+<tr>
+<td>⑦ guest 收割</td>
+<td>IRQ 推进 <code>completed_fence_id</code>;Mesa 的 WAIT/poll 看到完成</td>
+<td>guest CPU,µs 级</td>
+</tr>
+<tr>
+<td>⑧ present</td>
+<td>Weston atomic commit → set_scanout / resource_flush</td>
+<td>guest CPU + 队列传输</td>
+</tr>
+</tbody></table>
+<p>这张表有两个用途:它定义了”帧时间”的测量边界(从 ① 到 ⑧ 的墙钟),也预告了优化的两个方向——减少每个环节的固定开销(第 5 章),以及让 ③④ 与 ⑤ 重叠起来(异步化)。</p>
+<h3 id="3-3-同步模型与异步模型"><a href="#3-3-同步模型与异步模型" class="headerlink" title="3.3 同步模型与异步模型"></a>3.3 同步模型与异步模型</h3><p>实习开始时上游 virtio-drivers 的提交模型是全同步的:每条命令入队 → kick → 自旋等宿主应答 → 弹出,一条命令一次完整往返。改造目标是对齐 Linux <code>drivers/gpu/drm/virtio/</code> 的模型:热路径命令 fire-and-forget 入队即返回,唯一保留的等待是 fence,因为它表达真实的 GPU 依赖。两种模型的时序对比如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">sequenceDiagram</span><br><span class="line">    participant M as Mesa(guest 用户态)</span><br><span class="line">    participant K as card0(内核)</span><br><span class="line">    participant D as virtio-gpu 驱动</span><br><span class="line">    participant Q as QEMU&#x2F;virglrenderer(宿主)</span><br><span class="line">    rect rgb(235, 235, 235)</span><br><span class="line">    Note over M,Q: 改造前:同步模型,每命令一次阻塞往返</span><br><span class="line">    M-&gt;&gt;K: RESOURCE_CREATE_3D &#x2F; TRANSFER &#x2F; EXECBUFFER</span><br><span class="line">    K-&gt;&gt;D: 入队 + kick + 自旋等应答</span><br><span class="line">    D-&gt;&gt;Q: MMIO kick(VM-exit)</span><br><span class="line">    Q--&gt;&gt;D: RESP_OK(宿主处理完才返回)</span><br><span class="line">    D--&gt;&gt;K: 返回</span><br><span class="line">    K--&gt;&gt;M: ioctl 返回</span><br><span class="line">    end</span><br><span class="line">    rect rgb(225, 240, 225)</span><br><span class="line">    Note over M,Q: 改造后:异步模型,fire-and-forget + 真 fence</span><br><span class="line">    M-&gt;&gt;K: EXECBUFFER(命令流)</span><br><span class="line">    K-&gt;&gt;D: submit(携带 FENCE 标志)</span><br><span class="line">    D--&gt;&gt;K: 立即返回 fence_id</span><br><span class="line">    K--&gt;&gt;M: ioctl 立即返回,附带 out-fence fd</span><br><span class="line">    M-&gt;&gt;M: 继续编码下一帧(与宿主渲染重叠)</span><br><span class="line">    Q-&gt;&gt;D: 完成写 used ring → 中断</span><br><span class="line">    D-&gt;&gt;K: 推进 completed_fence_id 高水位</span><br><span class="line">    K--&gt;&gt;M: fence 翻转,poll&#x2F;SYNC_IOC_WAIT 返回</span><br><span class="line">    end</span><br></pre></td></tr></table></figure>
+
+<p>两种模型的帧时间公式完全不同。同步模型下所有环节完全串行,一帧 3~5 个阻塞往返,其中 <code>SUBMIT_3D</code> 阻塞到渲染完成,guest 在宿主渲染期间完全空转:</p>
+<blockquote>
+<p>T帧 ≈ [创建+RTT] + [挂载+RTT] + [上传+RTT] + [提交+RTT(含整个渲染等待)] + [present+RTT×2]</p>
+</blockquote>
+<p>异步模型下 guest 编码第 N+1 帧与宿主渲染第 N 帧重叠:</p>
+<blockquote>
+<p>T帧 ≈ max(guest 每帧编码, 宿主每帧渲染) + 一次批量 kick 延迟 + fence 唤醒延迟</p>
+</blockquote>
+<p>这个对比是整个性能战役的纲。但 5.2 节会看到:只异步化”看得见”的两个同步点,实测反而变慢——真正的工作是把每帧隐藏的同步点全部数出来。</p>
+<h2 id="4-功能打通-第-1-5-周"><a href="#4-功能打通-第-1-5-周" class="headerlink" title="4. 功能打通(第 1~5 周)"></a>4. 功能打通(第 1~5 周)</h2><h3 id="4-1-协议调研"><a href="#4-1-协议调研" class="headerlink" title="4.1 协议调研"></a>4.1 协议调研</h3><p>实现的参照物有三份:Linux 内核 <code>drivers/gpu/drm/virtio/</code>(最权威的驱动实现)、<code>include/uapi/linux/virtio_gpu.h</code>(全部命令定义)、Mesa 的 <code>src/gallium/include/state_tracker/virgl.xml</code>(命令流编码协议)。virtio-gpu 层面的关键事实:所有命令共享 24 字节的 <code>virtio_gpu_ctrl_hdr</code>(type、flags、fence_id、ctx_id、ring_idx),3D 能力由一组命令承载——<code>CTX_CREATE</code>、<code>RESOURCE_CREATE_3D</code>、<code>TRANSFER_TO/FROM_HOST_3D</code>、<code>SUBMIT_3D</code> 等;能力协商走 capset 机制,OpenGL 加速对应 <code>VIRGL2</code>(capset id=2)。</p>
+<p>Mesa 侧的 virgl 命令流是另一层编码:每条命令的首个 dword 由 <code>VIRGL_CMD0(cmd, obj, len)</code> 打包(命令 ID、对象类型、命令长度),其后按命令携带状态对象——<code>CREATE_OBJECT</code>(BLEND/RASTERIZER/SHADER 等十一类)、<code>SET_FRAMEBUFFER_STATE</code>、<code>CLEAR</code>、<code>DRAW_VBO</code> 等。调研结论整理成驱动层需要实现的命令清单与字节级布局表,这成为第二周编码的直接输入。</p>
+<h3 id="4-2-驱动层-virtio-drivers-的-3D-扩展"><a href="#4-2-驱动层-virtio-drivers-的-3D-扩展" class="headerlink" title="4.2 驱动层:virtio-drivers 的 3D 扩展"></a>4.2 驱动层:virtio-drivers 的 3D 扩展</h3><p>fork rcore-os/virtio-drivers 后,在 <code>device/gpu/mod.rs</code> 中新增了完整的 3D 命令面:数据结构(<code>CmdCtxCreate</code>、<code>CmdResourceCreate3d</code>、<code>CmdTransferToHost3d</code>、<code>CmdSubmit3d</code>、<code>GpuBox</code> 等)、常量(<code>VIRGL_CAPSET</code>、3D opcode)、方法(<code>ctx_create/destroy</code>、<code>ctx_attach/detach_resource</code>、<code>resource_create_3d</code>、<code>transfer_to/from_host_3d</code>、<code>submit_3d</code>、<code>get_capset(_info)</code>)。所有 3D 方法入口统一 <code>require_virgl()</code> 守卫:未协商 VIRGL feature 时返回错误而不是发出未定义命令。</p>
+<p>测试先行写了 5 个单测,其中 <code>command_opcodes_match_upstream_header</code> 把所有 opcode 与 Linux <code>virtio_gpu.h</code> 逐一对表,<code>submit_3d_reports_error</code> / <code>resource_create_3d_reports_error</code> 对命令缓冲逐字节验证字段偏移。这批改动后来整理为 virtio-drivers #257(2026-08-14 合入)与 #258(2026-08-17 合入)。</p>
+<h3 id="4-3-从驱动到内核-三层封装与-DRM-设备层"><a href="#4-3-从驱动到内核-三层封装与-DRM-设备层" class="headerlink" title="4.3 从驱动到内核:三层封装与 DRM 设备层"></a>4.3 从驱动到内核:三层封装与 DRM 设备层</h3><p>驱动只是最底层。向上按仓库既有分层逐层封装:<code>drivers/interface/rdif-display</code> 定义纯 trait 接口(硬件无关的”合同”,含错误码 <code>Gpu3dError</code> 与 <code>TransferBox</code>/<code>CapsetInfo</code> 结构);<code>drivers/ax-driver/src/virtio/display.rs</code> 的 <code>VirtIoDisplay&lt;T&gt;</code> 是唯一生产实现,获取 virtio 驱动设备所有权后把调用逐个委托下去;<code>os/arceos/modules/axdisplay</code> 在全局设备上暴露 <code>gpu3d_*</code> 系列门面函数,作为内核 DRM 层的命令入口。</p>
+<p>内核侧是重头:在 <code>os/StarryOS/kernel/src/pseudofs/dev/drm.rs</code> 定义 11 个 <code>DRM_IOCTL_VIRTGPU_*</code> 的编号、flag 与用户态结构体,再在 <code>card0.rs</code> 按 Linux 同名 handler 一一对应实现。</p>
+<table>
+<thead>
+<tr>
+<th>ioctl</th>
+<th>编号</th>
+<th>职责(对应 Linux 实现)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>VIRTGPU_MAP</code></td>
+<td>0x41</td>
+<td>blob 资源 mmap 进用户空间</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_EXECBUFFER</code></td>
+<td>0x42</td>
+<td>提交 virgl 命令流(核心路径)</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_GETPARAM</code></td>
+<td>0x43</td>
+<td>能力查询(fence-fd 等参数)</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_RESOURCE_CREATE</code></td>
+<td>0x44</td>
+<td>创建 3D 资源</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_RESOURCE_INFO</code></td>
+<td>0x45</td>
+<td>查询资源信息(blob 类型等)</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_TRANSFER_FROM_HOST</code></td>
+<td>0x46</td>
+<td>宿主→guest 数据回读</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_TRANSFER_TO_HOST</code></td>
+<td>0x47</td>
+<td>guest→宿主数据上传</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_WAIT</code></td>
+<td>0x48</td>
+<td>等待 fence(渲染完成)</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_GET_CAPS</code></td>
+<td>0x49</td>
+<td>获取 capset 二进制(能力集)</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_RESOURCE_CREATE_BLOB</code></td>
+<td>0x4a</td>
+<td>创建 blob 资源(共享内存)</td>
+</tr>
+<tr>
+<td><code>VIRTGPU_CONTEXT_INIT</code></td>
+<td>0x4b</td>
+<td>渲染上下文初始化(capset_id/num_rings)</td>
+</tr>
+</tbody></table>
+<p>每个 handler 只做三件事:按 UAPI 布局读用户参数、调用 <code>gpu3d_*</code> 门面把命令送到 virtqueue、按 Linux 语义回写结构与 errno。这层”与 Linux 一一对应”的纪律后来被证明极其重要——5.4 节的 fence 问题、6.4 节的释放语义问题,都是靠”对照 Linux 该是什么语义”来定位的。</p>
+<h3 id="4-4-让-Mesa-认出这块”显卡”"><a href="#4-4-让-Mesa-认出这块”显卡”" class="headerlink" title="4.4 让 Mesa 认出这块”显卡”"></a>4.4 让 Mesa 认出这块”显卡”</h3><p>第一轮联调,glmark2 直接回退到 llvmpipe(CPU 软渲染)。把 glmark2/Mesa 的认卡逻辑逐条排查后找到四处协议失配:sysfs 中驱动名必须是 <code>virtio_gpu</code>(原实现叫 <code>starry-drm-simple</code>,用户态不认识);<code>/dev/dri/</code> 下必须同时有 <code>card0</code> 和 <code>renderD128</code>(原来只有前者);DRM ioctl 号由结构体大小参与编码,<code>DrmVirtgpuExecbuffer</code> 缺 syncobj 尾字段导致 64 字节布局落空,<code>DrmVirtgpuResourceCreateBlob</code> 则必须精确 48 字节;最隐蔽的是 <code>GETPARAM</code>——它的 <code>value</code> 字段是指针,原实现把值写进指针字段本身,能力协商因此读到全 0。逐一修正后,<code>GL_RENDERER</code> 终于变成 <code>virgl (AMD Radeon 780M Graphics ...)</code>。</p>
+<h3 id="4-5-黑屏-把宿主纹理送上扫描口"><a href="#4-5-黑屏-把宿主纹理送上扫描口" class="headerlink" title="4.5 黑屏:把宿主纹理送上扫描口"></a>4.5 黑屏:把宿主纹理送上扫描口</h3><p>认卡之后渲染已在宿主真实发生,但 spice 窗口黑屏——这恰好证明像素确实在宿主 GPU 上,只是回不到显示通路。根因:Weston 的 scanout buffer 是 <code>RESOURCE_CREATE_3D</code> 建的宿主 3D 资源,而原 present 路径只会把 guest RAM memcpy 到扫描口,宿主纹理里的像素根本拷不出来。修复是把 <code>Framebuffer</code> 的 backing 分成两类:<code>FbBacking::Dumb</code>(保留原 memcpy 路径)与 <code>FbBacking::Gpu3d</code>(记资源句柄,present 时走 <code>set_scanout</code> + <code>resource_flush</code>,由宿主零拷贝直接把纹理送上显示)。<code>handle_addfb2</code> 相应地先查 dumb 表、再查 3D 资源表,让宿主资源也能注册成 framebuffer。</p>
+<img src="/blog/2026/10/11/%E5%9C%A8-StarryOS-%E4%B8%8A%E5%AE%9E%E7%8E%B0%E8%99%9A%E6%8B%9F%E5%8C%96-GPU-3D-%E5%8A%A0%E9%80%9F/glmark2-virgl-weston.png" class="" title="里程碑:StarryOS 上 virgl 渲染的 glmark2,weston 合成正常显示">
+
+<p>spice 窗口里 weston 桌面与 glmark2 旋转立方体正常显示,串口横幅如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">    glmark2 2023.01</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">    OpenGL Information</span><br><span class="line">    GL_VENDOR:      Mesa</span><br><span class="line">    GL_RENDERER:    virgl (AMD Radeon 780M Graphics (radeonsi, phoenix, ACO, DR...)</span><br><span class="line">    GL_VERSION:     OpenGL ES 3.2 Mesa 25.2.7</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<p>至此功能里程碑达成:3D 硬件加速通路完整,glmark2 可以完整出分。这一步比计划表的预计提前了两周,余下的时间全部投入性能。</p>
+<h2 id="5-性能优化战役-第-7-11-周"><a href="#5-性能优化战役-第-7-11-周" class="headerlink" title="5. 性能优化战役(第 7~11 周)"></a>5. 性能优化战役(第 7~11 周)</h2><h3 id="5-1-方法论-帧时间为北极星"><a href="#5-1-方法论-帧时间为北极星" class="headerlink" title="5.1 方法论:帧时间为北极星"></a>5.1 方法论:帧时间为北极星</h3><p>性能工作遵守固定的循环:提出猜想 → 设计能证伪它的实验 → 修改 → 同机 A/B 实测 → 用数据决定保留或回滚。归因不靠猜,靠一套逐步建起来的测量资产:QEMU tracepoint 数每帧命令构成;LD_PRELOAD 拦截 guest 侧 ioctl 前后共写了六版;QMP 的 <code>x-query-virtio-queue-status</code> 取证队列状态;HMP <code>xp</code> 直读宿主视角物理内存;自研”瀑布插桩”把一个渲染循环逐段拆开计时。还有一条昂贵换来的纪律:串口日志每行约等于 100 FPS 级开销,任何测量必须先关日志。</p>
+<h3 id="5-2-异步化的第一次失败"><a href="#5-2-异步化的第一次失败" class="headerlink" title="5.2 异步化的第一次失败"></a>5.2 异步化的第一次失败</h3><p>按 3.3 节的纲,第一刀砍向最显眼的同步点:EXECBUFFER 和 present 的阻塞等待。实测结果反直觉——只异步化 EXECBUFFER 得 362 分,再加 present 得 357 分,都<strong>低于</strong>同步基线的 405 分(FENCE 位关闭的对照基线)。这个失败是关键线索:异步机器本身没问题,是没打中。把每帧的同步点全部数了一遍,发现还有 47 个同步 RTT 藏在别处——29 个资源挂载 + 18 个资源创建/销毁/上传,EXECBUFFER 自己的等待本来就只有几十微秒。</p>
+<p>用 QEMU tracepoint 统计命令构成,答案直接写在计数里。</p>
+<table>
+<thead>
+<tr>
+<th>tracepoint(≈ 命令)</th>
+<th>总数(一个 run)</th>
+<th>每帧</th>
+<th>Linux 同项</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ctx_res_attach</code>(资源挂载到上下文)</td>
+<td>828,394</td>
+<td><strong>36.5</strong></td>
+<td><strong>0</strong></td>
+</tr>
+<tr>
+<td><code>ctx_submit</code>(3D 提交)</td>
+<td>136,942</td>
+<td>6.03</td>
+<td>≈1</td>
+</tr>
+<tr>
+<td><code>res_create_3d</code> / <code>res_back_attach</code> / <code>res_unref</code></td>
+<td>各 ≈134,000</td>
+<td>各 ≈5.9</td>
+<td>启动期一次</td>
+</tr>
+</tbody></table>
+<p>每帧 36.5 次 attach 的根因在我自己的 DRM 层:EXECBUFFER 处理器对每个 BO 句柄每次提交都重新挂载一遍。讽刺的是代码里本来有个 <code>attached: bool</code> 字段想记录这件事,但它是个死字段——5 处写、0 处读。对照 Linux <code>virtgpu_gem.c</code>,正确语义是每个(资源, 打开它的上下文)只挂载一次;Weston 和 glmark2 是两个上下文共享同一批 buffer,所以按 <code>(ctx, resource)</code> 粒度用 <code>attached_ctxs: BTreeSet&lt;u32&gt;</code> 记录。修复后 373→406 分,重场景收益是轻场景的十倍——原因也清楚:重帧队列排得深,每个同步 RTT 都要等宿主排空积压,成本被放大。随后把剩下 18 个同步 RTT(创建/backing/销毁/上传)也全部 fire-and-forget,439 分。到这一步,每帧同步往返清零,收益与移除的 RTT 数严格线性。</p>
+<table>
+<thead>
+<tr>
+<th>轮次</th>
+<th>改动</th>
+<th>Score</th>
+<th>验证对象</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>exp0</td>
+<td>同步 + FENCE 位开(等宿主渲染完才返回)</td>
+<td>367</td>
+<td>基线 A</td>
+</tr>
+<tr>
+<td>exp4</td>
+<td>同步 + FENCE 位关</td>
+<td><strong>405</strong></td>
+<td>基线 B:分离”渲染等待”</td>
+</tr>
+<tr>
+<td>exp5</td>
+<td>仅 EXECBUFFER 异步</td>
+<td>362</td>
+<td>EXECBUFFER RTT 的贡献</td>
+</tr>
+<tr>
+<td>exp6</td>
+<td>EXECBUFFER + present 异步</td>
+<td>357</td>
+<td>present 2 RTT/帧的贡献</td>
+</tr>
+<tr>
+<td>exp7</td>
+<td>exp6 + smp4</td>
+<td>373</td>
+<td>“单核并行限制”假设</td>
+</tr>
+<tr>
+<td>attachfix</td>
+<td>attach 每 (ctx,res) 一次</td>
+<td><strong>406</strong></td>
+<td>attach 风暴</td>
+</tr>
+<tr>
+<td>full-async</td>
+<td>全部生命周期命令 fire-and-forget</td>
+<td><strong>439</strong></td>
+<td>剩余 18 个同步 RTT</td>
+</tr>
+</tbody></table>
+<h3 id="5-3-kick-合并-把-MMIO-税摊到整个事务"><a href="#5-3-kick-合并-把-MMIO-税摊到整个事务" class="headerlink" title="5.3 kick 合并:把 MMIO 税摊到整个事务"></a>5.3 kick 合并:把 MMIO 税摊到整个事务</h3><p>同步往返清零后,下一个靶子是 kick 本身——每次 kick 是一次 MMIO 写,在虚拟化里是一次 VM-exit。第一版按固定条数合并:命令入队后攒够 4 条才发一次 kick,立竿见影,ioctl 单价从 227<del>353µs 降到 35.6µs,内核里 present 切片从每帧 1.8</del>2.0ms 掉到 0.26ms。第二版想改成更精细的”每条命令入队时自己判断要不要 kick”,结果反而回退:kick/帧从 1.42 涨到 5.16。重新对照 Linux <code>virtgpu_vq.c</code> 才发现关键:Linux 在 enqueue 时<strong>从来不 notify</strong>,只做一次计数,真正的 kick 统一放在 ioctl 收尾——合并的单位不是”命令条数”,而是”一次系统调用”。落地为边界 notify 后,kick/帧收敛到 3.23(Linux 为 1.01,剩差来自每帧命令量),FPS 539。</p>
+<p>这里顺手证伪了一个猜想:我原本以为 Linux 靠 <code>avail_event</code> 机制把 kick 压到每批一次,宿主侧 trace 实测 Linux 的 kick:command = 0.33,约等于每条 submit 一次 kick,没有什么”抑制魔法”。</p>
+<h3 id="5-4-真-fence-每帧一个-8×1-像素的线索"><a href="#5-4-真-fence-每帧一个-8×1-像素的线索" class="headerlink" title="5.4 真 fence:每帧一个 8×1 像素的线索"></a>5.4 真 fence:每帧一个 8×1 像素的线索</h3><p>kick 合并后,host 侧对比发现 Starry 每帧多发一个 8×1 像素 R8 小资源的创建+挂载+销毁(一个 run 里 13 万次,而 Linux 全程只有 217 个、都在启动期)。这个资源不是纹理也不是顶点 buffer,LD_PRELOAD 拦截 ioctl(前后六版,踩过 ioctl 号抄错、dlsym 无限递归打穿栈的坑)也只看到行为看不到动机,最后靠反汇编定位到 Mesa 源码:它是 <code>virgl_drm_fence_create_legacy</code> 里 fence 的载体资源——Mesa 认为我的驱动不支持 fence-fd,退化到 legacy fence 模式,每提交一次就造一个资源当 fence 用完就扔。根因在版本协商:DRM version 的 minor 被固定成 0,Mesa 看到 minor&lt;1 就置 <code>supports_fences=false</code>。</p>
+<p>修复分三件事:<code>DRIVER_VERSION_MINOR</code> 0→1;EXECBUFFER 实现完整的 <code>FENCE_FD_IN</code>(导入 in-fence 并在提交前真实等待)与 <code>FENCE_FD_OUT</code>(创建未决 sync_file 绑定 fence_id,宿主完成才翻转);新建 <code>sync_file.rs</code> 实现 Linux sync_file 语义——关键是真的语义:初始未决、宿主完成才置位,如果返回”永远已完成”的假 fence,Mesa 的回读会读到脏数据。实测 texture 625/639/637,Mesa 侧 legacy fence 资源创建归零。</p>
+<h3 id="5-5-完成通知链-中断为什么没进来"><a href="#5-5-完成通知链-中断为什么没进来" class="headerlink" title="5.5 完成通知链:中断为什么没进来"></a>5.5 完成通知链:中断为什么没进来</h3><p>真 fence 落地后,完成的传递靠一个 1ms 轮询的 refresher 任务兜底。控制变量实验证明轮询就是天花板:轮询 10ms 时 offscreen 掉到 97 FPS,改成提交后自旋 500µs 冲到 1277 FPS 但 on-screen 反而变差——轮询和自旋都是错误的兜底姿势,完成通知必须走中断。而中断进不来有三层原因,逐层揭开:其一,probe 时用了 masked transport,把 INTx 屏蔽了,QEMU 发了 32064 次 notify,PCI 层 0 次;其二,解开 mask 后系统死锁,3D 入口持普通 SpinLock,被完成中断打断后中断处理程序要拿同一把锁,单核下死锁,改 <code>lock_irqsave</code>;其三,中断里每次全量 pump + 扫描所有 fence 等待者开销太大,改成 handler 里 pump 一次 + 只查电平 + 只扫真正有 poller 的 fence。期间顺手修了一个:flip 事件的 poll 集合堆积了 13~17 个历史残留 waker,每次唤醒全部拉起(实测 850µs),改成单读者 <code>wake_one</code> 后 8µs。实测 offscreen 703→1141(+62%),atomic ioctl 均价 565µs→90µs。</p>
+<h3 id="5-6-epoll-自唤醒循环"><a href="#5-6-epoll-自唤醒循环" class="headerlink" title="5.6 epoll 自唤醒循环"></a>5.6 epoll 自唤醒循环</h3><p>到这一步 GPU 侧开销已压了不少,帧时间却还剩 2ms 量级。两组对照先排除嫌疑:glmark2 直连 DRM(不经 Weston)能跑 1059 FPS,说明合成链占约一半;把 Linux 虚拟机整个调度器换成和 Starry 一样的 SCHED_RR 反而跑到 6966 FPS,证明调度算法无罪。然后用零日志原子桶插桩把每次 <code>epoll_wait</code> 从入口到真正 park 的时间钉死:每次都要先排空约 13 条陈旧就绪条目,96.5% 是空的,每条约 10µs。根因在我的 poll 实现:PollSet 满 64 之后环形替换并唤醒被挤掉的旧条目,而 epoll 每次 wait 都新建一个全新 waker 且从不注销——新 waker 和旧 waker 永远认不出彼此(<code>will_wake</code> 不命中),”唤醒上一个自己”→条目重新入队→下次再排空,无限自循环。试了三版:A 去掉二次 poll,无效;B 等待期间抑制自触发唤醒,epoll 开销消失但把真实唤醒也抑制了,直接死锁;C 每个 interest 惰性缓存同一个 waker 复用注册,环形替换命中 <code>will_wake</code> 快路径,不再自唤醒。配套补了 <code>unregister</code> 家族(ppoll 返回、card0、sync_file、axtask poll_io 都按 waker 身份注销),防止残留 waker 吞掉 <code>wake_one</code> 饿死真等待者。实测 texture 500-520 → 778-813(+56%)。</p>
+<h3 id="5-7-后台噪音治理"><a href="#5-7-后台噪音治理" class="headerlink" title="5.7 后台噪音治理"></a>5.7 后台噪音治理</h3><p>最后一类是纯后台唤醒噪音,而且都是我自己代码造出来的:fence refresher 每 1ms 醒一次(实测约 1000 次/秒);串口维护线程空闲时固定 1ms 轮询;网卡收包线程 10ms 轮询且每次醒来把 net-poll 带醒,两个线程乒乓。修复:refresher 加全局 poller 计数门控,有人等才 1ms 服务,没人等 50ms 兜底停车(约 20 次/秒);串口按最后真实工作空闲退避,1ms→20ms,有输入立即恢复;网卡空闲退避到 1s。有个值得记录的现象:只修 refresher,机制计数好看了 50 倍但 FPS 纹丝不动;三个一起修才 +8.8%(888/924)。解释是 serial/net 的唤醒与 glmark2 的 ioctl 活动时间相关,更容易恰好落在 commit→Weston 的关键窗口里插队。这一阶段还有个插曲:GAP 插桩显示三个后台任务各以每秒 900 次插队,顺着查了半天全错——插桩的名字槽”第一次见到就固定”,而这些 tid 早期属于别的任务,退出后被用户进程复用;给名字槽加任务指针校验后,真相是剩下每帧醒一次的都是 Wayland 管线自己的成员,Linux 带着同样的成员跑 6966 FPS,它们不是根因。</p>
+<h3 id="5-8-差距账本-剩下的是什么"><a href="#5-8-差距账本-剩下的是什么" class="headerlink" title="5.8 差距账本:剩下的是什么"></a>5.8 差距账本:剩下的是什么</h3><p>插队问题关闭后差距还剩约 7.5 倍。瀑布插桩带来一个重要修正:系统里其实有两条循环——glmark2 渲染循环约 900 次/秒,Weston 合成循环只有 176 次/秒、上屏 88 次/秒,以前把它们混成一条”帧”算账,整个账本是错的。按渲染循环重测的差距账本如下(1.10ms = 100%)。</p>
+<table>
+<thead>
+<tr>
+<th>类目</th>
+<th>Starry µs</th>
+<th>占比</th>
+<th>Linux µs</th>
+<th>占比</th>
+<th>倍数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>应用/Mesa 用户态编码</td>
+<td>80</td>
+<td>7%</td>
+<td>76</td>
+<td>40%</td>
+<td>1.1×(两侧相同=物理地板)</td>
+</tr>
+<tr>
+<td>GPU 提交 ioctl(execb×2 + atomic 摊销)</td>
+<td>259</td>
+<td>24%</td>
+<td>40</td>
+<td>21%</td>
+<td>6.5×</td>
+</tr>
+<tr>
+<td><strong>Wayland socket 系统调用 ×7</strong></td>
+<td><strong>370</strong></td>
+<td><strong>34%</strong></td>
+<td>7</td>
+<td>3%</td>
+<td><strong>52.9×(最大单项)</strong></td>
+</tr>
+<tr>
+<td>唤醒/调度跳</td>
+<td>235</td>
+<td>21%</td>
+<td>40</td>
+<td>21%</td>
+<td>5.9×</td>
+</tr>
+<tr>
+<td>Weston 用户态分派</td>
+<td>80</td>
+<td>7%</td>
+<td>20</td>
+<td>11%</td>
+<td>4.0×</td>
+</tr>
+<tr>
+<td>辅助成员轮次(kb/shell/timerfd)</td>
+<td>76</td>
+<td>7%</td>
+<td>7</td>
+<td>4%</td>
+<td>10.9×</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td><strong>1100</strong></td>
+<td>100%</td>
+<td><strong>190</strong></td>
+<td>~100%</td>
+<td><strong>5.8×</strong></td>
+</tr>
+</tbody></table>
+<p>账本把矛头指向 socket 系统调用单价。用同一份静态二进制在宿主机、Alpine 虚拟机、StarryOS 三方对照微基准,差距分解为三层叠加。</p>
+<table>
+<thead>
+<tr>
+<th>微基准</th>
+<th>测什么</th>
+<th>Alpine VM</th>
+<th>StarryOS</th>
+<th>倍数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>S</td>
+<td><code>getpid</code>(裸 syscall 入口)</td>
+<td>261 ns</td>
+<td>2067 ns</td>
+<td><strong>7.9×</strong></td>
+</tr>
+<tr>
+<td>C</td>
+<td><code>clock_gettime</code></td>
+<td>335 ns</td>
+<td>3758 ns</td>
+<td>11.2×</td>
+</tr>
+<tr>
+<td>A</td>
+<td><code>sendmsg+recvmsg</code> 对(就绪,无唤醒)</td>
+<td>1317 ns</td>
+<td>32675 ns</td>
+<td><strong>24.8×</strong></td>
+</tr>
+<tr>
+<td>A2</td>
+<td>recv EAGAIN(Wayland 每轮都有)</td>
+<td>430 ns</td>
+<td>25803 ns</td>
+<td>60×</td>
+</tr>
+<tr>
+<td>B</td>
+<td>fork 乒乓(含唤醒+调度)</td>
+<td>5927 ns</td>
+<td>124816 ns</td>
+<td>21×</td>
+</tr>
+</tbody></table>
+<p>账本就此闭合:7 次 × 入口税 1.6µs + 3~4 次 × 唤醒跳 46µs ≈ 370µs,与瀑布实测吻合。结论有两条:等待本身已经没有浪费(单核上一方的等待就是另一方的运行),剩余差距几乎全是<strong>单价</strong>问题;用户态编码两侧相同,80µs 是物理下界。socket 单价与 syscall 入口税是内核级战场,超出 GPU 驱动的范围,列入后续工作(第 9 章)。</p>
+<h3 id="5-9-大重构适配与一个被底座暴露的地址翻译缺陷"><a href="#5-9-大重构适配与一个被底座暴露的地址翻译缺陷" class="headerlink" title="5.9 大重构适配与一个被底座暴露的地址翻译缺陷"></a>5.9 大重构适配与一个被底座暴露的地址翻译缺陷</h3><p>9 月上游发生三线超大规模重构:调度/任务重建(#1775,1282 文件 +14.8 万行)、ax-cpu 集中化(#2363,642 文件)、starry-mm VMA 生命周期重设计(#2261)。我把分支逐块 rebase 到新底座:<code>card0.rs</code> 的 45 项导入逐项对照新符号表、约 200 处用户内存访问改带 <code>current</code> 参数的签名、3 个 Pollable 实现迁移到 lease 模型、遥测引用摘除。编译通过后,3D 设备初始化却失败了,而且命令完全合法、宿主也收到了——为什么就是失败?</p>
+<p>按”命令语义”方向提出的七项假设(payload、特性协商、IRQ 等)逐项证伪后,换思路做对照:一个不经过我任何代码的纯 upstream 实验(qt-calc)在官方驱动路径下 PASSED,锁定差异点是我 fork 里的<strong>零拷贝</strong>——<code>request()</code> 直接把调用者栈帧借给设备 DMA。再用 QEMU HMP <code>xp</code> 从宿主视角直读公式算出的物理地址,看到的是<strong>用户代码页的字节</strong>,实锤错译。三个因素交汇成这个 bug:fork 零拷贝把命令缓冲留在调用者栈上;公式 <code>virt_to_phys</code> 只在地址落在线性映射窗口时成立;而新底座的 #1775 引入了 vmap 任务栈——内核栈按页映射,不在线性窗口。Weston 的 2D 命令因为 fire-and-forget 拷进了线性窗口内的 arena 所以不挂,分界线是”缓冲住在哪个地址窗口”,与 2D/3D 语义无关。</p>
+<p>修复原则:不猜地址,逐页查真页表;能直通就直通,不能才拷贝。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    A[&quot;驱动拿到 guest 虚拟地址&quot;] --&gt; B[&quot;share():逐页查真页表&lt;br&#x2F;&gt;axklib::mem_virt_to_phys_checked&quot;]</span><br><span class="line">    B --&gt;|&quot;物理连续(堆页热路径)&quot;| C[&quot;直通真 paddr&lt;br&#x2F;&gt;零拷贝&quot;]</span><br><span class="line">    B --&gt;|&quot;散页(vmap 任务栈)&quot;| D[&quot;bounce 池拷贝&lt;br&#x2F;&gt;64×16KB + 超大专用页,完成后拷回&quot;]</span><br><span class="line">    C --&gt; E[&quot;virtqueue DMA&quot;]</span><br><span class="line">    D --&gt; E</span><br></pre></td></tr></table></figure>
+
+<p><code>axklib</code> 的 Klib trait 增加 <code>mem_virt_to_phys_checked</code>(默认 None),<code>axruntime</code> 经 <code>axmm::AddrSpace::query_paddr</code> 实现逐页翻译;<code>ax-driver</code> 的 <code>share()</code> 重写为逐页查询、物理连续直通、散页进 bounce 池;跨层查询走 axklib 是为了避免 ax-driver 依赖 ax-mm 成环。修复后重测,texture 直接到 1423 FPS——新底座本身带来的调度与内存改进让全局性能上了一个台阶,此后所有优化都在新底座上继续。</p>
+<p>这版逐页翻译方案在随后的新栈重构中演化成了更简单的终态。重构后的异步热路径把命令字节全部拷进驱动自有、地址稳定的 DMA arena——在途命令不再借用任何调用方内存,”缓冲住在哪个地址窗口”的问题对热路径在结构上不复存在;仅存的零拷贝同步路径 <code>request_sync</code>(只剩初始化与 capset 查询在用)则把约束写进文档契约:调用方必须传分配器所有的内存,”绝不能是任意栈帧(vmap 任务栈在线性偏移的 share 实现下会错译)”。今天的树里 <code>Hal::share</code> 回到线性偏移公式,<code>query_paddr</code> 与逐页翻译代码已不复存在——那场事故留下的永久产物不是一段翻译代码,而是”内存必须先落进地址稳定窗口再交给设备”这条写进合同的边界。</p>
+<h3 id="5-10-fence-延迟-41-倍的最大单项"><a href="#5-10-fence-延迟-41-倍的最大单项" class="headerlink" title="5.10 fence 延迟:41 倍的最大单项"></a>5.10 fence 延迟:41 倍的最大单项</h3><p>新底座上的重测账本显示,优化后的差距不再分散而是高度集中。</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>Linux VM</th>
+<th>StarryOS</th>
+<th>差距</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>FPS(texture nearest)</td>
+<td>6145(0.163 ms/帧)</td>
+<td>1423(0.703 ms/帧)</td>
+<td>4.3×</td>
+</tr>
+<tr>
+<td><strong>fence 延迟(创建→signal)</strong></td>
+<td><strong>39 µs(p50 14 µs)</strong></td>
+<td><strong>1598 µs</strong></td>
+<td><strong>41×</strong></td>
+</tr>
+<tr>
+<td>execbuffer ioctl</td>
+<td>38 µs</td>
+<td>64.1 µs</td>
+<td>+26 µs/帧</td>
+</tr>
+<tr>
+<td>syscall 微基准 S/C</td>
+<td>261/337 ns</td>
+<td>84/117 ns</td>
+<td>Starry 反超</td>
+</tr>
+</tbody></table>
+<p>fence 延迟 41 倍是压倒性的最大单项,而且根因在代码里就能看到:<code>sync_file.rs</code> 的 fence 完成靠 refresher 任务的 1ms 轮询节拍——fence 在宿主完成后,要等下一个 1ms tick 才被 refresh+signal;满载下这个 tick 还被调度拖到平均 1.6ms,分布形状(以 1ms 为中心散开)与之精确吻合。这也修正了我此前把 0.5<del>1ms 延迟簇归因于”帧相位量化”的误判。Linux 走的是中断即时路径。做一个简易验证:把 fence 完成改为 SCHED_FIFO 实时线程即时 signal(暂不做完整事件化),texture 2394-2461(+71</del>75%)、shading 2495(+81%),帧时间 0.70→0.41ms,总分到 2400 档。方向确认后,事件化与等待结构的完整工程化进入第 6 章。</p>
+<h2 id="6-工程化落地-第-10-12-周"><a href="#6-工程化落地-第-10-12-周" class="headerlink" title="6. 工程化落地(第 10~12 周)"></a>6. 工程化落地(第 10~12 周)</h2><h3 id="6-1-异步控制队列的工程化"><a href="#6-1-异步控制队列的工程化" class="headerlink" title="6.1 异步控制队列的工程化"></a>6.1 异步控制队列的工程化</h3><p>实验版异步验证了方向,但距离可合入还差工程化。这一步的难点不在”发出去”,而在异步与同步、2D 与 3D、正常与异常路径的两两组合下都不死锁、不丢命令、不吃内存。四个核心设计裁决如下。</p>
+<table>
+<thead>
+<tr>
+<th>难点</th>
+<th>裁决</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>kick 策略两难:依赖调用方在事务边界 kick 会饿死不守约的消费者;逐命令 auto-kick 实测损失约 8%</td>
+<td>阈值判定 + 事件去重:入队后累计未送达数,满 8 条 / avail 环将满 / 同步命令任一条件才通知;是否真写 MMIO 由标准 <code>should_notify</code> 决定;Weston 这类守约消费者帧末 <code>ctrl_notify()</code> 立即送达积压</td>
+</tr>
+<tr>
+<td>上游 <code>add_notify_wait_pop</code> 在混合流量下弹出别人的完成条目</td>
+<td>阻塞调用改 <code>request_sync</code>:借用调用方栈、同函数帧内”入队→kick→等自己的 token→校验”,零拷贝;同步条目不登记收割记录,收割方按 FIFO 遇无记录条目即停——异步与中断永远偷不走阻塞者的完成条目</td>
+</tr>
+<tr>
+<td>QEMU 队列深度与直觉相反:统一 64 深直接 InvalidParam</td>
+<td>从校验回溯到 QEMU 源码:设备固定 ctrlq=64、cursorq=16,驱动严格按设备实情配置</td>
+</tr>
+<tr>
+<td>DMA 缓冲地址漂移:命令字节随结构体移动,设备 DMA 读到垃圾且无任何报错</td>
+<td>初始化时一次性分配固定 arena(命令 96B/响应 24B × N),在途命令字节从头到尾活在固定内存,驱动只传 u16 槽位号——“地址漂移”这类 bug 在结构上不可能再发生</td>
+</tr>
+</tbody></table>
+<p>三个活性缺陷也各有回归测试钉死:阻塞 <code>submit_3d</code> + <code>wait_fence</code> 的真实死锁(两条收割路径记账不对称);<code>wait_fence</code> 在在飞命令低于 kick 阈值时”只等不推”的低阈值死锁(每轮开头补 <code>notify()</code>);文档教的轮询模式永远推不动 fence(<code>ctrl_notify</code> 只送达不回收,修正文档并给出标准轮询循环)。A/B 定档:同机同用户态,唯一变量为提交模型,33 场景平均 +24.6%(788→982,各场景 +15~26%)。该 PR(virtio-drivers #265)保持开放;主线侧则由 6.2 节的 #2536 把这套代码带进 tgoskits 仓库的 <code>drivers/gpu/virtio-gpu</code> crate。</p>
+<h3 id="6-2-合入主线-从同步版到异步版"><a href="#6-2-合入主线-从同步版到异步版" class="headerlink" title="6.2 合入主线:从同步版到异步版"></a>6.2 合入主线:从同步版到异步版</h3><p>主线合入分两步。第一步 #2483(2026-09-22 合入)是功能完整但<strong>同步</strong>的版本:每个命令等宿主应答,先让 3D 驱动以正确语义进入 dev。随后上游 #2506 重写了整个 GPU 驱动栈(全新 rdif-gpu/axgpu 门面、card0 拆分、IRQ 任务化、reset/DeviceLost 加固),我的异步实现叠在旧接口上不再适用。第二步是把异步语义作为增量逐层重放到新栈上(#2536,2026-09-29 合入),关键裁决包括:设备层以异步 ControlQueue 为原生提交模型,必须拿应答的命令走 <code>request_sync</code>;同步命令保留 #2506 的 fence 戳与响应逐条校验加固;<code>reset()</code> 同步作废控制队列,此后一切队列操作快速失败;错误链 <code>TimedOut→ETIMEDOUT</code>、<code>QueueBusy→EAGAIN</code> 全程对齐 Linux errno。</p>
+<p>合入后在同机实测:glmark2 33 场景完整跑完,总分 <strong>3040</strong>(对同步基线 1739/2234 为 +36%~+75%),套件平均帧时间 0.329ms;旧栈上场景级失败的 <code>refract</code>(<code>GL_FRAMEBUFFER_UNSUPPORTED</code>)随新栈恢复,实测 1433 FPS。此后的开发全部基于已合入 dev 的这版代码。</p>
+<h3 id="6-3-环绕点丢-kick-一个规格级的正确性缺陷"><a href="#6-3-环绕点丢-kick-一个规格级的正确性缺陷" class="headerlink" title="6.3 环绕点丢 kick:一个规格级的正确性缺陷"></a>6.3 环绕点丢 kick:一个规格级的正确性缺陷</h3><p>异步化之后出现过一类更严重的问题:重载几分钟后整队列耗尽、显示冻结。QMP 取证(<code>x-query-virtio-queue-status</code>)钉死现场:宿主主循环空闲、<code>last-avail-idx = used-idx = 65534</code> 冻结、<code>inuse=0</code>,而 guest 侧 kick 持续增长——<strong>宿主从未被告知有新命令</strong>。根因在 virtio-drivers 0.13.0 的 <code>should_notify()</code>:它用普通 u16 <code>&gt;=</code> 判断 RING_EVENT_IDX,不满足 <code>vring_need_event</code> 要求的环绕语义。批量发布跨过 65536 环绕点后 <code>avail_idx</code> 绕回小值,而落后的宿主仍持大 <code>avail_event</code>,此后<strong>所有</strong>边界 kick 恒被抑制。修复是让边界 kick 恒发 MMIO、不过闸门——多余的 kick 对 virtio 规范恒安全,代价仅每事务一次 MMIO 写。这个修复与 #2536 一起进入主线,同机 A/B texture 1865→2933(<strong>+57%</strong>),帧时间 0.536→0.341ms。</p>
+<h3 id="6-4-等待结构改造与锁外等待"><a href="#6-4-等待结构改造与锁外等待" class="headerlink" title="6.4 等待结构改造与锁外等待"></a>6.4 等待结构改造与锁外等待</h3><p>完成通知钩子(IRQ worker 泵完成时唤醒 fence poller,单独实测 +4.8%)落地后,还剩最后一块结构性改造:把全部等待路径移出设备锁。这不是性能问题,是活性问题——此前三次 guest 冻结事故(09-25 fence-spin 三变体挂死、09-26 490 秒 QueueBusy、09-30 在飞窗口实验 4 倍变慢)有一个共同结构根源:等待者在全局设备锁的临界区内自旋,而等待者持有的锁,正是完成泵推进水位所需要的锁。</p>
+<p>对照上游 Linux 驱动,它永不卡死的结构性事实是:整个驱动只有 4 个阻塞点,全部是 <code>wait_event</code> 族睡眠;<strong>完成推进(微秒级临界区 + 独立工作上下文)所需的全部资源,与任何等待者持有的全部资源,交集为空</strong>。等待多少、等多久、谁在等,都不影响系统前进;最坏形态是”单个任务可杀地睡着”,而不是”CPU 永远转”或”锁永远被持有”。本 PR 把本仓库 GPU 栈的等待形态对齐这一结构。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">flowchart TB</span><br><span class="line">    subgraph before[&quot;改造前:等待者与完成泵互锁&quot;]</span><br><span class="line">        W1[&quot;VIRTGPU_WAIT &#x2F; UNREF &#x2F; 回读&lt;br&#x2F;&gt;持锁自旋&quot;] --&gt;|&quot;持有&quot;| L1[(&quot;MAIN_GPU 全局锁&quot;)]</span><br><span class="line">        P1[&quot;完成泵推进水位&lt;br&#x2F;&gt;需要同一把锁&quot;] --&gt;|&quot;永远抢不到&quot;| L1</span><br><span class="line">        L1 -.-&gt;|&quot;等待越长→泵越停→等待更长&quot;| W1</span><br><span class="line">    end</span><br><span class="line">    subgraph after[&quot;改造后:资源交集为空&quot;]</span><br><span class="line">        W2[&quot;等待者&lt;br&#x2F;&gt;wait_gpu_condition&lt;br&#x2F;&gt;锁间探测 + 锁外睡眠&quot;] </span><br><span class="line">        P2[&quot;完成泵 &#x2F; IRQ worker&lt;br&#x2F;&gt;推进水位 + set_completion_notifier 唤醒&quot;]</span><br><span class="line">        W2 --&gt;|&quot;探测段:拿锁→泵→查条件→放锁(有界轮次)&quot;| P2</span><br><span class="line">        P2 --&gt;|&quot;完成事件&quot;| W2</span><br><span class="line">    end</span><br></pre></td></tr></table></figure>
+
+<p>改动是四件事的组合:<code>set_completion_notifier</code> 让 IRQ worker 泵完成时唤醒等待者;<code>wait_gpu_condition(timeout, cond)</code> 提供”检查条件、放锁、睡眠、被唤醒或超时”的锁外等待原语;<code>TRANSFER_FROM_HOST</code>/<code>RESOURCE_UNREF</code> 改为带 fence 的 fire-and-forget,释放观察从”内联排空”改为等待<strong>本对象的 fence</strong>;探测段预算按背靠背实测校准到 32768 轮。其中两个形态修正都是 A/B 实测逼出来的:计划原稿的”全队列排空等待”首轮实测即暴露结构性饥饿——排空判据要求 FIFO 全空,而 glmark2 的持续提交让队列永不清空,轻场景减半、terrain 崩到 1 FPS(全套件 2123 分),撤掉唤醒补全后更是 54 分;改为 per-fence 等待后,used ring 的 FIFO 隐式排序保证”fenced 条目被弹出 ⇒ 此前全部命令已弹出”,饥饿在数学上不可能。反过来,纯睡眠形态在 QEMU 同步处理 kick 的现实下每帧付一次睡眠-唤醒跳,重场景 -40%~78%——所以最终形态是”锁间探测 + 锁外睡眠”两段:探测段有界自泵,真停滞才落睡眠。</p>
+<table>
+<thead>
+<tr>
+<th>形态</th>
+<th>总分</th>
+<th>墙钟</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基线(钩子分支)</td>
+<td>2749</td>
+<td>585.8s</td>
+</tr>
+<tr>
+<td>排空等待(计划原稿形态)</td>
+<td>2123</td>
+<td>1399s</td>
+</tr>
+<tr>
+<td>排空等待、无唤醒补全</td>
+<td>54</td>
+<td>1477s</td>
+</tr>
+<tr>
+<td>per-fence + 纯睡眠偏重</td>
+<td>1349</td>
+<td>1394s</td>
+</tr>
+<tr>
+<td>探测 4096 轮</td>
+<td>2513</td>
+<td>759s</td>
+</tr>
+<tr>
+<td><strong>终态:探测 32768 轮</strong></td>
+<td><strong>2813(+2.3%)</strong></td>
+<td><strong>580.5s</strong></td>
+</tr>
+</tbody></table>
+<p>终态逐场景 19/19 无一劣化超过 1.6%,14 个正收益,零超时告警。两轮审查共 7 条意见(完成查询不自泵、释放观察能力无关性、无 backing 回读误报 <code>-ENOENT</code> 等)全部修复,每条配确定性回归测试;修复后获审查通过,于 2026-10-02 合入 dev(合入提交 <code>272813273</code>,共 11 个提交,11 文件 +574/−143)。至此,异步提交、真 fence、完成通知与锁外等待构成 dev 主线 GPU 栈的最终形态。</p>
+<h3 id="6-5-稳定性-从三次冻结到十轮浸泡零冻结"><a href="#6-5-稳定性-从三次冻结到十轮浸泡零冻结" class="headerlink" title="6.5 稳定性:从三次冻结到十轮浸泡零冻结"></a>6.5 稳定性:从三次冻结到十轮浸泡零冻结</h3><p>值得单独成节的是正确性的收尾。此前三类冻结对应的宿主侧表象各不相同,但 guest 侧的结构原因都是”无界等待”:同步等待在关中断自旋内等宿主,宿主一停 guest 永久自旋;<code>request_sync</code> 等待无界(缓冲区在调用方栈帧,放弃等待会留下悬垂 ring 条目),后改为 5 秒截止,超时破队快败、由调用方失败路径复位设备。另一个反向教训是 09-30 的 K=3 在飞窗口实验:想用滑动窗口限制流水线深度来规避宿主侧丢完成,实测被证伪——多客户端聚合下在飞深度常态大于 3,套件 4 倍变慢、vCPU 100%,实验数据保留在旁支分支存证,路线判死。</p>
+<p>#2557 之后的终态:重场景子集(texture-mipmap/shading-phong/effect2d/shadow/terrain)× 10 轮单引导循环,50/50 场景退出码全 0,零冻结、零超时,轮次分数无衰减;期间一次宿主侧瞬时低谷(单轮 1432)被有界等待吸收后即恢复——这个输入形态在旧栈正是会雪崩成卡死的类型。宿主侧丢完成(QEMU 11.1 virtio-gpu ↔ virglrenderer 交互问题,任何 guest 侧改造都防不住)现在的表现是 5 秒超时 + <code>-EBUSY</code> 重试或复位恢复,串口 warn 可见,而不是永久卡住。</p>
+<h2 id="7-组件化设计"><a href="#7-组件化设计" class="headerlink" title="7. 组件化设计"></a>7. 组件化设计</h2><p>前六章按时间线讲完了”做了什么”,这一章换个视角:这些代码最终以什么形状留在仓库里。TGOSKits 的分层约定是可复用逻辑放进 <code>drivers/</code>、<code>components/</code>,OS 适配代码贴近使用它的内核;这次实习的 GPU 栈从第一天起就按这个约定切分,而这些边界不是形式——同一份驱动既要支撑 3D 全功能路径,又要让纯 2D 的 QEMU CI 配置和无 GPU 配置保持绿色,还要在上游三次大规模重构中控制迁移成本,依靠的正是本章描述的这些合同。</p>
+<h3 id="7-1-接口合同与能力门控"><a href="#7-1-接口合同与能力门控" class="headerlink" title="7.1 接口合同与能力门控"></a>7.1 接口合同与能力门控</h3><p>硬件无关的合同集中在 <code>drivers/interface/rdif-gpu</code>:宿主侧(card0/axgpu)只看得到 trait,驱动侧只需实现 trait,三份合同对象如下。</p>
+<table>
+<thead>
+<tr>
+<th>合同对象</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>VirglOps</code> trait</td>
+<td>驱动能力面:<code>submit</code> 提交命令流并返回 fence、生命周期命令 fire-and-forget、<code>ctrl_notify</code> 边界投递、<code>release_buffer</code> 释放缓冲</td>
+</tr>
+<tr>
+<td><code>Completion</code>(标 <code>#[must_use]</code>)</td>
+<td>fenced 提交的”释放证明”:丢弃令牌即编译错误,编译器强制每条 fenced 释放被观察(仓库内两处合法丢弃在调用点注明理由)</td>
+</tr>
+<tr>
+<td><code>GpuError</code></td>
+<td>驱动域错误枚举,含 <code>TimedOut</code> 等语义化变体,向上翻译成 errno(见 7.4 节)</td>
+</tr>
+</tbody></table>
+<p>能力协商结果在驱动侧收敛为三个 getter——<code>has_virgl</code>、<code>has_resource_blob</code>、<code>has_context_init</code>——每个 3D 命令入口经 <code>require_virgl()</code> 提前失败(域错误 <code>Unsupported</code>),而不是把未定义命令发给宿主。有了这层门控,”纯 2D 配置”与”3D 全功能配置”共用同一份驱动代码,能力差异只体现为协商结果。</p>
+<p>门控的价值在 #2557 第二轮审查中被一个真实缺陷反向证明:释放观察最初统一走 virgl 专属的 <code>virgl_wait_fence</code>,在纯 2D virtio-gpu(本仓库 QEMU 用例的配置)上对 dumb buffer 释放返回 <code>Unsupported</code>——UNREF 实际已成功却打出失败日志,backing 无证明交回。修复是把”等一个完成令牌”下沉为能力无关的 <code>ax_gpu::wait_completion(completion, timeout)</code>,<code>virgl_wait_fence</code> 只留给唯一 virgl 语义调用者(VIRTGPU_WAIT 等 SUBMIT fence,2D 设备不可达)。”能力相关的 API 与能力无关的 API 分开存放”由此成为固定边界。</p>
+<h3 id="7-2-依赖方向与跨层服务注入"><a href="#7-2-依赖方向与跨层服务注入" class="headerlink" title="7.2 依赖方向与跨层服务注入"></a>7.2 依赖方向与跨层服务注入</h3><p>驱动栈不能反向依赖内核内存子系统——<code>ax-driver</code> 直接依赖 <code>ax-mm</code> 会构成循环。跨层服务因此一律走 <code>components/axklib</code> 里的 trait 合同:<code>Klib</code> 定义 <code>mem_iomap</code>、<code>mem_virt_to_phys</code>、DMA 一致性等平台服务,由 <code>axruntime</code> 的 <code>KlibImpl</code> 经 <code>axmm</code>/<code>axhal</code> 提供真实现;时间同理,驱动自身不读时钟,<code>VirtIoGpu::new</code> 接收 <code>axklib::time::monotonic_nanos</code> 作为 fence 有界等待的时钟源。依赖形状如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    subgraph reusable[&quot;可复用包(no_std + alloc,跨内核)&quot;]</span><br><span class="line">        VG[&quot;virtio-gpu crate&lt;br&#x2F;&gt;协议 + 异步控制队列&quot;]</span><br><span class="line">        AD[&quot;ax-driver VirtIoGpu&lt;br&#x2F;&gt;适配与 Hal 实现&quot;]</span><br><span class="line">        RG[&quot;rdif-gpu&lt;br&#x2F;&gt;VirglOps 合同&quot;]</span><br><span class="line">    end</span><br><span class="line">    subgraph glue[&quot;跨层合同&quot;]</span><br><span class="line">        KL[&quot;axklib:Klib trait&lt;br&#x2F;&gt;mem_iomap &#x2F; virt_to_phys &#x2F; 时钟&quot;]</span><br><span class="line">    end</span><br><span class="line">    subgraph oslayer[&quot;OS 适配层&quot;]</span><br><span class="line">        RT[&quot;axruntime KlibImpl&lt;br&#x2F;&gt;经 axmm &#x2F; axhal 实现&quot;]</span><br><span class="line">        AXG[&quot;axgpu 门面&quot;]</span><br><span class="line">        C0[&quot;card0(DRM UAPI)&quot;]</span><br><span class="line">    end</span><br><span class="line">    VG --&gt; AD</span><br><span class="line">    AD --&gt; RG</span><br><span class="line">    AD -.-&gt;|&quot;只依赖 trait&quot;| KL</span><br><span class="line">    RT &#x3D;&#x3D;&gt;|&quot;提供实现&quot;| KL</span><br><span class="line">    RG --&gt; AXG</span><br><span class="line">    AXG --&gt; C0</span><br></pre></td></tr></table></figure>
+
+<p><code>#![no_std]</code> + <code>alloc</code> 是这些可复用包的统一形态,<code>virtio-gpu</code> 的 crate 文档开篇即写明自身只依赖 <code>alloc</code>、不依赖任何 OS。这个依赖形状的直接收益在 5.9 节已经出现过一次:当地址翻译的正确性问题暴露时,修复点被合同收敛在 <code>Hal::share</code> 与 <code>request_sync</code> 的文档契约两处,没有扩散成对内核子系统的普遍依赖。</p>
+<h3 id="7-3-能力组合与无设备退化"><a href="#7-3-能力组合与无设备退化" class="headerlink" title="7.3 能力组合与无设备退化"></a>7.3 能力组合与无设备退化</h3><p>驱动 API 按”2D/3D × 同步/异步”的组合设计:异步控制队列是独立模块(<code>ctrl.rs</code>),同步 <code>request</code> 的语义保持不变,四种组合(OS 同步/异步、设备 2D/2D+3D)共用同一实现而不互相污染。无设备场景同样是一等公民:无 GPU 的配置里 card0 节点仍然存在,所有 GPU 调用路径以 <code>axgpu::has_display_controller()</code> 先行判定——这条守则来自一次真实事故:无 GPU 配置下设备从未初始化,不设防的调用会锁上未初始化的全局设备直接 panic,此后”节点存在 ≠ 设备存在”成为固定检查。</p>
+<p>验证矩阵同样按组合展开:持续集成的 QEMU 用例配置本身就是纯 2D 设备,无设备路径由 <code>gpu-absent</code> 用例覆盖,3D 全功能路径由 <code>virgl-test</code> 应用(Weston + glmark2)在 x86 QEMU 上验收——纯 2D 线证明退化路径不腐化,3D 线证明全功能路径不回退。</p>
+<h3 id="7-4-错误域边界"><a href="#7-4-错误域边界" class="headerlink" title="7.4 错误域边界"></a>7.4 错误域边界</h3><p>每个组件持有自己的错误域,跨界时显式翻译:驱动 <code>Error</code> → <code>GpuError</code> → card0 映射 → <code>VfsError</code>。映射规则对齐 Linux errno 语义——<code>NotReady</code>/<code>NotAvailable</code> 映射为 <code>WouldBlock</code>(EAGAIN),<code>TimedOut</code> 映射为 <code>ETIMEDOUT</code>——让 Linux 用户态拿到标准 errno 而不是仓库自定义编码。这条边界是 UAPI 兼容的一部分:Mesa 对 EAGAIN、ETIMEDOUT、EBUSY 的处理分支都按 Linux 语义写,错误翻译错一个变体,用户态就会走进错误的重试或失败路径。上游”domain-owned error boundaries”的重构方向与这条实践一致,GPU 栈从合入第一天就按这个形态实现。</p>
+<h2 id="8-成果汇总"><a href="#8-成果汇总" class="headerlink" title="8. 成果汇总"></a>8. 成果汇总</h2><h3 id="8-1-性能轨迹"><a href="#8-1-性能轨迹" class="headerlink" title="8.1 性能轨迹"></a>8.1 性能轨迹</h3><p>下表按时间列出每个优化步骤的改动、同机实测数值与测量口径。前中期以 texture nearest 单场景 FPS 为口径(当时只有单场景跑法),#2536 之后以 33 场景总分为口径,两类数字不可直接相比,以口径列为准。</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>关键改动</th>
+<th>数值</th>
+<th>口径</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>第 5 周</td>
+<td>首次跑通 virgl</td>
+<td>69</td>
+<td>总分(首次跑通)</td>
+</tr>
+<tr>
+<td>第 7 周</td>
+<td>FENCE 位关 / attach-once / 全异步</td>
+<td>405 → 406 → 439</td>
+<td>总分</td>
+</tr>
+<tr>
+<td>第 8 周</td>
+<td>kick 边界合并 / 真 fence-fd</td>
+<td>539 / 637</td>
+<td>总分 / texture FPS</td>
+</tr>
+<tr>
+<td>第 9 周</td>
+<td>中断链 / epoll 修复 / 噪音治理</td>
+<td>1141(offscreen)/ 813 / 924</td>
+<td>offscreen / texture / build FPS</td>
+</tr>
+<tr>
+<td>第 11 周</td>
+<td>rebase 新底座 / fence 事件化(简易)</td>
+<td>1423 / 2461</td>
+<td>texture FPS</td>
+</tr>
+<tr>
+<td>第 12 周</td>
+<td>异步+真 fence 合入(#2536)</td>
+<td><strong>3040</strong></td>
+<td>33 场景总分</td>
+</tr>
+<tr>
+<td>第 12 周</td>
+<td>完成钩子 + 锁外等待(#2557)</td>
+<td>2813(基线 2749)</td>
+<td>33 场景总分</td>
+</tr>
+</tbody></table>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">xychart-beta</span><br><span class="line">    title &quot;glmark2 成绩轨迹(同机 QEMU 1 vCPU;混合口径仅示趋势,精确口径见上表)&quot;</span><br><span class="line">    x-axis [&quot;初跑&quot;, &quot;FENCE&quot;, &quot;attach&quot;, &quot;全异步&quot;, &quot;kick&quot;, &quot;fence-fd&quot;, &quot;IRQ&quot;, &quot;epoll&quot;, &quot;噪音&quot;, &quot;rebase&quot;, &quot;fence-RT&quot;, &quot;异步合入&quot;, &quot;锁外等待&quot;]</span><br><span class="line">    y-axis &quot;FPS &#x2F; Score&quot; 0 --&gt; 7200</span><br><span class="line">    bar [69, 405, 406, 439, 539, 637, 1141, 813, 924, 1423, 2461, 3040, 2813]</span><br><span class="line">    line [69, 405, 406, 439, 539, 637, 1141, 813, 924, 1423, 2461, 3040, 2813]</span><br><span class="line">    line [6900, 6900, 6900, 6900, 6900, 6900, 6900, 6900, 6900, 6900, 6900, 6900, 6900]</span><br></pre></td></tr></table></figure>
+
+<p>图中水平参考线是同机 Linux 虚拟机的量级(6145~6966,随宿主状态波动)。轨迹上有两个不连续跳变值得注意:第 11 周的 rebase 跳变来自上游新底座本身的调度/内存改进,不是我的改动;3040 与 2813 的差异主要是宿主状态与场景组成的同日波动,两者的意义在稳定性而非分数。</p>
+<h3 id="8-2-拉取请求清单"><a href="#8-2-拉取请求清单" class="headerlink" title="8.2 拉取请求清单"></a>8.2 拉取请求清单</h3><table>
+<thead>
+<tr>
+<th>仓库</th>
+<th>PR</th>
+<th>状态</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>rcore-os/tgoskits</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1415" target="_blank" rel="noopener">#1415</a></td>
+<td>已合入(2026-07-08)</td>
+<td>doom Wayland GL 测试 + DRM stride-aware present 修复</td>
+</tr>
+<tr>
+<td>rcore-os/virtio-drivers</td>
+<td><a href="https://github.com/rcore-os/virtio-drivers/pull/257" target="_blank" rel="noopener">#257</a></td>
+<td>已合入(2026-08-14)</td>
+<td>virtio-gpu virgl 3D / blob 支持,含运行时门控回归测试</td>
+</tr>
+<tr>
+<td>rcore-os/virtio-drivers</td>
+<td><a href="https://github.com/rcore-os/virtio-drivers/pull/258" target="_blank" rel="noopener">#258</a></td>
+<td>已合入(2026-08-17)</td>
+<td>移除 <code>VirtIOGpu.queue_buf_recv</code></td>
+</tr>
+<tr>
+<td>rcore-os/tgoskits</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2483" target="_blank" rel="noopener">#2483</a></td>
+<td>已合入(2026-09-22)</td>
+<td>virgl DRM 集成(同步版),3D 加速进入 dev</td>
+</tr>
+<tr>
+<td>rcore-os/tgoskits</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2536" target="_blank" rel="noopener">#2536</a></td>
+<td>已合入(2026-09-29)</td>
+<td>异步 fire-and-forget 提交 + 真 fence + 环绕丢 kick 修复</td>
+</tr>
+<tr>
+<td>rcore-os/virtio-drivers</td>
+<td><a href="https://github.com/rcore-os/virtio-drivers/pull/265" target="_blank" rel="noopener">#265</a></td>
+<td>开放</td>
+<td>Linux 风格批量投递的异步控制队列</td>
+</tr>
+<tr>
+<td>rcore-os/tgoskits</td>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2557" target="_blank" rel="noopener">#2557</a></td>
+<td>已合入(2026-10-02)</td>
+<td>控制队列等待全部移出设备锁(11 提交,11 文件 +574/−143)</td>
+</tr>
+</tbody></table>
+<h3 id="8-3-沉淀的测量资产"><a href="#8-3-沉淀的测量资产" class="headerlink" title="8.3 沉淀的测量资产"></a>8.3 沉淀的测量资产</h3><p>三个月里为归因建起来的工具链比单个修复更耐久:参数化 A/B 驱动脚本(逐场景对齐、自动对表)、LD_PRELOAD ioctl 拦截器、QEMU tracepoint 命令计数解析、QMP/HMP 取证流程、零日志原子桶插桩与瀑布分解、fence 延迟分布直方图。功能侧则留下了 <code>apps/starry/virgl-test</code> 应用(Weston + glmark2 全自动跑完出分),它既是验收工具也是回归门禁。</p>
+<h2 id="9-边界与后续工作"><a href="#9-边界与后续工作" class="headerlink" title="9. 边界与后续工作"></a>9. 边界与后续工作</h2><p>如实声明当前没有做完、或明确超出本次实习范围的部分。其一,7 个拉取请求中仅剩 virtio-drivers 的异步控制队列 #265 尚未合入(上游 crate 节奏较慢,语义已由 #2536 带进 tgoskits 主线);texfix 相关的 12 轮专项与 40 轮全套件浸泡尚未跑,Phase 3 的两个决策项(在飞窗口、完成回调收割)按计划由这两份数据触发。其二,性能差距还剩约 2 倍,账本显示剩余部分的主战场已不在 GPU 驱动:syscall 入口税(7.9×)与 socket 本体单价(24.8×)是内核级问题,影响所有系统调用,需要单独立项。其三,宿主侧丢完成是 QEMU 11.1 virtio-gpu 与 virglrenderer 的交互问题,任何 guest 侧改造都防不住,现靠有界等待与恢复路径兜底。其四,aarch64/riscv64/loongarch64 目标的 clippy 与 QEMU 验证本地缺交叉工具链,由 CI 覆盖,本工作不涉及实体板卡路径(virtio-gpu 是虚拟化 GPU)。</p>
+<h2 id="10-结语"><a href="#10-结语" class="headerlink" title="10. 结语"></a>10. 结语</h2><p>三个月把 StarryOS 的图形能力从”不支持 GPU”做到了 virgl 硬件加速完整可用、性能约为同机 Linux 虚拟机的一半、且连续浸泡零冻结。回头看,比分数更值钱的是方法论上的三条:先造标尺——没有 Alpine 对照和同机 A/B 纪律,后面每一个百分比都无从谈起;每个结论都要有反事实实验——异步化失败、K=3 窗口证伪、avail_event 假设证伪,这些”失败的数据”和成功修复同样重要,几次最大的性能收益恰恰来自顺着失败线索往下挖;性能问题的真相几乎总不在最初怀疑的地方——attach 风暴藏在死字段里,fence 问题藏在版本号里,地址翻译 bug 藏在”重构后新出现的地址窗口”里。剩下的一半差距账本已经写清在哪里,那是下一阶段的地图。</p>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><ul>
+<li>项目仓库:<a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">rcore-os/tgoskits</a></li>
+<li>实习周报(wiki,共 12 周):<a href="https://github.com/zyc107109102/tgoskits/wiki" target="_blank" rel="noopener">zyc107109102/tgoskits wiki</a></li>
+<li>主体分支:<code>virgl-port</code>(同步合入基座)、<code>virgl-async-rebase</code>(异步,#2536)、<code>virgl-wait-restructure</code>(等待改造,#2557,已合入 dev)</li>
+<li>virtio-drivers fork:<a href="https://github.com/zyc107109102/virtio-drivers" target="_blank" rel="noopener">zyc107109102/virtio-drivers</a>(异步控制队列,#265)</li>
+<li>测试应用:<code>apps/starry/virgl-test</code>(Weston + glmark2 自动化验收)</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/author-zyc107109102/" rel="tag"># author:zyc107109102</a>
+              <a href="/blog/tags/repo-https-github-com-zyc107109102-tgoskits-wiki-E6-80-BB-E7-BB-93-E6-8A-A5-E5-91-8A/" rel="tag"># repo:https://github.com/zyc107109102/tgoskits/wiki/%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A</a>
+              <a href="/blog/tags/opengl/" rel="tag"># opengl</a>
+              <a href="/blog/tags/gpu/" rel="tag"># gpu</a>
+              <a href="/blog/tags/%E8%99%9A%E6%8B%9F%E5%8C%96/" rel="tag"># 虚拟化</a>
+              <a href="/blog/tags/mesa/" rel="tag"># mesa</a>
+              <a href="/blog/tags/virtio/" rel="tag"># virtio</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/10/20261010-xianxw-%E5%9D%97%E8%AE%BE%E5%A4%87%E5%AD%98%E5%82%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E7%8E%B0%E5%BC%82%E6%AD%A5-I-O-%E8%BF%90%E8%A1%8C%E6%97%B6%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" rel="prev" title="20261010-xianxw-块设备存储链路实现异步 I/O 运行时实习总结">
+      <i class="fa fa-chevron-left"></i> 20261010-xianxw-块设备存储链路实现异步 I/O 运行时实习总结
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
