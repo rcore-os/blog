@@ -2,7 +2,7 @@
 title: 以浏览器等程序为导向的系统完善与修复及多系统系统调用解耦与实现
 date: 2026-10-11 17:10:00
 categories:
-    - Leo Cheng
+    - 实习总结报告
 tags:
     - repo:https://github.com/rcore-os/tgoskits
     - wiki:https://github.com/Lfan-ke/tgoskits/wiki
