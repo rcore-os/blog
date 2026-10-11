@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="一、SG2002 WiFi 驱动的修复、适配与优化荔枝派 SG2002（LicheeRV Nano）的 WiFi 芯片通过 SDIO 总线与主控相连。这项工作起于上下行吞吐不对称的问题：上行（板卡到主机）为 0.85 Mbps，下行（主机到板卡）为 12.0 Mbps。修复后两个方向的吞吐达到同一量级，后续又通过多帧聚合与连续提交降低了发送路径的固定开销。 工作过程中，驱动结构经历了一次由主线完成">
+<meta property="og:type" content="article">
+<meta property="og:title" content="实习总结报告：SG2002 WiFi 驱动优化与 ax-net 网络栈 eBPF 可观测性建设">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="一、SG2002 WiFi 驱动的修复、适配与优化荔枝派 SG2002（LicheeRV Nano）的 WiFi 芯片通过 SDIO 总线与主控相连。这项工作起于上下行吞吐不对称的问题：上行（板卡到主机）为 0.85 Mbps，下行（主机到板卡）为 12.0 Mbps。修复后两个方向的吞吐达到同一量级，后续又通过多帧聚合与连续提交降低了发送路径的固定开销。 工作过程中，驱动结构经历了一次由主线完成">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/01-driver-layers.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/02-tx-single-frame-sequence.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/03-bus-occupancy-gantt.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/04-event-chain.png">
+<meta property="og:image" content="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/05-observation-points.png">
+<meta property="article:published_time" content="2026-10-09T15:54:12.000Z">
+<meta property="article:modified_time" content="2026-10-11T03:30:34.189Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="驱动">
+<meta property="article:tag" content="eBPF">
+<meta property="article:tag" content="author:Antareske">
+<meta property="article:tag" content="网络栈">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;Antareske&#x2F;tgoskits">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/01-driver-layers.png">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>实习总结报告：SG2002 WiFi 驱动优化与 ax-net 网络栈 eBPF 可观测性建设 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#一、SG2002-WiFi-驱动的修复、适配与优化"><span class="nav-number">1.</span> <span class="nav-text">一、SG2002 WiFi 驱动的修复、适配与优化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#第一部分-重构前的驱动与-XFER-COMPLETE-中断修复"><span class="nav-number">1.1.</span> <span class="nav-text">第一部分 重构前的驱动与 XFER_COMPLETE 中断修复</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#一、重构前的驱动"><span class="nav-number">1.1.1.</span> <span class="nav-text">一、重构前的驱动</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#二、TX-吞吐现象"><span class="nav-number">1.1.2.</span> <span class="nav-text">二、TX 吞吐现象</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#三、使用-XFER-COMPLETE-中断唤醒发送等待方"><span class="nav-number">1.1.3.</span> <span class="nav-text">三、使用 XFER_COMPLETE 中断唤醒发送等待方</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#四、实现结果与限制"><span class="nav-number">1.1.4.</span> <span class="nav-text">四、实现结果与限制</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第二部分-主线重构：契约与边界的变化"><span class="nav-number">1.2.</span> <span class="nav-text">第二部分 主线重构：契约与边界的变化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#一、驱动层的整体设计"><span class="nav-number">1.2.1.</span> <span class="nav-text">一、驱动层的整体设计</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#二、单帧发送的事务流程"><span class="nav-number">1.2.2.</span> <span class="nav-text">二、单帧发送的事务流程</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#第三部分-重构后的适配与优化"><span class="nav-number">1.3.</span> <span class="nav-text">第三部分 重构后的适配与优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#一、板载芯片-D80-的适配与修复"><span class="nav-number">1.3.1.</span> <span class="nav-text">一、板载芯片 D80 的适配与修复</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#二、TX-事务开销"><span class="nav-number">1.3.2.</span> <span class="nav-text">二、TX 事务开销</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#三、多帧聚合"><span class="nav-number">1.3.3.</span> <span class="nav-text">三、多帧聚合</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#四、连续提交：提高总线的数据阶段占比"><span class="nav-number">1.3.4.</span> <span class="nav-text">四、连续提交：提高总线的数据阶段占比</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#五、测试结果"><span class="nav-number">1.3.5.</span> <span class="nav-text">五、测试结果</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#六、适用范围与未决问题"><span class="nav-number">1.3.6.</span> <span class="nav-text">六、适用范围与未决问题</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、StarryOS-网络栈的可观测性：累计统计、队列快照与追踪事件"><span class="nav-number">2.</span> <span class="nav-text">二、StarryOS 网络栈的可观测性：累计统计、队列快照与追踪事件</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#一、网络栈可观测性"><span class="nav-number">2.1.</span> <span class="nav-text">一、网络栈可观测性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、三类出口的分工"><span class="nav-number">2.2.</span> <span class="nav-text">二、三类出口的分工</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、接口累计统计"><span class="nav-number">2.3.</span> <span class="nav-text">三、接口累计统计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#四、每队列运行状态"><span class="nav-number">2.4.</span> <span class="nav-text">四、每队列运行状态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#五、追踪事件"><span class="nav-number">2.5.</span> <span class="nav-text">五、追踪事件</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#为何选择静态事件"><span class="nav-number">2.5.1.</span> <span class="nav-text">为何选择静态事件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#事件如何发出"><span class="nav-number">2.5.2.</span> <span class="nav-text">事件如何发出</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#引入的六个事件"><span class="nav-number">2.5.3.</span> <span class="nav-text">引入的六个事件</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#事件候选的取舍"><span class="nav-number">2.5.4.</span> <span class="nav-text">事件候选的取舍</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#六、eBPF-消费与探针防护"><span class="nav-number">2.6.</span> <span class="nav-text">六、eBPF 消费与探针防护</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#七、验证与边界"><span class="nav-number">2.7.</span> <span class="nav-text">七、验证与边界</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#附录：相关-Pull-Request"><span class="nav-number">3.</span> <span class="nav-text">附录：相关 Pull Request</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#WiFi-驱动方向"><span class="nav-number">3.1.</span> <span class="nav-text">WiFi 驱动方向</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#网络观测方向"><span class="nav-number">3.2.</span> <span class="nav-text">网络观测方向</span></a></li></ol></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">795</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">783</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          实习总结报告：SG2002 WiFi 驱动优化与 ax-net 网络栈 eBPF 可观测性建设
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-10-09 15:54:12" itemprop="dateCreated datePublished" datetime="2026-10-09T15:54:12+00:00">2026-10-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="一、SG2002-WiFi-驱动的修复、适配与优化"><a href="#一、SG2002-WiFi-驱动的修复、适配与优化" class="headerlink" title="一、SG2002 WiFi 驱动的修复、适配与优化"></a>一、SG2002 WiFi 驱动的修复、适配与优化</h2><p>荔枝派 SG2002（LicheeRV Nano）的 WiFi 芯片通过 SDIO 总线与主控相连。这项工作起于上下行吞吐不对称的问题：上行（板卡到主机）为 0.85 Mbps，下行（主机到板卡）为 12.0 Mbps。修复后两个方向的吞吐达到同一量级，后续又通过多帧聚合与连续提交降低了发送路径的固定开销。</p>
+<p>工作过程中，驱动结构经历了一次由主线完成的整体重构。以下分三个部分：第一部分为重构前的驱动状态与这一阶段完成的工作；第二部分为主线重构带来的契约与边界变化，它不属于本次工作，但构成后续工作的前提；第三部分为重构之后完成的芯片适配与发送路径优化。</p>
+<a id="more"></a>
+
+<h3 id="第一部分-重构前的驱动与-XFER-COMPLETE-中断修复"><a href="#第一部分-重构前的驱动与-XFER-COMPLETE-中断修复" class="headerlink" title="第一部分 重构前的驱动与 XFER_COMPLETE 中断修复"></a>第一部分 重构前的驱动与 XFER_COMPLETE 中断修复</h3><p>这一阶段围绕发送完成等待展开，修复完成状态被提前清除、通知遗漏及等待上下文不当等问题，最终以中断唤醒代替原先的轮询等待。</p>
+<h4 id="一、重构前的驱动"><a href="#一、重构前的驱动" class="headerlink" title="一、重构前的驱动"></a>一、重构前的驱动</h4><p>WiFi 驱动最初由厂商 Linux 驱动的逻辑整段迁入。厂商驱动假定自己拥有独立的执行线程、可以直接阻塞等待硬件，并在必要时以周期性唤醒兜底。这套假设与 StarryOS 的执行环境不一致，迁入时也没有为“谁推进设备、在什么上下文推进、等待以什么形式表达”定下统一契约。因此，同一个设备由多条执行路径与自唤醒定时器共同推进，谁负责推进、谁负责等待、谁负责完成是分散的。</p>
+<p>在这种结构下，完成通知能否及时被处理还取决于当次的调度与竞争：通知可能落在没有等待者的时刻，随后由下一次周期性唤醒补上。</p>
+<h4 id="二、TX-吞吐现象"><a href="#二、TX-吞吐现象" class="headerlink" title="二、TX 吞吐现象"></a>二、TX 吞吐现象</h4><p>起始现象为上行 0.85 Mbps、下行 12.0 Mbps，上行交替出现突发发送与长时间停顿。下行能持续传输，结合完成路径的时序检查，问题定位到板卡侧的发送完成等待。</p>
+<p>硬件在约 250 µs 后即完成一笔传输并置位完成状态，而驱动未使用完成中断，只能轮询。轮询未及时读到完成状态时，驱动便进入毫秒级睡眠，微秒级的硬件操作被放大为数十毫秒。</p>
+<h4 id="三、使用-XFER-COMPLETE-中断唤醒发送等待方"><a href="#三、使用-XFER-COMPLETE-中断唤醒发送等待方" class="headerlink" title="三、使用 XFER_COMPLETE 中断唤醒发送等待方"></a>三、使用 XFER_COMPLETE 中断唤醒发送等待方</h4><p>将发送完成路径改为由传输完成中断（XFER_COMPLETE）触发，需要处理一组相互关联的问题，它们构成这一阶段的主要工作。</p>
+<ol>
+<li><strong>完成状态由等待方消费</strong>：完成状态是锁存位，置位后保持到软件显式清除。中断处理程序只屏蔽中断线并唤醒等待方，不清除状态位；若中断处理抢先清除，被唤醒的一方复检时会读到未完成，并重新睡满超时。状态位的清除只由等待方在确认完成后执行。</li>
+<li><strong>命令路径不得清除完成位</strong>：发送与接收共用同一条传输路径。原实现在每条命令前将状态寄存器读出后原样写回，而该寄存器写 1 即清除，原样写回会清掉全部置位，包括正在等待的完成位。接收侧命令插入发送侧等待期间时，这一清理会抹掉硬件刚置位的完成状态，发送方复检不到，最终超时并复位 SDIO 数据线，丢一帧并停顿约 200 ms。原实现的轮询间隔为微秒级；改为毫秒级睡眠后，接收侧命令有更长的时间窗口清除发送侧正在等待的完成位。修复方式为按位选择性清除，只清除不再需要的位。</li>
+<li><strong>错误与超时退出路径同样需要清除完成位</strong>：完成位可能与错误状态同时置位，退出时不清理会泄漏到下一次传输，并被当作提前完成。两条退出路径都连同错误位与当前等待位一起做选择性清除，并保留设备中断相关的位。超时路径还需复位 SDIO 数据线，否则控制器停在忙状态，后续空闲检查持续超时，总线无法恢复。</li>
+<li><strong>轮询入口的访问顺序</strong>：这一阶段还发现，发送路径对时序变化敏感：一份仅多出一处诊断调用的镜像上行 11.0 Mbps，去掉该调用后降至 1.16 Mbps。排查时怀疑连续数据写与紧随其后的状态读取存在访问顺序问题。修复在当时 SG2002 路径的自旋入口增加显式内存屏障，吞吐随后恢复。仅凭这些结果，还不能确定 CPU 存储缓冲或总线争用各自的影响，也不能推导出任务切换必然完成 MMIO 写入的通用保证。</li>
+<li><strong>关闭条件检查与入队之间的窗口</strong>：原流程先检查状态，未完成则使能唤醒信号并进入等待队列。若中断在该窗口内触发，中断处理会屏蔽信号并发出通知，但队列为空，通知落空；信号已屏蔽且不会重发，任务只能等满超时。修复方式为将条件复检与入队放入同一个关中断临界区：中断先于临界区时，锁存位会被条件读到；中断晚于入队时，通知会命中等待者。这要求两者处于同一临界区，且至多存在一个等待者。</li>
+<li><strong>等待不得发生在持锁边界内</strong>：复审指出，等待函数可能在持有传输层裸自旋锁时进入可睡眠队列，而锁的守卫（guard）存活到本次传输返回。一次进入睡眠的传输可能带锁被调度出去，另一条访问该传输的任务自旋等待该锁，造成卡死。处理方式为将睡眠等待移出裸自旋锁的事务边界。</li>
+</ol>
+<h4 id="四、实现结果与限制"><a href="#四、实现结果与限制" class="headerlink" title="四、实现结果与限制"></a>四、实现结果与限制</h4><p>上述改动将完成等待由轮询改为中断唤醒，上行由 0.85 Mbps 提升至约 11 Mbps，与下行处于同一量级。</p>
+<p>这些改动基于重构前的完成路径。主线重构改写了该路径，因此这套实现不再适用。</p>
+<h3 id="第二部分-主线重构：契约与边界的变化"><a href="#第二部分-主线重构：契约与边界的变化" class="headerlink" title="第二部分 主线重构：契约与边界的变化"></a>第二部分 主线重构：契约与边界的变化</h3><p>这一部分描述主线完成的驱动重构，<strong>不属于本次工作</strong>。</p>
+<p>重构包含两条相互关联的改动。SDIO 一侧，主机与协议实现此前存在多套，控制器与 AIC8800 驱动各自实现 CMD5、CMD52、CMD53 以及功能生命周期和中断处理，协议知识重复、事务归属不清；重构将主机接口收敛为统一的 <code>sdmmc-host</code>，SDIO 卡协议集中到 <code>sdmmc-protocol</code> 的 SDIO 部分，并删除了旧的重复实现。驱动一侧，AIC8800 核心原先依赖线程、休眠与全局运行时，重构后成为不依赖操作系统机制的驱动核心，经 rdif（驱动接口层）能力适配层对外提供网络设备能力，板级资源改由设备树提供。</p>
+<p>网络运行时同期也做了相应重构：队列按组划分，中断源、轮询组与所属 CPU 绑定，推进由该组唯一的执行线程完成。</p>
+<p>对 WiFi 网卡而言，驱动层行为随之变化。原先驱动自行持有 RX/TX 队列线程，并自行定义 SDIO 操作与推进方式；现在驱动层不创建线程、不持锁，由上层运行时经 rdif 接口被动推进。硬中断只读取、确认、屏蔽并生成状态快照，协议推进、事务回收与错误处理都在唯一执行线程的任务上下文中完成。</p>
+<h4 id="一、驱动层的整体设计"><a href="#一、驱动层的整体设计" class="headerlink" title="一、驱动层的整体设计"></a>一、驱动层的整体设计</h4><p>重构把驱动的功能组织到一个状态机中。核心 <code>AicDevice</code> 保存业务状态：输入一个事件（控制请求、待发帧、SDIO 操作结果或芯片中断），它决定下一步做什么，输出一个动作请求（读 FIFO、等待固件回复、报告收到一帧等），动作由外层执行。启动与生命周期（卡识别、固件与射频配置）、控制面（扫描、连接、断开、AP、EAPOL）与数据面（待发帧队列、接收扫描与解封装）分别保存相应业务的处理进度；各流程通过提交 SDIO 操作、等待完成和消费结果继续推进。同一时刻只有一笔 SDIO 操作在进行中。核心业务状态由唯一执行线程串行访问，因此无需用锁保护这些状态；硬中断只更新供线程读取的中断记录，两者通过独立的中断记录与通知机制交接。</p>
+<img src="/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/01-driver-layers.png" class="" title="驱动分层架构">
+
+<p>各层职责如下。</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ax-net 运行环境</td>
+<td>在固定 CPU 上运行队列线程并持有队列组，决定何时推进驱动</td>
+</tr>
+<tr>
+<td>rdif 适配层</td>
+<td>衔接核心与卡：把核心给出的动作翻译为卡上的 SDIO 操作，把结果交回核心；对外提供启动、收发、控制与中断端点</td>
+</tr>
+<tr>
+<td>驱动核心</td>
+<td><code>AicDevice</code> 状态机，不读控制器寄存器，不创建线程</td>
+</tr>
+<tr>
+<td>卡协议与控制器</td>
+<td>组织 CMD52/CMD53 与 DMA，执行命令与数据传输并报告完成</td>
+</tr>
+</tbody></table>
+<p>核心对外只有一个推进入口：调用方传入当前时间与一个可选事件，核心返回一个动作，一次调用最多推进一个对外可见的状态转换。动作包括提交一笔带编号的 SDIO 操作、中止当前操作、在指定时刻重试、等待下一次设备中断、发布一个事件，或表示无事可做。三条边界由此确定：</p>
+<ol>
+<li><strong>核心不创建任务</strong>：执行线程位于核心之外，取消、超时与下一次提交的衔接都发生在两次推进之间。</li>
+<li><strong>核心不注册中断、不持锁</strong>：中断路径只记录状态，传输完成的状态存入控制器的邮箱，卡中断的状态写入锁存快照；核心只消费快照，设备状态由唯一执行线程在固定 CPU 上串行推进。</li>
+<li><strong>核心不读取时钟与板级参数</strong>：时间由调用方传入；物理地址、中断号、时钟与复位、引脚复用等只出现在板级输入层。</li>
+</ol>
+<p>硬中断负责记录状态并唤醒队列线程，不推进驱动状态机。它读取并确认状态后加以记录，唤醒绑定在该队列组所属 CPU 上的线程；线程在轮询边界取走中断快照，再推进 <code>AicOwner</code>。核心可以要求等待中断、等待中断直至指定期限，或在指定时刻重试，由运行环境安排通知与定时等待。这种职责划分与 Linux NAPI 的中断调度、轮询处理方式类似：通知可以立即发出，驱动状态的处理则由队列线程在轮询时执行，实际延迟取决于线程调度和轮询进度。</p>
+<p>执行线程取到完成结果后，将完成事件传入状态机并决定下一步动作；这两个步骤之间不需要再唤醒另一个任务或等待其调度。</p>
+<h4 id="二、单帧发送的事务流程"><a href="#二、单帧发送的事务流程" class="headerlink" title="二、单帧发送的事务流程"></a>二、单帧发送的事务流程</h4><p>重构后，驱动核心通过返回动作表达等待，不在核心内部阻塞线程，也不忙等硬件状态；稳态下由完成中断、卡中断与期限唤醒驱动推进，队列线程在无事可做时仍可阻塞等待。但流水线深度为 1：同一设备同时只有一笔 SDIO 事务处于进行中，当前发送事务持有一帧数据、一块暂存缓冲与一张 DMA 描述符表。以 1500 字节的以太网帧为例，一次发送的往返过程如下。</p>
+<img src="/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/02-tx-single-frame-sequence.png" class="" title="单帧发送的事务流程">
+
+<p>一次发送至少需要三次 <code>AicOwner</code> 推进与两次 SDIO 完成中断，两次中断分别对应读取发送额度（CMD52，即固件上报的空闲缓冲数）与写入数据（CMD53）两笔事务。两笔事务分属不同轮次、互不重叠；上一帧的写完成之后，驱动才开始为下一帧构造 SDIO 发送缓冲，填入 SDIO 头、主机描述符和帧载荷。以下列出单帧发送时各项操作的执行次数。</p>
+<table>
+<thead>
+<tr>
+<th>开销项</th>
+<th align="right">每帧次数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>硬中断上半部</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td>AicOwner 推进与中断重新使能</td>
+<td align="right">3</td>
+</tr>
+<tr>
+<td>读取发送额度（CMD52，含命令与响应）</td>
+<td align="right">1</td>
+</tr>
+<tr>
+<td>写入数据（CMD53，含重建 DMA 表与重写地址）</td>
+<td align="right">1</td>
+</tr>
+<tr>
+<td>控制器诊断寄存器读取（每条命令一轮，不受日志级别约束）</td>
+<td align="right">2</td>
+</tr>
+<tr>
+<td>帧字节拷贝</td>
+<td align="right">4</td>
+</tr>
+</tbody></table>
+<p>这些操作每帧都要执行。其中，中断处理、状态机推进、额度读取和 DMA 表更新包含每帧固定开销，字节拷贝的耗时则随帧长增长。事务之间的交接还使总线在每帧发送周期内长时间空闲。厂商驱动在同一位置的做法是：一次写最多聚合 32 帧，且每个发送轮次只读取一次发送额度。第三部分的两项优化据此减少每帧分摊到的事务与调度开销。</p>
+<h3 id="第三部分-重构后的适配与优化"><a href="#第三部分-重构后的适配与优化" class="headerlink" title="第三部分 重构后的适配与优化"></a>第三部分 重构后的适配与优化</h3><h4 id="一、板载芯片-D80-的适配与修复"><a href="#一、板载芯片-D80-的适配与修复" class="headerlink" title="一、板载芯片 D80 的适配与修复"></a>一、板载芯片 D80 的适配与修复</h4><p>新分层先在参考芯片 AIC8800DC（下称 DC）上验证通过，而板载的 AIC8800D80（下称 D80）使用另一套传输序列。若两者共用一条流程，会在寄存器偏移、发送额度解码与 SDIO 头格式上产生实际偏差。</p>
+<p>分层规定“谁在什么上下文里做什么”，各芯片型号的寄存器布局、解码规则与 SDIO 头格式则集中到对应的配置描述 <code>ChipProfile</code> 中，由 <code>ChipVariant</code> 选择。这样收发流程可以使用统一的状态机，不必在各处重复型号判断；未知或尚未支持的型号直接返回错误，不使用隐含的默认配置。</p>
+<p>DC 与 D80 的差异集中在以下几类。表中的芯片型号表示硬件类别，配置描述则保存驱动处理该型号所需的规则。</p>
+<table>
+<thead>
+<tr>
+<th>差异</th>
+<th>表现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>寄存器布局与功能划分</td>
+<td>DC 使用两个 SDIO 功能（function），数据帧与管理帧走其一、固件邮箱走其二；D80 使用一个功能，三者共用。</td>
+</tr>
+<tr>
+<td>发送额度的取值规则</td>
+<td>D80 取整个字节，DC 只取低七位。D80 固件上报的空闲缓冲数可能使最高位为 1；错误套用 DC 的七位掩码会将部分非零读数截为零，使驱动误以为没有可用发送额度，发送不再启动。</td>
+</tr>
+<tr>
+<td>接收长度编码</td>
+<td>DC 按块数或字节模式标记解析读数；D80 还将第二个队列的长度编码在同一个字节中。把 D80 的整字节读数当作普通块数，会在特定取值上解出几十 KB 的读取量，使 SDIO 数据通道无法继续工作。</td>
+</tr>
+<tr>
+<td>SDIO 头与长度声明</td>
+<td>D80 的 SDIO 头带校验，声明未对齐的描述符与载荷长度；DC 不带该校验，声明按 4 字节对齐后的描述符与载荷长度。两者不能共用同一段长度计算。</td>
+</tr>
+<tr>
+<td>空口能力声明</td>
+<td>DC 与 D80 向固件声明的频宽、聚合与速率能力不同。</td>
+</tr>
+</tbody></table>
+<p>适配按板上暴露的顺序推进，依次解决以下几类问题。</p>
+<ol>
+<li><strong>初始化推进与错误可见性</strong>：原实现对提交后已返回完成结果的初始化操作仍继续等待通知，初始化一直等到启动超时，板上表现为约 67 秒后 panic。修复根据操作返回的进度推进：立即完成时直接消费结果并进入下一步，仅在返回待完成时进入等待。是否等待由操作的实际完成状态决定，不能仅按 CMD52、总线宽度或时钟设置等操作名称判断。启动失败的原因此前不可见，修复后由启动路径携带真实错误上报，后续几轮定位都依赖这条错误链。</li>
+<li><strong>启动链的寄存器事务语义</strong>：芯片处于低功耗状态时，唤醒它的寄存器写不会立即生效，紧接着的回读得到旧值，而原实现要求回读等于写入值，启动第三步即失败；修复将该写改为只校验应答格式，是否真正唤醒交由后续阶段轮询就绪位判定。所有写寄存器的应答格式统一为显式约定，不再逐处猜测。设备中断使能过晚：启动早期固件运行在芯片 ROM 中，依靠设备中断把邮箱回复推给主机，而中断使能写在整个序列的末端，主机等不到确认而超时；修复将其提前到 ROM 邮箱阶段之前。</li>
+<li><strong>芯片身份与设备地址</strong>：版本号改为从读回值的高 16 位解析，并按版本常量校验，此前解析位置有误；启动序列新增读取设备地址的阶段，将固件确认帧中返回的 MAC 地址设置为设备地址，补齐此前缺失的地址。</li>
+<li><strong>厂商补丁配置阶段</strong>：旧驱动在上传主固件后会写入一段芯片配置，重构后该环节在 D80 路径上丢失。修复将其恢复为独立阶段，插在主固件上传完成与启动应用之间，写入补丁数据与三组配置项。板上确认它不是收发停止的根因，作为厂商语义恢复保留。</li>
+<li><strong>热点</strong>：AP 控制事务的命令链中，信标（beacon）上传与 AP 启动都需要携带虚拟接口编号。启动序列已先创建占用编号 0 的 STA 虚拟接口，AP 虚拟接口的编号由固件在确认帧中分配。原实现将 AP 接口编号固定为 0，两条命令发送给了错误的接口，信标未被广播，主机无法发现热点；同时它不检查确认状态，固件拒绝时没有反馈。修复改为使用固件分配的接口编号，并收紧确认校验：长度、状态码与编号异常都被显式拒绝。</li>
+<li><strong>数据面与中断</strong>：发送额度与接收长度解码属于这一类。此外还有两处。其一为设备中断重新使能的条件：原实现要求运行期处于“正在等待中断”的状态才允许重新打开设备中断，而发送缓冲占满后进入的是纯定时重试路径，该路径不进入此状态，条件因此不会成立，主机不再检查设备中断，固件数据无法交付、发送缓冲不释放，收发停止；修复使重试路径同样进入等待中断状态。其二为某类“其他中断”的确认：该挂起位需要先读回再按位清除，直接推进会使挂起位无法清除，设备中断线持续被占用；修复改为先读回挂起字节、再只清除其中一位并保留其余位。</li>
+</ol>
+<p>上述工作使 D80 在新结构下完成启动、建立 STA 连接并持续收发。</p>
+<p>适配完成后，板载 D80 的实测吞吐为上行 7.30 Mbps、下行 20.3 Mbps。同期重构后的驱动在参考芯片 DC 的验证板（AKA-00-SG2002）上实测为单流上行 18.5 Mbps、下行 30.2 Mbps，两者差距明显。两组数据取自不同的板卡与芯片型号，不能单独把差异归因于驱动或某一次改动；它确定了本部分后续两项优化的起点。</p>
+<h4 id="二、TX-事务开销"><a href="#二、TX-事务开销" class="headerlink" title="二、TX 事务开销"></a>二、TX 事务开销</h4><p>D80 适配完成后，实测应用上行吞吐为 7.30 Mbps；按 SDIO 时钟与位宽计算，总线理论传输速率约 11.72 MB/s，两者换算到相同单位后的比值约为 8%。这个比值不包含协议头和控制事务等总线流量，不能直接当作总线利用率。结合事务之间的空闲情况，后续优化重点放在减少事务开销与交接停顿。</p>
+<p>单帧发送流程（见“单帧发送的事务流程”一节）说明了开销的来处：每帧成本由两项构成，即分摊到的数据事务耗时，以及事务之间的交接时间。厂商驱动的做法提供了直接对照：一次写最多合并 32 帧，发送额度只在进入排空循环前读取一次，之后在本地递减、降至阈值才重读。这两点分别对应扩大单个事务的载荷与减少事务之间插入的控制事务。</p>
+<p>据此确定两项改动：<strong>多帧聚合</strong>与<strong>连续提交</strong>。</p>
+<h4 id="三、多帧聚合"><a href="#三、多帧聚合" class="headerlink" title="三、多帧聚合"></a>三、多帧聚合</h4><p>多帧聚合将当前排队的多个以太网帧编码进同一笔 SDIO 写事务，以减少每帧分摊到的事务开销。实现需要同时满足固件解析规则、发送额度和批次规模限制。</p>
+<ol>
+<li><strong>帧序列布局与长度声明</strong>：一笔数据写事务的内容由固件按帧序列遍历：逐帧按声明的长度移动读取位置，读到零长度即结束。据此定下布局：每个发送单元由 SDIO 头、主机描述符与帧载荷组成，以太网头部的地址与类型移入描述符；各单元按 4 字节对齐，SDIO 块填充只允许出现在最后一个单元之后，因为固件会将填充读作零长度终止。若逐帧补齐到块大小，第二帧起的帧会被固件丢弃且不产生错误提示，这类约束需要在实现聚合前先行确认。长度声明的规则随芯片型号不同（见“板载芯片 D80 的适配与修复”一节），两者不能共用同一段计算；长度放不进声明字段时，编码报错并由上层归还该帧。若截断长度，固件会按错误长度移动读取位置，其后的帧全部错位。</li>
+<li><strong>聚合规模</strong>：一笔写的规模由帧数上限、聚合批次的目标字节数和发送额度共同决定。目标字节数在每次追加帧之前判断，因此批次最多因最后追加的一帧而超过目标，它不是硬上限。每帧消耗一个固件包缓冲，扣除供命令使用的预留量后，缓存的发送额度进一步限制一笔写可携带的帧数。</li>
+<li><strong>构造时机</strong>：驱动使用当前已经排队的帧立即构造批次，不等待尚未到达的帧。扩大批次可能增加单次传输及等待完成的时间，因此需要同时考虑吞吐与延迟。</li>
+<li><strong>发送额度的缓存与额度不足时的等待</strong>：固件上报的是包缓冲数而非总线块数，驱动缓存该读数，并预留一部分供命令使用。读数不足以支持一次数据写时，驱动不缓存该读数，而是退避后重读，避免后续发送继续依据不足的额度作出判断。额度在写完成时按本次发送的帧数扣减；命令流量与取消会使缓存读数失效。当额度高于预留量但低于按聚合策略算出的批次阈值时，驱动执行一次有上限的等待，最多等待若干轮；超过等待预算即按当前额度发出，不为凑批次无限延长等待。该等待只作用于仍有排队帧的用户数据发送事务；驱动内部用于连接认证的 EAPOL 帧，以及采用单帧策略的发送事务，直接使用可用额度。</li>
+<li><strong>板级配置</strong>：聚合上限由板级设备树声明，取值大于核心与适配层保留的通用默认值。</li>
+</ol>
+<p>下图示意单帧写与聚合写之间的事务安排差异，重点是减少额度读取和数据写之间的空闲；时间轴不表示实测耗时。</p>
+<img src="/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/03-bus-occupancy-gantt.png" class="" title="总线占用对比（时间轴为示意）">
+
+<h4 id="四、连续提交：提高总线的数据阶段占比"><a href="#四、连续提交：提高总线的数据阶段占比" class="headerlink" title="四、连续提交：提高总线的数据阶段占比"></a>四、连续提交：提高总线的数据阶段占比</h4><p>同一设备的 SDIO 操作仍串行提交，同一时刻只有一笔事务在进行中，驱动核心不创建线程，也不持锁。连续提交优化的是两笔数据事务之间的衔接：在完成处理后准备后续请求，减少额外的运行时轮次；缓存发送额度足够时，省去两笔数据写之间的额度读取事务。额度不足时仍需读取发送额度，构造发送缓冲和配置 DMA 等准备工作也仍需执行。</p>
+<ol>
+<li><p><strong>在完成处理后准备下一笔事务</strong>：原实现中，每笔数据写事务提交后，驱动等待其完成，再等待运行时开启下一轮发送，才为下一笔构造 SDIO 发送缓冲、重建 DMA 描述符表并提交。改动后，写完成时若队列中仍有帧，驱动就在 <code>continue_transmit_pipeline()</code> 中准备下一笔请求，保存到 <code>io.next</code>，由后续状态机推进提交到控制器。缓存额度足够时，该请求直接执行数据写；不足时，先读取发送额度。准备请求与实际提交仍是两个步骤，但不必先返回运行时再开启新的发送轮次。驱动同时缓存可用发送额度，并在写完成后按本次发送的帧数扣减，减少两笔数据写之间的额度读取事务。</p>
+<p>该方式依赖重构后的推进方式：执行线程将完成结果交给状态机后，可以继续取出下一步动作，两个步骤之间不需要跨任务唤醒。在旧的每方向一条线程、以周期唤醒兜底的模型中，事务衔接还受线程调度延迟影响，不能直接采用同样的处理方式。</p>
+</li>
+<li><p><strong>连续提交的次数必须有界</strong>：每轮驱动推进最多衔接一笔后续发送事务，由 <code>io.chain_used</code> 限制。发送与接收共用同一条推进路径，发送额度来自固件侧包缓冲，而接收侧取走数据有助于释放这些缓冲。若发送侧无界地连续提交，接收侧无法获得推进机会，固件缓冲不释放，额度耗尽后发送侧同样无事务可提交，总线占用反而下降。因此，发送事务之间需要减少停顿，同时为接收处理保留推进机会。</p>
+</li>
+<li><p><strong>异常路径需要收尾</strong>：取消与停机时，<code>discard_pending_transmit()</code> 清除尚未提交的后续发送请求 <code>io.next</code>。请求对应的帧仍由当前发送状态 <code>active_tx</code> 持有，缓冲释放由相应清理路径统一处理，以保持待提交请求、发送状态与完成处理之间的一致性。</p>
+</li>
+</ol>
+<h4 id="五、测试结果"><a href="#五、测试结果" class="headerlink" title="五、测试结果"></a>五、测试结果</h4><p>D80 实板上的 iperf3 测量记录了适配后与发送路径优化后的上下行吞吐。表中取各方向表现最好的一轮，测量条件及对照限制在后文说明。</p>
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th align="right">D80 适配后</th>
+<th align="right">优化后</th>
+<th align="right">变化</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>上行（板卡→主机）</td>
+<td align="right">7.30 Mbps</td>
+<td align="right">40.0 Mbps</td>
+<td align="right">提升约 448%</td>
+</tr>
+<tr>
+<td>下行（主机→板卡）</td>
+<td align="right">20.3 Mbps</td>
+<td align="right">35.2 Mbps</td>
+<td align="right">提升约 73%</td>
+</tr>
+</tbody></table>
+<p>测试方式：板卡运行 iperf3 服务端，主机运行客户端；下行为主机向板卡发送，上行通过反向模式测量，同时收发通过双向模式测量。各方向取表现最好的一轮，速率取 iperf3 的汇总值，因此表中数字不代表多轮平均值或稳定性能上限。本文未注明选取发送端还是接收端的汇总值，这一细节不能由现有表格核实。</p>
+<p>WiFi 会话状态对结果影响明显。同一镜像在相邻会话中曾测得板卡接收/发送为 15.7/2.50 Mbps，重新上电并开启热点后变为 30.6/26.9 Mbps；同一次启动内连续两轮上行也曾相差约 2.1 倍，而每笔写入的字节数只差 0.5%。因此跨会话的吞吐差异不能单独用于证明驱动优化的效果。</p>
+<p>测量采用同会话交替对照：先确认基准测试处在正常区间，再记录链路速率、信号强度与驱动内部计数。同会话对照中，放宽聚合上限后每笔写入由 5638 字节增加到 18730 字节，单位字节处理成本由 189 降至 144 ns/B。该组数据支持“减少每笔固定开销”的判断。</p>
+<p>表中“适配后”与“优化后”取自同一重构架构下优化前、优化后的两个版本，测试方法相同。第一部分的中断化修复则基于重构前的完成路径，上行由 0.85 Mbps 提升至 11.0 Mbps；两个阶段的收益不能叠加计算。</p>
+<p>报告所述开发过程中，格式化、静态检查与受影响软件包的测试均通过。吞吐提升的前后对照取自 D80 实板；测试所用的优化版本在 DC 上完成过功能与短时诊断性吞吐采集，该数据不是固定测量区间的性能基线，不能用于确认提升比例。本文未列出这些验证对应的提交编号。</p>
+<h4 id="六、适用范围与未决问题"><a href="#六、适用范围与未决问题" class="headerlink" title="六、适用范围与未决问题"></a>六、适用范围与未决问题</h4><ul>
+<li>吞吐提升的前后对照只在 D80 上取得；DC 上只有功能与短时诊断性吞吐采集，无法确认同等增益。</li>
+<li>第一部分中断化方案的收益来自重构前的完成路径，与重构后的改动不能叠加计算。</li>
+<li>多帧聚合与连续提交同批落地，连续提交部分的贡献未单独分离。</li>
+<li>其余射频配置文件是否影响空口表现尚无结论，当前只有主固件纳入镜像。</li>
+</ul>
+<h2 id="二、StarryOS-网络栈的可观测性：累计统计、队列快照与追踪事件"><a href="#二、StarryOS-网络栈的可观测性：累计统计、队列快照与追踪事件" class="headerlink" title="二、StarryOS 网络栈的可观测性：累计统计、队列快照与追踪事件"></a>二、StarryOS 网络栈的可观测性：累计统计、队列快照与追踪事件</h2><p>吞吐下降可能发生在网卡收发、队列调度、帧交接或协议处理中的任一环节。只看端到端速率，无法判断问题出在哪一层，也无法判断它发生在哪个队列、哪一次状态转移上。这项工作的目标是让 StarryOS 的网络栈具备与 Linux 对齐的可观测性：可查询的接口累计统计、可按队列读取的运行状态，以及可被 tracefs 与 eBPF 消费的状态转移事件。三者分别回答“现在是多少”“哪个队列怎么样”“刚才发生了什么”。</p>
+<h3 id="一、网络栈可观测性"><a href="#一、网络栈可观测性" class="headerlink" title="一、网络栈可观测性"></a>一、网络栈可观测性</h3><p>Linux 的网络可观测性可从三类接口获得：接口级累计统计、每队列的状态与统计，以及在处理边界定义的静态追踪事件。前两类用于查询现状，第三类用于记录处理结果与状态转移；用户态工具可以查询统计，perf 与 eBPF 可以附着到追踪事件。tgoskits 网络栈 ax-net 此前缺少这些队列与状态转移的观测接口：队列运行时虽然按组维护身份与计数，但这类信息只存在于内部状态，队列执行器与协议执行器的关键状态转移也没有事件接口。定位“某一轮为什么停在这里”“哪个队列组的接收环满了”“协议执行器是否因预算耗尽而让出 CPU”这类问题时，需要临时插桩，难以复用为持续维护的观测功能。</p>
+<p>为支持 ax-net 网络栈的观测需求（如附着 eBPF 程序）、便于了解网络栈行为并支撑后续优化，本次工作扩展了网络栈的事件接口。方案以 Linux 网络栈为参照，但 ax-net 与 Linux 的实现方式不同，需要增设哪些观测出口要按 ax-net 自身的结构决定：</p>
+<ul>
+<li><strong>接口约定与使用方式参照 Linux</strong>：ax-net 定义上报条件与报告数据，StarryOS 的事件适配层定义追踪事件名称、记录布局与启用机制。字段布局是对外接口的一部分，需要按版本维护；用户可以通过 tracefs 启用和读取事件，perf/eBPF 消费者则按事件的数值 id 附着。</li>
+<li><strong>不对齐内部对象与拓扑</strong>：StarryOS 的队列组、帧交接与单协议执行器并不等于 Linux 的 NAPI、qdisc 或网络缓冲区对象。Linux 的相近事件只用于识别真实边界，事件的字段与触发次数以自身状态机为准。</li>
+<li><strong>新增事件的条件</strong>：每个事件应回答一个具体的诊断问题，由负责维护相应状态的子系统判定并上报，且现有计数无法回答同一问题。仅仅“名字与 Linux 相近”不构成新增事件的理由。</li>
+</ul>
+<h3 id="二、三类出口的分工"><a href="#二、三类出口的分工" class="headerlink" title="二、三类出口的分工"></a>二、三类出口的分工</h3><p>累计统计、队列快照与追踪事件分别用于查询总量、定位队列组和记录单次处理过程。它们的保存方式与使用工具不同。</p>
+<table>
+<thead>
+<tr>
+<th>出口</th>
+<th>回答的问题</th>
+<th>生命周期</th>
+<th>消费者</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>接口累计统计</td>
+<td>现在是多少</td>
+<td>长期存在，只增</td>
+<td>文件接口</td>
+</tr>
+<tr>
+<td>队列快照</td>
+<td>哪个队列组、各项计数是多少</td>
+<td>长期存在，查询时读取</td>
+<td>debugfs</td>
+</tr>
+<tr>
+<td>追踪事件</td>
+<td>刚才发生了什么</td>
+<td>可关闭、可丢失</td>
+<td>tracefs、perf、eBPF</td>
+</tr>
+</tbody></table>
+<p>三者不能互相替代。计数长期存在，事件可被关闭，也可能因记录缓冲满而丢失，因此不能用事件流反推累计值；反过来，只有累计值也无法回答一次状态转移发生在哪个队列、为什么结束。</p>
+<p>累计统计、队列快照与追踪事件通过<strong>队列身份及其接口映射</strong>关联起来。每个队列组在建立时固定一份 <code>NetQueueIdentity</code>，包含设备枚举顺序索引、组内编号与所属 CPU。启动阶段会剔除缺席设备及其队列组，保留的队列身份不再变动；设备对应的接口在注册时建立映射。查询方按接口 ID 取得接口名，快照与事件共用队列身份，因此可以将一次异常关联到具体队列组及其所属接口。</p>
+<h3 id="三、接口累计统计"><a href="#三、接口累计统计" class="headerlink" title="三、接口累计统计"></a>三、接口累计统计</h3><p>接口累计统计的改动集中在三处，另有一处缺口已经界定。</p>
+<ol>
+<li><strong>字节计数改为二层帧长</strong>：原实现的收发计数统计的是 IP 载荷长度，与 Linux 的“不含帧校验序列的二层帧”定义不符：少算以太网帧头，且驱动发送时会把短帧补零到最小帧长，而协议构造出的原始长度不含这段补齐。改动把设备接口的收发返回值从“有无包”改为帧字节数，由设备层显式给出长度。ARP 这类不形成 IP 报文的帧走旁路通道，发送成功后把帧长记入一个待处理的队列，由协议执行器取走并计入统计。发送侧按补零后的以太网帧长（不含帧校验序列）统计，接收侧使用驱动返回的原始帧长，不做补齐，因此同一 ARP 交换两侧数值不同。</li>
+<li><strong>错误与丢弃按 Linux 语义分类</strong>：在既有四列之外补齐接收与发送的错误、丢弃计数。计数更新分布在三个层次：设备层累计增量，设备接口读取并清空这些增量后合并到接口统计，设备句柄则直接统计其入队与丢弃处理的结果。ARP 发送失败按返回的错误类型分类：明确的丢弃计入发送丢弃，其他传输错误按对应错误路径计入发送错误。发送返回零可能只是等待地址解析，不能据此判定丢包；操作尚可重试且帧未被丢弃时，也不增加丢弃计数。设备内部延迟累计的错误与丢弃由设备接口在收发处理路径中读取并清空，设备句柄直接处理的错误仍在相应路径计数，避免对同一事件重复累计。</li>
+<li><strong>输出格式对齐 Linux</strong>：接口统计按 Linux 的 17 个定宽列输出，表头一致；<code>fifo</code>、<code>frame</code>、<code>compressed</code>、<code>multicast</code>、<code>colls</code>、<code>carrier</code> 当前没有对应统计来源，显式写 0，不留空，也不以其他计数推测其值。</li>
+<li><strong>已知缺口</strong>：协议统计文件的格式骨架已经就位，TCP 与 UDP 的表头与数据布局对齐 Linux，但所用协议栈不通过公开接口暴露逐协议累计计数器，因此各累计计数器当前为零。骨架的作用是把格式与缺口界定清楚，待协议栈提供来源后再填充。</li>
+</ol>
+<h3 id="四、每队列运行状态"><a href="#四、每队列运行状态" class="headerlink" title="四、每队列运行状态"></a>四、每队列运行状态</h3><p>队列快照的对外形态由以下四点确定。</p>
+<ol>
+<li><strong>身份在建立时固定</strong>：<code>NetQueueIdentity</code> 包含三项。设备枚举顺序索引用于定位运行时内部设备；启动阶段剔除缺席设备及其队列组后，该索引可能与接口注册顺序不同。组内编号仅在设备内唯一，因此用“设备枚举顺序索引与组内编号”这一对值识别队列组。所属 CPU 是该组硬中断回调与队列执行器绑定的运行位置，表示固定绑定关系。三项在建立队列组时写入，之后不再变动，因此任意时刻读取的快照都能定位到同一队列组。</li>
+<li><strong>快照包含的计数与状态</strong>：累计计数覆盖中断通知、调度请求、已排队或正在轮询期间再次收到的推进请求（<code>missed</code>）、轮询批次、预算耗尽、中断重新使能时的竞态、虚假中断、延后探测、跨 CPU 唤醒和本组的接收丢弃。状态字段还记录最近一次中断与轮询所在的 CPU。据此可以把长期积压、预算耗尽、重新使能竞态、跨 CPU 唤醒与接收丢弃定位到具体队列组。</li>
+<li><strong>字段分别采样</strong>：<code>NetQueueStats</code> 的各字段从各自的原子量读取。累计计数分别读取，最近一次执行所在 CPU 等状态字段分别采样，整行不保证来自同一时刻，因此不能据此推导跨字段的不变量。</li>
+<li><strong>暴露方式与边界</strong>：现阶段以 debugfs 呈现，是对已有状态的低成本出口，不新增计数、不修改接口统计文件，也不作为稳定 ABI。将来若有稳定的结构化查询需求，应独立设计接口，不把文本格式固化成契约。</li>
+</ol>
+<h3 id="五、追踪事件"><a href="#五、追踪事件" class="headerlink" title="五、追踪事件"></a>五、追踪事件</h3><p>追踪事件在选定的处理位置记录报告数据，并通过内核事件适配层提供给 tracefs、perf 与 eBPF。事件定义需要明确触发条件、字段含义和执行上下文。</p>
+<h4 id="为何选择静态事件"><a href="#为何选择静态事件" class="headerlink" title="为何选择静态事件"></a>为何选择静态事件</h4><p>观测能力可以通过动态探针或代码预留的固定上报点实现。若依靠热点函数作为长期观测入口，内联和符号变化会影响探针定位；为保留入口而禁止网络、SDIO 或 WiFi 热路径函数内联，还会让观测需求改变被观测代码的优化方式。按地址注册动态探针也不能提供独立于具体构建产物的稳定事件语义。本次工作因此选择静态事件，由维护相应状态的子系统在确定处理结果或发生状态转移时上报。perf/eBPF 按事件的数值 id 附着，无需查找热点函数符号；事件名称与字段布局作为对外接口维护。用户通过 tracefs、perf 与 eBPF 使用这些预留事件，不必为每次观测临时改动网络栈代码。</p>
+<h4 id="事件如何发出"><a href="#事件如何发出" class="headerlink" title="事件如何发出"></a>事件如何发出</h4><p>事件机制将上报与内核追踪适配分开：ax-net 中维护状态的子系统判定何时上报，并定义报告数据；宿主（StarryOS 内核侧的事件适配层）将报告转换为追踪记录，定义事件名称、记录布局与启用机制。两侧通过观测回调接口传递已确定的结果，具体约束如下。</p>
+<ol>
+<li><strong>观测回调接口的形态</strong>：每个事件通过一个观测回调接口上报；该接口只负责传递事件数据，由回调函数槽和启用标志组成，对应 <code>ObservationPort&lt;T&gt;</code>。回调安装后不替换、不卸载；重复安装同一函数允许，安装不同函数会触发断言。没有安装回调时不执行消费者代码，网络状态转换与处理结果不变。</li>
+<li><strong>上报职责与追踪适配职责</strong>：队列运行时维护队列身份与计数，并定义队列事件的上报条件；协议执行器定义自身调度转移的上报条件。宿主的事件适配层负责追踪事件名称、记录布局与启用机制。ax-net 不依赖宿主的追踪实现，未安装观测回调的系统仍按原有网络语义运行。</li>
+<li><strong>启用状态由宿主统一决定</strong>：运行时保存宿主启用状态的副本，以便快速跳过已关闭的事件。宿主在消费者回调集合变化时统一更新该副本，覆盖 tracefs 启用与 perf/BPF 附着两条使用路径。副本用于减少无效上报，宿主在处理报告时仍检查最终启用状态。</li>
+<li><strong>上下文约束</strong>：上报点可能位于队列执行器线程或协议执行器线程，也可能在驱动回调附近。观测回调必须遵守这些调用位置的约束，不应假定可以睡眠、分配内存、递归取锁或无界运行。<code>ObservationPort&lt;T&gt;</code> 自身不分配内存、不读取时钟、不获取网络锁，只检查启用标志并读取回调函数指针；消费者代码也必须满足对应上下文的要求。</li>
+<li><strong>关闭状态下的开销</strong>：上报路径检查一次启用标志并执行一次分支，调用处还可能构造栈上的报告值，不能直接按零开销计。逐帧事件触发频繁，是开销测量需要重点关注的对象。</li>
+</ol>
+<img src="/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/04-event-chain.png" class="" title="事件的发出与消费链路">
+
+<h4 id="引入的六个事件"><a href="#引入的六个事件" class="headerlink" title="引入的六个事件"></a>引入的六个事件</h4><p>六个事件覆盖队列轮询、中断重新使能、设备暂时无法接纳操作、帧交接与协议执行器让出 CPU。设备暂时无法接纳时，队列保留待提交的帧或接收缓冲，等待条件变化后重试。各事件按自身处理阶段定义含义，驱动接纳、硬件发送完成和协议处理完成分别属于不同阶段。</p>
+<table>
+<thead>
+<tr>
+<th>事件</th>
+<th>回答的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>net:queue_poll_round</code></td>
+<td>一次队列轮询调用获得多少预算、完成多少工作单元、以什么结果结束；含提前返回与失败轮次</td>
+</tr>
+<tr>
+<td><code>net:queue_rearm</code></td>
+<td>中断重新使能没有以正常空闲结束时，是竞态、仍有工作、延迟重试还是失败</td>
+</tr>
+<tr>
+<td><code>net:queue_backpressure</code></td>
+<td>发送提交或接收缓冲补充因设备暂时无法接纳而暂停时，记录发生阶段及原因：稍后重试，或发送侧链路断开；待提交资源保留供后续重试</td>
+</tr>
+<tr>
+<td><code>net:tx_submit</code></td>
+<td>驱动接纳了一帧（接纳不表示硬件已发出，也不表示发送完成）</td>
+</tr>
+<tr>
+<td><code>net:rx_publish</code></td>
+<td>一帧进入协议侧队列（发布不表示协议栈已处理完）</td>
+</tr>
+<tr>
+<td><code>net:proto_yield</code></td>
+<td>协议执行器因轮询次数或时间预算耗尽而让出，让出前是否还有待办工作</td>
+</tr>
+</tbody></table>
+<p>下图给出网络栈各环节与观测点的相对位置。自上而下是发送方向，接收方向相反；蓝色为网络栈各环节，黄色为事件观测点，绿色为查询出口。</p>
+<img src="/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/05-observation-points.png" class="" title="网络栈观测点在栈中的位置">
+
+<p>追踪事件用于记录具体处理结果与状态转移，累计统计仍由各自的计数器维护。<code>net:queue_rearm</code> 中的“仍有工作”与既有竞态计数来自同一处、含义相同；该事件不报告正常空闲结果，避免与轮询结果重复。<code>net:queue_poll_round</code> 仍报告空闲轮次，每次轮询调用恰好上报一条，其工作单元是提交、回收等操作的次数，不等于帧数。<code>net:queue_backpressure</code> 只记录设备暂时无法接纳、待提交资源保留供重试的情况，不记录永久失败或已经发生的丢弃。协议让出事件记录执行器因预算耗尽而让出 CPU 的动作，判断时应结合原因与是否仍有工作：轮询次数达到上限、两个上限同时命中，或让出前仍有待办工作，均可作为协议侧处理压力的诊断信号；单次事件不足以证明协议执行器持续饱和。</p>
+<h4 id="事件候选的取舍"><a href="#事件候选的取舍" class="headerlink" title="事件候选的取舍"></a>事件候选的取舍</h4><p>中断事件暂不实施：其上报点位于硬中断上下文，而事件回调在触发现场同步执行。目前尚未完成允许任意消费者程序在该上下文运行所需的安全性论证。</p>
+<p>协议侧还评估了四个事件候选，分别因语义重复、数据读取位置、丢弃范围或结果定义问题而暂缓或调整。对于数据只在协议锁内可见的候选，直接在锁内上报会使消费者代码在持锁期间运行；若要在锁外上报，需要先将事件数据暂存，再于释放协议锁后交给消费者。各候选的处理结果如下。</p>
+<table>
+<thead>
+<tr>
+<th>事件候选</th>
+<th>处理结果与原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>net:tx_queue</code></td>
+<td>未单独实现。发送路径中的“端点接纳”与“入队”是两个不同阶段，候选定义未明确选择哪一阶段；且拟记录的数据与既有发送帧计数一一对应，现有统计已覆盖。</td>
+</tr>
+<tr>
+<td><code>net:rx_consume</code></td>
+<td>暂缓。数据只在协议锁内可见，当前也没有队列组级别的取帧计数；应先在队列快照中补充该计数，再评估是否需要逐次事件。</td>
+</tr>
+<tr>
+<td><code>net:route_drop</code></td>
+<td>暂缓。最终丢弃分布在三个层次、十余个判定点，其中数处没有计数；实现前需要明确覆盖哪些丢弃位置，以及对应的原因分类。</td>
+</tr>
+<tr>
+<td><code>net:proto_poll</code></td>
+<td>调整定义。原先按“一轮协议轮询”定义的结果码有一半不可达，因此改为记录“因预算耗尽而让出 CPU”，并以 <code>net:proto_yield</code> 实现。</td>
+</tr>
+</tbody></table>
+<p>本次工作保留通过事件准入条件的定义，暂缓的候选不计入已实现事件；调整定义后实现的 <code>net:proto_yield</code> 已计入前述六个事件。</p>
+<h3 id="六、eBPF-消费与探针防护"><a href="#六、eBPF-消费与探针防护" class="headerlink" title="六、eBPF 消费与探针防护"></a>六、eBPF 消费与探针防护</h3><p>PR #2559 让 eBPF 程序可以附着到队列轮询事件 <code>net:queue_poll_round</code> 上，读取身份、预算、工作量与结果，展示“加载、附着、启用、读回”这条完整链路。</p>
+<p>探针用于诊断，加载或执行一个探针不应让内核停止运行，否则现场也无法取证。针对 StarryOS 的 eBPF 机制，新增三类机制（PR #2558）：</p>
+<ol>
+<li><strong>内核态地址拷贝使用异常表修复</strong>：将逐字节读写指令及其修复入口登记进异常表。访问不可访问地址触发异常时，异常处理程序查表并将控制流转到修复入口，使拷贝返回失败，避免未处理异常导致内核崩溃；读取失败时按约定返回错误并清零目标，长度超过上限直接拒绝。</li>
+<li><strong>在 eBPF 指令预处理前进行结构校验</strong>：指令流来自用户态，可以由任意进程构造。加载流程先拒绝结构畸形的指令流并返回非法参数，避免其进入指令预处理过程后引发崩溃。校验在加载期完成，不在探针执行路径上增加检查。</li>
+<li><strong>动态探针注册失败返回错误</strong>：注册失败时返回非法参数并记录拒绝原因，交由调用方处理，避免注册失败导致内核崩溃。</li>
+</ol>
+<h3 id="七、验证与边界"><a href="#七、验证与边界" class="headerlink" title="七、验证与边界"></a>七、验证与边界</h3><p>验证分别检查事件触发条件、系统中的接口装配，以及 eBPF 程序能否完成附着和读取。不同层次的测试证明不同性质，不能用一次真实流量运行代替所有事件语义的验证。</p>
+<table>
+<thead>
+<tr>
+<th>验证对象</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>事件与观测回调接口的单元测试</td>
+<td>覆盖队列与帧交接事件的触发边界：一次触发恰好一条、提前返回不重复、失败轮次报告失败前的真实工作量、观测回调接口的开关与有无消费者都不改变轮询结果；设备暂时无法接纳操作的事件只在保留资源供重试时出现，被拒的帧不报为已提交；帧未能进入协议侧队列时不报告已进入</td>
+</tr>
+<tr>
+<td>系统测试</td>
+<td>队列快照记录逐条解析出固定字段数，接口名同时出现在累计统计中，所属 CPU 落在在线集合；事件目录的 id 与格式声明可读；真实流量驱动出轮询、提交、发布与让出记录，关闭事件后同样流量不再产生记录</td>
+</tr>
+<tr>
+<td>eBPF 附着</td>
+<td>四个架构的冒烟测试程序均完成加载、附着与读回</td>
+</tr>
+</tbody></table>
+<p><strong>各层验证的范围。</strong> 系统测试检查接口装配、格式和真实流量触发事件的情况。真实流量不保证触发中断重新使能的竞态，也不保证设备暂时无法接纳操作，本次通过单元测试验证这些触发条件。协议让出事件位于协议执行器线程的调度循环内，真实触发由系统用例验证，观测回调接口的共用机制由单元测试覆盖；eBPF 示例验证加载、附着与读取，不代替各事件触发条件的测试。</p>
+<p><strong>尚未量化的开销。</strong> 观测回调接口与事件启用后的吞吐与 CPU 开销尚未量化。比较“已安装未启用”与“已启用”可以测量启用整条上报链路后的增量。原计划还以“未安装回调”的构建进行对照，并在合入后开展板卡测量；但未安装回调时仍可能保留接口自身的标志检查，仅用该对照不能独立测出接口的全部开销，需要明确两种构建中实际执行的上报路径。真实网卡与板卡上的高负载行为也仍需测量。</p>
+<p><strong>已知缺口。</strong> 发送提交返回永久错误时，帧被回收，队列侧既无接纳事件，也无对应的错误计数；<code>net:queue_backpressure</code> 仅记录可以保留资源并重试的情况，不包含这类永久错误。是否补充计数或另设事件，留待按事件准入条件评估。单网卡环境下设备枚举顺序与接口注册顺序取值相同，系统用例无法据此检验两种顺序不同时的映射；身份配对与接口映射由单元测试在构造的多设备运行时上验证，真实多设备环境下的表现仍需验证。</p>
+<h2 id="附录：相关-Pull-Request"><a href="#附录：相关-Pull-Request" class="headerlink" title="附录：相关 Pull Request"></a>附录：相关 Pull Request</h2><p>相关工作通过以下 Pull Request 提交。状态沿用报告记录时的信息，WiFi 驱动部分同时注明已关闭方案与主线重构的关系。</p>
+<h3 id="WiFi-驱动方向"><a href="#WiFi-驱动方向" class="headerlink" title="WiFi 驱动方向"></a>WiFi 驱动方向</h3><p>这些 Pull Request 对应重构前的完成中断修复、重构后的 D80 适配与发送聚合优化。</p>
+<table>
+<thead>
+<tr>
+<th>PR</th>
+<th>标题</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1914" target="_blank" rel="noopener">#1914</a></td>
+<td>fix(sg2002, sdhci-cv1800, aic8800): fix WiFi TX throughput via XFER_COMPLETE interrupt</td>
+<td>已关闭；其改写的完成路径随主线重构被取代</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2225" target="_blank" rel="noopener">#2225</a></td>
+<td>fix(sdmmc-protocol,aic8800): restore SG2002 WiFi board startup</td>
+<td>已关闭；部分修复由主线同期改动吸收</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2276" target="_blank" rel="noopener">#2276</a></td>
+<td>fix(aic8800): restore D80 transport semantics within the owner state machine</td>
+<td>已合入</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2547" target="_blank" rel="noopener">#2547</a></td>
+<td>perf(aic8800): aggregate transmit writes and cache firmware credits</td>
+<td>已合入</td>
+</tr>
+</tbody></table>
+<h3 id="网络观测方向"><a href="#网络观测方向" class="headerlink" title="网络观测方向"></a>网络观测方向</h3><p>这些 Pull Request 对应接口统计、队列观测、eBPF 防护与网络测试工具。</p>
+<table>
+<thead>
+<tr>
+<th>PR</th>
+<th>标题</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1571" target="_blank" rel="noopener">#1571</a></td>
+<td>feat(starry,ax-net): return L2 frame length from Device send/recv for net_stats byte counters</td>
+<td>已合入</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1645" target="_blank" rel="noopener">#1645</a></td>
+<td>feat(starry): /proc/net/dev stats implement</td>
+<td>已合入</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2558" target="_blank" rel="noopener">#2558</a></td>
+<td>feat(starry-kernel,ax-cpu): keep a faulty eBPF probe from crashing the kernel</td>
+<td>已合入</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/2559" target="_blank" rel="noopener">#2559</a></td>
+<td>feat(ax-net): expose per-queue state and net:* tracepoint events</td>
+<td>已合入</td>
+</tr>
+<tr>
+<td><a href="https://github.com/rcore-os/tgoskits/pull/1417" target="_blank" rel="noopener">#1417</a></td>
+<td>feat(ltp-netstress): add manual network request-response benchmark</td>
+<td>已合入</td>
+</tr>
+</tbody></table>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/%E9%A9%B1%E5%8A%A8/" rel="tag"># 驱动</a>
+              <a href="/blog/tags/eBPF/" rel="tag"># eBPF</a>
+              <a href="/blog/tags/author-Antareske/" rel="tag"># author:Antareske</a>
+              <a href="/blog/tags/%E7%BD%91%E7%BB%9C%E6%A0%88/" rel="tag"># 网络栈</a>
+              <a href="/blog/tags/repo-https-github-com-Antareske-tgoskits/" rel="tag"># repo:https://github.com/Antareske/tgoskits</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/04/20261002-daivy2333-StarryOS%E5%BC%82%E6%AD%A5%E9%A9%B1%E5%8A%A8%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" rel="prev" title="StarryOS 的串口、有线网卡的异步化">
+      <i class="fa fa-chevron-left"></i> StarryOS 的串口、有线网卡的异步化
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/10/20261010-xianxw-%E5%9D%97%E8%AE%BE%E5%A4%87%E5%AD%98%E5%82%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E7%8E%B0%E5%BC%82%E6%AD%A5-I-O-%E8%BF%90%E8%A1%8C%E6%97%B6%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" rel="next" title="20261010-xianxw-块设备存储链路实现异步 I/O 运行时实习总结">
+      20261010-xianxw-块设备存储链路实现异步 I/O 运行时实习总结 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
