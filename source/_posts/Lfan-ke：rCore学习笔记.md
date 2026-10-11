@@ -1,5 +1,5 @@
 ---
-title: 'Lfan-ke: rCore学习笔记'
+title: rCore学习笔记
 date: 2025-05-04 13:14:52
 categories:
     - Lfan-ke

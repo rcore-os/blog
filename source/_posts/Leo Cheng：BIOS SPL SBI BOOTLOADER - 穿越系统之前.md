@@ -1,5 +1,5 @@
 ---
-title: 'Leo Cheng: BIOS SPL SBI BOOTLOADERS - 穿越系统之前'
+title: 'BIOS SPL SBI BOOTLOADERS - 穿越系统之前'
 date: 2026-05-03 21:43:45
 categories:
     - Leo Cheng

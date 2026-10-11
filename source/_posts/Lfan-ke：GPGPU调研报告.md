@@ -1,5 +1,5 @@
 ---
-title: 'Lfan-ke: GPU GPGPU GPGPGPU！'
+title: GPU GPGPU GPGPGPU！
 date: 2025-06-20 13:07:00
 categories:
     - Lfan-ke
