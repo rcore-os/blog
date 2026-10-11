@@ -23,7 +23,7 @@ tags:
 8月：以火狐浏览器 CPU/GPU 两侧可在 StarryOS 上正确运行渲染与交互以及提升性能为导向的对 StarryOS 的测试与修复。
 9月：主要为 win mac linux 三种 系统能力的支持 的解耦与实现，以及之前补丁的溯源任务。
 
-本篇总结报告主要属于总结汇报相关成果，详细的周报以及相关内容请移步：[wiki](https://github.com/Lfan-ke/tgoskits/wiki)。
+本篇总结报告主要属于总结汇报相关成果，详细的周报以及相关内容请移步：[wiki](https://github.com/Lfan-ke/tgoskits/wiki)。对于方法论概要，请参考：[对照 Linux 评估 StarryOS 子系统与浏览器启动](https://rcore-os.cn/blog/2026/10/07/Leo%20Cheng%EF%BC%9A%E5%AF%B9%E7%85%A7%20Linux%20%E8%AF%84%E4%BC%B0%20StarryOS%20%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E5%90%AF%E5%8A%A8/)，对于 Win/Mac 等系统的相关认知笔记请参考：[三种 ABI 的系统调用与加载器](https://rcore-os.cn/blog/2026/10/10/Leo%20Cheng%EF%BC%9A%E4%B8%89%E7%A7%8D%20ABI%20%E7%9A%84%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E4%B8%8E%E5%8A%A0%E8%BD%BD%E5%99%A8/)。
 
 <!-- more -->
 
