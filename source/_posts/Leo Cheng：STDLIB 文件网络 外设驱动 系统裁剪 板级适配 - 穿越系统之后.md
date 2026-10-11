@@ -1,5 +1,5 @@
 ---
-title: 'Leo Cheng: LIBC 文件网络外设驱动 系统裁剪发行版 板卡级适配 以及运行时 - 穿越系统之后'
+title: 'LIBC 文件网络外设驱动 系统裁剪发行版 板卡级适配 以及运行时 - 穿越系统之后'
 date: 2026-05-05 21:43:45
 categories:
     - Leo Cheng

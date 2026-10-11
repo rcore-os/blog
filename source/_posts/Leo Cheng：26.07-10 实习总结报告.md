@@ -1,5 +1,5 @@
 ---
-title: 'Leo Cheng: 26.07-10 实习总结报告'
+title: 以浏览器等程序为导向的系统完善与修复及多系统系统调用解耦与实现
 date: 2026-10-04 14:00:00
 categories:
     - Leo Cheng
@@ -12,15 +12,24 @@ tags:
     - Linux 对照
     - 系统调用
     - 溯源
+    - 实习总结报告
 ---
 
 实习期自 2026-07 起。期间与 Agent 集群协作提交 88 个 PR，合入 36 个；其余多为计算与渲染用例，不验证内核语义，按收录范围撤下。本页只讲实习开始后提交的工作，分三段：用真实应用补/测内核，把浏览器跑起来并对照 Linux 提速，把系统调用拆成可替换的包。末尾是对全部内核补丁的溯源。
+
+其中，主要分为三个主要的阶段：
+
+7月：以各项 Linux App 地毯式覆盖测试为导向的对 StarryOS 的测试与修复。
+8月：以火狐浏览器 CPU/GPU 两侧可在 StarryOS 上正确运行渲染与交互以及提升性能为导向的对 StarryOS 的测试与修复。
+9月：主要为 win mac linux 三种 系统能力的支持 的解耦与实现，以及之前补丁的溯源任务。
+
+本篇总结报告主要属于总结汇报相关成果，详细的周报以及相关内容请移步：[wiki](https://github.com/Lfan-ke/tgoskits/wiki)。
 
 <!-- more -->
 
 ## 应用测试与子系统补全
 
-把真实软件装进镜像跑，跑不通就对照 Linux 源码补内核，补完留回归用例。
+把Linux app装进镜像跑，跑不通就对照 Linux 源码补内核，补完留回归用例。
 
 应用：dropbear、dnsmasq、监控栈、科学计算与机器学习（SciPy、Numba、scikit-learn）、多媒体与流媒体栈、单核并发，以及 StarryWRT（OpenWrt 用户态，[#1580](https://github.com/rcore-os/tgoskits/pull/1580)）。
 

@@ -1,5 +1,5 @@
 ---
-title: 'Lfan-ke: 动态链接 静态链接 ELF文件 EXE文件'
+title: 动态链接 静态链接 ELF文件 EXE文件
 date: 2025-07-10 01:01:01
 categories:
     - Lfan-ke

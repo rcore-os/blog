@@ -1,5 +1,5 @@
 ---
-title: 'Lfan-ke: 穿越操作系统的迷雾'
+title: 穿越操作系统的迷雾
 date: 2025-05-29 10:38:44
 categories:
     - Lfan-ke

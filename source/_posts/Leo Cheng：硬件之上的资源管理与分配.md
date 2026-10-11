@@ -1,5 +1,5 @@
 ---
-title: 'Leo Cheng: 于硬件之上'
+title: '于硬件之上'
 date: 2026-05-06 21:43:45
 categories:
     - Leo Cheng

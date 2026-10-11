@@ -1,5 +1,5 @@
 ---
-title: 'Leo Cheng: Rust & Zig 多方面介绍与对比'
+title: 'Rust & Zig 多方面介绍与对比'
 date: 2026-05-01 21:43:45
 categories:
     - Leo Cheng
