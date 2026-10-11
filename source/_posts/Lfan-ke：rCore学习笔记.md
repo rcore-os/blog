@@ -2,17 +2,19 @@
 title: 'Lfan-ke: rCore学习笔记'
 date: 2025-05-04 13:14:52
 categories:
-    - Leo Cheng
-    - 补完计划
+    - Lfan-ke
 tags:
     - author:heke1228
     - repo:https://github.com/LearningOS/2025s-rcore-Lfan-ke
+    - 补完计划
 mathjax: true
 ---
 
 # rCore学习笔记
 
 根据学习顺序从头梳理一下操作系统的发展历史：
+
+<!-- more -->
 
 ## 原生之初
 
@@ -227,6 +229,5 @@ CPU-Central Processing Unit，中央处理器，由IFU，EXU，MMU等等等组�
 
 
 
-<!-- more -->
 
 > 吐槽：所以人类的科技发展史就是如何想着更巴适，使用更少的力气创造更大的价值（为了聪明的偷懒点满了科技树是吧）

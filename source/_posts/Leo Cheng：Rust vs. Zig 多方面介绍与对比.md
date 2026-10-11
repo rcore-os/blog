@@ -1,265 +1,283 @@
 ---
 title: 'Leo Cheng: Rust & Zig 多方面介绍与对比'
 date: 2026-05-01 21:43:45
-categories: [Leo Cheng, Rust, Zig, Programming Languages, Beginner]
+categories:
+    - Leo Cheng
 tags:
     - author:heke1228
     - repo:https://cnb.cool/heke_learning/Rustlings
+    - Rust
+    - Zig
+    - Programming Languages
+    - Beginner
 ---
 
+> AI4OSE 期间，我们与 Agent 协作学习各项知识，并且 Agent 出题 讲解 以及 苏格拉底式 的急速学习法。所以最后也有 Agent 自动插入笔记的问题和自己的回答，如果答案不充分，则我的作答还会有 Agent 协调补充的内容。相关提示词：如果我有疏漏，给我补充，且讲解充分后继续向我提问查缺补漏，最后一同沉淀到我们的笔记中！
 
 <!-- more -->
 
-> **Zig / Rust 对于 C/C++**：两门都自称 "更好的 C/C++"（C/C++ plus），都不要 GC、都讲究"安全 × 可控"，但走了两条岔路：**Rust 用编译期的"强制"换安全；Zig 用"显式 + 简单"换可控**。本文全维度横扫，每条都给 Rust 写法 + Zig 写法 + 取舍（基于 **Zig `0.17.0-dev`、Rust `1.94`**）。C 只在该出现时点一句。
->
-> 我（Leo）当初被 Zig 吸引，是因为它**对"函数染色（function coloring）"问题的态度**——这条单开一节（§9）讲。
+{% note info %}
+两门语言都想做「更好的 C」，都不要 GC，走的却是两条路：Rust 用编译期的强制规则换安全，Zig 用显式和简单换可控。文中代码以 Zig `0.17.0-dev.224`、Rust `1.94` 为准。我关注 Zig，起因是它对函数染色（function coloring）的处理特点，见「并发、异步与函数染色」。
+{% endnote %}
 
----
-
-## 1. 设计哲学：两种"更好的 C"
-
-Rust 和 Zig 都想取代 C/C++，但信条不同：
-
-| \ | Rust | Zig |
-|:--:|:--:|:--:|
-| 一句话 | **安全优先**，零成本抽象 | **简单 × 显式**，无隐藏 |
-| 安全模型 | 编译期**强制**（借用检查器当警察）| 运行期**可选**检查 + 程序员自律 |
-| 抽象 | trait / 泛型 / 生命周期，层层零成本 | 几乎不抽象，"所见即所得" |
-| 心智 | "按我的规则写，我保证你安全" | "给你工具，炸了算你的" |
-| 成熟度 | 1.0 稳定（2015），承诺不破坏 | 0.x，**频繁破坏式更新**（见 §16）|
-
-Zig 的设计写死了**五条"无隐藏"原则**（这是理解 Zig 一切语法的钥匙）：
-
-| Zig 五原则 | 含义 |
-|:--:|:--:|
-| **无隐藏控制流** | 没有运算符重载、没有析构函数、没有异常——`a + b` 就是加法，不会偷偷调函数 |
-| **无隐藏内存分配** | 标准库**绝不偷偷分配堆**；要分配？把 `allocator` 显式传进来 |
-| **无隐藏的"编译期 vs 运行期"** | `comptime` 是第一公民，编译期和运行期**用同一套语法** |
-| **错误是值** | `error.Foo` 是枚举值，`!T` 是"错误联合"类型，不是异常 |
-| **C 互操作一等公民** | `@cImport` 直接吃 C 头，零成本 ABI 兼容 |
-
-> 对 Rust 老用户：Zig 几乎是"把 Rust 的安全保证拿掉、把元编程统一成一个 `comptime`、把 FFI 做到极致"的另一种取舍。下面逐条看。
-
----
-
-## 2. 第一印象：Hello 与语法风格
-
-```zig
-// Zig
-const std = @import("std");
-pub fn main() !void {                       // !void = 可能返回错误
-    std.debug.print("Hello, {s}!\n", .{"Zig"});  // .{...} 是匿名元组（参数列表）
-}
-```
-```rust
-// Rust
-fn main() {
-    println!("Hello, {}!", "Rust");          // println! 是宏
-}
-```
-
-几个一眼可见的差异：`@import`/`@xxx` 是 Zig 的**内置函数**（编译器保留，用户不能新增）；`.{...}` 既是匿名结构体也是元组；Rust 的 `println!` 是**宏**，Zig 没有宏（用 comptime + 格式串）。
-
----
-
-## 3. 类型系统
-
-### 3.1 基础类型——Zig 的"任意位宽整数"
-
-```zig
-const a: u8 = 0xFF;
-const b: u7 = 127;          // 任意位宽:u1..u65535 都行
-const c: u3 = 0b101;        // 寄存器位段神器
-const w = a +% 1;           // +% 回绕  +| 饱和(溢出运算符)
-```
-Rust 只有固定 `u8/u16/u32/u64/u128`；要 3 位字段得手动位运算或用 `bitflags` crate。Zig 的 `u3`/`packed struct(u8)` 让寄存器/协议位段**类型安全且零开销**。
-
-### 3.2 Optional 与 错误联合——两个"一等公民"
+## 设计哲学
 
 | | Rust | Zig |
 |:--:|:--:|:--:|
-| 可空 | `Option<T>` = `Some/None` 枚举 | `?T`（`?*T` 用空指针表示，零开销）|
-| 解包 | `match` / `if let` / `?` / `unwrap()` | `if (x) \|v\|` / `orelse 默认` / `.?` |
-| 错误 | `Result<T,E>` 枚举 | `E!T` 错误联合（见 §5）|
+| 取向 | 安全优先，零成本抽象 | 简单、显式，没有隐藏行为 |
+| 安全模型 | 编译期强制，借用检查器拒绝违规代码 | 运行期检查，可按构建模式关闭 |
+| 抽象 | trait、泛型、生命周期，层层零成本 | 很少抽象，写什么就执行什么 |
+| 对程序员的态度 | 按我的规则写，我保证安全 | 给你工具，出错由你负责 |
+| 成熟度 | 2015 年 1.0，承诺向后兼容 | 0.x，版本之间经常不兼容 |
 
+Zig 有五条「无隐藏」原则，后面的语法都由此而来：
+
+| 原则 | 含义 |
+|:--:|:--:|
+| 无隐藏控制流 | 没有运算符重载、析构函数和异常，`a + b` 就是加法，不会调用别的函数 |
+| 无隐藏内存分配 | 标准库不自己分配堆内存，要分配就把 `Allocator` 显式传进来 |
+| 编译期与运行期同一套语法 | `comptime` 用的就是普通 Zig 代码 |
+| 错误是值 | `error.Foo` 是枚举值，`!T` 是错误联合类型，没有异常 |
+| 与 C 直接互通 | 与 C 的 ABI 直接兼容，C 头文件经构建系统翻译成 Zig 模块 |
+
+从 Rust 的角度看，Zig 的取舍是：不要编译期的安全保证，元编程统一成 `comptime`，与 C 的互通做到最直接。
+
+## 第一印象
+
+{% tabs hello, 1 %}
+<!-- tab Zig -->
+```zig
+const std = @import("std");
+
+pub fn main() !void {                                 // !void：可能返回错误
+    std.debug.print("Hello, {s}!\n", .{"Zig"});       // .{...} 是匿名元组，即参数列表
+}
+```
+<!-- endtab -->
+<!-- tab Rust -->
+```rust
+fn main() {
+    println!("Hello, {}!", "Rust");                   // println! 是宏
+}
+```
+<!-- endtab -->
+{% endtabs %}
+
+`@import` 这类 `@` 开头的是 Zig 的内建函数，由编译器提供，用户不能新增；`.{...}` 既是匿名结构体也是元组。Rust 的 `println!` 是宏，Zig 没有宏，格式串在 `comptime` 里检查。
+
+## 类型系统
+
+### 任意位宽的整数
+
+```zig
+const a: u8 = 0xFF;
+const b: u7 = 127;          // 任意位宽：u1 到 u65535
+const c: u3 = 0b101;        // 适合描述寄存器位段
+const w = a +% 1;           // +% 回绕，+| 饱和
+```
+
+Rust 只有固定位宽的整数，3 位字段要手写位运算或用 `bitflags`。Zig 的 `u3` 与 `packed struct(u8)` 让寄存器和协议的位段既有类型检查，又没有额外开销。
+
+### 可选类型与错误联合
+
+| | Rust | Zig |
+|:--:|:--:|:--:|
+| 可空 | `Option<T>`，即 `Some`、`None` 枚举 | `?T`；`?*T` 用空指针表示，不占额外空间 |
+| 解包 | `match`、`if let`、`?`、`unwrap()` | `if (x) \|v\|`、`orelse 默认值`、`.?` |
+| 错误 | `Result<T, E>` 枚举 | `E!T` 错误联合，见「错误处理」 |
+
+{% tabs optional, 1 %}
+<!-- tab Zig -->
 ```zig
 var opt: ?u32 = null;
 const v = opt orelse 0;        // 默认值
-const f = opt.?;               // 断言非 null（null 则 panic）
+const f = opt.?;               // 断言非空，为空则 panic
 if (opt) |val| { _ = val; }    // 解包
 ```
+<!-- endtab -->
+<!-- tab Rust -->
 ```rust
 let opt: Option<u32> = None;
 let v = opt.unwrap_or(0);
-let f = opt.unwrap();          // None 则 panic
+let f = opt.unwrap();          // 为 None 则 panic
 if let Some(val) = opt { let _ = val; }
 ```
+<!-- endtab -->
+{% endtabs %}
 
-### 3.3 struct / enum / union——Zig 的 tagged union 是内建语法
+### struct、enum、union
 
 ```zig
-const Value = union(enum) {    // tagged union:tag 自动生成
+const Value = union(enum) {    // 带标签的联合，标签自动生成
     int: i64,
     text: []const u8,
     empty,
 };
-switch (v) {                    // switch 必须穷尽
-    .int  => |n| use(n),
+
+switch (v) {                   // switch 必须覆盖所有情况
+    .int => |n| use(n),
     .text => |s| use(s),
     .empty => {},
 }
 ```
 
-对位 Rust 的 `enum Value { Int(i64), Text(String), Empty }` + `match`——**几乎一一对应**，这是两门语言最像的地方（代数数据类型 + 穷尽匹配）。差别：Zig 的 `union(enum)` 还能写裸 `union`（C 风格、无 tag、`@bitCast` 重解释），Rust 没有安全的裸 union（要 `unsafe`）。
+对应 Rust 的 `enum Value { Int(i64), Text(String), Empty }` 加 `match`，几乎一一对应，这是两门语言最像的地方：代数数据类型加穷尽匹配。区别在于 Zig 还能写不带标签的 C 风格 `union`，用 `@bitCast` 重新解释；Rust 的裸 `union` 要 `unsafe`。
 
-### 3.4 切片 / 指针 / 字符串——比 Rust 多了"指针种类"
+### 切片、指针与字符串
 
-| 类型 | Zig | Rust 对位 |
+| 类型 | Zig | Rust 中对应的写法 |
 |:--:|:--:|:--:|
-| 切片 | `[]T` / `[]const u8` | `&mut [T]` / `&[T]` / `&str` |
-| 单值指针 | `*T` / `*const T` | `&mut T` / `&T` / `*mut T` |
-| 多值指针 | `[*]T`（无长度）| `*mut T`（裸）|
-| C 指针 | `[*c]T`（可空、可 0）| `*mut T` + FFI |
-| 哨兵终止 | `[*:0]const u8`（C 字符串）| `CStr` |
+| 切片 | `[]T`、`[]const u8` | `&mut [T]`、`&[T]`、`&str` |
+| 单值指针 | `*T`、`*const T` | `&mut T`、`&T`、`*mut T` |
+| 多值指针 | `[*]T`，不带长度 | `*mut T` |
+| C 指针 | `[*c]T`，可为空、可为 0 | `*mut T` 加 FFI |
+| 哨兵结尾 | `[*:0]const u8`，即 C 字符串 | `CStr` |
 
-Zig **没有 `String` 类型**，字符串就是 `[]const u8`（UTF-8 字节切片）+ 字符串字面量 `[N:0]u8`。Rust 区分 `String`（拥有）/ `&str`（借用）。Zig 的指针种类更细（`*`/`[*]`/`[*c]`/`[:0]`），因为它要直接对接 C 和硬件——**没有借用检查器，靠类型把"这个指针能不能空、知不知道长度"标清楚**。
+Zig 没有 `String` 类型，字符串就是 `[]const u8`，字面量是 `[N:0]u8`；Rust 区分拥有所有权的 `String` 与借用的 `&str`。Zig 的指针种类分得更细，因为它要直接对接 C 与硬件，又没有借用检查器，只能靠类型写清「能不能为空、知不知道长度」。
 
----
+## 内存管理
 
-## 4. 内存管理：Zig 最分裂于 Rust 的地方
+### 所有权与显式分配器
 
-### 4.1 所有权 vs 显式 allocator
+Rust 用所有权和借用检查器在编译期决定每块内存何时释放，`drop` 自动调用，分配器一般看不见。
 
-**Rust**：所有权 + 借用检查器，编译期决定每块内存何时释放，`drop` 自动调用。你几乎不"看见"分配器（全局 `alloc`）。
-
-**Zig**：**没有所有权、没有借用检查器、没有自动析构**。谁要堆内存，就把 `allocator` **当参数显式传进去**：
+Zig 没有所有权、借用检查器和自动析构。谁要堆内存，就把分配器当参数传进去：
 
 ```zig
 fn process(a: std.mem.Allocator, data: []const u8) ![]u8 {
     const out = try a.alloc(u8, data.len * 2);   // 显式分配
-    // ... 调用者负责 a.free(out)
+    // 调用者负责 a.free(out)
     return out;
 }
 ```
 
-这强迫你在**架构设计时**就想清"谁负责分配/释放"，而不是像 C 那样到处隐式 `malloc`。标准库容器也一样——`ArrayList` 的每个 `append` 都要传 allocator（0.17）：
+这样在设计时就得想清楚谁分配、谁释放。标准库容器也一样，0.15 起 `ArrayList` 不再保存分配器，每次修改都要传：
 
 ```zig
-var dbg = std.heap.DebugAllocator(.{}){};        // 0.17:GPA 改名 DebugAllocator
-defer _ = dbg.deinit();                           // 报告内存泄漏!
+var dbg = std.heap.DebugAllocator(.{}){};       // 旧名 GeneralPurposeAllocator 已删
+defer _ = dbg.deinit();                         // 退出时报告内存泄漏
 const a = dbg.allocator();
-var list: std.ArrayList(u8) = .empty;             // 0.17:ArrayList 默认 unmanaged
+var list: std.ArrayList(u8) = .empty;           // 不保存分配器
 defer list.deinit(a);
-try list.append(a, 7);                            // 每次显式传 a
-try list.appendSlice(a, &.{ 8, 9 });              // → { 7, 8, 9 }
+try list.append(a, 7);                          // 每次显式传 a
+try list.appendSlice(a, &.{ 8, 9 });            // 结果 { 7, 8, 9 }
 ```
 
-> Zig 的显式 allocator = "no hidden allocations" 哲学的落地。**好处**：测试时换个 `FixedBufferAllocator` 就能裸机跑、`ArenaAllocator` 一次性释放、`DebugAllocator` 自动查泄漏——分配策略是**参数**而非全局。**代价**：啰嗦，且没有借用检查器兜底，use-after-free 要靠下面的机制防。
+分配策略因此成了参数：测试时换 `FixedBufferAllocator` 就能在裸机上跑，`ArenaAllocator` 一次性释放，`DebugAllocator` 自动查泄漏。代价是写起来啰嗦，而且没有借用检查器把关，释放后再用要靠下面的机制防。
 
-### 4.2 `defer` / `errdefer`——Zig 最香的语法糖
+### `defer` 与 `errdefer`
 
 ```zig
 fn init(a: std.mem.Allocator) !*Res {
     const r = try a.create(Res);
-    errdefer a.destroy(r);     // 仅当本函数"以错误返回"时执行
-    try r.setup();             // 若这里出错 → errdefer 清理 r → 不泄漏
-    return r;                  // 成功返回 → errdefer 不执行
+    errdefer a.destroy(r);     // 只在本函数以错误返回时执行
+    try r.setup();             // 这里出错就清理 r，不泄漏
+    return r;                  // 成功返回，errdefer 不执行
 }
 ```
 
-- **`defer`**：作用域退出时执行（LIFO）。资源获取后紧跟 `defer x.deinit()`，**释放逻辑紧挨分配逻辑**，很难忘。
-- **`errdefer`**：只在**错误返回路径**执行——这是 Rust 的 `?` + `Drop` 才能做到的"出错自动清理"，Zig 用一个关键字显式表达，**而且看得见**。
+- `defer`：离开作用域时执行，后进先出。获取资源后紧跟一行 `defer x.deinit()`，释放与分配写在一起，不容易漏。
+- `errdefer`：只在错误返回的路径上执行。Rust 要靠 `?` 加 `Drop` 才有的「出错自动清理」，Zig 用一个关键字显式写出来。
 
-> **`defer` 跟 Go 不一样**：Zig 的 `defer` 是**块级作用域**（离开 enclosing block 就跑），Go 是**函数级**（return 才跑）。在循环里区别巨大——Zig 循环体内的 `defer` **每次迭代结束**就执行，Go 是攒到函数末尾 LIFO 一起跑。
->
-> 对位 Rust：Rust 用 RAII + `Drop` trait 自动析构（更隐式、零关键字）；Zig 用 `defer` 显式（更可见、可控）。一个"自动但隐藏"，一个"手动但透明"——正是两门语言的缩影。
+Zig 的 `defer` 是块级的，离开所在的块就执行；Go 的 `defer` 是函数级的，函数返回时才执行。在循环里差别很大：Zig 每轮循环结束就执行，Go 攒到函数末尾一起执行。Rust 用 RAII 与 `Drop` 自动析构，不用写关键字；Zig 用 `defer` 显式写出。一个自动但看不见，一个手写但看得见，两门语言的差别大体如此。
 
----
+## 错误处理
 
-## 5. 错误处理：`!T` vs `Result<T,E>`
-
+{% tabs errors, 1 %}
+<!-- tab Zig -->
 ```zig
-const MyError = error{ TooHot, TooCold };   // 错误集 = 一组扁平标签
-fn readTemp() MyError!i32 {                  // !T = 错误联合
-    return error.TooHot;                     // 只能返回"信号",不带数据
+const MyError = error{ TooHot, TooCold };     // 错误集：一组扁平的标签
+
+fn readTemp() MyError!i32 {                   // !T：错误联合
+    return error.TooHot;                      // 只返回标签，不带数据
 }
-const t = readTemp() catch |e| blk: {        // catch 捕获
-    std.debug.print("err: {}\n", .{e});
-    break :blk 0;
-};
-const t2 = try readTemp();                    // try = 出错就向上传播
+
+pub fn main() !void {
+    const t = readTemp() catch |e| blk: {     // catch 捕获
+        std.debug.print("err: {}\n", .{e});
+        break :blk 0;
+    };
+    const t2 = try readTemp();                // try：出错就向上传播
+    _ = .{ t, t2 };
+}
 ```
+<!-- endtab -->
+<!-- tab Rust -->
 ```rust
-enum ReadError { TooHot(i32), TooCold(i32) }  // E 可带任意 payload
-fn read_temp() -> Result<i32, ReadError> { Err(ReadError::TooHot(42)) }
-let t = read_temp()?;                          // ? 向上传播
+enum ReadError { TooHot(i32), TooCold(i32) }  // E 可以带任意数据
+
+fn read_temp() -> Result<i32, ReadError> {
+    Err(ReadError::TooHot(42))
+}
+
+fn main() -> Result<(), ReadError> {
+    let t = read_temp()?;                     // ? 向上传播
+    let _ = t;
+    Ok(())
+}
 ```
+<!-- endtab -->
+{% endtabs %}
 
-**最大区别**：
-
-| | Rust `Result<T,E>` | Zig `E!T` |
+| | Rust `Result<T, E>` | Zig `E!T` |
 |:--:|:--:|:--:|
-| 错误能否带数据 | **能**，`E` 是任意类型（带上下文）| **不能**，error 只是全局扁平标签 |
-| 体积 | 取决于 `E`，可能很大（带 padding/布局开销）| **极小**：tag + T |
+| 错误能否带数据 | 能，`E` 是任意类型 | 不能，错误只是全局的扁平标签 |
+| 体积 | 取决于 `E`，可能很大 | 很小：标签加 `T` |
 | 传播 | `?` | `try` |
-| 出错清理 | `Drop`（隐式）| `errdefer`（显式）|
+| 出错时清理 | `Drop`，自动 | `errdefer`，显式 |
 
-**体积**：`@sizeOf(anyerror)=2`（一个 u16 错误号）、`@sizeOf(MyError!i32)=8`（i32 的 4 + tag 2 + padding）。底层就是**整数比较 + 一个 `if (err) return err`**，无 `Box`、无 `match` 嵌套、无堆分配。
+`@sizeOf(anyerror)` 是 2（一个 `u16` 错误号），`@sizeOf(MyError!i32)` 是 8：`i32` 的 4 字节加标签的 2 字节，再补齐。底层就是一次整数比较加一次返回，没有堆分配。
 
-> Zig 的 error 更像**类型安全版 `errno`**——适合底层系统编程，错误只需"知道发生了什么"。需要带上下文？**自己设计一个 struct 当返回值**，别硬塞进 error union。这是"简单 × 零成本"对"表达力"的取舍。
+Zig 的错误更像有类型的 `errno`，适合只需知道「出了什么错」的系统代码。要带上下文，就自己设计一个结构体作为返回值，不要放进错误联合。
 
----
+## `comptime`
 
-## 6. `comptime`：Zig 的灵魂——一个机制替掉「宏 + 泛型 + const fn + 反射」
+Rust 的元编程是四套互不相通的机制：声明宏（改写 token）、过程宏（编译期运行、相互隔离的 Rust 代码）、泛型（单态化）与 `const fn`（常量求值）。
 
-这是 Zig 最独特的地方。
-
-**Rust 的元编程是四套互不打通的机制**：声明宏（token 流转换）、过程宏（编译期跑 Rust 但隔离）、泛型（单态化）、`const fn`（常量求值）。
-
-**Zig 只有一个 `comptime`**：它不是"模板"也不是"宏"，而是 **在编译期直接执行普通 Zig 代码，执行结果作为 AST 插入当前位置**。编译器解析到 `comptime` 表达式，就用内置解释器跑它，结果替换原节点。所以同一套语法、同一门语言，既写运行期也写编译期。
+Zig 只有 `comptime`：编译器在语义分析阶段直接执行这段普通的 Zig 代码，结果作为常量或类型用在原处。同一门语言、同一套语法，既写运行期也写编译期。
 
 ```zig
-// 编译期算查找表，运行期直接查（零运行时开销）
-const upper = comptime blk: {
+// 编译期算好查找表，运行期直接查。文件作用域的常量本来就在编译期求值。
+const upper = blk: {
     var t: [256]u8 = undefined;
     for (&t, 0..) |*c, i| c.* = if (i >= 'a' and i <= 'z') @intCast(i - 32) else @intCast(i);
     break :blk t;
 };
 ```
 
-它**一个顶四个**：
+对应 Rust 的四套机制：
 
-| 你在 Rust 里用 | 在 Zig 里就是 |
+| Rust | Zig |
 |:--:|:--:|
-| 泛型 `fn f<T>()` | `comptime T: type` 参数（见 §7）|
-| 声明/过程宏 | comptime 函数返回类型/代码 |
-| `const fn` | comptime 块/函数 |
-| 反射（serde/proc-macro）| `@typeInfo(T)` 编译期类型反射 |
+| 泛型 `fn f<T>()` | `comptime T: type` 参数，见「泛型与多态」 |
+| 声明宏、过程宏 | 返回类型或值的 `comptime` 函数 |
+| `const fn` | `comptime` 块或函数 |
+| 反射（serde、过程宏） | `@typeInfo(T)` 编译期类型反射 |
 
-**编译期反射**（Rust 要靠过程宏 + serde 才能做的，Zig 内建）：
+编译期反射在 Rust 里要靠过程宏，Zig 内建：
 
 ```zig
 fn dumpFields(comptime T: type) void {
-    inline for (@typeInfo(T).@"struct".fields) |f| {   // 0.17:字段全小写 .@"struct"
+    inline for (@typeInfo(T).@"struct".fields) |f| {      // 字段名全小写：.@"struct"
         std.debug.print("{s}: {s}\n", .{ f.name, @typeName(f.type) });
     }
 }
 ```
 
-**版本坑（0.17-dev）**：类型反射字段名 **全小写**（`.int` / `.@"struct"` / `.@"fn"`，不是旧的 `.Int`）；动态构造类型用 **`@Int(.unsigned, 32)`**——旧的 **`@Type(...)` 在 0.17 已删**（报 `invalid builtin function: '@Type'`）。这正是 Zig 破坏式更新的缩影（§16）。
+版本差异：类型反射的字段名全小写（`.int`、`.@"struct"`、`.@"fn"`，不是旧的 `.Int`）；构造类型用 `@Int(.unsigned, 32)`、`@Struct` 等专用内建函数，`@Type` 在 0.16 删除，再用会报 `invalid builtin function: '@Type'`。
 
-> comptime 看起来比 Rust 啰嗦（要写工厂函数），但**极其透明**——你清清楚楚知道编译期发生了什么，没有宏的"token 黑魔法"。这是 "simple × explicit" 哲学最闪光的体现。
+`comptime` 写起来比 Rust 啰嗦（要写工厂函数），但编译期做了什么一目了然，没有宏那样对 token 的改写。
 
----
+## 泛型与多态
 
-## 7. 泛型 / 多态：工厂函数 + 鸭子类型 vs trait + 生命周期
+Zig 没有 `trait`、生命周期标注和泛型尖括号，泛型用 `comptime` 实现，有两种写法。
 
-Zig 没有 `trait`、没有生命周期标注、没有泛型尖括号。它用 comptime 实现泛型，两条路：
+类型工厂，显式造一个类型：
 
-**① 类型工厂**（显式造一个类型）：
-
+{% tabs generic, 1 %}
+<!-- tab Zig -->
 ```zig
-fn Stack(comptime T: type) type {        // 传类型进去,返回一个新 struct 类型
+fn Stack(comptime T: type) type {             // 传入类型，返回一个新的结构体类型
     return struct {
         items: std.ArrayList(T) = .empty,
         pub fn push(s: *@This(), a: std.mem.Allocator, v: T) !void {
@@ -267,220 +285,236 @@ fn Stack(comptime T: type) type {        // 传类型进去,返回一个新 stru
         }
     };
 }
-const IntStack = Stack(i32);             // 显式实例化
-```
-```rust
-struct Stack<T> { items: Vec<T> }        // Rust:隐式单态化,编译器推 T
-impl<T> Stack<T> { fn push(&mut self, v: T) { self.items.push(v) } }
-```
 
-**② `anytype` 鸭子类型**（编译期推参数类型）：
+const IntStack = Stack(i32);                  // 显式实例化
+```
+<!-- endtab -->
+<!-- tab Rust -->
+```rust
+struct Stack<T> { items: Vec<T> }             // 编译器推断 T，隐式单态化
+
+impl<T> Stack<T> {
+    fn push(&mut self, v: T) { self.items.push(v) }
+}
+```
+<!-- endtab -->
+{% endtabs %}
+
+`anytype`，按传入的参数推断类型：
 
 ```zig
-fn add(a: anytype, b: anytype) @TypeOf(a) { return a + b; }  // 谁传进来算谁
+fn add(a: anytype, b: anytype) @TypeOf(a) {
+    return a + b;
+}
 ```
 
-两条路都**单态化**（每个具体类型生成一份代码，和 Rust 泛型一样零成本）。
-
-**关键差异**：
+两种写法都会单态化，每个具体类型生成一份代码，和 Rust 泛型一样没有运行期开销。
 
 | | Rust | Zig |
 |:--:|:--:|:--:|
-| 泛型 | `fn f<T: Trait>`，编译器**隐式**推导 + trait 约束 | `Foo(comptime T: type)` **显式**工厂 / `anytype` |
-| 约束 | trait bound（编译期接口契约）| `@hasDecl`/`@compileError` 手动检查（鸭子）|
-| 生命周期 | `<'a>` 标注，借用检查器验证 | **没有**——指针有效性靠程序员 |
-| 报错 | 约束不满足 → 清晰的 trait 错误 | 鸭子类型 → 报错可能在模板深处 |
+| 泛型 | `fn f<T: Trait>`，编译器隐式推导，trait 约束 | `Foo(comptime T: type)` 显式工厂，或 `anytype` |
+| 约束 | trait bound，编译期的接口契约 | `@hasDecl` 加 `@compileError` 手动检查 |
+| 生命周期 | `<'a>` 标注，借用检查器验证 | 没有，指针是否有效靠程序员 |
+| 报错 | 约束不满足时报清晰的 trait 错误 | 报错可能出现在实例化的深处 |
 
-Rust 的 trait 是"先声明契约、再实现"；Zig 是"直接用，编译期发现缺方法才报错"。Rust 更**结构化/可读**，Zig 更**灵活/啰嗦**——又一次"强制 vs 自由"。
+Rust 先声明契约再实现，结构清楚、好读；Zig 直接用，编译期发现缺方法才报错，更灵活也更啰嗦。
 
----
+## 安全检查
 
-## 8. 安全：编译期警察 vs 运行期可关检查
+Rust 的借用检查器与 `Send`、`Sync` 在编译期保证内存安全、没有数据竞争，违规代码编译不过，只有 `unsafe` 块能绕开。
 
-**Rust**：借用检查器 + `Send`/`Sync` 在**编译期强制**内存安全和数据竞争自由——违规直接编译不过。`unsafe` 块才能逃逸。
+Zig 没有借用检查器，内存安全靠运行期检查，并且可以按构建模式关掉：
 
-**Zig**：**没有借用检查器**。内存安全靠**运行期检查**，且**按编译模式可关**（4 个 build mode）：
-
-| 模式 | 命令 | 安全检查 | 速度/体积 |
+| 模式 | 命令 | 安全检查 | 速度与体积 |
 |:--:|:--:|:--:|:--:|
-| `Debug` | 默认 | 全开（越界/溢出/UAF/null）+ `undefined` 填 0xAA | 最慢 |
-| `ReleaseSafe` | `-Doptimize=ReleaseSafe` | **仍开**安全检查 | 优化但带检查 |
-| `ReleaseFast` | `-Doptimize=ReleaseFast` | **全关** | 最快（裸奔，和 C 一样）|
-| `ReleaseSmall` | `-Doptimize=ReleaseSmall` | 全关 | 最小（裸机首选）|
+| `Debug` | 默认 | 全开（越界、溢出、释放后使用、空值），`undefined` 填 `0xAA` | 最慢 |
+| `ReleaseSafe` | `-Doptimize=ReleaseSafe` | 仍然开着 | 优化，带检查 |
+| `ReleaseFast` | `-Doptimize=ReleaseFast` | 全关 | 最快，和 C 一样不做检查 |
+| `ReleaseSmall` | `-Doptimize=ReleaseSmall` | 全关 | 体积最小，裸机常用 |
 
-外加 `DebugAllocator`（旧名 GPA）在 Debug 下自动抓**内存泄漏 / double-free / use-after-free**。
+另外 `DebugAllocator` 在 Debug 模式下自动查内存泄漏、重复释放与释放后使用。
 
-> **Rust 的 borrow checker 是"警察"，编译期强行拦下所有违规；Zig 是"交通规则写在纸上，但车可以随时飙到 300 码"**（`ReleaseFast` 关掉检查）。Zig 承认"我管不了编译期那么多，让你在 Debug 抓到它，生产要性能就关检查"。对系统编程，有时**"我知道我在干什么，别拦我" 比 "绝对安全" 更重要**——这就是两门语言最根本的价值观分歧。
+Rust 在编译期拦下所有违规；Zig 把检查放到运行期，在 Debug 下抓问题，要性能时关掉。系统编程有时更需要「不被拦下」而不是「绝对安全」，这是两门语言最根本的分歧。
 
----
+## 并发、异步与函数染色
 
-## 9. 并发 / 异步 / 函数染色（我的初心）
+### 什么是函数染色
 
-> 这是当初把我（Leo）领进 Zig 的那扇门。
+Bob Nystrom 在 2015 年的《What Color is Your Function?》里指出：语言引入 `async`、`await` 之后，函数分成两色，普通函数（红）与异步函数（蓝）。蓝函数只能被蓝函数调用，并沿调用链往上传染：底层一个 `async`，上面全得 `async`。
 
-### 9.1 什么是函数染色（Function Coloring）
-
-Bob Nystrom 2015《What Color is Your Function?》：一门语言引入 `async`/`await` 后，函数被隐式分成两色——**普通函数（红）** 和 **async 函数（蓝）**。蓝函数只能被蓝函数调用，**传染整条调用链**：底层一个 `async`，上面全得 `async`。
-
-| 语言 | 方案 | 染色？ |
+| 语言 | 做法 | 是否染色 |
 |:--:|:--:|:--:|
-| Python / JS / **Rust** | `async`/`await` 关键字 | **有**，传染 |
-| Go / Java 虚拟线程 | goroutine / 阻塞自动挂起 | **无** |
-| **老 Zig（≤0.14）** | `async fn` 关键字 | **有**（同 Rust）|
-| **新 Zig（0.15+）** | 砍掉关键字 + `Io` 参数注入 | **设计上无** |
+| Python、JavaScript、Rust | `async`、`await` 关键字 | 有，会传染 |
+| Go、Java 虚拟线程 | goroutine，阻塞时自动挂起 | 无 |
+| Zig 0.10 及以前 | stage1 编译器的 `async`、`await` | 有，同 Rust |
+| Zig 0.11 至 0.14 | 自举编译器没有实现 async，关键字保留但不能用 | 不可用 |
+| Zig 0.15 起 | 删掉 `async`、`await`，0.16 起异步能力经 `std.Io` 参数传入 | 设计上无 |
 
-### 9.2 Zig 的答案：釜底抽薪——把 `async` 关键字砍了
-
-**0.17-dev**：
-```zig
-pub fn main() void { var fr = async foo(); }
-// → error: expected ';' after statement   ← async 根本不是关键字了!
-```
-
-Zig 在 **0.15 移除了 `async`/`await`/`suspend`/`resume` 全部关键字**（旧实现编译器复杂度爆炸、无法真零成本、与 comptime 交互困难）。**没有颜色关键字 = 没有染色**。取而代之（0.16+ 设计中）：协程能力通过 **`Io` 接口当参数注入**，函数本身是中性的：
+### Zig 的做法
 
 ```zig
-fn fetch(io: std.Io, url: []const u8) ![]u8 {   // 普通函数,只是多收个 io 参数
-    return io.http.get(url);                      // io 决定同步还是异步,函数不知道
+pub fn main() void {
+    var fr = async foo();
 }
-// 同一个 fetch:单线程 Io → 顺序; 线程池 Io → 并发; io_uring Io → 异步 I/O
+// error: expected ';' after statement  （async 已经不是关键字）
 ```
 
-### 9.3 犀利吐槽
+Zig 在 0.15 删除了 `async`、`await` 关键字（`suspend`、`resume` 还能通过语法检查，编译时报 async 未在自举编译器中实现）：旧实现让编译器过于复杂，做不到真正的零开销，与 `comptime` 的配合也困难。没有标记颜色的关键字，函数也就不分颜色。
 
-> **本质还是没摆脱染色问题，只是把染色问题"推迟到调用方"**——决定用哪种 `Io` 后端的那一刻，颜色就定了。
+0.16 起，异步能力通过 `std.Io` 接口作为参数传入，函数本身不分颜色：
 
-旧设计把"是否异步"编码在**函数类型**里（染色传染）；新设计把"如何调度"编码在**参数**里（注入）。函数中性了，但**调用链仍要一路把 `io` 传下去**——这何尝不是另一种形式的"传染"？只是从"类型传染"变成"参数传染"，从编译期强制变成约定。Zig 没有"消灭"染色，而是**换了个更可控、更显式的形态**。
+```zig
+fn double(x: u32) u32 {
+    return x * 2;
+}
 
-> 截至 `0.17.0-dev`，语言里**没有** `async`/`await`；新的 `Io` 协程模型仍在落地，API 会变。想在 Zig 里写并发，当下用：**手工状态机**（裸机/no_std 永远有效）、**`std.Thread`**（有 OS）、或社区库 **libxev**（事件循环）/ **zigcoro**（有栈协程，汇编 context_switch，支持 RISC-V）。
+fn run(io: std.Io) u32 {
+    var a = io.async(double, .{20});      // 交给 io 调度，返回 Future
+    var b = io.async(double, .{1});
+    return a.await(io) + b.await(io);     // 42
+}
+```
 
-### 9.4 原子操作（两门都直面内存序）
+同一个 `run`，传入什么 `Io` 实现就怎么调度：0.16 里完整可用的是线程池版 `Io.Threaded`，基于用户态栈切换的 `Io.Evented` 与基于 io_uring 的 `Io.Uring` 还在实验阶段。
 
+### 评价
+
+染色并没有消失，只是推迟到了调用方：选定 `Io` 实现的那一刻，颜色就定了。
+
+旧设计把「是否异步」写进函数类型，沿类型传染；新设计把「怎么调度」放进参数，函数本身不分颜色，但调用链仍要一路把 `io` 传下去，只是从「类型传染」变成了「参数传染」，从编译期强制变成了约定。Zig 没有消灭染色，而是换成了更可控、更显式的形式。
+
+除了 `std.Io`，Zig 里写并发还可以用手工状态机（裸机与 `no_std` 始终可用）、`std.Thread`（有操作系统时），或社区库 libxev（事件循环）、zigcoro（有栈协程，用汇编切换上下文，支持 RISC-V）。
+
+### 原子操作
+
+{% tabs atomic, 1 %}
+<!-- tab Zig -->
 ```zig
 var ctr = std.atomic.Value(u64).init(0);
-_ = ctr.fetchAdd(1, .monotonic);              // .monotonic/.acquire/.release/.acq_rel/.seq_cst
-const ok = ctr.cmpxchgWeak(0, 1, .acq_rel, .monotonic) == null;  // CAS
+_ = ctr.fetchAdd(1, .monotonic);                                   // .monotonic、.acquire、.release、.acq_rel、.seq_cst
+const ok = ctr.cmpxchgWeak(0, 1, .acq_rel, .monotonic) == null;    // CAS，成功时返回 null
 ```
+<!-- endtab -->
+<!-- tab Rust -->
 ```rust
 use std::sync::atomic::{AtomicU64, Ordering};
 let ctr = AtomicU64::new(0);
-ctr.fetch_add(1, Ordering::Relaxed);          // Relaxed/Acquire/Release/AcqRel/SeqCst
+ctr.fetch_add(1, Ordering::Relaxed);                               // Relaxed、Acquire、Release、AcqRel、SeqCst
 ```
-内存序模型几乎一致（都是 C++11 那套）：Zig `.monotonic` = Rust `Relaxed`，其余同名。这层两门语言高度趋同。
+<!-- endtab -->
+{% endtabs %}
 
----
+两门语言的内存序都沿用 C++11 的模型：Zig 的 `.monotonic` 对应 Rust 的 `Relaxed`，其余同名。
 
-## 10. 标准库：显式、不偷偷分配
+## 标准库
 
-Zig `std` 的设计跟它的哲学一脉相承：**不默认分配堆**、**错误是返回值**、**无全局状态**。
+Zig 的 `std` 与它的设计取向一致：不默认分配堆内存，错误是返回值，没有全局状态。
 
-| 能力 | Rust | Zig（0.17）|
+| 用途 | Rust `std` | Zig `std` |
 |:--:|:--:|:--:|
-| 动态数组 | `Vec<T>`（自带全局分配）| `std.ArrayList(T) = .empty` + `append(a, x)` |
-| 哈希表 | `HashMap<K,V>` | `std.AutoHashMap` / `std.StringHashMap`（`.init(a)`）|
-| 通用分配器 | 全局 `alloc`（隐式）| `DebugAllocator`（查泄漏）/ `Arena` / `FixedBuffer` / `smp_allocator` |
-| 格式化 | `format!` / `println!`（宏）| `std.fmt` + `std.debug.print`（comptime 格式串）|
-| 排序 | `slice.sort()` | `std.mem.sort(T, s, ctx, less)` |
+| 动态数组 | `Vec<T>`：`push`、`pop`、`len` | `std.ArrayList(T)`（`.empty`）：`append(a, x)`、`pop`、`items.len` |
+| 哈希表 | `HashMap<K, V>`、`BTreeMap` | `std.AutoHashMap(K, V)`、`std.StringHashMap(V)`（`.init(a)`） |
+| 集合 | `HashSet`、`BTreeSet` | 没有单独的 Set，用 `AutoHashMap(K, void)` |
+| 字符串 | `String` 与 `&str`，保证 UTF-8 | `[]const u8`，编码自己负责；拼接用 `ArrayList(u8)` 或 `std.fmt.allocPrint` |
+| 可空 | `Option<T>`：`unwrap_or`、`map`、`?` | `?T`：`orelse`、`.?`、`if (x) \|v\|` |
+| 错误 | `Result<T, E>`：`?` | `E!T`：`try`、`catch` |
+| 格式化成字符串 | `format!("{}", x)` | `std.fmt.allocPrint(a, "{}", .{x})`，要传分配器 |
+| 打印 | `println!`、`print!` | `std.debug.print("{}\n", .{x})` |
+| 排序与二分 | `slice.sort()`、`binary_search` | `std.mem.sort(T, s, ctx, less)`、`std.sort.binarySearch` |
+| 遍历 | `Iterator` trait 加 `map`、`filter`、`collect` | 没有 `Iterator` trait，手写 `for`、`while`，或用容器自带的 `iterator()` |
+| 随机数 | `rand`（第三方库） | `std.Random`，标准库自带 |
+| JSON | `serde_json`（第三方库） | `std.json`，标准库自带 |
+| 文件与 I/O | `std::fs`、`std::io` | `std.Io`，0.16 起所有 I/O 都要传 `io` |
+| 时间 | `std::time::{Instant, Duration}` | `std.time` |
+| 命令行与环境变量 | `std::env::{args, var}` | 0.16 起 `main` 可以接收 `std.process.Init`，参数与环境变量从这里取 |
 
-**I/O 正在大改（Writergate）**：旧的 `std.io.getStdOut().writer()` 在 0.15+ 被重构为新的 `Writer` 接口模型，0.17-dev 仍在流变（连"标准输出怎么写"在 0.17-dev 都还会报错）。例子里安全的输出用 `std.debug.print`（稳定）。这又是 Zig 不稳定的一个活样本。
+两点贯穿全表：要分配就传分配器（`append(a, x)`、`allocPrint(a, ...)`、`init(a)`），Rust 用全局分配器把这一层藏了起来；Zig 没有 `Iterator` trait，没有惰性的 `map`、`filter`、`collect` 链。
 
-对位 Rust：`Vec`/`HashMap`/`String` 自带全局分配器、用起来"无脑"；Zig 把分配器摊开给你，**省心 vs 可控**的又一次取舍。
+I/O 在 0.15 重做了 `Writer` 接口，0.16 又改成所有 I/O 都经 `Io`，文件、时间、进程这几行变化最大，函数名以所用版本的标准库为准；文中示例的输出统一用 `std.debug.print`。
 
-### 10.1 常用标准库对照（速查）
+## C 互操作
 
-| 用途 | Rust `std` | Zig `std`（0.17）|
-|:--:|:--:|:--:|
-| 动态数组 | `Vec<T>`：`push`/`pop`/`len` | `std.ArrayList(T)`（`.empty`）：`append(a, x)`/`pop`/`items.len` |
-| 哈希表 | `HashMap<K,V>` / `BTreeMap` | `std.AutoHashMap(K,V)` / `std.StringHashMap(V)`（`.init(a)`）|
-| 集合 | `HashSet` / `BTreeSet` | 无独立 Set，用 `AutoHashMap(K, void)` 顶 |
-| 字符串 | `String`（拥有）/ `&str`（借用），**保证 UTF-8** | `[]const u8`（裸字节切片，**编码自负**）；拼接用 `ArrayList(u8)` 或 `std.fmt.allocPrint` |
-| 可空 | `Option<T>`：`unwrap_or`/`map`/`?` | `?T`：`orelse`/`.?`/`if (x) \|v\|` |
-| 错误 | `Result<T,E>`：`?` | `E!T`：`try`/`catch` |
-| 格式化成串 | `format!("{}", x)` | `std.fmt.allocPrint(a, "{}", .{x})`（要 allocator）|
-| 打印 | `println!` / `print!` | `std.debug.print("{}\n", .{x})` |
-| 排序 / 二分 | `slice.sort()` / `binary_search` | `std.mem.sort(T, s, ctx, less)` / `std.sort.binarySearch` |
-| 遍历 | `Iterator` trait + `map`/`filter`/`collect` 适配器链 | **无 Iterator trait**：手写 `for`/`while`，或容器自带 `iterator()` |
-| 随机 | `rand`（crate）| `std.Random`（std 内建）|
-| JSON | `serde_json`（crate）| `std.json`（std 内建）|
-| 文件 / IO | `std::fs` / `std::io` | `std.fs` / `std.Io`（0.17-dev 正重构：`std.fs` 部分搬进 `std.Io`、`Writer` 接口重做）|
-| 时间 | `std::time::{Instant, Duration}` | `std.time`（0.17-dev 在变）|
-| 命令行 / env | `std::env::{args, var}` | `std.process`（args/env API 0.17-dev 在变）|
+Rust 调 C：写 `bindgen` 构建脚本，生成一批 `extern "C"` 与 `unsafe fn`，处理 `#[link]` 与库路径；常量宏能翻译，函数式宏要手工改写；`size_t` 与 `usize`、`int*` 与 `*mut i32` 两套类型来回转换。
 
-两条总纲：① **"要分配就传 allocator"贯穿整个 Zig std**（`ArrayList.append(a, x)`、`allocPrint(a, …)`、`HashMap.init(a)`），Rust 用全局分配器把这层藏起来。② **Zig 没有 `Iterator` trait**——没有 `map`/`filter`/`collect` 惰性链，遍历靠 `for`/`while` 或容器自带的 `iterator()`。
+Zig 调 C：0.16 起由构建系统翻译 C 头文件（之前是语言内建的 `@cImport`，0.16 弃用，0.17 已删除）。
 
-表里最后三行（fs/io、time、process）在 `0.17-dev` 正经历重构（`std.fs` 往 `std.Io` 搬、`Writer` 接口重做、args/env 改形）——今天的精确函数名下个版本未必还在。稳的是"显式分配 + 错误是值"这套哲学，变的是具体签名。
-
----
-
-## 11. C / C++ 互操作：Zig 甩 Rust 一个街区
-
-**Rust 调 C**：写 `bindgen` 构建脚本 → 生成一堆 `extern "C"` + `unsafe fn` → 处理 `#[link]`/库路径 → C 宏调不了只能硬编码常量 → `size_t`↔`usize` 来回转、指针满天飞用 `std::ptr`。**两套类型世界观**（`int*` vs `*mut i32`）来回搬。
-
-**Zig 调 C**：
+{% tabs cinterop, 1 %}
+<!-- tab build.zig -->
 ```zig
-const c = @cImport({
-    @cInclude("stdio.h");
-    @cInclude("SDL2/SDL.h");
+const c = b.addTranslateC(.{
+    .root_source_file = b.path("src/c.h"),    // 里面写 #include <stdio.h>
+    .target = target,
+    .optimize = optimize,
 });
-c.printf("Hello from Zig!\n");          // 直接用,无 unsafe 块
-c.SDL_Init(c.SDL_INIT_VIDEO);
+exe.root_module.addImport("c", c.createModule());
 ```
+<!-- endtab -->
+<!-- tab src/main.zig -->
+```zig
+const c = @import("c");
 
-这背后是质变：
+pub fn main() void {
+    _ = c.printf("Hello from Zig!\n");        // 直接调用，不需要 unsafe
+}
+```
+<!-- endtab -->
+{% endtabs %}
 
 | | Rust | Zig |
 |:--:|:--:|:--:|
-| 绑定生成 | `bindgen`（独立工具 + build.rs）| **`@cImport` 内建 Clang，编译期解析头文件** |
-| C 宏 | 调不了 | `@cImport` 部分翻译宏；`@cDefine` 还能反向传宏 |
-| `unsafe` | FFI 全要 `unsafe` 块 | **无 `unsafe` 关键字**，直接调 |
-| 指针 | `*mut i32` ↔ `int*` 两套 | `@cImport` 直接生成 `[*c]i32`，无缝 |
-| 交叉编译 C | 要装目标工具链 | **`zig cc -target riscv64-linux` 自带 libc/sysroot，零工具链** |
+| 绑定生成 | `bindgen`，独立工具加 `build.rs` | 构建系统的 translate-c，基于 Clang 解析头文件 |
+| C 宏 | 常量宏可翻译，函数式宏手工改写 | translate-c 翻译常量宏与简单的函数式宏 |
+| `unsafe` | FFI 调用都要 `unsafe` 块 | 没有 `unsafe` 关键字，直接调用 |
+| 指针 | `*mut i32` 与 `int*` 两套 | 翻译成 `[*c]i32`，直接用 |
+| 交叉编译 C | 要装目标平台的工具链 | `zig cc -target riscv64-linux` 自带 libc 与 sysroot |
 
-> 写 Zig 有 C 的自由感，但又多受一部分约束（传入分配器参数）、多了 `defer` 和编译期计算、少了宏的繁杂。**它不是 Rust 的替代品，是 C 的进化版。** 渐进式替换很爽：先把 Zig 当"增强版 C 预处理器 + 构建系统"用（`zig cc` 是个能跨平台的 drop-in C 编译器），再慢慢用 Zig 重写模块。唯一代价：`@cImport` 编译期要起 Clang 解析头文件，略慢——但比 Rust 的 `bindgen` + 两步编译，体验好太多。
+Zig 更像 C 的升级：保留 C 的直接，多了 `defer`、编译期计算和显式分配器，去掉了宏。改造旧 C 项目可以分步：先把 `zig cc` 当跨平台的 C 编译器用，再逐个模块用 Zig 重写。
 
----
+## 构建系统与包管理
 
-## 12. 构建系统 / 包管理：`zig build` vs Cargo
-
-| | Rust（Cargo）| Zig |
+| | Rust（Cargo） | Zig |
 |:--:|:--:|:--:|
-| 构建脚本 | `Cargo.toml`（声明式 TOML）+ `build.rs` | **`build.zig`（用 Zig 写的命令式构建图）** |
-| 包清单 | `Cargo.toml` | `build.zig.zon`（ZON = Zig 对象记法）|
-| 注册中心 | crates.io（中心化）| **无官方中心**，靠 URL + hash 或本地路径 |
+| 构建脚本 | `Cargo.toml`（声明式）加 `build.rs` | `build.zig`，用 Zig 写的构建图 |
+| 包清单 | `Cargo.toml` | `build.zig.zon`（Zig 对象记法） |
+| 注册中心 | crates.io，中心化 | 没有官方中心，靠 URL 加哈希或本地路径 |
 | 加依赖 | `cargo add foo` | `zig fetch --save <url>` |
-| 跨平台构建 | 需对应 target 工具链 | `-Dtarget=riscv64-freestanding-none` **内建跨编译** |
+| 跨平台构建 | 需要目标平台的工具链 | `-Dtarget=riscv64-freestanding-none`，内建交叉编译 |
 
-> Zig 没有 crates.io 那样的中央仓库，"收录"全靠社区索引站：在 GitHub 及其他各大代码平台上，公开仓库**打上 `zig-package` 的 topic 标签**就能被自动识别、聚合进"Zig 包"列表——门槛极低，质量也因此良莠不齐。
+Zig 没有 crates.io 这样的中央仓库，包的收录靠社区索引站：Codeberg、GitHub 等代码平台上的公开仓库打上 `zig-package` 话题标签，就会被自动收进「Zig 包」列表，门槛很低，质量也参差不齐。
 
 ```zig
-// build.zig:构建脚本就是普通 Zig 代码,你能用 if/for/comptime 编排
+// build.zig：构建脚本就是普通 Zig 代码，可以用 if、for、comptime 编排
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const exe = b.addExecutable(.{ .name = "app", .root_source_file = b.path("src/main.zig"), .target = target });
+    const exe = b.addExecutable(.{
+        .name = "app",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+        }),
+    });
     b.installArtifact(exe);
 }
 ```
 
-> 取舍：Cargo 生态成熟（crates.io 几十万包、版本解析强）、声明式好读；`zig build` 是**图灵完备的命令式构建**（能跨编译、能编 C、能跑任意步骤），但**没有中心化注册表**、生态小。Rust **生态赢**，Zig **构建灵活性 + 跨编译赢**。
+Cargo 生态成熟（crates.io 有几十万个包，版本解析强）、声明式好读；`build.zig` 是图灵完备的构建脚本，能交叉编译、能编 C、能跑任意步骤，但没有中心化的注册表，可用的包少。库的数量 Rust 占优，构建的灵活性与交叉编译 Zig 占优。
 
----
+## 裸机、嵌入式与 RISC-V
 
-## 13. 裸机 / 嵌入式 / RISC-V：两门都能 no-runtime
+Rust 用 `#![no_std]`，Zig 用 `freestanding` 目标，都能脱离操作系统与 libc 在裸机上跑。
 
-这是 RISC-V 全栈最关心的一层。Rust `#![no_std]`，Zig `freestanding` target——都能脱离 OS/libc 跑在裸机。
-
-| 能力 | Rust（no_std）| Zig（freestanding）|
+| 能力 | Rust（`no_std`） | Zig（`freestanding`） |
 |:--:|:--:|:--:|
-| 脱 OS | `#![no_std]` + `#![no_main]` | `-target riscv64-freestanding-none` |
-| 入口 | `#[no_mangle] extern "C" fn _start` | `export fn _start() callconv(.naked)` |
-| 裸函数 | `#[naked]`（需 nightly/外部 crate）| `callconv(.naked)`（内建）|
+| 脱离操作系统 | `#![no_std]` 加 `#![no_main]` | `-target riscv64-freestanding-none` |
+| 入口 | `#[unsafe(no_mangle)] extern "C" fn _start` | `export fn _start() callconv(.naked)` |
+| 裸函数 | `#[unsafe(naked)]` 加 `naked_asm!`，1.88 起稳定 | `callconv(.naked)`，内建 |
 | 内联汇编 | `core::arch::asm!` | `asm volatile (...)` |
-| MMIO | `read_volatile`/`write_volatile` | `*volatile T` + `@ptrFromInt` |
+| MMIO | `read_volatile`、`write_volatile` | `*volatile T` 加 `@ptrFromInt` |
 | panic | `#[panic_handler]` | `pub fn panic(...)` |
-| 链接脚本 | `build.rs` + `.cargo/config` | `exe.setLinkerScriptPath(...)`（build.zig 内建）|
+| 链接脚本 | `build.rs` 加 `.cargo/config` | `exe.setLinkerScriptPath(...)`，在 `build.zig` 里 |
 
 ```zig
-// Zig 裸机 RISC-V 入口 + CSR + MMIO,全内建,无外部 crate
+// 裸机 RISC-V 入口、CSR 与 MMIO，全部用语言内建的能力
 export fn _start() callconv(.naked) noreturn {
     asm volatile (
         \\csrr t0, mhartid
@@ -489,106 +523,108 @@ export fn _start() callconv(.naked) noreturn {
         \\call zigStart
         \\.Lwait: wfi
         \\ j .Lwait
-        ::: "t0", "sp", "ra"
-    );
+        ::: .{ .t0 = true, .sp = true, .ra = true });     // 被改动的寄存器写成结构体
 }
-const uart: *volatile u8 = @ptrFromInt(0x10000000);   // MMIO 寄存器
-fn putc(c: u8) void { uart.* = c; }
+
+const uart: *volatile u8 = @ptrFromInt(0x10000000);       // MMIO 寄存器
+
+fn putc(c: u8) void {
+    uart.* = c;
+}
 ```
 
-> Rust 裸机生态强（`embedded-hal`/`cortex-m`/`svd2rust` 一整套 trait + PAC 自动生成），但 `#[naked]` 等一些底层能力长期要 nightly/外部 crate；Zig 把 **naked 函数、内联汇编、链接脚本、任意位宽整数 `u3`、`packed struct(u8)` 寄存器位段、`comptime` 编译期算页表常量**全做进语言核心，写裸机 SBI/bootloader **更顺手、更少魔法**。两门都远胜 C 的“全靠宏 + 链接器脚本手搓”。
+Rust 的裸机生态强（`embedded-hal`、`cortex-m`、`svd2rust` 一整套 trait 与自动生成的外设访问层），但裸函数这类底层能力进入稳定版较晚。Zig 把裸函数、内联汇编、链接脚本、任意位宽整数、`packed struct(u8)` 寄存器位段、编译期计算页表常量都做进了语言核心，写 SBI 与 bootloader 更顺手。两门语言都比 C 依赖宏和手写链接脚本的做法省事。
 
----
-
-## 14. 工具链 / 编译模型
+## 工具链与编译模型
 
 | | Rust | Zig |
 |:--:|:--:|:--:|
-| 一站式 | rustup + cargo + clippy + rustfmt | **一个 `zig` 二进制**：`build`/`test`/`fmt`/`cc` 全包 |
-| LSP | rust-analyzer（强）| zls（够用，社区）|
-| 编译后端 | **LLVM**（唯一）| LLVM + **自研后端**（debug 构建已可绕开 LLVM，更快）|
-| 编译速度 | 慢（借用检查 + 单态化 + LLVM）| 快得多（尤其 debug 自研后端）|
-| 格式化 | `cargo fmt` | `zig fmt`（内建，无配置项——强制统一风格）|
+| 一站式 | rustup、cargo、clippy、rustfmt | 一个 `zig` 可执行文件：`build`、`test`、`fmt`、`cc` 都在里面 |
+| LSP | rust-analyzer，功能强 | zls，社区维护 |
+| 编译后端 | LLVM；Cranelift 后端可选，GCC 后端在开发 | LLVM 加自研后端，调试构建可以不经 LLVM |
+| 编译速度 | 慢（借用检查、单态化、LLVM） | 快，调试构建尤其明显 |
+| 格式化 | `cargo fmt` | `zig fmt`，没有配置项，风格统一 |
 
-Zig "一个二进制搞定一切" + 自研后端追求**快编译**，是对 Rust"编译慢"的直接回应。Rust 工具链更成熟（clippy 静态检查、rust-analyzer 体验顶级）。
+Zig 用一个可执行文件包办构建、测试、格式化与 C 编译，并用自研后端缩短调试构建的时间；Rust 的工具链更成熟，clippy 与 rust-analyzer 的体验很好。
 
----
-
-## 15. 稳定性 / 成熟度
+## 稳定性与成熟度
 
 | | Rust | Zig |
 |:--:|:--:|:--:|
-| 版本 | **1.0（2015）** | **0.16 stable（2026-04），未到 1.0** |
-| 兼容承诺 | 有（edition 机制，老代码永远能编）| **无**——官方下载页都没有破坏式更新政策 |
-| 更新风格 | 加功能不破坏 | **频繁破坏式重构** |
+| 版本 | 1.0 于 2015 年发布 | 0.16 于 2026 年 4 月发布，未到 1.0 |
+| 兼容承诺 | 有，edition 机制保证老代码能继续编译 | 没有 |
+| 更新方式 | 加功能，不破坏旧代码 | 经常大改 |
 
-**例如**：照 **0.16** 官方文档写的 Zig 笔记，到 **0.17.0-dev** **已经多处编不过**：
+按旧版本文档写的 Zig 代码，到 `0.17.0-dev.224` 已有多处编不过：
 
-| 之前的笔记内的写法（v0.16）| 0.17-dev 表现 |
-|:--:|:--:|
-| `@Type(.{.int=...})` 构造类型 | **删了** → 必须 `@Int(.unsigned, N)` |
-| `std.heap.GeneralPurposeAllocator` | **删了** → `DebugAllocator` |
-| `ArrayList(T).init(a)` / `ArrayListUnmanaged` | 合并 → `ArrayList` 默认 unmanaged，`.empty` |
-| `async fn` / `await` | **关键字早已移除** |
-| `@typeInfo` 字段 `.Int`（部分旧章节）| 全小写 `.int` |
-
-> 这就是 Zig 当下最大的"坑"：**官方文档教你的写法，下个 dev 版本可能就变了**。Rust 老用户对此要有心理准备——你买的是"自由 + 简单 + 快"，付的是"稳定性"。等 Zig 1.0，这条会大幅改善。
-
----
-
-## 16. 适用场景 + 总评
-
-| 你要做的 | 更推荐 | 为什么 |
+| 旧写法 | 现在的写法 | 哪一版改的 |
 |:--:|:--:|:--:|
-| Web 服务 / 分布式 / 后端 | **Rust** | 生态成熟（tokio/axum）、并发安全编译期保证、大团队协作稳 |
-| 安全关键 / 大型长期项目 | **Rust** | 借用检查器 + 1.0 稳定承诺，重构有底气 |
-| 内核 / 驱动 / Bootloader / SBI | **Zig** | naked/内联汇编/位段/comptime 全内建，少魔法、编译快 |
-| 游戏引擎 / 高性能 / 手动内存 | **Zig** | 显式 allocator、`ReleaseFast` 裸奔、无借用检查掣肘 |
-| 接手/混编/渐进替换 C 项目 | **Zig** | `@cImport` + `zig cc` 无缝吃 C，甩 Rust 一条街 |
-| 多版本结构体/编译期定制（如协议/固件）| **Zig** | comptime 工厂选类型，比 Rust 宏+泛型体验好 |
+| `@Type(.{ .int = ... })` | `@Int(.unsigned, N)` | 0.16 删除 `@Type` |
+| `std.heap.GeneralPurposeAllocator` | `std.heap.DebugAllocator` | 0.14 改名，0.17 开发版已无旧名 |
+| `ArrayList(T).init(a)`，容器保存分配器 | `ArrayList(T)` 默认不存分配器，`.empty` 初始化，每次传分配器 | 0.15 |
+| `async`、`await` 关键字 | 删除，异步改走 `std.Io` | 0.15 删除，0.16 加入 `std.Io` |
+| `@typeInfo` 的 `.Int`、`.Struct` | `.int`、`.@"struct"` | 0.14 |
+| `@cImport` | 构建系统的 `addTranslateC` | 0.16 弃用，0.17 开发版已删除 |
 
-> **一句话总评**：
-> **Rust 是"给你安全，代价是必须按我的规则写"；Zig 是"给你工具，你爱怎么造怎么造，炸了算你的"。**
-> 写 Zig 有 C 的自由感，但又多受一部分约束（传入分配器参数）、多了 `defer` 和编译期计算、少了宏的繁杂——**它不是 Rust 的替代品，是 C 的进化版**。要稳、要大、要安全 → Rust；要爽、要底层、要可控、要混 C → Zig。而在**异步（colorless 哲学）、泛型、多版本结构体构建**上，Zig 的自由度和体验，我个人觉得比 Rust 更顺手。
+Zig 在 1.0 之前不保证兼容，文档里的写法随版本变；付出的是稳定性，换来的是语言还能继续大改。
 
----
+## 适用场景
 
-## 17. 全维度速查总表
+| 要做的事 | 推荐 | 原因 |
+|:--:|:--:|:--:|
+| Web 服务、分布式、后端 | Rust | 生态成熟（tokio、axum），并发安全由编译期保证，适合大团队协作 |
+| 安全关键、长期维护的大项目 | Rust | 借用检查器加 1.0 的兼容承诺，重构有底气 |
+| 内核、驱动、bootloader、SBI | Zig | 裸函数、内联汇编、位段、`comptime` 都是内建的，编译快 |
+| 游戏引擎、高性能、手动管理内存 | Zig | 显式分配器，`ReleaseFast` 关掉检查，没有借用检查的限制 |
+| 接手、混编、逐步替换 C 项目 | Zig | translate-c 加 `zig cc` 直接对接 C |
+| 多版本结构体、编译期定制（协议、固件） | Zig | `comptime` 工厂按条件选类型，比宏加泛型好写 |
+
+Rust 给你安全，代价是按它的规则写；Zig 给你工具，怎么用由你负责。要稳、要大、要安全选 Rust，要可控、要贴近硬件、要混 C 选 Zig。在异步、泛型和多版本结构体这几件事上，我更喜欢 Zig 的写法。
+
+## 对比总表
 
 | 维度 | Rust | Zig |
 |:--:|:--:|:--:|
-| 哲学 | 安全优先·零成本抽象 | 简单·显式·无隐藏 |
-| 内存 | 所有权 + 借用检查器 | 显式 allocator + `defer`/`errdefer` |
-| 安全 | 编译期强制 | 运行期可选检查（`ReleaseFast` 裸奔）|
-| 错误 | `Result<T,E>` 带 payload | `!T` 仅标签，零成本 |
-| 元编程 | 宏 + 泛型 + const fn（四套）| **`comptime` 一套通吃** |
-| 多态 | trait + 生命周期 | comptime 工厂 + `anytype` 鸭子 |
-| 异步 | `async/await` + 染色 | 砍 async 关键字 + `Io` 参数（colorless-ish）|
-| 整数 | 固定位宽 | **任意位宽 `u3`** |
-| C 互操作 | bindgen + `unsafe` | **`@cImport` + `zig cc` 无缝** |
-| 构建 | Cargo + crates.io | `build.zig` + `zon`，内建跨编译 |
-| 工具链 | rustup 全家桶（成熟）| 一个 `zig`（快）|
+| 设计取向 | 安全优先，零成本抽象 | 简单、显式、无隐藏 |
+| 内存 | 所有权加借用检查器 | 显式分配器加 `defer`、`errdefer` |
+| 安全 | 编译期强制 | 运行期检查，`ReleaseFast` 关闭 |
+| 错误 | `Result<T, E>`，可带数据 | `!T`，只有标签 |
+| 元编程 | 宏、泛型、`const fn` 四套 | `comptime` 一套 |
+| 多态 | trait 加生命周期 | `comptime` 工厂加 `anytype` |
+| 异步 | `async`、`await`，有染色 | 无关键字，`std.Io` 参数传入 |
+| 整数 | 固定位宽 | 任意位宽，如 `u3` |
+| C 互操作 | `bindgen` 加 `unsafe` | translate-c 加 `zig cc` |
+| 构建 | Cargo 加 crates.io | `build.zig` 加 `build.zig.zon`，内建交叉编译 |
+| 工具链 | rustup 全家，成熟 | 一个 `zig`，快 |
 | 编译速度 | 慢 | 快 |
-| 稳定性 | **1.0 稳定** | **0.x 破坏式更新** |
-| 生态 | 大 | 小但增长 |
-| 强项 | Web/分布式/安全关键 | 内核/驱动/游戏/嵌入/混 C |
+| 稳定性 | 1.0 稳定 | 0.x，常有不兼容更新 |
+| 可用的库 | 多 | 少，在增长 |
+| 擅长 | Web、分布式、安全关键 | 内核、驱动、游戏、嵌入式、混 C |
 
----
+## 思考题
 
-## 18. 思考题（附参考答案）
+**Q1. Zig 删掉 `async` 关键字「解决」了函数染色，为什么说只是推迟到了调用方？`Io` 参数与 `async` 关键字在传染性上是不是一回事？**
 
-**Q1. Zig 砍掉 `async` 关键字"解决"了函数染色——但为什么说"只是推迟到调用方"？`Io` 参数模型和 `async` 关键字模型在"传染性"上到底是不是一回事？**
-> **半是半不是。** `async` 关键字 = **类型传染**：蓝函数类型与红不兼容，编译期钉死，无法绕过。`Io` 参数 = **参数传染**：要异步能力的函数得收 `io` 参数，调用链一路往下传。相同点：都得改一整条链。不同点：`io` 是**普通参数、函数类型不变**——不需要异步的中间函数可以不收 `io`、可默认单线程后端、可运行时换后端；颜色从"编译期钉在类型上"变成"运行时由传入的 `io` 决定"。所以传染性**弱化了（可选/可换/不改类型）但没消失（`io` 仍要传）**。Leo 的"推迟到调用方"精准：染色决策从**函数定义处**挪到了**注入处**。
+{% note default %}
+一半是，一半不是。`async` 关键字是类型传染：蓝函数的类型与红函数不兼容，编译期固定，绕不开。`Io` 参数是参数传染：需要异步能力的函数要收 `io`，调用链一路往下传。相同点是都要改一整条调用链。不同点是 `io` 是普通参数，函数类型不变：不需要异步的中间函数可以不收 `io`，可以默认用线程池实现，可以在运行时换实现；颜色从「编译期写在类型上」变成「运行时由传入的 `io` 决定」。所以传染性减弱了（可选、可换、不改类型），但没有消失（`io` 仍要传），染色的决定从函数定义处挪到了传入 `io` 的地方。
+{% endnote %}
 
-**Q2. 为什么 `E!i32` 体积是 8（tag+T），而 Rust 的 `Result<i32, E>` 可能更大？根因？**
-> Zig 的 error 是**全局扁平整数标识符**（`anyerror`=u16=2 字节），不带数据，故 `E!i32` = 4(i32) + 2(tag) + 对齐 = 8。Rust `Result<T,E>` 是 enum，`Err` 携带任意 `E`，布局 ≈ `max(sizeof T, sizeof E)` + 判别（可能被 niche 优化省掉），`E` 大则 `Result` 大。根因：Zig 把"错误带上下文"**踢出** error union（要上下文自己设计 struct）换零成本；Rust 让错误本身就是完整数据换表达力。
+**Q2. 为什么 `E!i32` 的体积是 8（标签加 `T`），而 Rust 的 `Result<i32, E>` 可能更大？根本原因是什么？**
 
-**Q3. `comptime` 凭什么"一个机制"替掉 Rust 的宏+泛型+const fn？它和 Rust 过程宏的本质区别？**
-> 因为 Zig **没有"宏"这个独立阶段**——编译器解析 AST 时遇到 `comptime` 就用内置解释器直接跑那段普通 Zig 代码，结果（值或类型）替换原节点。于是"编译期算值（const fn）""按类型生成代码（泛型/宏）""反射类型"全是同一件事：**编译期执行 Zig**。和 Rust 过程宏的本质区别：过程宏是**隔离的、操作 `TokenStream`**（语法层面拼 token，看不到类型语义、要自己 parse）、且是独立 crate 编译；`comptime` 直接在类型系统内、能 `@typeInfo` 看到完整类型语义、和普通代码同语言同语法、零隔离。
+{% note default %}
+Zig 的错误是全局的扁平整数（`anyerror` 是 `u16`，2 字节），不带数据，所以 `E!i32` 是 `i32` 的 4 字节加标签 2 字节再对齐，共 8 字节。Rust 的 `Result<T, E>` 是枚举，`Err` 携带任意的 `E`，布局约为 `max(sizeof T, sizeof E)` 加判别值（可能被 niche 优化省掉），`E` 大则 `Result` 大。根本原因：Zig 把「错误带上下文」移出了错误联合（要上下文就自己设计结构体），换来零开销；Rust 让错误本身就是完整的数据，换来表达力。
+{% endnote %}
 
-**Q4.（开放）Rust 老用户转 Zig，最该警惕的"舒适区陷阱"是什么？**
-> ① **没有 borrow checker 兜底**——"编译过了"不等于安全，UAF/泄漏要靠 `defer`/`errdefer` 自律 + `DebugAllocator` 运行时抓，`ReleaseFast` 还会关检查。② **0.x 破坏式更新**——今天的代码下个版本可能编不过（我半年前的笔记到这个版本已失效）。③ **error 无 payload**——别指望像 Rust 那样把上下文塞进 `E`。④ **没有 trait/RAII 自动析构**——接口靠鸭子检查、释放靠手动 `defer`。
+**Q3. `comptime` 凭什么用一个机制代替 Rust 的宏、泛型与 `const fn`？它和 Rust 过程宏的本质区别在哪？**
 
----
+{% note default %}
+Zig 没有单独的「宏」阶段：编译器在语义分析时遇到 `comptime`，就直接执行这段普通的 Zig 代码，结果（值或类型）用在原处。于是「编译期算值」「按类型生成代码」「类型反射」都是同一件事：在编译期执行 Zig。过程宏是隔离的，操作的是 `TokenStream`，只能在语法层面拼 token，看不到类型信息，要自己解析，还要单独编译成一个 crate；`comptime` 在类型系统之内，能用 `@typeInfo` 看到完整的类型信息，与普通代码同一门语言、同一套语法。
+{% endnote %}
 
-> **小结**：Rust 和 Zig 都是"更好的 C"，但一个用**编译期强制**买安全（borrow checker + 1.0 稳定），一个用**显式 + 简单**买可控（`comptime` 统一元编程、`@cImport` 无缝吃 C、`defer` 显式清理、`ReleaseFast` 裸奔）。对 RISC-V 全栈这种"既要底层可控、又要混 C、还要编译期定制"的场景，Zig 的自由度很迷人；对要长期维护、要安全保证、要成熟生态的场景，Rust 更稳。**而 Zig 当下最大的代价是不稳定（0.x 破坏式更新）——等 1.0，天平会再调一次。**
+**Q4.（开放）Rust 用户转 Zig，最该警惕的习惯是什么？**
+
+{% note default %}
+其一，没有借用检查器把关，编译通过不等于安全，释放后使用与泄漏要靠 `defer`、`errdefer` 和 `DebugAllocator` 在运行期发现，`ReleaseFast` 还会关掉检查。其二，0.x 版本之间常有不兼容的修改，今天的代码下个版本可能编不过。其三，错误不能带数据，不能像 Rust 那样把上下文放进 `E`。其四，没有 trait 和 RAII 自动析构，接口靠编译期检查，释放靠手写 `defer`。
+{% endnote %}
+
+两门语言都想做更好的 C：Rust 用编译期强制换安全（借用检查器加 1.0 的兼容承诺），Zig 用显式和简单换可控（`comptime` 统一元编程、translate-c 对接 C、`defer` 显式清理、`ReleaseFast` 关掉检查）。对 RISC-V 全栈这种既要贴近硬件、又要混 C、还要编译期定制的场景，Zig 很合适；对要长期维护、要安全保证、要成熟生态的场景，Rust 更稳。Zig 眼下最大的代价是不稳定，到 1.0 之后值得再比一次。

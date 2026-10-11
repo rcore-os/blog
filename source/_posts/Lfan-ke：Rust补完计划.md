@@ -2,12 +2,12 @@
 title: 'Lfan-ke: Rust补完计划'
 date: 2025-05-01 12:00:28
 categories:
-    - Leo Cheng
-    - 补完计划
+    - Lfan-ke
 tags:
     - author:Lfan-ke
     - repo:https://github.com/LearningOS/2025s-rustling-Lfan-ke
     - description:初次学习Rust整理后的笔记
+    - 补完计划
 mathjax: true
 ---
 
@@ -15,13 +15,15 @@ mathjax: true
 
 src：[rust官网](https://www.rust-lang.org/)，[rust官文](https://doc.rust-lang.org/std/index.html)，[rust官仓](https://github.com/rust-lang/)，[crates.io](crates.io)，[rust-wiki](https://rustwiki.org/zh-CN/reference/items/associated-items.html)，[卡狗圣经](https://course.rs/about-book.html)
 
-​	Rust可看作一个在语法层面（编译时）具有严格检查和限制的C语言上位。且扩展了面向对象的便捷方法绑定。编译和运行方式类似于C/C++，可以`rustc xxx.rs`编译，`./xxx`运行。有约定的项目目录格式，可使用`Cargo`配置`toml`进行包管理、编译、运行、测试等等。包资源网站为`CratesIO`，见`src↑`。不支持运算符重载，支持多态。其中语句为：`表达式+;`，语句的值是`()`。
+​	Rust可看作一个在语法层面（编译时）具有严格检查和限制的C语言上位。且扩展了面向对象的便捷方法绑定。编译和运行方式类似于C/C++，可以`rustc xxx.rs`编译，`./xxx`运行。有约定的项目目录格式，可使用`Cargo`配置`toml`进行包管理、编译、运行、测试等等。包资源网站为`CratesIO`，见`src↑`。支持通过`std::ops`系列 trait 进行运算符重载，支持多态。其中语句为：`表达式+;`，语句的值是`()`。
 
 ​	为了安全，几乎所有的方法/变量/属性都是私有的，除非使用`pub`进行显式公用声明。
 
-​	说到底，编程语言就是人类用来快速生成机器码以便于执行的模板引擎，有的语法层面(编译时/解释时)有强约束，有的仅仅是把特定字符串替换成另外的字符串或二进制，属于弱约束或者无约束。所有你在编程语言所看到的抽象，在机器码的层面本来就是一场幻月楼阁。比如你在编程语言层面，继承多态面向对象权限生命周期搞的花里胡哨的，但是在机器码看来，就仅仅是把PC变一下，或者某数据/指针变一下而已，你所关心的语法层面，语义特性，都是高层编译时/解释时的语法约束。这些约束让你写正确的高级语法的同时，最重要的是保证执行的结果符合预期。所以学底层的，一定要层层解耦，梳理层层抽象！
+​	说到底，编程语言就是人类用来快速生成机器码以便于执行的模板引擎，有的语法层面(编译时/解释时)有强约束，有的仅仅是把特定字符串替换成另外的字符串或二进制，属于弱约束或者无约束。所有你在编程语言所看到的抽象，在机器码的层面本来就是一场幻月楼阁。比如你在编程语言层面，继承多态面向对象权限生命周期搞的花里胡哨的，但是在机器码看来，就仅仅是把PC变一下，或者某数据/指针变一下而已，甚至你一系列花里胡哨的操作仅仅是为了过编译器/解释器的语法检查，实际上到了汇编或者字节码你会发现可能一行没变或者只是改了个指针，你所关心的语法层面，语义特性，都是高层编译时/解释时的语法约束。这些约束让你写正确的高级语法的同时，最重要的是保证执行的结果符合预期。所以学底层的，一定要层层解耦，梳理层层抽象！
 
 
+
+<!-- more -->
 
 ## 快速开始
 
@@ -85,11 +87,11 @@ registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
 >
 >类型转换：`var as type_name` `type_name::from(var)`
 >
->分支：`if 条件必须是布尔值 { ... } else { ... }` `match obj { case xx => { ... }, _ => { ... } }`
+>分支：`if 条件必须是布尔值 { ... } else { ... }` `match obj { xx => { ... }, _ => { ... } }`
 >
 >循环：`loop { ... }` `for i in 0..10` `while n < 233`，`break` `continue`
 >
->支持循环标签来跳出指定的循环：`tag1: loop { tag2: while true { break: tag1 } }`
+>支持循环标签来跳出指定的循环：`'tag1: loop { 'tag2: while true { break 'tag1; } }`
 >
 >函数格式：`fn add(a: i32, b: i32) -> i32 { a + b }` 默认返回值是最后一条表达式的值，等同于：`return a+b;`
 >
@@ -105,7 +107,7 @@ registry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"
 >
 >容器类型：`[1, 2, 3]` - `Array` - 定长同类型，`(1, "heke", 1228)` - `Tuple` - 定长不可变
 >
->数据容器：`struct Person { age: u8; name: &str; }` `struct Bag (i32, i32, u8)`
+>数据容器：`struct Person<'a> { age: u8, name: &'a str }` `struct Bag (i32, i32, u8)`
 >
 >枚举类型：`enum State { StateA, StateB, State233=233, ,PA(ch) ... }` 详见特殊部分与模式匹配 `↓`
 >
@@ -226,7 +228,6 @@ method::func();
 crate::method::func();
 ```
 
-<!-- more -->
 
 ## 特殊部分
 
@@ -584,7 +585,7 @@ Rust等等高级语言最令人讨喜的高级语法！首先将介绍基本的�
 let a = 1;
 let (a, b) = (1, 2);
 let [a, b] = [1, 2];
-let Some(a) = Some(123);
+if let Some(a) = Some(123) {};      // Some 是可反驳模式，须用 if let（普通 let 会 E0005）
 let StructEmm {attr1: x, attr2} = StructEmm {attr1: 123, attr2: 233};
 ```
 
@@ -1308,6 +1309,7 @@ pub extern "C" fn _start() -> ! {  // 裸机环境，直接定义入口函数 _s
         let (sum, diff) = add_and_subtract(a, b);
         println!("Sum: {}, Difference: {}", sum, diff);
     }
+    loop {}      // _start 返回 ! 必须发散，不能正常结束
 }
 ```
 
@@ -1520,7 +1522,7 @@ cargo tarpaulin --all-features --workspace --out xml   # 测试覆盖率（cargo
 cargo udeps                                            # 揪出没被用到的依赖，方便瘦身
 ```
 
-**编译原理玩具**
+**编译原理小项目**
 
 - [pest](https://docs.rs/pest) + `pest_derive`——PEG 文法解析器；`llvm-sys`——直接绑 LLVM 后端；想看个麻雀虽小的 C 编译器，参考 [r9cc](https://github.com/utam0k/r9cc)
 

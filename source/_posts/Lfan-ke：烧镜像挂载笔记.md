@@ -2,7 +2,10 @@
 title: 'Lfan-ke: 镜像 烧录 设备 挂载 共享 映射 挂载'
 date: 2025-07-01 10:10:10
 categories:
-    - Leo Cheng
+    - Lfan-ke
+tags:
+    - author:逸仙
+    - repo:https://github.com/Lfan-ke
     - Beginner
     - 常用知识
     - usbipd-win
@@ -21,472 +24,481 @@ categories:
     - uimage
     - fitimg
     - rootfs
-tags:
-    - author:逸仙
-    - repo:https://github.com/Lfan-ke
 mathjax: true
 mermaid.js: true
 mermaid:
     enable:true
     theme:winter
-description: 相当于写给烧写板子刚入门的萌新，以及附带一些常用的基本工具...
+description: 写给烧写板子刚入门的初学者，附带一些常用基本工具...
 ---
+
+> 一个 `.img` 文件是什么，怎样变成能让开发板启动的 SD 卡。以 RISC-V/Linux 为例，对照 x86、ARM、Windows、macOS。
 
 <!-- more -->
 
-> 这篇从"一个 `.img` 文件到底是什么"开始，一路走到"它怎么变成能让板子启动的 SD 卡"。**以 RISC-V/Linux 为主线**，x86/ARM/Windows/macOS 的对应物随手科普+知识面完善。
+## 二进制与结构
 
-## 0. 先破一个执念：「二进制」≠「无结构」
+常见的误解是：纯二进制就是 `*.bin`，是一堆没有结构的数据。其实「二进制」只表示「不是文本」，即这些字节不打算被当作字符读取，**与有没有内部结构无关**。
 
-很多人（包括我）一开始以为：纯二进制 = `*.bin` = 一堆没有结构的 data。**错。**
+文本与二进制是一组区分（能不能当字符读），有结构与无结构是另一组，两者互相独立。`.bin` 只是约定的后缀，里面可以是纯数据，也可以是带可执行头的内核 `Image`、带分区表和多个文件系统的磁盘镜像、自定义格式的固件。大多数二进制格式都有丰富的内部结构，只是不供人直接阅读。
 
-> **「二进制」只是「不是文本」**——指这些字节不打算被当字符读，**和"有没有内部结构"毫无关系**。
-
-「文本 ↔ 二进制」是一组对立（能不能当字符读）；「有结构 ↔ 无结构」是**另一个正交维度**。`.bin` 只是个约定后缀，里面可以是纯 data，**也可以**是带可执行头的内核 `Image`、带分区表+多文件系统的磁盘镜像、带自定义格式的固件……绝大多数二进制格式都有**丰富的内部结构**，只是不给人眼读。
-
-后面你会反复看到：`file` 命令对一个文件说 `data`，**不是"它没结构"，而是"我没认出它的结构"**（没匹配到魔数）。一旦魔数出现，它立刻就认出来了。
+后面会多次看到 `file` 命令把一个文件判为 `data`，这表示它没有识别出结构（没有匹配到魔数），而不是文件没有结构。魔数一出现，它就能识别出来。
 
 ---
 
-## 1. 文件的「大小」是怎么回事 —— 稀疏文件（sparse）
+## 文件大小与稀疏文件
 
-### 1.1 `touch` vs `truncate` vs `fallocate`
+### `touch`、`truncate` 与 `fallocate`
 
-这三个常被混为一谈，其实管的是**不同维度**：
+这三个命令常被混用，其实管的是不同的东西：
 
 | 命令 | 管什么 | 结果 |
-|---|---|---|
-| `touch f` | **存在性 + 时间戳** | 建 0 字节文件；或仅更新 atime/mtime，不动内容 |
-| `truncate -s N f` | **大小** | 把文件设成 N 大；变大补**空洞**（稀疏），变小**截断丢数据** |
-| `fallocate -l N f` | **大小 + 真实分配** | 设成 N 大且**真占盘**（无洞） |
+|:--:|:--:|:--:|
+| `touch f` | **是否存在和时间戳** | 创建 0 字节的文件，或只更新 atime/mtime，不改内容 |
+| `truncate -s N f` | **大小** | 把文件设为 N；变大时补**空洞**（稀疏），变小时**截断并丢弃数据** |
+| `fallocate -l N f` | **大小和实际分配** | 设为 N 并**实际占用磁盘**（没有空洞） |
 
 ```bash
-touch empty.bin                  # size=0  占用block=0      —— 只管"存在"
-touch -d '2020-01-01' empty.bin  # 只改 mtime,不动内容       —— make 增量构建/缓存失效靠它
-truncate -s 10M sized.bin        # 逻辑 10M, 但 du 真占盘=0  —— 变大=补空洞(稀疏)
+touch empty.bin                  # size=0，占用的块=0，只管是否存在
+touch -d '2020-01-01' empty.bin  # 只改 mtime，不改内容；make 增量构建和缓存失效依靠它
+truncate -s 10M sized.bin        # 逻辑大小 10M，但 du 显示实际占用为 0；变大时补空洞（稀疏）
 ```
 
-> **Windows 对应**：`fsutil file createnew f 10485760`（建指定大小）；稀疏要 `fsutil sparse setflag f`。改时间戳：PowerShell `(Get-Item f).LastWriteTime = '2020-01-01'`。
-> **macOS 对应**：`mkfile -n 10m sized.bin`（`-n` = 稀疏）；`touch` 同 Linux。
+> **Windows**：`fsutil file createnew f 10485760`（创建指定大小的文件）；稀疏文件要 `fsutil sparse setflag f`。修改时间戳用 PowerShell 的 `(Get-Item f).LastWriteTime = '2020-01-01'`。
+> **macOS**：`mkfile -n 10m sized.bin`（`-n` 表示稀疏）；`touch` 与 Linux 相同。
 
-### 1.2 三个「大小」别搞混：`ls -l` / `du` / `df`
+### `ls -l`、`du` 与 `df` 的区别
 
-这是稀疏文件的核心。三条命令量的是**三件不同的事**：
+这三个命令衡量的是三件不同的事，也是理解稀疏文件的关键：
 
-| 命令 | 量的是 |
-|---|---|
-| `ls -l` | 文件的**逻辑大小**（声称多大）|
-| `du` | 这个文件**此刻真正占了磁盘多少块** |
-| `df`（对挂载点）| 文件系统的**总容量 / 已用 / 可用** |
+| 命令 | 衡量的是 |
+|:--:|:--:|
+| `ls -l` | 文件的**逻辑大小** |
+| `du` | 文件**当前实际占用的磁盘块** |
+| `df`（对挂载点） | 文件系统的**总容量、已用、可用** |
 
-（我建了个 256M 镜像，造 ext4，挂载）：
+创建一个 256M 的镜像，建立 ext4 并挂载：
 
 ```text
 truncate -s 256M sparse.img
-  ls -l → 268435456 (256M 逻辑)        du → 0        (稀疏,没占盘)     file → data
+  ls -l → 268435456 (256M 逻辑)        du → 0        (稀疏，没有占用磁盘)     file → data
 mkfs.ext4 sparse.img
-  du → 17M (ext4 元数据:superblock+inode表+journal 是真写的)          file → ext4 filesystem
-mount 后  df → Size 224M  Used 24K     (256M 设备 - ext4 元数据/保留 ≈ 224M 可用)
+  du → 17M (ext4 元数据：superblock、inode 表、journal 是实际写入的)       file → ext4 filesystem
+挂载后 df → Size 224M  Used 24K       (256M 设备减去 ext4 元数据和保留空间，约 224M 可用)
 ```
 
-`du`=17M 和 `df` Size=224M **根本不是一个轴**：前者是"宿主盘真掏了多少"，后者是"文件系统声称有多大"。它**以为**自己有 224M，但盘上**现在只真掏了 17M**——这个差额就是稀疏。
+`du` 的 17M 和 `df` 的 224M 衡量的不是同一件事：前者是宿主磁盘实际分配了多少，后者是文件系统认为自己有多大。文件系统认为有 224M，但磁盘上目前只实际分配了 17M，这个差额就是稀疏。
 
-### 1.3 写时分配（allocate-on-write）
+### 写时分配
 
-往里写 50M，看三个数怎么变：
+向镜像中写入 50M，三个数字的变化：
 
 ```text
 dd if=/dev/zero of=/mnt/spx/blob bs=1M count=50 conv=fsync
-  du sparse.img : 17M → 67M   (+50M, 真盘涨了)
-  df Used       : 24K → 51M   (+50M)
-  df Size       : 224M → 224M  (不变!)
+  du sparse.img : 17M → 67M   (增加 50M，实际占用增加)
+  df Used       : 24K → 51M   (增加 50M)
+  df Size       : 224M → 224M  (不变)
 ```
 
-**写多少真盘涨多少，文件系统总容量纹丝不动**。这就是稀疏 = 写时才分配。
+写入多少，实际占用就增加多少，文件系统的总容量不变。稀疏文件就是写入时才分配空间。
 
-### 1.4 稀疏的代价：碎片、overcommit 与稀疏感知传输
+### 稀疏文件的代价
 
-稀疏省体积（逻辑大、占盘小、分发只传有效字节），但有三笔账：
+稀疏文件节省空间（逻辑大小大、实际占用小，分发时只传有效字节），但有三个代价：
 
-**① 碎片化** —— 洞是写时才分配，块按"写那一刻"的空闲位置挑，可能散落各处。ext4 的 extents + 延迟分配会尽量凑连续，但跨时间跳着写仍会碎。看碎片：`filefrag -v img`（列出每段 extent 与 hole）。
+**碎片**：空洞在写入时才分配，块按写入那一刻的空闲位置选取，可能分散在各处。ext4 的 extent 和延迟分配会尽量连续，但在不同时间跳着写入仍会产生碎片。用 `filefrag -v img` 查看碎片（列出每段 extent 和空洞）。
 
-**② overcommit / ENOSPC（最危险）** —— 逻辑大小会"撒谎"：
+**超额分配与 ENOSPC（最危险）**：逻辑大小可能大于实际可用的空间：
 
 ```bash
-truncate -s 10G huge.img     # 在只剩 200M 的盘上也成功(只是一堆洞)
+truncate -s 10G huge.img     # 在只剩 200M 的磁盘上也能成功（只是一堆空洞）
 ```
 
-逻辑 10G、物理只剩 200M。等你往洞里写、写到把底层盘填满那刻 → `write: No space left on device`，而且常常**写到一半才爆**。VM 磁盘镜像（raw sparse / qcow2 thin）最常踩：guest 以为有 100G、host 盘满，guest 突发 I/O 错误甚至 fs 损坏。
+逻辑大小 10G，物理空间只剩 200M。往空洞中写入，写到底层磁盘满时就会出现 `write: No space left on device`，而且常常是写到一半才出错。虚拟机磁盘镜像（raw 稀疏文件、qcow2 精简配置）最常遇到：客户机以为有 100G，宿主磁盘满了，客户机突然出现 I/O 错误，甚至文件系统损坏。
 
-**③「只传有效字节」要用稀疏感知工具** —— 裸 `cp`/`dd` 默认把洞展开成 0 字节（de-sparsify），10G 逻辑一拷变占 10G 物理。保稀疏要用：
+**只传有效字节要用支持稀疏文件的工具**：普通的 `cp`、`dd` 默认把空洞展开成 0 字节，10G 的逻辑大小复制后变成实际占用 10G。要保留稀疏，用：
 
 ```bash
 cp --sparse=always    rsync -S    tar -S    qemu-img convert
 ```
 
-**对策 `fallocate`** —— `fallocate -l N f` 立刻分配、连续、无洞：没有 ENOSPC 惊吓、不碎片，代价是当场吃满空间。**swap 文件必须用它**（内核不允许 swap 走稀疏洞）。
+**对策是 `fallocate`**：`fallocate -l N f` 立即分配、连续、没有空洞，不会出现 ENOSPC，也不会产生碎片，代价是立即占满空间。**swap 文件必须用它**（内核不允许 swap 使用稀疏的空洞）。
 
-> 选择：要小体积 / 快分发 → `truncate` 稀疏（接受 overcommit 风险）；要可靠 / 可预测 / 高性能 → `fallocate` 预留。
+> 要体积小、分发快，用 `truncate` 生成稀疏文件（接受超额分配的风险）；要可靠、可预测、性能高，用 `fallocate` 预先分配。
 
 ---
 
-## 2. 在镜像里造文件系统 —— `mkfs.*` 家族
+## 在镜像中创建文件系统
 
-`mkfs.<fs>` = 在**块设备或镜像文件**上"格式化"：写下 superblock + inode 表 + 位图 + 日志等元数据布局。（上面那 17M 就是它写的。）
+`mkfs.<fs>` 在**块设备或镜像文件**上格式化：写入 superblock、inode 表、位图、日志等元数据（上面的 17M 就是它写入的）。
 
-**常见成员**：`ext2/3/4 · fat/vfat/msdos · minix · cramfs · bfs`（`mkfs.<Tab>` 列出的就是本机已装的；装 `btrfs-progs`/`xfsprogs`/`f2fs-tools`/`exfatprogs` 等即扩充）
+常见的有 `ext2/3/4`、`fat/vfat/msdos`、`minix`、`cramfs`、`bfs`（`mkfs.<Tab>` 列出的是本机已安装的；安装 `btrfs-progs`、`xfsprogs`、`f2fs-tools`、`exfatprogs` 等后会增加）。
 
 ```text
-mkfs.vfat t.img → DOS/MBR boot sector, OEM-ID "mkfs.fat"   # FAT 引导扇区(也以 55AA 收尾,跟 MBR 同族)
-mkfs.ext4 t.img → Linux rev 1.0 ext4 filesystem data       # file 从 superblock 魔数认出来
+mkfs.vfat t.img → DOS/MBR boot sector, OEM-ID "mkfs.fat"   # FAT 引导扇区（也以 55AA 结尾，与 MBR 同一格式）
+mkfs.ext4 t.img → Linux rev 1.0 ext4 filesystem data       # file 根据 superblock 的魔数识别
 ```
 
-**选型速记：**
+选择：
 
-| 场景 | 选谁 |
-|---|---|
-| **EFI 系统分区(ESP)** | **必须 FAT32**：`mkfs.vfat -F 32`（UEFI 固件只认 FAT）|
-| Linux rootfs | ext4（或 btrfs/xfs 科普）|
-| 跨 Win/Linux/相机交换 | FAT32（<4G 文件）/ exFAT（大文件）|
-| 只读嵌入式 | squashfs（`mksquashfs`）/ cramfs / erofs |
-| **裸 NOR/NAND flash** | **不用 mkfs.\***！用 jffs2/ubifs/littlefs（走 mtd 设备，有磨损均衡/掉电保护）|
+| 场景 | 选择 |
+|:--:|:--:|
+| **EFI 系统分区（ESP）** | **必须 FAT32**：`mkfs.vfat -F 32`（UEFI 固件只支持 FAT） |
+| Linux rootfs | ext4（也可以用 btrfs、xfs） |
+| 在 Windows、Linux、相机之间交换 | FAT32（单个文件小于 4G）或 exFAT（大文件） |
+| 只读的嵌入式系统 | squashfs（`mksquashfs`）、cramfs、erofs |
+| **裸 NOR/NAND flash** | **不用 mkfs.\***，用 jffs2、ubifs、littlefs（通过 mtd 设备，有磨损均衡和掉电保护） |
 
-> **Windows 对应**：`format X: /FS:FAT32` 或图形化"格式化"；分区/卷管理用 `diskpart`。
-> **macOS 对应**：`diskutil eraseDisk FAT32 NAME /dev/diskN`，或底层 `newfs_msdos` / `newfs_hfs`。
+> **Windows**：`format X: /FS:FAT32` 或图形界面的「格式化」；分区和卷管理用 `diskpart`。
+> **macOS**：`diskutil eraseDisk FAT32 NAME /dev/diskN`，或底层的 `newfs_msdos`、`newfs_hfs`。
 
 ---
 
-## 3. 让"文件"变成"设备" —— loop 设备（回环设备）
+## loop 设备
 
-### 3.1 为什么需要它
+### 用途
 
-`mount` 一个 ext4/FAT 这类**块设备文件系统**，内核要的是一个**块设备**（能按扇区偏移随机读写、好去固定位置读 superblock）。但 `sparse.img` 是个**普通文件**。
+`mount` ext4、FAT 这类**块设备文件系统**时，内核需要的是一个**块设备**（能按扇区偏移随机读写，以便到固定位置读取 superblock），但 `sparse.img` 是一个**普通文件**。
 
-**loop 设备**就是内核的"伪装适配器"：把一个普通文件**包装成块设备**，代理对应的系统调用比如ioctl，write等 `/dev/loopN`。之后对 `/dev/loopN` 的任何**扇区读写**，被 loop 驱动**翻译成对那个文件相应偏移的 `pread/pwrite`**。
+**loop 设备**把一个普通文件**包装成块设备** `/dev/loopN`：对 `/dev/loopN` 的**扇区读写**，由 loop 驱动**转换成对该文件对应偏移的 `pread`/`pwrite`**。
 
 ```bash
-sudo losetup -f --show ./sparse.img   # 找空闲 loop 并绑定 → /dev/loop0
-sudo mount /dev/loop0 /mnt/spx         # 现在能挂了
-# 或一步到位(mount 自己偷偷 losetup):
+sudo losetup -f --show ./sparse.img   # 找一个空闲的 loop 设备并绑定，得到 /dev/loop0
+sudo mount /dev/loop0 /mnt/spx         # 现在可以挂载了
+# 或者一步完成（mount 自己调用 losetup）：
 sudo mount -o loop ./sparse.img /mnt/spx
-# 带分区表的镜像要 -P,才会冒出 /dev/loop0p1 /dev/loop0p2:
+# 带分区表的镜像要加 -P，才会出现 /dev/loop0p1、/dev/loop0p2：
 sudo losetup -fP --show ./disk.img
 ```
 
-### 3.2 一个真实的坑：`umount` ≠ `losetup -d`
+### `umount` 不会解绑 loop 设备
 
-loop 设备**不会因为 umount 就自动解绑**——除非它带 **autoclear** 标志。
+loop 设备**不会因为 umount 而自动解绑**，除非它带有 **autoclear** 标志。
 
-这个"手动建的 / mount 建的"区别，记在**内核里每个 loop 设备的一个 flag 位**：`LO_FLAGS_AUTOCLEAR`（定义在内核 `include/uapi/linux/loop.h`，值=4，可通过 `LOOP_SET_STATUS`/`LOOP_CONFIGURE` ioctl 设置）。
+手动创建还是由 mount 创建，记录在**内核中每个 loop 设备的一个标志位** `LO_FLAGS_AUTOCLEAR`（定义在内核的 `include/uapi/linux/loop.h`，值为 4，可以通过 `LOOP_SET_STATUS` 或 `LOOP_CONFIGURE` ioctl 设置）。
 
-- `mount -o loop` 建 loop 时**主动贴上 AUTOCLEAR**；手动 `losetup` **不贴**。
-- 内核在"块设备最后一个使用者关闭"（umount 触发）时检查这个位：**贴了就自动解绑，没贴就赖着**。
+- `mount -o loop` 创建 loop 设备时**设置 AUTOCLEAR**；手动 `losetup` **不设置**。
+- 块设备的最后一个使用者关闭时（由 umount 触发），内核检查这个标志：**设置了就自动解绑，没设置就保持绑定**。
 
-（`losetup -l` 有 AUTOCLEAR 列，肉眼可见）：
+`losetup -l` 有 AUTOCLEAR 一列，可以直接看到：
 
 ```text
-sudo losetup -f ./sparse.img            → AUTOCLEAR=0   (手动建,不自动走)
-sudo mount -o loop ./sparse.img /mnt/spx → AUTOCLEAR=1   (mount 建,umount 自动消失)
+sudo losetup -f ./sparse.img            → AUTOCLEAR=0   (手动创建，不会自动解绑)
+sudo mount -o loop ./sparse.img /mnt/spx → AUTOCLEAR=1   (mount 创建，umount 后自动消失)
 ```
 
-> 另一个连带发现：如果某个 loop **已经绑了同一个文件**，`mount -o loop` 会**复用它**（不重复绑定），于是**继承**它的 flag——你手动建的是 0，复用后还是 0。要拿到 fresh 的 AUTOCLEAR=1，先 `sudo losetup -d /dev/loopN` 清干净。
+> 如果某个 loop 设备**已经绑定了同一个文件**，`mount -o loop` 会**复用它**（不会重复绑定），也就**继承**它的标志：手动创建的是 0，复用后仍是 0。要得到新的 AUTOCLEAR=1，先用 `sudo losetup -d /dev/loopN` 解绑。
 >
-> 排错口诀：`mount -o loop` 报 `failed to setup loop device` 时，**先查路径对不对**（文件不存在也报这个，误导性极强）。
+> `mount -o loop` 报 `failed to setup loop device` 时，**先检查路径是否正确**（文件不存在也会报这个错误，很容易误导）。
 
-> **Windows 对应**：挂载 `.vhd/.iso` 用 PowerShell `Mount-DiskImage -ImagePath x.vhd`（卸载 `Dismount-DiskImage`），或 `diskpart` 里 `select vdisk file=... ` + `attach vdisk`。原生不认 ext4（要 WSL2 或第三方驱动）。
-> **macOS 对应**：`hdiutil attach disk.img`（挂载）/ `hdiutil detach /dev/diskN`（卸载）——它一步完成 loop+mount。
+> **Windows**：挂载 `.vhd/.iso` 用 PowerShell 的 `Mount-DiskImage -ImagePath x.vhd`（卸载用 `Dismount-DiskImage`），或在 `diskpart` 中 `select vdisk file=...` 加 `attach vdisk`。原生不支持 ext4（需要 WSL2 或第三方驱动）。
+> **macOS**：`hdiutil attach disk.img`（挂载）、`hdiutil detach /dev/diskN`（卸载），一步完成 loop 和 mount。
 
 ---
 
-## 4. 烧录的真相 —— `dd`、page cache 与 `sync`
+## 烧录：dd、page cache 与 sync
 
-### 4.1 `dd` 不是"底层直写"，`dd` vs `cp` 到底差在哪
+### dd 与 cp 的区别
 
-一个超常见的误解：以为 `dd` 逐字节直写硬件、有严格地址限制，而 `cp` 只能走文件系统。**真相**：
+一个常见的误解是：`dd` 逐字节直接写硬件、有严格的地址限制，而 `cp` 只能通过文件系统。实际上：
 
-- `dd` 和 `cp` **都走 VFS 的 `open()/write()` 系统调用**，没有谁更"底层"。
-- `bs=` 控制每次 `write()` 的块大小：`bs=4M` 一次写 4MB；`bs=1` 每字节一次系统调用 → **最慢**（上下文切换开销 ≫ 数据搬运），不是"最精确"。
-- 对齐/地址是**块层和文件系统**的事，跟应用层 `write()` 无关。
+- `dd` 和 `cp` **都通过 VFS 的 `open()`/`write()` 系统调用**，没有哪个更底层。
+- `bs=` 控制每次 `write()` 的块大小：`bs=4M` 一次写 4MB；`bs=1` 每个字节一次系统调用，**最慢**（上下文切换的开销远大于数据搬运），并不更精确。
+- 对齐和地址是**块层和文件系统**的事，与应用层的 `write()` 无关。
 
-**那为什么烧卡传统用 `dd`？** 真实原因是 `dd` 有 **`skip= / seek= / count= / conv= / oflag=`** 精细控制——尤其 `seek=` **偏移写**（把 SPL/bootloader 烧到卡的特定偏移，`cp` 根本做不到，把XXX精确搬到里面的(x: , y: , z: )和把东西丢到里面就行还是有区别的）。系统调用层面二者没区别。
+烧卡习惯用 `dd`，是因为 `dd` 有 **`skip=`、`seek=`、`count=`、`conv=`、`oflag=`** 等精细的控制，尤其是 `seek=` 可以**按偏移写入**，把 SPL 或 bootloader 写到卡上的指定偏移；`cp` 只能把整个文件放进文件系统，两者的用途不同。在系统调用层面，二者没有底层与否之分。
 
-> 补一刀（整盘 vs 分区）：`/dev/sdX`（如 `/dev/sda`）是**整块盘**——一整条裸扇区，开头放分区表、里面才切出分区，它本身不是 ext4/FAT。你 `mkfs` 格式化、`mount` 挂载的，是其中的**分区** `/dev/sdX1`（如 `/dev/sda1`）。所以 `dd … of=/dev/sdX` 是往**裸盘**直接灌字节（块层只搬运、不按文件系统规则解释），才能把一个**自带分区表 + 内部文件系统**的完整镜像整盘烧进去。
+> 整盘与分区：`/dev/sdX`（如 `/dev/sda`）是**整块磁盘**，是一整段裸扇区，开头放分区表，里面再划分出分区，它本身不是 ext4 或 FAT。`mkfs` 格式化、`mount` 挂载的是其中的**分区** `/dev/sdX1`（如 `/dev/sda1`）。所以 `dd … of=/dev/sdX` 是直接向**裸盘**写入字节（块层只搬运数据，不按文件系统的规则解释），才能把一个**自带分区表和文件系统**的完整镜像整盘写进去。
 
-### 4.2 最毒的坑：dd 跑完 ≠ 落盘（page cache + sync）
+### dd 结束不等于数据已写入
 
-你以为 `dd` 进度条满了数据就安全了？**没有。数据还在 page cache（脏页）里**，必须 `sync`（或 `dd conv=fsync` / `oflag=direct`）才落盘。看着完成了，拔卡即丢。
+`dd` 的进度走完时，**数据可能还在 page cache（脏页）中**，必须 `sync`（或 `dd conv=fsync`、`oflag=direct`）才会写入磁盘。看起来已经完成，这时拔卡就会丢数据。
 
-（`/proc/meminfo` 的 `Dirty` = 待写回的脏页量）：
+`/proc/meminfo` 中的 `Dirty` 是等待写回的脏页量：
 
 ```text
-基线                          Dirty 很小
-dd 200M (不 fsync)            Dirty 飙向 ~200M   ← 数据还没落盘!
-sync                         Dirty 掉回近 0      ← 强制回写
-dd 200M oflag=direct         Dirty 基本不涨      ← O_DIRECT 绕开 page cache 直接 DMA
+开始时                        Dirty 很小
+dd 200M（不 fsync）           Dirty 升到约 200M   ← 数据还没写入磁盘
+sync                         Dirty 降回接近 0    ← 强制写回
+dd 200M oflag=direct         Dirty 基本不变      ← O_DIRECT 绕过 page cache，直接 DMA
 ```
 
-能选择 `oflag=direct`"绕开"，恰恰证明默认是"经过"page cache 的。
+能用 `oflag=direct` 绕过，正说明默认要经过 page cache。
 
-> **为什么块存储走 cache，外设寄存器却不走？** 别把两类"外设"混了：
-> - **块存储**（SD/U盘/NVMe，`/dev/sdX`）= **数据**，走 page cache（可重读、有局部性），所以要 `sync`；
-> - **MMIO 外设寄存器**（UART/GPIO/控制器寄存器）= **控制**，`ioremap` 映射成 **uncached/device 内存**、`volatile` 直读写（读一次 RX 寄存器会消费一个字节、状态寄存器自己会变，缓存它就读到陈旧值）。
+> **为什么块存储经过缓存，外设寄存器却不经过**：两类外设不同。
+> - **块存储**（SD 卡、U 盘、NVMe，`/dev/sdX`）存的是**数据**，经过 page cache（可以重复读取，有局部性），所以要 `sync`；
+> - **MMIO 外设寄存器**（UART、GPIO、控制器寄存器）是**控制**接口，用 `ioremap` 映射成 **uncached/device 内存**，用 `volatile` 直接读写（读一次 RX 寄存器会取走一个字节，状态寄存器自己会变化，缓存就会读到过期的值）。
 >
-> `dd` 写 SD 卡，大块**数据**走 page cache → DMA → flash；存储控制器的寄存器（uncached）只被驱动用来**下达 DMA 命令**。两条道分开。
-> （注：若 `/tmp` 是 tmpfs(RAM 盘)，dd 进去不产生磁盘脏页，做这实验要写到真盘路径。）
+> `dd` 写 SD 卡时，大块**数据**经过 page cache，再通过 DMA 写到 flash；存储控制器的寄存器（uncached）只被驱动用来**下发 DMA 命令**，两条路径是分开的。
+> （如果 `/tmp` 是 tmpfs（内存盘），写入不会产生磁盘脏页，做这个实验要写到真实磁盘的路径。）
 
-### 4.3 把镜像真正送上板子（跨平台 burn）
+### 把镜像写入存储卡
 
-| 平台 | 命令 / 工具 |
-|---|---|
-| **Linux** | `sudo dd if=os.img of=/dev/sdX bs=4M conv=fsync status=progress` 然后 `sync`（务必确认 `/dev/sdX` 是目标盘，别写错盘！`lsblk` 先看）|
-| **Windows** | 图形化最稳：**Win32 Disk Imager** / **Rufus** / **balenaEtcher** / **Raspberry Pi Imager**；命令行有 `dd for Windows`（`dd if=os.img of=\\.\PhysicalDriveN bs=4M`）。看盘号用 PowerShell `Get-Disk` / `wmic diskdrive list brief` |
-| **macOS** | `diskutil list` 找盘 → `diskutil unmountDisk /dev/diskN` → `sudo dd if=os.img of=/dev/rdiskN bs=4m`（注意 `rdiskN` 裸设备更快）；图形化同样可用 balenaEtcher |
-| **WSL2** | 见下一节 `usbipd-win` |
+| 平台 | 命令或工具 |
+|:--:|:--:|
+| **Linux** | `sudo dd if=os.img of=/dev/sdX bs=4M conv=fsync status=progress`，然后 `sync`（一定要先用 `lsblk` 确认 `/dev/sdX` 是目标盘，不要写错） |
+| **Windows** | 图形工具最稳妥：**Win32 Disk Imager**、**Rufus**、**balenaEtcher**、**Raspberry Pi Imager**；命令行有 `dd for Windows`（`dd if=os.img of=\\.\PhysicalDriveN bs=4M`）。查看磁盘号用 PowerShell 的 `Get-Disk` 或 `wmic diskdrive list brief` |
+| **macOS** | `diskutil list` 找到磁盘，`diskutil unmountDisk /dev/diskN`，再 `sudo dd if=os.img of=/dev/rdiskN bs=4m`（`rdiskN` 是裸设备，更快）；也可以用 balenaEtcher |
+| **WSL2** | 见下一节的 `usbipd-win` |
 
-### 4.4 WSL2 怎么烧卡：`usbipd-win`（USB/IP 直通）
+### 在 WSL2 中烧录：usbipd-win
 
-WSL2 默认**看不到** Windows 插着的 USB 块设备。[`usbipd-win`](https://github.com/dorssel/usbipd-win) 把 Windows 的 USB 设备通过 **USB/IP** 协议**直通进 WSL2**，之后在 WSL 里就能像本地块设备一样 `dd`：
+WSL2 默认**看不到** Windows 上插入的 USB 块设备。[`usbipd-win`](https://github.com/dorssel/usbipd-win) 通过 **USB/IP** 协议把 Windows 的 USB 设备**直通到 WSL2**，之后在 WSL 中就能像本地块设备一样 `dd`：
 
 ```powershell
-# —— 在 Windows PowerShell(管理员) ——
-usbipd list                       # 列出 USB 设备,记下 BUSID(如 2-4)
-usbipd bind   --busid 2-4         # 首次共享(只需一次)
-usbipd attach --wsl --busid 2-4   # 直通进 WSL2
+# 在 Windows PowerShell（管理员）中
+usbipd list                       # 列出 USB 设备，记下 BUSID（如 2-4）
+usbipd bind   --busid 2-4         # 第一次共享（只需一次）
+usbipd attach --wsl --busid 2-4   # 直通到 WSL2
 ```
+
 ```bash
-# —— 在 WSL2 里 ——
-lsblk                                   # 现在能看到 /dev/sdX 了
+# 在 WSL2 中
+lsblk                                   # 现在能看到 /dev/sdX
 sudo dd if=os.img of=/dev/sdX bs=4M conv=fsync status=progress && sync
 ```
+
 ```powershell
-# 用完归还给 Windows:
+# 用完后还给 Windows
 usbipd detach --busid 2-4
 ```
 
-> 不想折腾直通，就在 Windows 侧直接用 Win32 Disk Imager / Rufus 烧——殊途同归。
+> 不想设置直通，也可以直接在 Windows 上用 Win32 Disk Imager 或 Rufus 烧录。
 
 ---
 
-## 5. 镜像的分层结构 —— 为什么 `dd` 整盘能启动、`cp` 文件不能
+## 镜像的分层结构
 
-### 5.1 三层抽象
+### 三层抽象
 
-一个可启动镜像不是"一个文件系统"，而是**三层套娃**：
+一个可启动的镜像不是一个文件系统，而是三层嵌套的结构：
 
 ```mermaid
 graph TD
-    A["容器层<br/>(.img / .qcow2 / 整块设备)"] --> B["分区表层<br/>(MBR / GPT)"]
-    B --> C1["分区1: ESP (FAT32)<br/>superblock + 文件"]
-    B --> C2["分区2: rootfs (ext4)<br/>superblock + inode + 数据"]
-    B --> G["分区间 gap<br/>(可藏 raw bootloader/SPL)"]
+    A["容器层<br/>（.img、.qcow2、整块设备）"] --> B["分区表层<br/>（MBR、GPT）"]
+    B --> C1["分区 1：ESP（FAT32）<br/>superblock 和文件"]
+    B --> C2["分区 2：rootfs（ext4）<br/>superblock、inode、数据"]
+    B --> G["分区之间的空隙<br/>（可以放裸的 bootloader、SPL）"]
+%% 容器层（.img / .qcow2 / 整块设备）
+%%   └─ 分区表层（MBR / GPT）
+%%        ├─ 分区 1：ESP（FAT32）
+%%        ├─ 分区 2：rootfs（ext4）
+%%        └─ 分区之间的空隙（裸 bootloader / SPL）
 ```
 
-`cp file /mnt/...` 只搬"某个**已挂载** fs 里的文件内容"；而 `dd` 整盘复制的是**裸字节布局**——下面这些 `cp` **永远碰不到**：
+`cp file /mnt/...` 只复制某个**已挂载**文件系统中的文件内容；`dd` 整盘复制的是**裸字节布局**。下面这些是 `cp` **无法复制**的，所以整盘 `dd` 的镜像能启动，用 `cp` 复制文件不能：
 
-> ①分区表本身(MBR/GPT header/entries) ②分区间 gap(含 raw bootloader) ③superblock ④inode bitmap ⑤block bitmap ⑥journal 日志 ⑦MBR 446 字节引导代码 ⑧任何**按绝对块号寻址**的结构
+> 分区表本身（MBR、GPT 头和表项），分区之间的空隙（包括裸的 bootloader），superblock，inode 位图，块位图，日志，MBR 中 446 字节的引导代码，以及任何**按绝对块号寻址**的结构。
 
-### 5.2 LBA0 不是 GPT！是 Protective MBR（实验眼见为实）
+### LBA0 是 Protective MBR
 
-经典误解：以为 GPT 分区表从 0x0 开始。**真相**：
+常见的误解是 GPT 分区表从 0x0 开始。实际上：
 
 ```text
-LBA0      → Protective MBR   (保护性 MBR,兼容老工具)
+LBA0      → Protective MBR   (保护性 MBR，兼容旧工具)
 LBA1      → GPT Header       (魔数 "EFI PART")
 LBA2–33   → GPT 分区表项      (每项 128 字节)
 ```
 
-（造个 GPT 镜像，`xxd` 看）：
+创建一个 GPT 镜像，用 `xxd` 查看：
 
 ```text
 parted -s disk.img mklabel gpt; parted -s disk.img mkpart primary ext4 1MiB 100%
 
-xxd 看 LBA0:
-  000001c0: 0200 eeff ffff 0100 0000 ...   ← 0x1c2 = EE  (protective MBR 分区类型!)
-  000001f0: ...                      55aa   ← 0x1fe = 55 aa (引导扇区签名,沿用自 MBR)
-xxd 看 LBA1 (offset 512):
-  00000200: 4546 4920 5041 5254 ...         ← "EFI PART"  (GPT header 魔数!)
+xxd 查看 LBA0:
+  000001c0: 0200 eeff ffff 0100 0000 ...   ← 0x1c2 = EE（protective MBR 的分区类型）
+  000001f0: ...                      55aa   ← 0x1fe = 55 aa（引导扇区签名，沿用 MBR）
+xxd 查看 LBA1（偏移 512）:
+  00000200: 4546 4920 5041 5254 ...         ← "EFI PART"（GPT header 的魔数）
 ```
 
-**同一份字节、两个读者、两个层**：
+**同一份字节，两种工具读到两个层**：
 
 ```text
-file disk.img  → DOS/MBR boot sector; partition 1 : ID=0xee ...   ← file 读 MBR 层
-fdisk -l       → Disklabel type: gpt; disk.img1 ...               ← fdisk 读 GPT 层
+file disk.img  → DOS/MBR boot sector; partition 1 : ID=0xee ...   ← file 读的是 MBR 层
+fdisk -l       → Disklabel type: gpt; disk.img1 ...               ← fdisk 读的是 GPT 层
 ```
 
-这正是 **Protective MBR 的全部用途**：让**只懂 MBR 的老工具**看到"一个 0xEE 分区占满全盘"（类型不认识 → 不敢动），**保护后面的真 GPT 不被当空盘覆盖**。
+这就是 **Protective MBR 的作用**：让**只支持 MBR 的旧工具**看到一个占满整盘的 0xEE 分区（不认识这个类型，就不会改动），**防止后面真正的 GPT 被当作空盘覆盖**。
 
-> **RISC-V SD 卡典型布局**：GPT + 分区放 U-Boot/SPL（raw 或在特定偏移）+ ext4 rootfs。各 SoC 的 SPL 偏移**无统一标准**（不像 ARM sunxi 固定 8KB），**必须查芯片手册**。
+> **RISC-V SD 卡的典型布局**：GPT，加上存放 U-Boot/SPL 的分区（裸写入或放在特定偏移），再加 ext4 rootfs。各家 SoC 的 SPL 偏移**没有统一标准**（不像 ARM sunxi 固定在 8KB），**必须查芯片手册**。
 
-> **Windows 看分区**：PowerShell `Get-Disk` / `Get-Partition` / 图形化"磁盘管理"。看 hex：`Format-Hex -Path disk.img -Count 64`。
-> **macOS 看分区**：`diskutil list` / `gpt -r show /dev/diskN`；hex 同样 `xxd`。
+> **Windows 查看分区**：PowerShell 的 `Get-Disk`、`Get-Partition`，或图形界面的「磁盘管理」；查看十六进制用 `Format-Hex -Path disk.img -Count 64`。
+> **macOS 查看分区**：`diskutil list`、`gpt -r show /dev/diskN`；十六进制同样用 `xxd`。
 
 ---
 
-## 6. 文件的「身份证」—— 魔数与 `file` 命令
+## 魔数与 file 命令
 
-### 6.1 `file` 怎么判类型
+### file 判断类型的方法
 
-`file` 三招：① **魔数**（已知偏移的签名字节）→ ② 不匹配则判是否文本（编码启发）→ ③ 都不是就吐 `data`。
+`file` 按三步判断：先看**魔数**（已知偏移处的签名字节），不匹配再判断是否为文本（按编码推测），都不是就输出 `data`。
 
 | 类型 | 魔数 | 位置 |
-|---|---|---|
-| ELF | `7f 45 4c 46` (`\x7fELF`) | 0 |
-| PE/EXE | `4d 5a` (`MZ`) | 0 |
+|:--:|:--:|:--:|
+| ELF | `7f 45 4c 46`（`\x7fELF`） | 0 |
+| PE/EXE | `4d 5a`（`MZ`） | 0 |
 | gzip | `1f 8b` | 0 |
 | PNG | `89 50 4e 47` | 0 |
-| 脚本 shebang | `23 21` (`#!`) | 0 |
+| 脚本 shebang | `23 21`（`#!`） | 0 |
 | **uImage** | `27 05 19 56` | 0 |
-| **ext2/3/4 superblock** | `53 ef` (=0xEF53) | **0x438** |
-| **RISC-V Image** | `52 53 43 05` (`RSC\x05`) | 0x38 |
+| **ext2/3/4 superblock** | `53 ef`（即 0xEF53） | **0x438** |
+| **RISC-V Image** | `52 53 43 05`（`RSC\x05`） | 0x38 |
 
-为什么当初 `file sparse.img` 说它 ext4：
+前面 `file sparse.img` 识别出 ext4 的原因：
 
 ```text
-xxd -s 0x438 -l 2 sparse.img → 53 ef     # 这俩字节(0xEF53 小端)就是 ext4 superblock 魔数
+xxd -s 0x438 -l 2 sparse.img → 53 ef     # 这两个字节（小端的 0xEF53）就是 ext4 superblock 的魔数
 ```
 
-### 6.2 想让 `file` 认你自己的格式？—— 别 PR 到 Linux！
+### 让 file 识别自定义格式
 
-`file`/libmagic **不是 Linux 内核的一部分**，是独立项目 [`github.com/file/file`](https://github.com/file/file)。魔数库在 `magic/Magdir/*`（按类别分文件，编译成 `magic.mgc`）。
+`file`/libmagic **不是 Linux 内核的一部分**，而是独立的项目 [`github.com/file/file`](https://github.com/file/file)。魔数库在 `magic/Magdir/*`（按类别分文件，编译成 `magic.mgc`）。
 
-- 上游收录 → PR 到 `file/file` 的 `magic/Magdir/<类别>`；
-- 但通常**根本不用 PR**——本地加即可：`~/.magic`（个人）/ `file -m mymagic yourfile`（临时）/ `/etc/magic`（系统）：
+- 要被上游收录，就向 `file/file` 的 `magic/Magdir/<类别>` 提 PR；
+- 通常**不需要提 PR**，在本地添加即可：`~/.magic`（个人）、`file -m mymagic yourfile`（临时）、`/etc/magic`（全系统）：
 
 ```text
-# magic DSL:  偏移  类型  值  描述
+# magic 语法：偏移  类型  值  描述
 0     string  MYOS     MyOS image
 >8    lelong  x        \b, version %d
 ```
-> 比如你给自己的固件 / 镜像定个格式，写几行 `~/.magic` 就能让 `file` 认出 “MyOS image, version 3”。
+
+> 例如给自己的固件或镜像定一个格式，在 `~/.magic` 中写几行，`file` 就能识别出「MyOS image, version 3」。
 
 ---
 
-## 7. 内核镜像家族 —— 穿越系统的主角
+## 内核镜像格式
 
-### 7.1 加工流水线（x86/ARM/RISC-V 三线，RV 为主）
+### 生成过程
 
-**共同起点**：`vmlinux` = **ELF** 格式、未压缩、带调试符号的完整内核。**为什么不能直接烧/跳**？它是 ELF（有头/段表/符号表），bootloader 要的是"裸的、放到内存某地址就能跑的二进制"。所以：
+所有格式都从 `vmlinux` 开始：**ELF** 格式、未压缩、带调试符号的完整内核。它不能直接烧录或跳转执行，因为它是 ELF（有文件头、段表、符号表），而 bootloader 需要的是放到内存某个地址就能运行的裸二进制。所以要经过下面的处理：
 
 ```mermaid
 graph LR
-    V["vmlinux<br/>(ELF,带符号)"] -->|objcopy -O binary<br/>剥掉 ELF 外壳| I["Image<br/>(裸二进制)"]
-    I -->|x86| BZ["bzImage<br/>'big zImage'"]
-    I -->|ARM32| Z["zImage<br/>(自解压 stub)"]
-    I -->|RISC-V/ARM64| GZ["Image.gz<br/>(标准 gzip)"]
-    BZ & Z & GZ -.->|mkimage 外贴 64B 头| U["uImage<br/>(legacy U-Boot)"]
-    BZ & Z & GZ -.->|打包| F["fitImage .itb<br/>(kernel+dtb+ramdisk+多签名)"]
+    V["vmlinux<br/>（ELF，带符号）"] -->|objcopy -O binary<br/>去掉 ELF 结构| I["Image<br/>（裸二进制）"]
+    I -->|x86| BZ["bzImage<br/>big zImage"]
+    I -->|ARM32| Z["zImage<br/>（自解压）"]
+    I -->|RISC-V/ARM64| GZ["Image.gz<br/>（标准 gzip）"]
+    BZ & Z & GZ -.->|mkimage 加 64 字节头| U["uImage<br/>（旧的 U-Boot 格式）"]
+    BZ & Z & GZ -.->|打包| F["fitImage .itb<br/>（内核、dtb、ramdisk、多个签名）"]
+%% vmlinux(ELF) ─objcopy→ Image ─┬→ bzImage（x86）
+%%                               ├→ zImage（ARM32）
+%%                               └→ Image.gz（RISC-V/ARM64）
+%% 以上 ─mkimage 加头→ uImage；─打包→ fitImage(.itb)
 ```
 
-| | **x86（科普）** | **ARM（科普）** | **RISC-V（主场）** |
-|---|---|---|---|
-| 裸二进制 | — | `Image`(ARM64) | `Image`（带内核自定义 64B 头，magic `RSC\x05`）|
-| 压缩 | **`bzImage`** | `zImage`(ARM32) | `Image.gz` |
-| 含义 | **bz="big zImage"（≠bzip2!）**，"big"=可>512K/高位加载，破 640K 实模式限制；压缩其实是 gzip | zlib 压缩 + **自解压 stub**（开机自己解压自己）| **标准 gzip**（distro 里 `vmlinuz-x.y.z` 常就是它）|
-| 走不走 | x86 专有 | ARM32 专有 | **不走 zImage/bzImage 那套**（无 ARM 自解压、无 x86 实模式包袱）|
+| | **x86** | **ARM** | **RISC-V** |
+|:--:|:--:|:--:|:--:|
+| 裸二进制 | | `Image`（ARM64） | `Image`（带内核定义的 64 字节头，魔数 `RSC\x05`） |
+| 压缩格式 | **`bzImage`** | `zImage`（ARM32） | `Image.gz` |
+| 含义 | **bz 是 big zImage，不是 bzip2**，big 表示可以大于 512K、加载到高地址，突破 640K 实模式的限制；实际用 gzip 压缩 | zlib 压缩加**自解压代码**（启动时自己解压） | **标准 gzip**（发行版中的 `vmlinuz-x.y.z` 通常就是它） |
+| 适用范围 | x86 专用 | ARM32 专用 | **不用 zImage 和 bzImage**（没有 ARM 的自解压，也没有 x86 实模式的历史负担） |
 
-**最后两层通用封装：**
+最后两种通用的封装：
 
-- **uImage** = `mkimage` 外贴的 **64 字节 U-Boot legacy 头**（magic `0x27051956` + load addr + entry + arch + OS type + CRC），给 legacy `bootm` 用。单内核、无 dtb、无多配置。
-- **fitImage(.itb)** = FIT(Flattened Image Tree)，用 **DTB 二进制格式**描述，打包 **kernel + dtb + ramdisk + 多 configuration + 多 hash + 多签名(verified boot)**。U-Boot 现代主推，`mkimage -f x.its` 生成。
+- **uImage** 是用 `mkimage` 加在外面的 **64 字节 U-Boot 旧格式头**（魔数 `0x27051956`、加载地址、入口、架构、操作系统类型、CRC），供旧的 `bootm` 使用。只能有一个内核，没有 dtb，没有多套配置。
+- **fitImage（.itb）** 是 FIT（Flattened Image Tree），用 **DTB 的二进制格式**描述，打包**内核、dtb、ramdisk、多套配置、多个哈希、多个签名（verified boot）**。这是 U-Boot 现在主推的格式，用 `mkimage -f x.its` 生成。
 
-配套命令：`booti`（RV/ARM64，认 Image 头）｜`bootm`（legacy，认 uImage `0x27051956`，也能 boot FIT）｜`bootefi`（UEFI 路径）。
+对应的命令：`booti`（RV/ARM64，识别 Image 头）、`bootm`（旧格式，识别 uImage 的 `0x27051956`，也能启动 FIT）、`bootefi`（UEFI 方式）。
 
-### 7.2 "裸二进制也有头部？"——实拆一个 RISC-V Image
+### RISC-V Image 的头部
 
-`Image` 是"裸"（相对 ELF），但它**内嵌一个自己就可执行的 64 字节头**。拆开 buildroot 编出来的真 Image：
+`Image` 相对 ELF 是裸的，但它**内嵌一个本身就能执行的 64 字节头**。拆开 buildroot 编译出的 Image：
 
 ```text
 偏移                                  解码
-0x00  4d 5a ───────────────  "MZ"  ← 既是 PE 的 'MZ' 魔数,又是一条无害 RISC-V 压缩指令
-0x02  6f 10 60 0d ─────────  一条 j(jal) 跳转 → 跳过这 64 字节头,去真正入口
-0x08  00 00 20 00 .. ──────  text_offset = 0x20_0000 = 2 MiB  ← 0x8000_0000+0x20_0000=0x8020_0000 的由来!
-0x10  00 80 a8 01 .. ──────  image_size ≈ 27.8 MB
+0x00  4d 5a ───────────────  "MZ"  ← 既是 PE 的 MZ 魔数，又是一条无害的 RISC-V 压缩指令
+0x02  6f 10 60 0d ─────────  一条 j(jal) 跳转，跳过这 64 字节头，到真正的入口
+0x08  00 00 20 00 .. ──────  text_offset = 0x20_0000 = 2 MiB  ← 0x8000_0000+0x20_0000=0x8020_0000 的来源
+0x10  00 80 a8 01 .. ──────  image_size 约 27.8 MB
 0x20  02 00 .. ────────────  header version = 2
-0x30  52 49 53 43 56 ──────  "RISCV\0\0\0"  (旧 magic)
-0x38  52 53 43 05 ─────────  "RSC\x05"      (magic2)
-0x3c  40 00 00 00 ─────────  = 0x40,指向 PE/COFF 头偏移
+0x30  52 49 53 43 56 ──────  "RISCV\0\0\0"（旧魔数）
+0x38  52 53 43 05 ─────────  "RSC\x05"（magic2）
+0x3c  40 00 00 00 ─────────  = 0x40，指向 PE/COFF 头的偏移
 
 file Image → PE32+ executable (EFI application) RISC-V 64-bit ... for MS Windows
 ```
 
-**一个 Linux 内核被 `file` 当成 Windows EFI 程序！** 因为这个头**同时是合法 PE/COFF 头**（MZ@0 + PE 偏移@0x3c），让 **UEFI 能把内核当 `.efi` 直接启动**（EFI stub）。
+`file` 把 Linux 内核识别成了 Windows 的 EFI 程序，因为这个头**同时也是合法的 PE/COFF 头**（偏移 0 处是 MZ，0x3c 处是 PE 头偏移），**UEFI 可以把内核当作 `.efi` 直接启动**（EFI stub）。
 
-"从 offset 0 执行"和"前 64 字节是结构化头"**不冲突**——头的头几字节本身就是指令（MZ=无害指令，紧跟一条 `j` 跳过头部）。一份文件：`booti` 当裸内核跳、UEFI 当 PE 加载、`file` 当 Windows 程序认。**这就是"裸二进制的可执行头"。**
+从偏移 0 开始执行和前 64 字节是结构化的头并不冲突：头的前几个字节本身就是指令（MZ 是无害的指令，紧接着一条 `j` 跳过头部）。同一个文件，`booti` 把它当裸内核跳转执行，UEFI 把它当 PE 加载，`file` 把它识别为 Windows 程序。
 
-### 7.3 顺带订正几个 RISC-V 启动地址的说法
+### RISC-V 启动地址的几点说明
 
-- `0x8000_0000` 是 **de facto 事实标准**（源自 SiFive FU540），**不是 ISA 规范强制**；换板子必须查 datasheet。
-- reset vector `0x1000` 是 **QEMU virt**（及部分真硬件 ROM）的实现选择，**不是"大多数板卡通用标准"**——真实原因是“SoC 通常在低地址放 mask ROM”。
-- 真硬件的 SPL 还跑在**片上 SRAM**（上电时 DRAM 控制器没初始化，要先做 DDR 训练 - UbootSPL）；QEMU 才简化成直接在 0x8000_0000 跑。
-- 接力靠寄存器约定：SBI→OS 时 `a0=hartid`、`a1=DTB 物理地址`（所有 RISC-V 固件都遵守，违反则起不来）。
+- `0x8000_0000` 是**事实标准**（来自 SiFive FU540），**不是 ISA 规范规定的**；换板子必须查 datasheet。
+- 复位向量 `0x1000` 是 **QEMU virt**（以及部分硬件的 ROM）的选择，**不是大多数板卡的通用标准**，真正的原因是 SoC 通常把 mask ROM 放在低地址。
+- 真实硬件上 SPL 运行在**片上 SRAM** 中（上电时 DRAM 控制器还没初始化，要先由 U-Boot SPL 做 DDR 训练）；QEMU 简化成直接在 0x8000_0000 运行。
+- 各级之间靠寄存器约定交接：SBI 进入操作系统时 `a0=hartid`、`a1=DTB 物理地址`（所有 RISC-V 固件都遵守，不遵守就无法启动）。
 
 ---
 
-## 8. 速查表（跨平台命令对照）
+## 常用命令
 
-| 操作 | Linux | Windows (PowerShell/工具) | macOS |
-|---|---|---|---|
-| 建定大小文件 | `truncate -s 1G f` / `fallocate -l 1G f` | `fsutil file createnew f 1073741824` | `mkfile -n 1g f` |
-| 造文件系统 | `mkfs.ext4` / `mkfs.vfat -F32` | `format X: /FS:FAT32` / `diskpart` | `diskutil eraseDisk` / `newfs_msdos` |
-| 文件当设备挂 | `losetup -fP` + `mount` / `mount -o loop` | `Mount-DiskImage` / `diskpart attach vdisk` | `hdiutil attach` |
-| 卸载 | `umount` (+`losetup -d`) | `Dismount-DiskImage` | `hdiutil detach` |
-| 烧录到卡 | `dd ... conv=fsync` + `sync` | **Win32 Disk Imager** / Rufus / balenaEtcher | `dd of=/dev/rdiskN` + balenaEtcher |
-| 落盘同步 | `sync` | （工具自动）| `sync` |
-| 看分区表 | `fdisk -l` / `parted print` | `Get-Disk` / `Get-Partition` / 磁盘管理 | `diskutil list` / `gpt -r show` |
-| 看 hex | `xxd` | `Format-Hex` | `xxd` |
-| 认文件类型 | `file` | （无原生，装 `file` for Win）| `file` |
-| WSL2 拿 USB | `usbipd attach --wsl --busid X-Y`（Win 侧）→ 内 `dd` | `usbipd-win` | — |
+| 操作 | Linux | Windows（PowerShell 或工具） | macOS |
+|:--:|:--:|:--:|:--:|
+| 创建指定大小的文件 | `truncate -s 1G f` / `fallocate -l 1G f` | `fsutil file createnew f 1073741824` | `mkfile -n 1g f` |
+| 创建文件系统 | `mkfs.ext4` / `mkfs.vfat -F32` | `format X: /FS:FAT32` / `diskpart` | `diskutil eraseDisk` / `newfs_msdos` |
+| 把文件当设备挂载 | `losetup -fP` 加 `mount` / `mount -o loop` | `Mount-DiskImage` / `diskpart attach vdisk` | `hdiutil attach` |
+| 卸载 | `umount`（加 `losetup -d`） | `Dismount-DiskImage` | `hdiutil detach` |
+| 烧录到卡 | `dd ... conv=fsync` 加 `sync` | **Win32 Disk Imager** / Rufus / balenaEtcher | `dd of=/dev/rdiskN` / balenaEtcher |
+| 同步到磁盘 | `sync` | 工具自动完成 | `sync` |
+| 查看分区表 | `fdisk -l` / `parted print` | `Get-Disk` / `Get-Partition` / 磁盘管理 | `diskutil list` / `gpt -r show` |
+| 查看十六进制 | `xxd` | `Format-Hex` | `xxd` |
+| 识别文件类型 | `file` | 没有原生命令，可以安装 Windows 版 `file` | `file` |
+| WSL2 使用 USB 设备 | 在 Windows 上 `usbipd attach --wsl --busid X-Y`，然后在 WSL 中 `dd` | `usbipd-win` | |
 
-## 8b. 格式化 / 分区 / 烧录 命令大全（2026 最新最常用）
+## 格式化、分区与烧录
 
-> 经验法则（2026）：跨平台交换大文件首选 **exFAT**（Linux 内核 5.4+ 原生 + `exfatprogs`，Win/mac 原生）；EFI 启动分区必须 **FAT32**；Linux 根盘 **ext4**（保守）或 **btrfs/f2fs**（新）；只读固件镜像 **squashfs(zstd)**。
+> 截至 2026 年的一般选择：跨平台交换大文件首选 **exFAT**（Linux 5.4 起原生支持，加上 `exfatprogs`；Windows 和 macOS 原生支持）；EFI 启动分区必须用 **FAT32**；Linux 根盘用 **ext4**（稳妥）或 **btrfs、f2fs**（较新）；只读固件镜像用 **squashfs（zstd）**。
 
-### Linux —— 分区 → 格式化 → 烧录 全流程
+### Linux
 
 ```bash
-# ① 看 & 清旧签名（换盘重做前）
-lsblk -f                          # 看现有分区+fs+UUID（最常用）
-sudo wipefs -a /dev/sdX           # 抹掉旧的分区表/fs 魔数，避免残留误判
+# 查看并清除旧签名（换盘重做之前）
+lsblk -f                          # 查看已有的分区、文件系统和 UUID（最常用）
+sudo wipefs -a /dev/sdX           # 清除旧的分区表和文件系统魔数，避免残留导致误判
 
-# ② 建分区表（三选一）
+# 建立分区表（四选一）
 sudo fdisk /dev/sdX               # 交互式（经典）
-sudo cfdisk /dev/sdX              # TUI 图形化（新手友好）
+sudo cfdisk /dev/sdX              # 文本界面
 sudo parted -s /dev/sdX mklabel gpt \
      mkpart ESP   fat32 1MiB  513MiB \
      mkpart root  ext4  513MiB 100%  set 1 esp on
 sudo sgdisk -n 1:0:+512M -t 1:ef00 -c 1:ESP \
-            -n 2:0:0     -t 2:8300 -c 2:root /dev/sdX   # 脚本化首选
+            -n 2:0:0     -t 2:8300 -c 2:root /dev/sdX   # 写脚本时首选
 
-# ③ 格式化（mkfs 家族，2026 常用）
-sudo mkfs.vfat -F 32 -n BOOT /dev/sdX1        # ESP/启动分区（UEFI 只认 FAT32）
-sudo mkfs.ext4 -L root /dev/sdX2              # Linux 根盘主流
-sudo mkfs.exfat -n DATA /dev/sdX2             # 跨平台大文件（exfatprogs）
-sudo mkfs.btrfs -L data /dev/sdX2            # CoW/快照/压缩
-sudo mkfs.xfs  -L data /dev/sdX2             # 大文件/高并发
-sudo mkfs.f2fs -l flash /dev/sdX2            # SD/eMMC/UFS 闪存友好
+# 格式化
+sudo mkfs.vfat -F 32 -n BOOT /dev/sdX1        # ESP 或启动分区（UEFI 只支持 FAT32）
+sudo mkfs.ext4 -L root /dev/sdX2              # Linux 根盘的主流选择
+sudo mkfs.exfat -L DATA /dev/sdX2             # 跨平台大文件（exfatprogs）
+sudo mkfs.btrfs -L data /dev/sdX2             # 写时复制、快照、压缩
+sudo mkfs.xfs  -L data /dev/sdX2              # 大文件、高并发
+sudo mkfs.f2fs -l flash /dev/sdX2             # 适合 SD、eMMC、UFS 等闪存
 sudo mkswap /dev/sdX3 && sudo swapon /dev/sdX3   # 交换分区
-mksquashfs rootfs/ ro.img -comp zstd          # 只读压缩镜像（嵌入式/initramfs）
+mksquashfs rootfs/ ro.img -comp zstd          # 只读压缩镜像（嵌入式、initramfs）
 # 通用写法：sudo mkfs -t ext4 /dev/sdX2
 
-# ④ 烧整盘镜像
+# 烧录整盘镜像
 sudo dd if=os.img of=/dev/sdX bs=4M conv=fsync status=progress && sync
-sudo bmaptool copy os.img.gz /dev/sdX         # 2026 快烧：只写有效块(Yocto/RPi 用)，比 dd 快数倍
+sudo bmaptool copy os.img.gz /dev/sdX         # 只写有效的块（Yocto、树莓派在用），比 dd 快数倍
 ```
-> 现代图形/封装：GNOME **Disks**（`gnome-disks`）、`udisksctl`、systemd 的 `systemd-repart`（声明式分区）。
 
-### Windows —— 2026 推荐 PowerShell Storage 模块（diskpart 仍可用）
+> 图形界面和封装工具：GNOME **Disks**（`gnome-disks`）、`udisksctl`，以及 systemd 的 `systemd-repart`（声明式分区）。
+
+### Windows
 
 ```powershell
-# —— PowerShell（管理员，现代首选）——
-Get-Disk                                              # 看磁盘号
-Clear-Disk -Number 2 -RemoveData -Confirm:$false      # 清空整盘（会抹掉全部数据）
+# PowerShell（管理员）
+Get-Disk                                              # 查看磁盘号
+Clear-Disk -Number 2 -RemoveData -Confirm:$false      # 清空整盘（会删除全部数据）
 Initialize-Disk -Number 2 -PartitionStyle GPT
 New-Partition -DiskNumber 2 -UseMaximumSize -AssignDriveLetter |
-  Format-Volume -FileSystem FAT32 -NewFileSystemLabel BOOT   # 也可 exFAT / NTFS
+  Format-Volume -FileSystem FAT32 -NewFileSystemLabel BOOT   # 也可以用 exFAT、NTFS
 ```
+
 ```bat
-:: —— diskpart（经典交互，老脚本仍在用）——
+:: diskpart（交互式，旧脚本仍在使用）
 diskpart
   list disk
   select disk 2
@@ -495,57 +507,56 @@ diskpart
   create partition primary size=512
   format fs=fat32 quick label=BOOT
   assign
-:: —— cmd 单卷快速格式化 ——
+:: cmd 中快速格式化单个卷
 format X: /FS:exFAT /Q /V:DATA
 ```
-> 烧录镜像工具（2026 最常用，图形化最稳）：**Raspberry Pi Imager** / **balenaEtcher** / **Rufus** / **Win32 Disk Imager**；命令行 `dd for Windows`（`of=\\.\PhysicalDriveN`）。图形磁盘管理：`diskmgmt.msc`。
 
+> 烧录镜像的图形工具：**Raspberry Pi Imager**、**balenaEtcher**、**Rufus**、**Win32 Disk Imager**；命令行用 `dd for Windows`（`of=\\.\PhysicalDriveN`）。图形界面的磁盘管理是 `diskmgmt.msc`。
 
-### macOS —— `diskutil`（2026 默认 APFS）
+### macOS
 
 ```bash
-diskutil list                                         # 看 /dev/diskN
-diskutil eraseDisk APFS  MyName        /dev/disk4      # 整盘 APFS（mac 原生默认）
-diskutil eraseDisk MS-DOS BOOT MBR     /dev/disk4      # 整盘 FAT32（MS-DOS=FAT）
+diskutil list                                         # 查看 /dev/diskN
+diskutil eraseDisk APFS  MyName        /dev/disk4      # 整盘格式化为 APFS（macOS 默认）
+diskutil eraseDisk MS-DOS BOOT MBR     /dev/disk4      # 整盘格式化为 FAT32（MS-DOS 即 FAT）
 diskutil eraseDisk ExFAT  DATA  GPT    /dev/disk4      # 跨平台大文件
 diskutil partitionDisk /dev/disk4 GPT \
-         FAT32 BOOT 512MB  APFS ROOT R                 # 一条命令分区+格式化
-# 底层：newfs_msdos / newfs_apfs / newfs_hfs；烧录 dd of=/dev/rdiskN 或 balenaEtcher
+         FAT32 BOOT 512MB  APFS ROOT R                 # 一条命令完成分区和格式化
+# 底层命令：newfs_msdos、newfs_apfs、newfs_hfs；烧录用 dd of=/dev/rdiskN 或 balenaEtcher
 ```
 
-### 文件系统选型矩阵（跨平台支持）
+### 文件系统的选择
 
 | 文件系统 | Linux | Windows | macOS | 典型用途 |
-|---|---|---|---|---|
-| **FAT32** | √ | √ | √ | **EFI 系统分区(ESP)**、小卡、最大兼容（单文件<4G）|
-| **exFAT** | √(5.4+) | √ | √ | 跨平台**大文件**交换（SD/U盘 2026 首选）|
-| **NTFS** | √(读写 ntfs3) | √原生 | !只读 | Windows 系统盘 |
-| **ext4** | √原生 | ×(需驱动/WSL) | × | Linux 根盘主流 |
-| **btrfs/xfs/f2fs** | √ | × | × | CoW快照 / 大并发 / 闪存 |
-| **APFS** | × | × | √原生 | macOS 系统盘 |
-| **squashfs** | √只读 | × | × | 只读压缩固件/initramfs |
+|:--:|:--:|:--:|:--:|:--:|
+| **FAT32** | √ | √ | √ | **EFI 系统分区（ESP）**、小容量卡、兼容性最好（单个文件小于 4G） |
+| **exFAT** | √（5.4 起） | √ | √ | 跨平台交换**大文件**（SD 卡、U 盘的首选） |
+| **NTFS** | √（ntfs3 可读写） | √ 原生 | ! 只读 | Windows 系统盘 |
+| **ext4** | √ 原生 | ×（需要驱动或 WSL） | × | Linux 根盘的主流选择 |
+| **btrfs/xfs/f2fs** | √ | × | × | 写时复制快照、高并发、闪存 |
+| **APFS** | × | × | √ 原生 | macOS 系统盘 |
+| **squashfs** | √ 只读 | × | × | 只读压缩固件、initramfs |
 
 ---
 
-## 9. 常见坑清单（血泪）
+## 常见错误
 
-1. **`dd` 跑完没 `sync` 就拔卡 → 数据丢**（还在 page cache）。
-2. **`of=` 写错盘 → 抹掉系统盘**。烧前 `lsblk` 三确认，`/dev/sdX` 不是 `/dev/sdX1`。
-3. **`umount` 后 loop 没解绑**（手动 `losetup` 无 autoclear）→ loop 设备泄漏，`losetup -a` 查、`-d` 清。
-4. **`mount -o loop failed to setup loop device` → 先查文件路径**（不存在也报这个）。
-5. **bzImage 的 `bz` 当 bzip2** → 是 "big zImage"。
-6. **以为 LBA0 是 GPT** → 是 Protective MBR，GPT header 在 LBA1。
-7. **拿 `mkfs.ext4` 往裸 NAND flash 上招呼** → 裸 flash 用 ubifs/jffs2（mtd），不是块 fs。
-8. **ESP 用了 ext4** → UEFI 只认 FAT32。
-9. **`/tmp` 是 tmpfs 时做 Dirty 实验失真** → 写真盘路径。
+1. `dd` 完成后没有 `sync` 就拔卡，数据会丢失（还在 page cache 中）。
+2. `of=` 写错了盘，会清掉系统盘。烧录前用 `lsblk` 反复确认，要写的是 `/dev/sdX`，不是 `/dev/sdX1`。
+3. `umount` 后 loop 设备没有解绑（手动 `losetup` 没有 autoclear），loop 设备会越来越多，用 `losetup -a` 查看、`-d` 解绑。
+4. `mount -o loop` 报 `failed to setup loop device`，先检查文件路径（文件不存在也会报这个错误）。
+5. 把 bzImage 的 `bz` 当成 bzip2，实际是 big zImage。
+6. 以为 LBA0 是 GPT，实际是 Protective MBR，GPT header 在 LBA1。
+7. 用 `mkfs.ext4` 直接格式化裸 NAND flash，裸 flash 要用 ubifs 或 jffs2（通过 mtd），不能用块设备文件系统。
+8. ESP 用了 ext4，UEFI 只支持 FAT32。
+9. `/tmp` 是 tmpfs 时做 Dirty 实验，结果不准，要写到真实磁盘的路径。
 
-## 10. 思考题
+## 思考题
 
-1. 为什么 `truncate -s 0 f && truncate -s 1G f` 之后 `du f` 是 0，而 `cp f g` 之后 `du g` 也可能是 0（提示：cp 默认会不会保留空洞）？
-2. 把一个 1KB 的 `hello.txt` `cp` 进已挂载的 ext4 镜像，再 `xxd` 整个镜像文件——你能在裸字节里找到 "hello" 吗？它在哪个绝对偏移？为什么 `cp` 改了镜像文件内容，却"碰不到"分区表？
-3. 一个 RISC-V `Image` 既能被 `booti` 跳、又能被 UEFI 当 `.efi`——如果我把它前 2 字节的 `MZ` 改掉，分别会发生什么？
-4. 为什么烧 SD 卡用 `dd` 而不用 `cp`，但烧完后校验却可以用 `cmp`/`sha256sum` 直接读 `/dev/sdX`？
+**Q1.** 为什么 `truncate -s 0 f && truncate -s 1G f` 之后 `du f` 是 0，而 `cp f g` 之后 `du g` 也可能是 0？（cp 默认会不会保留空洞？）
 
----
+**Q2.** 把一个 1KB 的 `hello.txt` 用 `cp` 复制进已挂载的 ext4 镜像，再用 `xxd` 查看整个镜像文件，能在裸字节中找到「hello」吗？它在哪个绝对偏移？为什么 `cp` 修改了镜像文件的内容，却改不到分区表？
 
-> **小结**：穿越系统之前，先把"镜像 = 裸字节布局（容器→分区表→文件系统三层）"、"loop = 文件伪装块设备"、"dd 走 page cache 必须 sync"、"内核镜像家族是一条 vmlinux→Image→封装的加工流水线"这四件事吃透，后面上板子、调 bootloader、做 rootfs 就都有地基了。下一篇《穿越系统之前》接着讲 BIOS/SPL/SBI/Bootloader 怎么把这些镜像接力送进内核。
+**Q3.** 一个 RISC-V `Image` 既能被 `booti` 跳转执行，又能被 UEFI 当作 `.efi` 加载，如果把它开头 2 个字节的 `MZ` 改掉，两种情况下分别会怎样？
+
+**Q4.** 为什么烧录 SD 卡用 `dd` 而不用 `cp`，但烧录后可以直接用 `cmp` 或 `sha256sum` 读取 `/dev/sdX` 来校验？

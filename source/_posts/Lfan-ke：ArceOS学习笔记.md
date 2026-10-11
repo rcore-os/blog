@@ -2,15 +2,15 @@
 title: 'Lfan-ke: 穿越操作系统的迷雾'
 date: 2025-05-29 10:38:44
 categories:
-    - Leo Cheng
-    - 补完计划
-    - ArceOS
-    - 阶段三
-    - 2025S
+    - Lfan-ke
 tags:
     - author:逸仙fan
     - alias:禾可
     - repo:https://github.com/LearningOS/2025s-arceos-Lfan-ke
+    - 补完计划
+    - ArceOS
+    - 阶段三
+    - 2025S
 mathjax: true
 mermaid.js: true
 mermaid:
@@ -22,6 +22,8 @@ description: 本笔记内容来源于：ArceOS/rCore操作系统训练营、傲�
 # Lfan-ke：第三阶段总结报告
 
 about-me: [heke1228@gitee](https://gitee.com/heke1228), [heke1228@atom](https://atomgit.com/heke1228), [Lfan-ke@github](https://github.com/Lfan-ke), [heke1228@codeberg](https://codeberg.org/heke1228)
+
+<!-- more -->
 
 ## 内核发展史
 
@@ -126,8 +128,6 @@ endmodule
 多内核：又称：复内核。OS整体是一个分布式系统，应用程序仍然运行在OS之上。默认的状态是划分而非共享，显式的核间通信机制。支持设备（比如NPU/GPU等等）上的异构CPU。常见的如：Barrelfish、Popcorn Linux。
 
 {% asset_img 20250529132546.png "系统启动过程" %}
-
-<!-- more -->
 
 `虚拟化-Hypervisor`和`仿真器-Emulator`的区别
 
