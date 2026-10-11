@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="实习期自 2026-07 起。期间与 Agent 集群协作提交 88 个 PR，合入 36 个；其余多为计算与渲染用例，不验证内核语义，按收录范围撤下。本页只讲实习开始后提交的工作，分三段：用真实应用补&#x2F;测内核，把浏览器跑起来并对照 Linux 提速，把系统调用拆成可替换的包。末尾是对全部内核补丁的溯源。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Leo Cheng: 26.07-10 实习总结报告">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/10/04/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="实习期自 2026-07 起。期间与 Agent 集群协作提交 88 个 PR，合入 36 个；其余多为计算与渲染用例，不验证内核语义，按收录范围撤下。本页只讲实习开始后提交的工作，分三段：用真实应用补&#x2F;测内核，把浏览器跑起来并对照 Linux 提速，把系统调用拆成可替换的包。末尾是对全部内核补丁的溯源。">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-10-04T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-10-11T03:38:21.222Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="系统调用">
+<meta property="article:tag" content="author:heke1228">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;rcore-os&#x2F;tgoskits">
+<meta property="article:tag" content="wiki:https:&#x2F;&#x2F;github.com&#x2F;Lfan-ke&#x2F;tgoskits&#x2F;wiki">
+<meta property="article:tag" content="Firefox">
+<meta property="article:tag" content="Linux 对照">
+<meta property="article:tag" content="溯源">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/10/04/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Leo Cheng: 26.07-10 实习总结报告 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#应用测试与子系统补全"><span class="nav-number">1.</span> <span class="nav-text">应用测试与子系统补全</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#浏览器启动与优化"><span class="nav-number">2.</span> <span class="nav-text">浏览器启动与优化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#系统调用包抽象线"><span class="nav-number">3.</span> <span class="nav-text">系统调用包抽象线</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#代码溯源"><span class="nav-number">4.</span> <span class="nav-text">代码溯源</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#之后"><span class="nav-number">5.</span> <span class="nav-text">之后</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关链接"><span class="nav-number">6.</span> <span class="nav-text">相关链接</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">796</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">58</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">962</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/10/04/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Leo Cheng: 26.07-10 实习总结报告
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-10-04 14:00:00" itemprop="dateCreated datePublished" datetime="2026-10-04T14:00:00+00:00">2026-10-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>实习期自 2026-07 起。期间与 Agent 集群协作提交 88 个 PR，合入 36 个；其余多为计算与渲染用例，不验证内核语义，按收录范围撤下。本页只讲实习开始后提交的工作，分三段：用真实应用补/测内核，把浏览器跑起来并对照 Linux 提速，把系统调用拆成可替换的包。末尾是对全部内核补丁的溯源。</p>
+<a id="more"></a>
+
+<h2 id="应用测试与子系统补全"><a href="#应用测试与子系统补全" class="headerlink" title="应用测试与子系统补全"></a>应用测试与子系统补全</h2><p>把真实软件装进镜像跑，跑不通就对照 Linux 源码补内核，补完留回归用例。</p>
+<p>应用：dropbear、dnsmasq、监控栈、科学计算与机器学习（SciPy、Numba、scikit-learn）、多媒体与流媒体栈、单核并发，以及 StarryWRT（OpenWrt 用户态，<a href="https://github.com/rcore-os/tgoskits/pull/1580" target="_blank" rel="noopener">#1580</a>）。</p>
+<table>
+<thead>
+<tr>
+<th align="center">负载</th>
+<th align="center">补上的内核功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">监控栈</td>
+<td align="center"><code>/proc/vmstat</code>（<a href="https://github.com/rcore-os/tgoskits/pull/1525" target="_blank" rel="noopener">#1525</a>）</td>
+</tr>
+<tr>
+<td align="center">Envoy</td>
+<td align="center"><code>/proc/pid/comm</code> 的填充；非阻塞 TCP 部分发送（<a href="https://github.com/rcore-os/tgoskits/pull/1558" target="_blank" rel="noopener">#1558</a>）</td>
+</tr>
+<tr>
+<td align="center">dnsmasq</td>
+<td align="center"><code>IP_MTU_DISCOVER</code>、UDP 关闭前冲刷（<a href="https://github.com/rcore-os/tgoskits/pull/1568" target="_blank" rel="noopener">#1568</a>）；<code>SIOCGIFNAME</code>（<a href="https://github.com/rcore-os/tgoskits/pull/1707" target="_blank" rel="noopener">#1707</a>）</td>
+</tr>
+<tr>
+<td align="center">浏览器依赖的系统调用</td>
+<td align="center">一批系统调用按 Linux 的语义补齐（<a href="https://github.com/rcore-os/tgoskits/pull/1569" target="_blank" rel="noopener">#1569</a>）；同步故障信号优先投递（<a href="https://github.com/rcore-os/tgoskits/pull/1700" target="_blank" rel="noopener">#1700</a>）</td>
+</tr>
+<tr>
+<td align="center">每次关机</td>
+<td align="center">卸载根文件系统必然失败，改为尽力而为（<a href="https://github.com/rcore-os/tgoskits/pull/1711" target="_blank" rel="noopener">#1711</a>）</td>
+</tr>
+</tbody></table>
+<p>新实现：POSIX 消息队列及一致性套件（<a href="https://github.com/rcore-os/tgoskits/pull/1564" target="_blank" rel="noopener">#1564</a>、<a href="https://github.com/rcore-os/tgoskits/pull/1565" target="_blank" rel="noopener">#1565</a>）、TUN/TAP（<a href="https://github.com/rcore-os/tgoskits/pull/1566" target="_blank" rel="noopener">#1566</a>、<a href="https://github.com/rcore-os/tgoskits/pull/1567" target="_blank" rel="noopener">#1567</a>）。</p>
+<p>对照 Linux 源码改正：<code>times</code>、<code>select</code>、<code>arch_prctl</code>（<a href="https://github.com/rcore-os/tgoskits/pull/2263" target="_blank" rel="noopener">#2263</a>、<a href="https://github.com/rcore-os/tgoskits/pull/2260" target="_blank" rel="noopener">#2260</a>、<a href="https://github.com/rcore-os/tgoskits/pull/2259" target="_blank" rel="noopener">#2259</a>）；<code>setns</code> 与 id 映射的特权只认初始 user namespace（<a href="https://github.com/rcore-os/tgoskits/pull/2266" target="_blank" rel="noopener">#2266</a>）。</p>
+<h2 id="浏览器启动与优化"><a href="#浏览器启动与优化" class="headerlink" title="浏览器启动与优化"></a>浏览器启动与优化</h2><p>NetSurf 四架构出图 → Firefox 经 Weston 显示 → 经 HTTPS 打开 4399 → 软件渲染与 virgl 两路（<a href="https://github.com/rcore-os/tgoskits/pull/2323" target="_blank" rel="noopener">#2323</a>）→ 与 Linux 6.12 对照。</p>
+<p>对照只换内核：同一套 QEMU、同一份根盘、同一个二进制。证据三层：Firefox 端到端、18 个环节的压力基准、内核栈采样。</p>
+<table>
+<thead>
+<tr>
+<th align="center">对照用例</th>
+<th align="center">问题</th>
+<th align="center">修复</th>
+<th align="center">修复前</th>
+<th align="center">修复后</th>
+<th align="center">Linux</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">回环 TCP 往返</td>
+<td align="center">每次发 IPI 都重建 APIC 句柄</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2432" target="_blank" rel="noopener">#2432</a></td>
+<td align="center">415.7 µs</td>
+<td align="center">129.9 µs</td>
+<td align="center">34.3 µs</td>
+</tr>
+<tr>
+<td align="center">epoll 等待（1020 个 fd）</td>
+<td align="center">每次等待都把所有 fd 重新注册一遍</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2302" target="_blank" rel="noopener">#2302</a>、<a href="https://github.com/rcore-os/tgoskits/pull/2433" target="_blank" rel="noopener">#2433</a></td>
+<td align="center">499.9 µs</td>
+<td align="center">37.0 µs</td>
+<td align="center">0.56 µs</td>
+</tr>
+<tr>
+<td align="center">fork（64 MiB）</td>
+<td align="center">逐页查重是平方级</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2577" target="_blank" rel="noopener">#2577</a></td>
+<td align="center">84.5 ms</td>
+<td align="center">14.0 ms</td>
+<td align="center">0.17 ms</td>
+</tr>
+<tr>
+<td align="center">open 加 close（持有 512 个 fd）</td>
+<td align="center">close 扫全系统 fd 表</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2576" target="_blank" rel="noopener">#2576</a></td>
+<td align="center">19.8 µs</td>
+<td align="center">3.2 µs</td>
+<td align="center">2.3 µs</td>
+</tr>
+<tr>
+<td align="center">mmap 加 munmap（1024 个映射）</td>
+<td align="center">每次操作展开整棵 VMA 树</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2302" target="_blank" rel="noopener">#2302</a>、<a href="https://github.com/rcore-os/tgoskits/pull/2578" target="_blank" rel="noopener">#2578</a></td>
+<td align="center">277.1 µs</td>
+<td align="center">96.8 µs</td>
+<td align="center">4.4 µs</td>
+</tr>
+<tr>
+<td align="center">内核栈采样</td>
+<td align="center">分配对象时遍历整条 full slab 链表</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2301" target="_blank" rel="noopener">#2301</a></td>
+<td align="center">512 次分配遍历 2701 个节点</td>
+<td align="center">0 个</td>
+<td align="center">–</td>
+</tr>
+<tr>
+<td align="center"><code>nc</code> 发 CONNECT</td>
+<td align="center">TCP 半关闭后，状态变了却没通知出去</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2575" target="_blank" rel="noopener">#2575</a></td>
+<td align="center">16 秒后失败</td>
+<td align="center">0 秒</td>
+<td align="center">0 秒</td>
+</tr>
+<tr>
+<td align="center">Firefox 冷启动 12 次</td>
+<td align="center">netlink 回复没补到 4 的倍数，读的一方越界</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2574" target="_blank" rel="noopener">#2574</a></td>
+<td align="center">段错误 5 次</td>
+<td align="center">0 次</td>
+<td align="center">0 次</td>
+</tr>
+<tr>
+<td align="center">远程桌面里起 xterm</td>
+<td align="center">打开 tty 不设控制终端等五处</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2426" target="_blank" rel="noopener">#2426</a></td>
+<td align="center">起不来</td>
+<td align="center">正常</td>
+<td align="center">正常</td>
+</tr>
+<tr>
+<td align="center">鼠标放久了不跟手</td>
+<td align="center">epoll 套 epoll 时，唤醒被已失效的等待项拿走</td>
+<td align="center">dev 已换实现，补用例 <a href="https://github.com/rcore-os/tgoskits/pull/2378" target="_blank" rel="noopener">#2378</a></td>
+<td align="center">不跟手</td>
+<td align="center">正常</td>
+<td align="center">正常</td>
+</tr>
+<tr>
+<td align="center">事件循环单核空转</td>
+<td align="center">unix stream 两端共用一个等待队列</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2194" target="_blank" rel="noopener">#2194</a></td>
+<td align="center">21 过 3 挂</td>
+<td align="center">24 项全部通过</td>
+<td align="center">24 项全部通过</td>
+</tr>
+<tr>
+<td align="center">Firefox 启动到导航</td>
+<td align="center">以上各项之和</td>
+<td align="center">全部合到一处</td>
+<td align="center">59.2 秒</td>
+<td align="center">42.4 秒</td>
+<td align="center">22.5 秒</td>
+</tr>
+</tbody></table>
+<p>已追平：空系统调用、管道、<code>stat</code>、unix socket、写文件。未追平（10.04 在最新 dev 上重测）：解除映射 84 倍、epoll 等待 78 倍、fork 67 倍、mmap 64 倍、信号投递 30 倍、缺页 8.7 倍；页面资源只取到 Linux 的一半。</p>
+<h2 id="系统调用包抽象线"><a href="#系统调用包抽象线" class="headerlink" title="系统调用包抽象线"></a>系统调用包抽象线</h2><p>设计见 <a href="https://github.com/rcore-os/tgoskits/issues/2202" target="_blank" rel="noopener">#2202</a>。硬件与应用不变，操作系统只是用不同规范组织同一批能力。把系统调用从内核拆出来做成包，每套规范是一个系统调用参考实现，内核只留能力端口与分发。</p>
+<table>
+<thead>
+<tr>
+<th align="center">包</th>
+<th align="center">作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><code>ax-dispatch</code></td>
+<td align="center">注册参考实现，按进程所属的 ABI 分发陷入</td>
+</tr>
+<tr>
+<td align="center"><code>ax-binfmt</code></td>
+<td align="center">识别并加载 ELF、PE、Mach-O</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi-port</code></td>
+<td align="center">能力端口：文件、内存、进程、信号、时钟等，内核只实现一遍</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi-linux</code>、<code>ax-abi-windows</code>、<code>ax-abi-darwin</code></td>
+<td align="center">三套参考实现</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi</code></td>
+<td align="center">分发包：按 feature 选哪几套进链接，给出默认分发策略</td>
+</tr>
+</tbody></table>
+<p>内核侧三处改动：进程控制块加 <code>abi_slot</code>，加载镜像时记下所属 ABI，陷入时按它直接取实现；加载器不再解析 ELF，读文件头后交给认领它的包；一个适配器让端口直接使用内核已有的 fd 表、地址空间、线程与时钟上。</p>
+<table>
+<thead>
+<tr>
+<th align="center">参考实现</th>
+<th align="center">验证用的二进制</th>
+<th align="center">CPython 3.14 套件（23 个模块）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">Linux</td>
+<td align="center">Alpine 的 CPython 3.14.7</td>
+<td align="center">23 个全部通过</td>
+</tr>
+<tr>
+<td align="center">Windows</td>
+<td align="center">python.org 的 Windows 版</td>
+<td align="center">19 个通过</td>
+</tr>
+<tr>
+<td align="center">Darwin</td>
+<td align="center">python.org 的 macOS 版 CPython 3.14.7</td>
+<td align="center">交互解释器可用，<code>platform.platform()</code> 得 <code>Darwin-20.6.0-x86_64-64bit</code>，扩展模块在导入时加载</td>
+</tr>
+</tbody></table>
+<p>代码在 fork 的 <a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-win" target="_blank" rel="noopener"><code>feat-personality-win</code></a>（Linux 与 Windows）与 <a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-mac" target="_blank" rel="noopener"><code>feat-personality-mac</code></a>（Darwin）；设计与跑法见 <a href="https://github.com/Lfan-ke/tgoskits/blob/feat-personality-win/docs/design/syscall-abi-packages.md" target="_blank" rel="noopener"><code>docs/design/syscall-abi-packages.md</code></a>。</p>
+<h2 id="代码溯源"><a href="#代码溯源" class="headerlink" title="代码溯源"></a>代码溯源</h2><p>对全部 68 个内核补丁逐个溯源，已全部完成；其中 24 个是实习期间提交的。每个补丁一份文件，写明问题与原因、改动与影响范围、Linux 源码的具体行、man 原文与验证结果，这部分属于是一开始没有考虑周到，如果一开始的工作流就协调输出这些溯源对照文件，那么也就不需要直到最后才统一处理专门花费时间做此项工作。</p>
+<table>
+<thead>
+<tr>
+<th align="center">项</th>
+<th align="center">数量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">溯源文件</td>
+<td align="center">68</td>
+</tr>
+<tr>
+<td align="center">Linux 源码链接，固定到同一提交的具体行</td>
+<td align="center">746</td>
+</tr>
+<tr>
+<td align="center">man 手册引文，与 6.19 版原文逐字相同</td>
+<td align="center">207</td>
+</tr>
+<tr>
+<td align="center">记了问题的文件</td>
+<td align="center">51</td>
+</tr>
+</tbody></table>
+<p>引用由脚本逐条核对，零错误。发现分四类：</p>
+<table>
+<thead>
+<tr>
+<th align="center">类别</th>
+<th align="center">例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">补丁的行为与 Linux 仍有出入</td>
+<td align="center"><a href="https://github.com/rcore-os/blog/blob/master/source/_posts/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/_trace/pr-720.md" target="_blank" rel="noopener">#720</a>：路径末尾带斜杠加 <code>O_CREAT</code>，Linux 返回 <code>EISDIR</code>，补丁返回 <code>ENOENT</code> 或 <code>ENOTDIR</code></td>
+</tr>
+<tr>
+<td align="center">正文与合入的 diff 不符</td>
+<td align="center"><a href="https://github.com/rcore-os/blog/blob/master/source/_posts/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/_trace/pr-1164.md" target="_blank" rel="noopener">#1164</a>：正文写越界得 <code>SIGBUS</code>，合入时是 <code>SIGSEGV</code></td>
+</tr>
+<tr>
+<td align="center">回归用例拦不住回归</td>
+<td align="center"><a href="https://github.com/rcore-os/blog/blob/master/source/_posts/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/_trace/pr-1124.md" target="_blank" rel="noopener">#1124</a>：按修复前的代码推演，用例在修复前也会通过</td>
+</tr>
+<tr>
+<td align="center">改动已被后续提交取代</td>
+<td align="center"><a href="https://github.com/rcore-os/blog/blob/master/source/_posts/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/_trace/pr-2302.md" target="_blank" rel="noopener">#2302</a> 的 epoll 部分被 <a href="https://github.com/rcore-os/tgoskits/pull/2456" target="_blank" rel="noopener">#2456</a> 取代</td>
+</tr>
+</tbody></table>
+<h2 id="之后"><a href="#之后" class="headerlink" title="之后"></a>之后</h2><ul>
+<li>个人：闭关消化现有知识存量。</li>
+<li>项目：完成深度学习库的测试；继续修缮系统调用的抽象包。</li>
+</ul>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><ul>
+<li>wiki 原页：<a href="https://github.com/Lfan-ke/tgoskits/wiki/总结报告" target="_blank" rel="noopener">总结报告</a>，周报见 <a href="https://github.com/Lfan-ke/tgoskits/wiki" target="_blank" rel="noopener">wiki 首页</a></li>
+<li>系统调用参考实现：<a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-win" target="_blank" rel="noopener"><code>feat-personality-win</code></a>、<a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-mac" target="_blank" rel="noopener"><code>feat-personality-mac</code></a></li>
+<li>总结 PPT：<a href="https://github.com/Lfan-ke/tgoskits/tree/ppt" target="_blank" rel="noopener">Lfan-ke/tgoskits 的 ppt 分支</a></li>
+<li>演示视频：<a href="https://github.com/Lfan-ke/hw4os-s5d1t2/tree/video" target="_blank" rel="noopener">Lfan-ke/hw4os-s5d1t2 的 video 分支</a></li>
+<li>75 份溯源文件：<a href="https://github.com/rcore-os/blog/blob/master/source/_posts/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/_trace/README.md" target="_blank" rel="noopener">README</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8/" rel="tag"># 系统调用</a>
+              <a href="/blog/tags/author-heke1228/" rel="tag"># author:heke1228</a>
+              <a href="/blog/tags/repo-https-github-com-rcore-os-tgoskits/" rel="tag"># repo:https://github.com/rcore-os/tgoskits</a>
+              <a href="/blog/tags/wiki-https-github-com-Lfan-ke-tgoskits-wiki/" rel="tag"># wiki:https://github.com/Lfan-ke/tgoskits/wiki</a>
+              <a href="/blog/tags/Firefox/" rel="tag"># Firefox</a>
+              <a href="/blog/tags/Linux-%E5%AF%B9%E7%85%A7/" rel="tag"># Linux 对照</a>
+              <a href="/blog/tags/%E6%BA%AF%E6%BA%90/" rel="tag"># 溯源</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/06/28/20260628-silicalet-StarryOS%E4%BF%A1%E5%8F%B7%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E4%B8%8ENix%E5%85%BC%E5%AE%B9%E6%80%A7%E6%8E%A2%E7%B4%A2/" rel="prev" title="2026 春季训练营总结：StarryOS 信号系统调用测试与 Nix 兼容性">
+      <i class="fa fa-chevron-left"></i> 2026 春季训练营总结：StarryOS 信号系统调用测试与 Nix 兼容性
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/04/20261002-daivy2333-StarryOS%E5%BC%82%E6%AD%A5%E9%A9%B1%E5%8A%A8%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" rel="next" title="StarryOS 的串口、有线网卡的异步化">
+      StarryOS 的串口、有线网卡的异步化 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

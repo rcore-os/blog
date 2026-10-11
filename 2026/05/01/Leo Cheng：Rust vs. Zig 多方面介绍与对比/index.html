@@ -22,18 +22,22 @@
     var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
   </script>
 
-  <meta name="description" content="Zig &#x2F; Rust 对于 C&#x2F;C++：两门都自称 “更好的 C&#x2F;C++”（C&#x2F;C++ plus），都不要 GC、都讲究”安全 × 可控”，但走了两条岔路：Rust 用编译期的”强制”换安全；Zig 用”显式 + 简单”换可控。本文全维度横扫，每条都给 Rust 写法 + Zig 写法 + 取舍（基于 Zig 0.17.0-dev、Rust 1.94）。C 只在该出现时点一句。 我（Leo）">
+  <meta name="description" content="AI4OSE 期间，我们与 Agent 协作学习各项知识，并且 Agent 出题 讲解 以及 苏格拉底式 的急速学习法。所以最后也有 Agent 自动插入笔记的问题和自己的回答，如果答案不充分，则我的作答还会有 Agent 协调补充的内容。相关提示词：如果我有疏漏，给我补充，且讲解充分后继续向我提问查缺补漏，最后一同沉淀到我们的笔记中！">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Leo Cheng: Rust &amp; Zig 多方面介绍与对比">
 <meta property="og:url" content="http://rcore-os.github.io/blog/2026/05/01/Leo%20Cheng%EF%BC%9ARust%20vs.%20Zig%20%E5%A4%9A%E6%96%B9%E9%9D%A2%E4%BB%8B%E7%BB%8D%E4%B8%8E%E5%AF%B9%E6%AF%94/index.html">
 <meta property="og:site_name" content="rcore-os Blog">
-<meta property="og:description" content="Zig &#x2F; Rust 对于 C&#x2F;C++：两门都自称 “更好的 C&#x2F;C++”（C&#x2F;C++ plus），都不要 GC、都讲究”安全 × 可控”，但走了两条岔路：Rust 用编译期的”强制”换安全；Zig 用”显式 + 简单”换可控。本文全维度横扫，每条都给 Rust 写法 + Zig 写法 + 取舍（基于 Zig 0.17.0-dev、Rust 1.94）。C 只在该出现时点一句。 我（Leo）">
+<meta property="og:description" content="AI4OSE 期间，我们与 Agent 协作学习各项知识，并且 Agent 出题 讲解 以及 苏格拉底式 的急速学习法。所以最后也有 Agent 自动插入笔记的问题和自己的回答，如果答案不充分，则我的作答还会有 Agent 协调补充的内容。相关提示词：如果我有疏漏，给我补充，且讲解充分后继续向我提问查缺补漏，最后一同沉淀到我们的笔记中！">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2026-05-01T21:43:45.000Z">
-<meta property="article:modified_time" content="2026-10-11T03:30:34.203Z">
+<meta property="article:modified_time" content="2026-10-11T03:38:21.229Z">
 <meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="Rust">
 <meta property="article:tag" content="author:heke1228">
 <meta property="article:tag" content="repo:https:&#x2F;&#x2F;cnb.cool&#x2F;heke_learning&#x2F;Rustlings">
+<meta property="article:tag" content="Zig">
+<meta property="article:tag" content="Programming Languages">
+<meta property="article:tag" content="Beginner">
 <meta name="twitter:card" content="summary">
 
 <link rel="canonical" href="http://rcore-os.github.io/blog/2026/05/01/Leo%20Cheng%EF%BC%9ARust%20vs.%20Zig%20%E5%A4%9A%E6%96%B9%E9%9D%A2%E4%BB%8B%E7%BB%8D%E4%B8%8E%E5%AF%B9%E6%AF%94/">
@@ -177,7 +181,7 @@
 
       <!--noindex-->
       <section class="post-toc-wrap sidebar-panel">
-          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-设计哲学：两种”更好的-C”"><span class="nav-number">1.</span> <span class="nav-text">1. 设计哲学：两种”更好的 C”</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-第一印象：Hello-与语法风格"><span class="nav-number">2.</span> <span class="nav-text">2. 第一印象：Hello 与语法风格</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-类型系统"><span class="nav-number">3.</span> <span class="nav-text">3. 类型系统</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-基础类型——Zig-的”任意位宽整数”"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 基础类型——Zig 的”任意位宽整数”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Optional-与-错误联合——两个”一等公民”"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 Optional 与 错误联合——两个”一等公民”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-struct-enum-union——Zig-的-tagged-union-是内建语法"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 struct &#x2F; enum &#x2F; union——Zig 的 tagged union 是内建语法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-切片-指针-字符串——比-Rust-多了”指针种类”"><span class="nav-number">3.4.</span> <span class="nav-text">3.4 切片 &#x2F; 指针 &#x2F; 字符串——比 Rust 多了”指针种类”</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-内存管理：Zig-最分裂于-Rust-的地方"><span class="nav-number">4.</span> <span class="nav-text">4. 内存管理：Zig 最分裂于 Rust 的地方</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-所有权-vs-显式-allocator"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 所有权 vs 显式 allocator</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-defer-errdefer——Zig-最香的语法糖"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 defer &#x2F; errdefer——Zig 最香的语法糖</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-错误处理：-T-vs-Result-lt-T-E-gt"><span class="nav-number">5.</span> <span class="nav-text">5. 错误处理：!T vs Result&lt;T,E&gt;</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-comptime：Zig-的灵魂——一个机制替掉「宏-泛型-const-fn-反射」"><span class="nav-number">6.</span> <span class="nav-text">6. comptime：Zig 的灵魂——一个机制替掉「宏 + 泛型 + const fn + 反射」</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-泛型-多态：工厂函数-鸭子类型-vs-trait-生命周期"><span class="nav-number">7.</span> <span class="nav-text">7. 泛型 &#x2F; 多态：工厂函数 + 鸭子类型 vs trait + 生命周期</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-安全：编译期警察-vs-运行期可关检查"><span class="nav-number">8.</span> <span class="nav-text">8. 安全：编译期警察 vs 运行期可关检查</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-并发-异步-函数染色（我的初心）"><span class="nav-number">9.</span> <span class="nav-text">9. 并发 &#x2F; 异步 &#x2F; 函数染色（我的初心）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#9-1-什么是函数染色（Function-Coloring）"><span class="nav-number">9.1.</span> <span class="nav-text">9.1 什么是函数染色（Function Coloring）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-2-Zig-的答案：釜底抽薪——把-async-关键字砍了"><span class="nav-number">9.2.</span> <span class="nav-text">9.2 Zig 的答案：釜底抽薪——把 async 关键字砍了</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-3-犀利吐槽"><span class="nav-number">9.3.</span> <span class="nav-text">9.3 犀利吐槽</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#9-4-原子操作（两门都直面内存序）"><span class="nav-number">9.4.</span> <span class="nav-text">9.4 原子操作（两门都直面内存序）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-标准库：显式、不偷偷分配"><span class="nav-number">10.</span> <span class="nav-text">10. 标准库：显式、不偷偷分配</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#10-1-常用标准库对照（速查）"><span class="nav-number">10.1.</span> <span class="nav-text">10.1 常用标准库对照（速查）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-C-C-互操作：Zig-甩-Rust-一个街区"><span class="nav-number">11.</span> <span class="nav-text">11. C &#x2F; C++ 互操作：Zig 甩 Rust 一个街区</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-构建系统-包管理：zig-build-vs-Cargo"><span class="nav-number">12.</span> <span class="nav-text">12. 构建系统 &#x2F; 包管理：zig build vs Cargo</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#13-裸机-嵌入式-RISC-V：两门都能-no-runtime"><span class="nav-number">13.</span> <span class="nav-text">13. 裸机 &#x2F; 嵌入式 &#x2F; RISC-V：两门都能 no-runtime</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#14-工具链-编译模型"><span class="nav-number">14.</span> <span class="nav-text">14. 工具链 &#x2F; 编译模型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#15-稳定性-成熟度"><span class="nav-number">15.</span> <span class="nav-text">15. 稳定性 &#x2F; 成熟度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#16-适用场景-总评"><span class="nav-number">16.</span> <span class="nav-text">16. 适用场景 + 总评</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#17-全维度速查总表"><span class="nav-number">17.</span> <span class="nav-text">17. 全维度速查总表</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#18-思考题（附参考答案）"><span class="nav-number">18.</span> <span class="nav-text">18. 思考题（附参考答案）</span></a></li></ol></div>
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#设计哲学"><span class="nav-number">1.</span> <span class="nav-text">设计哲学</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#第一印象"><span class="nav-number">2.</span> <span class="nav-text">第一印象</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#类型系统"><span class="nav-number">3.</span> <span class="nav-text">类型系统</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#任意位宽的整数"><span class="nav-number">3.1.</span> <span class="nav-text">任意位宽的整数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#可选类型与错误联合"><span class="nav-number">3.2.</span> <span class="nav-text">可选类型与错误联合</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#struct、enum、union"><span class="nav-number">3.3.</span> <span class="nav-text">struct、enum、union</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#切片、指针与字符串"><span class="nav-number">3.4.</span> <span class="nav-text">切片、指针与字符串</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#内存管理"><span class="nav-number">4.</span> <span class="nav-text">内存管理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#所有权与显式分配器"><span class="nav-number">4.1.</span> <span class="nav-text">所有权与显式分配器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#defer-与-errdefer"><span class="nav-number">4.2.</span> <span class="nav-text">defer 与 errdefer</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#错误处理"><span class="nav-number">5.</span> <span class="nav-text">错误处理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#comptime"><span class="nav-number">6.</span> <span class="nav-text">comptime</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#泛型与多态"><span class="nav-number">7.</span> <span class="nav-text">泛型与多态</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#安全检查"><span class="nav-number">8.</span> <span class="nav-text">安全检查</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#并发、异步与函数染色"><span class="nav-number">9.</span> <span class="nav-text">并发、异步与函数染色</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#什么是函数染色"><span class="nav-number">9.1.</span> <span class="nav-text">什么是函数染色</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Zig-的做法"><span class="nav-number">9.2.</span> <span class="nav-text">Zig 的做法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#评价"><span class="nav-number">9.3.</span> <span class="nav-text">评价</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#原子操作"><span class="nav-number">9.4.</span> <span class="nav-text">原子操作</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#标准库"><span class="nav-number">10.</span> <span class="nav-text">标准库</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#C-互操作"><span class="nav-number">11.</span> <span class="nav-text">C 互操作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#构建系统与包管理"><span class="nav-number">12.</span> <span class="nav-text">构建系统与包管理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#裸机、嵌入式与-RISC-V"><span class="nav-number">13.</span> <span class="nav-text">裸机、嵌入式与 RISC-V</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#工具链与编译模型"><span class="nav-number">14.</span> <span class="nav-text">工具链与编译模型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#稳定性与成熟度"><span class="nav-number">15.</span> <span class="nav-text">稳定性与成熟度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#适用场景"><span class="nav-number">16.</span> <span class="nav-text">适用场景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#对比总表"><span class="nav-number">17.</span> <span class="nav-text">对比总表</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#思考题"><span class="nav-number">18.</span> <span class="nav-text">思考题</span></a></li></ol></div>
       </section>
       <!--/noindex-->
 
@@ -191,20 +195,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">795</span>
+          <span class="site-state-item-count">796</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-count">58</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">783</span>
+        <span class="site-state-item-count">962</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -271,7 +275,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -280,22 +284,6 @@
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
                   <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/" itemprop="url" rel="index"><span itemprop="name">Rust</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/" itemprop="url" rel="index"><span itemprop="name">Zig</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Programming-Languages/" itemprop="url" rel="index"><span itemprop="name">Programming Languages</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/Rust/Zig/Programming-Languages/Beginner/" itemprop="url" rel="index"><span itemprop="name">Beginner</span></a>
                 </span>
             </span>
 
@@ -310,89 +298,85 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <a id="more"></a>
-
-<blockquote>
-<p><strong>Zig / Rust 对于 C/C++</strong>：两门都自称 “更好的 C/C++”（C/C++ plus），都不要 GC、都讲究”安全 × 可控”，但走了两条岔路：<strong>Rust 用编译期的”强制”换安全；Zig 用”显式 + 简单”换可控</strong>。本文全维度横扫，每条都给 Rust 写法 + Zig 写法 + 取舍（基于 <strong>Zig <code>0.17.0-dev</code>、Rust <code>1.94</code></strong>）。C 只在该出现时点一句。</p>
-<p>我（Leo）当初被 Zig 吸引，是因为它<strong>对”函数染色（function coloring）”问题的态度</strong>——这条单开一节（§9）讲。</p>
+        <blockquote>
+<p>AI4OSE 期间，我们与 Agent 协作学习各项知识，并且 Agent 出题 讲解 以及 苏格拉底式 的急速学习法。所以最后也有 Agent 自动插入笔记的问题和自己的回答，如果答案不充分，则我的作答还会有 Agent 协调补充的内容。相关提示词：如果我有疏漏，给我补充，且讲解充分后继续向我提问查缺补漏，最后一同沉淀到我们的笔记中！</p>
 </blockquote>
-<hr>
-<h2 id="1-设计哲学：两种”更好的-C”"><a href="#1-设计哲学：两种”更好的-C”" class="headerlink" title="1. 设计哲学：两种”更好的 C”"></a>1. 设计哲学：两种”更好的 C”</h2><p>Rust 和 Zig 都想取代 C/C++，但信条不同：</p>
-<table>
+<a id="more"></a>
+
+<div class="note info"><p>两门语言都想做「更好的 C」，都不要 GC，走的却是两条路：Rust 用编译期的强制规则换安全，Zig 用显式和简单换可控。文中代码以 Zig <code>0.17.0-dev.224</code>、Rust <code>1.94</code> 为准。我关注 Zig，起因是它对函数染色（function coloring）的处理特点，见「并发、异步与函数染色」。</p>
+</div>
+
+<h2 id="设计哲学"><a href="#设计哲学" class="headerlink" title="设计哲学"></a>设计哲学</h2><table>
 <thead>
 <tr>
-<th align="center">\</th>
+<th align="center"></th>
 <th align="center">Rust</th>
 <th align="center">Zig</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="center">一句话</td>
-<td align="center"><strong>安全优先</strong>，零成本抽象</td>
-<td align="center"><strong>简单 × 显式</strong>，无隐藏</td>
+<td align="center">取向</td>
+<td align="center">安全优先，零成本抽象</td>
+<td align="center">简单、显式，没有隐藏行为</td>
 </tr>
 <tr>
 <td align="center">安全模型</td>
-<td align="center">编译期<strong>强制</strong>（借用检查器当警察）</td>
-<td align="center">运行期<strong>可选</strong>检查 + 程序员自律</td>
+<td align="center">编译期强制，借用检查器拒绝违规代码</td>
+<td align="center">运行期检查，可按构建模式关闭</td>
 </tr>
 <tr>
 <td align="center">抽象</td>
-<td align="center">trait / 泛型 / 生命周期，层层零成本</td>
-<td align="center">几乎不抽象，”所见即所得”</td>
+<td align="center">trait、泛型、生命周期，层层零成本</td>
+<td align="center">很少抽象，写什么就执行什么</td>
 </tr>
 <tr>
-<td align="center">心智</td>
-<td align="center">“按我的规则写，我保证你安全”</td>
-<td align="center">“给你工具，炸了算你的”</td>
+<td align="center">对程序员的态度</td>
+<td align="center">按我的规则写，我保证安全</td>
+<td align="center">给你工具，出错由你负责</td>
 </tr>
 <tr>
 <td align="center">成熟度</td>
-<td align="center">1.0 稳定（2015），承诺不破坏</td>
-<td align="center">0.x，<strong>频繁破坏式更新</strong>（见 §16）</td>
+<td align="center">2015 年 1.0，承诺向后兼容</td>
+<td align="center">0.x，版本之间经常不兼容</td>
 </tr>
 </tbody></table>
-<p>Zig 的设计写死了<strong>五条”无隐藏”原则</strong>（这是理解 Zig 一切语法的钥匙）：</p>
+<p>Zig 有五条「无隐藏」原则，后面的语法都由此而来：</p>
 <table>
 <thead>
 <tr>
-<th align="center">Zig 五原则</th>
+<th align="center">原则</th>
 <th align="center">含义</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="center"><strong>无隐藏控制流</strong></td>
-<td align="center">没有运算符重载、没有析构函数、没有异常——<code>a + b</code> 就是加法，不会偷偷调函数</td>
+<td align="center">无隐藏控制流</td>
+<td align="center">没有运算符重载、析构函数和异常，<code>a + b</code> 就是加法，不会调用别的函数</td>
 </tr>
 <tr>
-<td align="center"><strong>无隐藏内存分配</strong></td>
-<td align="center">标准库<strong>绝不偷偷分配堆</strong>；要分配？把 <code>allocator</code> 显式传进来</td>
+<td align="center">无隐藏内存分配</td>
+<td align="center">标准库不自己分配堆内存，要分配就把 <code>Allocator</code> 显式传进来</td>
 </tr>
 <tr>
-<td align="center"><strong>无隐藏的”编译期 vs 运行期”</strong></td>
-<td align="center"><code>comptime</code> 是第一公民，编译期和运行期<strong>用同一套语法</strong></td>
+<td align="center">编译期与运行期同一套语法</td>
+<td align="center"><code>comptime</code> 用的就是普通 Zig 代码</td>
 </tr>
 <tr>
-<td align="center"><strong>错误是值</strong></td>
-<td align="center"><code>error.Foo</code> 是枚举值，<code>!T</code> 是”错误联合”类型，不是异常</td>
+<td align="center">错误是值</td>
+<td align="center"><code>error.Foo</code> 是枚举值，<code>!T</code> 是错误联合类型，没有异常</td>
 </tr>
 <tr>
-<td align="center"><strong>C 互操作一等公民</strong></td>
-<td align="center"><code>@cImport</code> 直接吃 C 头，零成本 ABI 兼容</td>
+<td align="center">与 C 直接互通</td>
+<td align="center">与 C 的 ABI 直接兼容，C 头文件经构建系统翻译成 Zig 模块</td>
 </tr>
 </tbody></table>
-<blockquote>
-<p>对 Rust 老用户：Zig 几乎是”把 Rust 的安全保证拿掉、把元编程统一成一个 <code>comptime</code>、把 FFI 做到极致”的另一种取舍。下面逐条看。</p>
-</blockquote>
-<hr>
-<h2 id="2-第一印象：Hello-与语法风格"><a href="#2-第一印象：Hello-与语法风格" class="headerlink" title="2. 第一印象：Hello 与语法风格"></a>2. 第一印象：Hello 与语法风格</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; Zig</span><br><span class="line">const std &#x3D; @import(&quot;std&quot;);</span><br><span class="line">pub fn main() !void &#123;                       &#x2F;&#x2F; !void &#x3D; 可能返回错误</span><br><span class="line">    std.debug.print(&quot;Hello, &#123;s&#125;!\n&quot;, .&#123;&quot;Zig&quot;&#125;);  &#x2F;&#x2F; .&#123;...&#125; 是匿名元组（参数列表）</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Rust</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Hello, &#123;&#125;!"</span>, <span class="string">"Rust"</span>);          <span class="comment">// println! 是宏</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从 Rust 的角度看，Zig 的取舍是：不要编译期的安全保证，元编程统一成 <code>comptime</code>，与 C 的互通做到最直接。</p>
+<h2 id="第一印象"><a href="#第一印象" class="headerlink" title="第一印象"></a>第一印象</h2><div class="tabs" id="hello"><ul class="nav-tabs"><li class="tab active"><a href="#hello-1">Zig</a></li><li class="tab"><a href="#hello-2">Rust</a></li></ul><div class="tab-content"><div class="tab-pane active" id="hello-1"><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">const std &#x3D; @import(&quot;std&quot;);</span><br><span class="line"></span><br><span class="line">pub fn main() !void &#123;                                 &#x2F;&#x2F; !void：可能返回错误</span><br><span class="line">    std.debug.print(&quot;Hello, &#123;s&#125;!\n&quot;, .&#123;&quot;Zig&quot;&#125;);       &#x2F;&#x2F; .&#123;...&#125; 是匿名元组，即参数列表</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div><div class="tab-pane" id="hello-2"><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">"Hello, &#123;&#125;!"</span>, <span class="string">"Rust"</span>);                   <span class="comment">// println! 是宏</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div></div></div>
 
-<p>几个一眼可见的差异：<code>@import</code>/<code>@xxx</code> 是 Zig 的<strong>内置函数</strong>（编译器保留，用户不能新增）；<code>.{...}</code> 既是匿名结构体也是元组；Rust 的 <code>println!</code> 是<strong>宏</strong>，Zig 没有宏（用 comptime + 格式串）。</p>
-<hr>
-<h2 id="3-类型系统"><a href="#3-类型系统" class="headerlink" title="3. 类型系统"></a>3. 类型系统</h2><h3 id="3-1-基础类型——Zig-的”任意位宽整数”"><a href="#3-1-基础类型——Zig-的”任意位宽整数”" class="headerlink" title="3.1 基础类型——Zig 的”任意位宽整数”"></a>3.1 基础类型——Zig 的”任意位宽整数”</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">const a: u8 &#x3D; 0xFF;</span><br><span class="line">const b: u7 &#x3D; 127;          &#x2F;&#x2F; 任意位宽:u1..u65535 都行</span><br><span class="line">const c: u3 &#x3D; 0b101;        &#x2F;&#x2F; 寄存器位段神器</span><br><span class="line">const w &#x3D; a +% 1;           &#x2F;&#x2F; +% 回绕  +| 饱和(溢出运算符)</span><br></pre></td></tr></table></figure>
-<p>Rust 只有固定 <code>u8/u16/u32/u64/u128</code>；要 3 位字段得手动位运算或用 <code>bitflags</code> crate。Zig 的 <code>u3</code>/<code>packed struct(u8)</code> 让寄存器/协议位段<strong>类型安全且零开销</strong>。</p>
-<h3 id="3-2-Optional-与-错误联合——两个”一等公民”"><a href="#3-2-Optional-与-错误联合——两个”一等公民”" class="headerlink" title="3.2 Optional 与 错误联合——两个”一等公民”"></a>3.2 Optional 与 错误联合——两个”一等公民”</h3><table>
+<p><code>@import</code> 这类 <code>@</code> 开头的是 Zig 的内建函数，由编译器提供，用户不能新增；<code>.{...}</code> 既是匿名结构体也是元组。Rust 的 <code>println!</code> 是宏，Zig 没有宏，格式串在 <code>comptime</code> 里检查。</p>
+<h2 id="类型系统"><a href="#类型系统" class="headerlink" title="类型系统"></a>类型系统</h2><h3 id="任意位宽的整数"><a href="#任意位宽的整数" class="headerlink" title="任意位宽的整数"></a>任意位宽的整数</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">const a: u8 &#x3D; 0xFF;</span><br><span class="line">const b: u7 &#x3D; 127;          &#x2F;&#x2F; 任意位宽：u1 到 u65535</span><br><span class="line">const c: u3 &#x3D; 0b101;        &#x2F;&#x2F; 适合描述寄存器位段</span><br><span class="line">const w &#x3D; a +% 1;           &#x2F;&#x2F; +% 回绕，+| 饱和</span><br></pre></td></tr></table></figure>
+
+<p>Rust 只有固定位宽的整数，3 位字段要手写位运算或用 <code>bitflags</code>。Zig 的 <code>u3</code> 与 <code>packed struct(u8)</code> 让寄存器和协议的位段既有类型检查，又没有额外开销。</p>
+<h3 id="可选类型与错误联合"><a href="#可选类型与错误联合" class="headerlink" title="可选类型与错误联合"></a>可选类型与错误联合</h3><table>
 <thead>
 <tr>
 <th align="center"></th>
@@ -402,104 +386,94 @@
 </thead>
 <tbody><tr>
 <td align="center">可空</td>
-<td align="center"><code>Option&lt;T&gt;</code> = <code>Some/None</code> 枚举</td>
-<td align="center"><code>?T</code>（<code>?*T</code> 用空指针表示，零开销）</td>
+<td align="center"><code>Option&lt;T&gt;</code>，即 <code>Some</code>、<code>None</code> 枚举</td>
+<td align="center"><code>?T</code>；<code>?*T</code> 用空指针表示，不占额外空间</td>
 </tr>
 <tr>
 <td align="center">解包</td>
-<td align="center"><code>match</code> / <code>if let</code> / <code>?</code> / <code>unwrap()</code></td>
-<td align="center"><code>if (x) |v|</code> / <code>orelse 默认</code> / <code>.?</code></td>
+<td align="center"><code>match</code>、<code>if let</code>、<code>?</code>、<code>unwrap()</code></td>
+<td align="center"><code>if (x) |v|</code>、<code>orelse 默认值</code>、<code>.?</code></td>
 </tr>
 <tr>
 <td align="center">错误</td>
-<td align="center"><code>Result&lt;T,E&gt;</code> 枚举</td>
-<td align="center"><code>E!T</code> 错误联合（见 §5）</td>
+<td align="center"><code>Result&lt;T, E&gt;</code> 枚举</td>
+<td align="center"><code>E!T</code> 错误联合，见「错误处理」</td>
 </tr>
 </tbody></table>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var opt: ?u32 &#x3D; null;</span><br><span class="line">const v &#x3D; opt orelse 0;        &#x2F;&#x2F; 默认值</span><br><span class="line">const f &#x3D; opt.?;               &#x2F;&#x2F; 断言非 null（null 则 panic）</span><br><span class="line">if (opt) |val| &#123; _ &#x3D; val; &#125;    &#x2F;&#x2F; 解包</span><br></pre></td></tr></table></figure>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> opt: <span class="built_in">Option</span>&lt;<span class="built_in">u32</span>&gt; = <span class="literal">None</span>;</span><br><span class="line"><span class="keyword">let</span> v = opt.unwrap_or(<span class="number">0</span>);</span><br><span class="line"><span class="keyword">let</span> f = opt.unwrap();          <span class="comment">// None 则 panic</span></span><br><span class="line"><span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(val) = opt &#123; <span class="keyword">let</span> _ = val; &#125;</span><br></pre></td></tr></table></figure>
+<div class="tabs" id="optional"><ul class="nav-tabs"><li class="tab active"><a href="#optional-1">Zig</a></li><li class="tab"><a href="#optional-2">Rust</a></li></ul><div class="tab-content"><div class="tab-pane active" id="optional-1"><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">var opt: ?u32 &#x3D; null;</span><br><span class="line">const v &#x3D; opt orelse 0;        &#x2F;&#x2F; 默认值</span><br><span class="line">const f &#x3D; opt.?;               &#x2F;&#x2F; 断言非空，为空则 panic</span><br><span class="line">if (opt) |val| &#123; _ &#x3D; val; &#125;    &#x2F;&#x2F; 解包</span><br></pre></td></tr></table></figure></div><div class="tab-pane" id="optional-2"><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> opt: <span class="built_in">Option</span>&lt;<span class="built_in">u32</span>&gt; = <span class="literal">None</span>;</span><br><span class="line"><span class="keyword">let</span> v = opt.unwrap_or(<span class="number">0</span>);</span><br><span class="line"><span class="keyword">let</span> f = opt.unwrap();          <span class="comment">// 为 None 则 panic</span></span><br><span class="line"><span class="keyword">if</span> <span class="keyword">let</span> <span class="literal">Some</span>(val) = opt &#123; <span class="keyword">let</span> _ = val; &#125;</span><br></pre></td></tr></table></figure></div></div></div>
 
-<h3 id="3-3-struct-enum-union——Zig-的-tagged-union-是内建语法"><a href="#3-3-struct-enum-union——Zig-的-tagged-union-是内建语法" class="headerlink" title="3.3 struct / enum / union——Zig 的 tagged union 是内建语法"></a>3.3 struct / enum / union——Zig 的 tagged union 是内建语法</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">const Value &#x3D; union(enum) &#123;    &#x2F;&#x2F; tagged union:tag 自动生成</span><br><span class="line">    int: i64,</span><br><span class="line">    text: []const u8,</span><br><span class="line">    empty,</span><br><span class="line">&#125;;</span><br><span class="line">switch (v) &#123;                    &#x2F;&#x2F; switch 必须穷尽</span><br><span class="line">    .int  &#x3D;&gt; |n| use(n),</span><br><span class="line">    .text &#x3D;&gt; |s| use(s),</span><br><span class="line">    .empty &#x3D;&gt; &#123;&#125;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="struct、enum、union"><a href="#struct、enum、union" class="headerlink" title="struct、enum、union"></a>struct、enum、union</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">const Value &#x3D; union(enum) &#123;    &#x2F;&#x2F; 带标签的联合，标签自动生成</span><br><span class="line">    int: i64,</span><br><span class="line">    text: []const u8,</span><br><span class="line">    empty,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">switch (v) &#123;                   &#x2F;&#x2F; switch 必须覆盖所有情况</span><br><span class="line">    .int &#x3D;&gt; |n| use(n),</span><br><span class="line">    .text &#x3D;&gt; |s| use(s),</span><br><span class="line">    .empty &#x3D;&gt; &#123;&#125;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>对位 Rust 的 <code>enum Value { Int(i64), Text(String), Empty }</code> + <code>match</code>——<strong>几乎一一对应</strong>，这是两门语言最像的地方（代数数据类型 + 穷尽匹配）。差别：Zig 的 <code>union(enum)</code> 还能写裸 <code>union</code>（C 风格、无 tag、<code>@bitCast</code> 重解释），Rust 没有安全的裸 union（要 <code>unsafe</code>）。</p>
-<h3 id="3-4-切片-指针-字符串——比-Rust-多了”指针种类”"><a href="#3-4-切片-指针-字符串——比-Rust-多了”指针种类”" class="headerlink" title="3.4 切片 / 指针 / 字符串——比 Rust 多了”指针种类”"></a>3.4 切片 / 指针 / 字符串——比 Rust 多了”指针种类”</h3><table>
+<p>对应 Rust 的 <code>enum Value { Int(i64), Text(String), Empty }</code> 加 <code>match</code>，几乎一一对应，这是两门语言最像的地方：代数数据类型加穷尽匹配。区别在于 Zig 还能写不带标签的 C 风格 <code>union</code>，用 <code>@bitCast</code> 重新解释；Rust 的裸 <code>union</code> 要 <code>unsafe</code>。</p>
+<h3 id="切片、指针与字符串"><a href="#切片、指针与字符串" class="headerlink" title="切片、指针与字符串"></a>切片、指针与字符串</h3><table>
 <thead>
 <tr>
 <th align="center">类型</th>
 <th align="center">Zig</th>
-<th align="center">Rust 对位</th>
+<th align="center">Rust 中对应的写法</th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="center">切片</td>
-<td align="center"><code>[]T</code> / <code>[]const u8</code></td>
-<td align="center"><code>&amp;mut [T]</code> / <code>&amp;[T]</code> / <code>&amp;str</code></td>
+<td align="center"><code>[]T</code>、<code>[]const u8</code></td>
+<td align="center"><code>&amp;mut [T]</code>、<code>&amp;[T]</code>、<code>&amp;str</code></td>
 </tr>
 <tr>
 <td align="center">单值指针</td>
-<td align="center"><code>*T</code> / <code>*const T</code></td>
-<td align="center"><code>&amp;mut T</code> / <code>&amp;T</code> / <code>*mut T</code></td>
+<td align="center"><code>*T</code>、<code>*const T</code></td>
+<td align="center"><code>&amp;mut T</code>、<code>&amp;T</code>、<code>*mut T</code></td>
 </tr>
 <tr>
 <td align="center">多值指针</td>
-<td align="center"><code>[*]T</code>（无长度）</td>
-<td align="center"><code>*mut T</code>（裸）</td>
+<td align="center"><code>[*]T</code>，不带长度</td>
+<td align="center"><code>*mut T</code></td>
 </tr>
 <tr>
 <td align="center">C 指针</td>
-<td align="center"><code>[*c]T</code>（可空、可 0）</td>
-<td align="center"><code>*mut T</code> + FFI</td>
+<td align="center"><code>[*c]T</code>，可为空、可为 0</td>
+<td align="center"><code>*mut T</code> 加 FFI</td>
 </tr>
 <tr>
-<td align="center">哨兵终止</td>
-<td align="center"><code>[*:0]const u8</code>（C 字符串）</td>
+<td align="center">哨兵结尾</td>
+<td align="center"><code>[*:0]const u8</code>，即 C 字符串</td>
 <td align="center"><code>CStr</code></td>
 </tr>
 </tbody></table>
-<p>Zig <strong>没有 <code>String</code> 类型</strong>，字符串就是 <code>[]const u8</code>（UTF-8 字节切片）+ 字符串字面量 <code>[N:0]u8</code>。Rust 区分 <code>String</code>（拥有）/ <code>&amp;str</code>（借用）。Zig 的指针种类更细（<code>*</code>/<code>[*]</code>/<code>[*c]</code>/<code>[:0]</code>），因为它要直接对接 C 和硬件——<strong>没有借用检查器，靠类型把”这个指针能不能空、知不知道长度”标清楚</strong>。</p>
-<hr>
-<h2 id="4-内存管理：Zig-最分裂于-Rust-的地方"><a href="#4-内存管理：Zig-最分裂于-Rust-的地方" class="headerlink" title="4. 内存管理：Zig 最分裂于 Rust 的地方"></a>4. 内存管理：Zig 最分裂于 Rust 的地方</h2><h3 id="4-1-所有权-vs-显式-allocator"><a href="#4-1-所有权-vs-显式-allocator" class="headerlink" title="4.1 所有权 vs 显式 allocator"></a>4.1 所有权 vs 显式 allocator</h3><p><strong>Rust</strong>：所有权 + 借用检查器，编译期决定每块内存何时释放，<code>drop</code> 自动调用。你几乎不”看见”分配器（全局 <code>alloc</code>）。</p>
-<p><strong>Zig</strong>：<strong>没有所有权、没有借用检查器、没有自动析构</strong>。谁要堆内存，就把 <code>allocator</code> <strong>当参数显式传进去</strong>：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">fn process(a: std.mem.Allocator, data: []const u8) ![]u8 &#123;</span><br><span class="line">    const out &#x3D; try a.alloc(u8, data.len * 2);   &#x2F;&#x2F; 显式分配</span><br><span class="line">    &#x2F;&#x2F; ... 调用者负责 a.free(out)</span><br><span class="line">    return out;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Zig 没有 <code>String</code> 类型，字符串就是 <code>[]const u8</code>，字面量是 <code>[N:0]u8</code>；Rust 区分拥有所有权的 <code>String</code> 与借用的 <code>&amp;str</code>。Zig 的指针种类分得更细，因为它要直接对接 C 与硬件，又没有借用检查器，只能靠类型写清「能不能为空、知不知道长度」。</p>
+<h2 id="内存管理"><a href="#内存管理" class="headerlink" title="内存管理"></a>内存管理</h2><h3 id="所有权与显式分配器"><a href="#所有权与显式分配器" class="headerlink" title="所有权与显式分配器"></a>所有权与显式分配器</h3><p>Rust 用所有权和借用检查器在编译期决定每块内存何时释放，<code>drop</code> 自动调用，分配器一般看不见。</p>
+<p>Zig 没有所有权、借用检查器和自动析构。谁要堆内存，就把分配器当参数传进去：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">fn process(a: std.mem.Allocator, data: []const u8) ![]u8 &#123;</span><br><span class="line">    const out &#x3D; try a.alloc(u8, data.len * 2);   &#x2F;&#x2F; 显式分配</span><br><span class="line">    &#x2F;&#x2F; 调用者负责 a.free(out)</span><br><span class="line">    return out;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>这强迫你在<strong>架构设计时</strong>就想清”谁负责分配/释放”，而不是像 C 那样到处隐式 <code>malloc</code>。标准库容器也一样——<code>ArrayList</code> 的每个 <code>append</code> 都要传 allocator（0.17）：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var dbg &#x3D; std.heap.DebugAllocator(.&#123;&#125;)&#123;&#125;;        &#x2F;&#x2F; 0.17:GPA 改名 DebugAllocator</span><br><span class="line">defer _ &#x3D; dbg.deinit();                           &#x2F;&#x2F; 报告内存泄漏!</span><br><span class="line">const a &#x3D; dbg.allocator();</span><br><span class="line">var list: std.ArrayList(u8) &#x3D; .empty;             &#x2F;&#x2F; 0.17:ArrayList 默认 unmanaged</span><br><span class="line">defer list.deinit(a);</span><br><span class="line">try list.append(a, 7);                            &#x2F;&#x2F; 每次显式传 a</span><br><span class="line">try list.appendSlice(a, &amp;.&#123; 8, 9 &#125;);              &#x2F;&#x2F; → &#123; 7, 8, 9 &#125;</span><br></pre></td></tr></table></figure>
+<p>这样在设计时就得想清楚谁分配、谁释放。标准库容器也一样，0.15 起 <code>ArrayList</code> 不再保存分配器，每次修改都要传：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var dbg &#x3D; std.heap.DebugAllocator(.&#123;&#125;)&#123;&#125;;       &#x2F;&#x2F; 旧名 GeneralPurposeAllocator 已删</span><br><span class="line">defer _ &#x3D; dbg.deinit();                         &#x2F;&#x2F; 退出时报告内存泄漏</span><br><span class="line">const a &#x3D; dbg.allocator();</span><br><span class="line">var list: std.ArrayList(u8) &#x3D; .empty;           &#x2F;&#x2F; 不保存分配器</span><br><span class="line">defer list.deinit(a);</span><br><span class="line">try list.append(a, 7);                          &#x2F;&#x2F; 每次显式传 a</span><br><span class="line">try list.appendSlice(a, &amp;.&#123; 8, 9 &#125;);            &#x2F;&#x2F; 结果 &#123; 7, 8, 9 &#125;</span><br></pre></td></tr></table></figure>
 
-<blockquote>
-<p>Zig 的显式 allocator = “no hidden allocations” 哲学的落地。<strong>好处</strong>：测试时换个 <code>FixedBufferAllocator</code> 就能裸机跑、<code>ArenaAllocator</code> 一次性释放、<code>DebugAllocator</code> 自动查泄漏——分配策略是<strong>参数</strong>而非全局。<strong>代价</strong>：啰嗦，且没有借用检查器兜底，use-after-free 要靠下面的机制防。</p>
-</blockquote>
-<h3 id="4-2-defer-errdefer——Zig-最香的语法糖"><a href="#4-2-defer-errdefer——Zig-最香的语法糖" class="headerlink" title="4.2 defer / errdefer——Zig 最香的语法糖"></a>4.2 <code>defer</code> / <code>errdefer</code>——Zig 最香的语法糖</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">fn init(a: std.mem.Allocator) !*Res &#123;</span><br><span class="line">    const r &#x3D; try a.create(Res);</span><br><span class="line">    errdefer a.destroy(r);     &#x2F;&#x2F; 仅当本函数&quot;以错误返回&quot;时执行</span><br><span class="line">    try r.setup();             &#x2F;&#x2F; 若这里出错 → errdefer 清理 r → 不泄漏</span><br><span class="line">    return r;                  &#x2F;&#x2F; 成功返回 → errdefer 不执行</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>分配策略因此成了参数：测试时换 <code>FixedBufferAllocator</code> 就能在裸机上跑，<code>ArenaAllocator</code> 一次性释放，<code>DebugAllocator</code> 自动查泄漏。代价是写起来啰嗦，而且没有借用检查器把关，释放后再用要靠下面的机制防。</p>
+<h3 id="defer-与-errdefer"><a href="#defer-与-errdefer" class="headerlink" title="defer 与 errdefer"></a><code>defer</code> 与 <code>errdefer</code></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">fn init(a: std.mem.Allocator) !*Res &#123;</span><br><span class="line">    const r &#x3D; try a.create(Res);</span><br><span class="line">    errdefer a.destroy(r);     &#x2F;&#x2F; 只在本函数以错误返回时执行</span><br><span class="line">    try r.setup();             &#x2F;&#x2F; 这里出错就清理 r，不泄漏</span><br><span class="line">    return r;                  &#x2F;&#x2F; 成功返回，errdefer 不执行</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li><strong><code>defer</code></strong>：作用域退出时执行（LIFO）。资源获取后紧跟 <code>defer x.deinit()</code>，<strong>释放逻辑紧挨分配逻辑</strong>，很难忘。</li>
-<li><strong><code>errdefer</code></strong>：只在<strong>错误返回路径</strong>执行——这是 Rust 的 <code>?</code> + <code>Drop</code> 才能做到的”出错自动清理”，Zig 用一个关键字显式表达，<strong>而且看得见</strong>。</li>
+<li><code>defer</code>：离开作用域时执行，后进先出。获取资源后紧跟一行 <code>defer x.deinit()</code>，释放与分配写在一起，不容易漏。</li>
+<li><code>errdefer</code>：只在错误返回的路径上执行。Rust 要靠 <code>?</code> 加 <code>Drop</code> 才有的「出错自动清理」，Zig 用一个关键字显式写出来。</li>
 </ul>
-<blockquote>
-<p><strong><code>defer</code> 跟 Go 不一样</strong>：Zig 的 <code>defer</code> 是<strong>块级作用域</strong>（离开 enclosing block 就跑），Go 是<strong>函数级</strong>（return 才跑）。在循环里区别巨大——Zig 循环体内的 <code>defer</code> <strong>每次迭代结束</strong>就执行，Go 是攒到函数末尾 LIFO 一起跑。</p>
-<p>对位 Rust：Rust 用 RAII + <code>Drop</code> trait 自动析构（更隐式、零关键字）；Zig 用 <code>defer</code> 显式（更可见、可控）。一个”自动但隐藏”，一个”手动但透明”——正是两门语言的缩影。</p>
-</blockquote>
-<hr>
-<h2 id="5-错误处理：-T-vs-Result-lt-T-E-gt"><a href="#5-错误处理：-T-vs-Result-lt-T-E-gt" class="headerlink" title="5. 错误处理：!T vs Result&lt;T,E&gt;"></a>5. 错误处理：<code>!T</code> vs <code>Result&lt;T,E&gt;</code></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">const MyError &#x3D; error&#123; TooHot, TooCold &#125;;   &#x2F;&#x2F; 错误集 &#x3D; 一组扁平标签</span><br><span class="line">fn readTemp() MyError!i32 &#123;                  &#x2F;&#x2F; !T &#x3D; 错误联合</span><br><span class="line">    return error.TooHot;                     &#x2F;&#x2F; 只能返回&quot;信号&quot;,不带数据</span><br><span class="line">&#125;</span><br><span class="line">const t &#x3D; readTemp() catch |e| blk: &#123;        &#x2F;&#x2F; catch 捕获</span><br><span class="line">    std.debug.print(&quot;err: &#123;&#125;\n&quot;, .&#123;e&#125;);</span><br><span class="line">    break :blk 0;</span><br><span class="line">&#125;;</span><br><span class="line">const t2 &#x3D; try readTemp();                    &#x2F;&#x2F; try &#x3D; 出错就向上传播</span><br></pre></td></tr></table></figure>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">ReadError</span></span> &#123; TooHot(<span class="built_in">i32</span>), TooCold(<span class="built_in">i32</span>) &#125;  <span class="comment">// E 可带任意 payload</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">read_temp</span></span>() -&gt; <span class="built_in">Result</span>&lt;<span class="built_in">i32</span>, ReadError&gt; &#123; <span class="literal">Err</span>(ReadError::TooHot(<span class="number">42</span>)) &#125;</span><br><span class="line"><span class="keyword">let</span> t = read_temp()?;                          <span class="comment">// ? 向上传播</span></span><br></pre></td></tr></table></figure>
+<p>Zig 的 <code>defer</code> 是块级的，离开所在的块就执行；Go 的 <code>defer</code> 是函数级的，函数返回时才执行。在循环里差别很大：Zig 每轮循环结束就执行，Go 攒到函数末尾一起执行。Rust 用 RAII 与 <code>Drop</code> 自动析构，不用写关键字；Zig 用 <code>defer</code> 显式写出。一个自动但看不见，一个手写但看得见，两门语言的差别大体如此。</p>
+<h2 id="错误处理"><a href="#错误处理" class="headerlink" title="错误处理"></a>错误处理</h2><div class="tabs" id="errors"><ul class="nav-tabs"><li class="tab active"><a href="#errors-1">Zig</a></li><li class="tab"><a href="#errors-2">Rust</a></li></ul><div class="tab-content"><div class="tab-pane active" id="errors-1"><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">const MyError &#x3D; error&#123; TooHot, TooCold &#125;;     &#x2F;&#x2F; 错误集：一组扁平的标签</span><br><span class="line"></span><br><span class="line">fn readTemp() MyError!i32 &#123;                   &#x2F;&#x2F; !T：错误联合</span><br><span class="line">    return error.TooHot;                      &#x2F;&#x2F; 只返回标签，不带数据</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">pub fn main() !void &#123;</span><br><span class="line">    const t &#x3D; readTemp() catch |e| blk: &#123;     &#x2F;&#x2F; catch 捕获</span><br><span class="line">        std.debug.print(&quot;err: &#123;&#125;\n&quot;, .&#123;e&#125;);</span><br><span class="line">        break :blk 0;</span><br><span class="line">    &#125;;</span><br><span class="line">    const t2 &#x3D; try readTemp();                &#x2F;&#x2F; try：出错就向上传播</span><br><span class="line">    _ &#x3D; .&#123; t, t2 &#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div><div class="tab-pane" id="errors-2"><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">ReadError</span></span> &#123; TooHot(<span class="built_in">i32</span>), TooCold(<span class="built_in">i32</span>) &#125;  <span class="comment">// E 可以带任意数据</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">read_temp</span></span>() -&gt; <span class="built_in">Result</span>&lt;<span class="built_in">i32</span>, ReadError&gt; &#123;</span><br><span class="line">    <span class="literal">Err</span>(ReadError::TooHot(<span class="number">42</span>))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">main</span></span>() -&gt; <span class="built_in">Result</span>&lt;(), ReadError&gt; &#123;</span><br><span class="line">    <span class="keyword">let</span> t = read_temp()?;                     <span class="comment">// ? 向上传播</span></span><br><span class="line">    <span class="keyword">let</span> _ = t;</span><br><span class="line">    <span class="literal">Ok</span>(())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div></div></div>
 
-<p><strong>最大区别</strong>：</p>
 <table>
 <thead>
 <tr>
 <th align="center"></th>
-<th align="center">Rust <code>Result&lt;T,E&gt;</code></th>
+<th align="center">Rust <code>Result&lt;T, E&gt;</code></th>
 <th align="center">Zig <code>E!T</code></th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="center">错误能否带数据</td>
-<td align="center"><strong>能</strong>，<code>E</code> 是任意类型（带上下文）</td>
-<td align="center"><strong>不能</strong>，error 只是全局扁平标签</td>
+<td align="center">能，<code>E</code> 是任意类型</td>
+<td align="center">不能，错误只是全局的扁平标签</td>
 </tr>
 <tr>
 <td align="center">体积</td>
-<td align="center">取决于 <code>E</code>，可能很大（带 padding/布局开销）</td>
-<td align="center"><strong>极小</strong>：tag + T</td>
+<td align="center">取决于 <code>E</code>，可能很大</td>
+<td align="center">很小：标签加 <code>T</code></td>
 </tr>
 <tr>
 <td align="center">传播</td>
@@ -507,64 +481,55 @@
 <td align="center"><code>try</code></td>
 </tr>
 <tr>
-<td align="center">出错清理</td>
-<td align="center"><code>Drop</code>（隐式）</td>
-<td align="center"><code>errdefer</code>（显式）</td>
+<td align="center">出错时清理</td>
+<td align="center"><code>Drop</code>，自动</td>
+<td align="center"><code>errdefer</code>，显式</td>
 </tr>
 </tbody></table>
-<p><strong>体积</strong>：<code>@sizeOf(anyerror)=2</code>（一个 u16 错误号）、<code>@sizeOf(MyError!i32)=8</code>（i32 的 4 + tag 2 + padding）。底层就是<strong>整数比较 + 一个 <code>if (err) return err</code></strong>，无 <code>Box</code>、无 <code>match</code> 嵌套、无堆分配。</p>
-<blockquote>
-<p>Zig 的 error 更像<strong>类型安全版 <code>errno</code></strong>——适合底层系统编程，错误只需”知道发生了什么”。需要带上下文？<strong>自己设计一个 struct 当返回值</strong>，别硬塞进 error union。这是”简单 × 零成本”对”表达力”的取舍。</p>
-</blockquote>
-<hr>
-<h2 id="6-comptime：Zig-的灵魂——一个机制替掉「宏-泛型-const-fn-反射」"><a href="#6-comptime：Zig-的灵魂——一个机制替掉「宏-泛型-const-fn-反射」" class="headerlink" title="6. comptime：Zig 的灵魂——一个机制替掉「宏 + 泛型 + const fn + 反射」"></a>6. <code>comptime</code>：Zig 的灵魂——一个机制替掉「宏 + 泛型 + const fn + 反射」</h2><p>这是 Zig 最独特的地方。</p>
-<p><strong>Rust 的元编程是四套互不打通的机制</strong>：声明宏（token 流转换）、过程宏（编译期跑 Rust 但隔离）、泛型（单态化）、<code>const fn</code>（常量求值）。</p>
-<p><strong>Zig 只有一个 <code>comptime</code></strong>：它不是”模板”也不是”宏”，而是 <strong>在编译期直接执行普通 Zig 代码，执行结果作为 AST 插入当前位置</strong>。编译器解析到 <code>comptime</code> 表达式，就用内置解释器跑它，结果替换原节点。所以同一套语法、同一门语言，既写运行期也写编译期。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 编译期算查找表，运行期直接查（零运行时开销）</span><br><span class="line">const upper &#x3D; comptime blk: &#123;</span><br><span class="line">    var t: [256]u8 &#x3D; undefined;</span><br><span class="line">    for (&amp;t, 0..) |*c, i| c.* &#x3D; if (i &gt;&#x3D; &#39;a&#39; and i &lt;&#x3D; &#39;z&#39;) @intCast(i - 32) else @intCast(i);</span><br><span class="line">    break :blk t;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p><code>@sizeOf(anyerror)</code> 是 2（一个 <code>u16</code> 错误号），<code>@sizeOf(MyError!i32)</code> 是 8：<code>i32</code> 的 4 字节加标签的 2 字节，再补齐。底层就是一次整数比较加一次返回，没有堆分配。</p>
+<p>Zig 的错误更像有类型的 <code>errno</code>，适合只需知道「出了什么错」的系统代码。要带上下文，就自己设计一个结构体作为返回值，不要放进错误联合。</p>
+<h2 id="comptime"><a href="#comptime" class="headerlink" title="comptime"></a><code>comptime</code></h2><p>Rust 的元编程是四套互不相通的机制：声明宏（改写 token）、过程宏（编译期运行、相互隔离的 Rust 代码）、泛型（单态化）与 <code>const fn</code>（常量求值）。</p>
+<p>Zig 只有 <code>comptime</code>：编译器在语义分析阶段直接执行这段普通的 Zig 代码，结果作为常量或类型用在原处。同一门语言、同一套语法，既写运行期也写编译期。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 编译期算好查找表，运行期直接查。文件作用域的常量本来就在编译期求值。</span><br><span class="line">const upper &#x3D; blk: &#123;</span><br><span class="line">    var t: [256]u8 &#x3D; undefined;</span><br><span class="line">    for (&amp;t, 0..) |*c, i| c.* &#x3D; if (i &gt;&#x3D; &#39;a&#39; and i &lt;&#x3D; &#39;z&#39;) @intCast(i - 32) else @intCast(i);</span><br><span class="line">    break :blk t;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
-<p>它<strong>一个顶四个</strong>：</p>
+<p>对应 Rust 的四套机制：</p>
 <table>
 <thead>
 <tr>
-<th align="center">你在 Rust 里用</th>
-<th align="center">在 Zig 里就是</th>
+<th align="center">Rust</th>
+<th align="center">Zig</th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="center">泛型 <code>fn f&lt;T&gt;()</code></td>
-<td align="center"><code>comptime T: type</code> 参数（见 §7）</td>
+<td align="center"><code>comptime T: type</code> 参数，见「泛型与多态」</td>
 </tr>
 <tr>
-<td align="center">声明/过程宏</td>
-<td align="center">comptime 函数返回类型/代码</td>
+<td align="center">声明宏、过程宏</td>
+<td align="center">返回类型或值的 <code>comptime</code> 函数</td>
 </tr>
 <tr>
 <td align="center"><code>const fn</code></td>
-<td align="center">comptime 块/函数</td>
+<td align="center"><code>comptime</code> 块或函数</td>
 </tr>
 <tr>
-<td align="center">反射（serde/proc-macro）</td>
+<td align="center">反射（serde、过程宏）</td>
 <td align="center"><code>@typeInfo(T)</code> 编译期类型反射</td>
 </tr>
 </tbody></table>
-<p><strong>编译期反射</strong>（Rust 要靠过程宏 + serde 才能做的，Zig 内建）：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">fn dumpFields(comptime T: type) void &#123;</span><br><span class="line">    inline for (@typeInfo(T).@&quot;struct&quot;.fields) |f| &#123;   &#x2F;&#x2F; 0.17:字段全小写 .@&quot;struct&quot;</span><br><span class="line">        std.debug.print(&quot;&#123;s&#125;: &#123;s&#125;\n&quot;, .&#123; f.name, @typeName(f.type) &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>编译期反射在 Rust 里要靠过程宏，Zig 内建：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">fn dumpFields(comptime T: type) void &#123;</span><br><span class="line">    inline for (@typeInfo(T).@&quot;struct&quot;.fields) |f| &#123;      &#x2F;&#x2F; 字段名全小写：.@&quot;struct&quot;</span><br><span class="line">        std.debug.print(&quot;&#123;s&#125;: &#123;s&#125;\n&quot;, .&#123; f.name, @typeName(f.type) &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p><strong>版本坑（0.17-dev）</strong>：类型反射字段名 <strong>全小写</strong>（<code>.int</code> / <code>.@&quot;struct&quot;</code> / <code>.@&quot;fn&quot;</code>，不是旧的 <code>.Int</code>）；动态构造类型用 <strong><code>@Int(.unsigned, 32)</code></strong>——旧的 <strong><code>@Type(...)</code> 在 0.17 已删</strong>（报 <code>invalid builtin function: &#39;@Type&#39;</code>）。这正是 Zig 破坏式更新的缩影（§16）。</p>
-<blockquote>
-<p>comptime 看起来比 Rust 啰嗦（要写工厂函数），但<strong>极其透明</strong>——你清清楚楚知道编译期发生了什么，没有宏的”token 黑魔法”。这是 “simple × explicit” 哲学最闪光的体现。</p>
-</blockquote>
-<hr>
-<h2 id="7-泛型-多态：工厂函数-鸭子类型-vs-trait-生命周期"><a href="#7-泛型-多态：工厂函数-鸭子类型-vs-trait-生命周期" class="headerlink" title="7. 泛型 / 多态：工厂函数 + 鸭子类型 vs trait + 生命周期"></a>7. 泛型 / 多态：工厂函数 + 鸭子类型 vs trait + 生命周期</h2><p>Zig 没有 <code>trait</code>、没有生命周期标注、没有泛型尖括号。它用 comptime 实现泛型，两条路：</p>
-<p><strong>① 类型工厂</strong>（显式造一个类型）：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">fn Stack(comptime T: type) type &#123;        &#x2F;&#x2F; 传类型进去,返回一个新 struct 类型</span><br><span class="line">    return struct &#123;</span><br><span class="line">        items: std.ArrayList(T) &#x3D; .empty,</span><br><span class="line">        pub fn push(s: *@This(), a: std.mem.Allocator, v: T) !void &#123;</span><br><span class="line">            try s.items.append(a, v);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line">const IntStack &#x3D; Stack(i32);             &#x2F;&#x2F; 显式实例化</span><br></pre></td></tr></table></figure>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Stack</span></span>&lt;T&gt; &#123; items: <span class="built_in">Vec</span>&lt;T&gt; &#125;        <span class="comment">// Rust:隐式单态化,编译器推 T</span></span><br><span class="line"><span class="keyword">impl</span>&lt;T&gt; Stack&lt;T&gt; &#123; <span class="function"><span class="keyword">fn</span> <span class="title">push</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, v: T) &#123; <span class="keyword">self</span>.items.push(v) &#125; &#125;</span><br></pre></td></tr></table></figure>
+<p>版本差异：类型反射的字段名全小写（<code>.int</code>、<code>.@&quot;struct&quot;</code>、<code>.@&quot;fn&quot;</code>，不是旧的 <code>.Int</code>）；构造类型用 <code>@Int(.unsigned, 32)</code>、<code>@Struct</code> 等专用内建函数，<code>@Type</code> 在 0.16 删除，再用会报 <code>invalid builtin function: &#39;@Type&#39;</code>。</p>
+<p><code>comptime</code> 写起来比 Rust 啰嗦（要写工厂函数），但编译期做了什么一目了然，没有宏那样对 token 的改写。</p>
+<h2 id="泛型与多态"><a href="#泛型与多态" class="headerlink" title="泛型与多态"></a>泛型与多态</h2><p>Zig 没有 <code>trait</code>、生命周期标注和泛型尖括号，泛型用 <code>comptime</code> 实现，有两种写法。</p>
+<p>类型工厂，显式造一个类型：</p>
+<div class="tabs" id="generic"><ul class="nav-tabs"><li class="tab active"><a href="#generic-1">Zig</a></li><li class="tab"><a href="#generic-2">Rust</a></li></ul><div class="tab-content"><div class="tab-pane active" id="generic-1"><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">fn Stack(comptime T: type) type &#123;             &#x2F;&#x2F; 传入类型，返回一个新的结构体类型</span><br><span class="line">    return struct &#123;</span><br><span class="line">        items: std.ArrayList(T) &#x3D; .empty,</span><br><span class="line">        pub fn push(s: *@This(), a: std.mem.Allocator, v: T) !void &#123;</span><br><span class="line">            try s.items.append(a, v);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">const IntStack &#x3D; Stack(i32);                  &#x2F;&#x2F; 显式实例化</span><br></pre></td></tr></table></figure></div><div class="tab-pane" id="generic-2"><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Stack</span></span>&lt;T&gt; &#123; items: <span class="built_in">Vec</span>&lt;T&gt; &#125;             <span class="comment">// 编译器推断 T，隐式单态化</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;T&gt; Stack&lt;T&gt; &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">push</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, v: T) &#123; <span class="keyword">self</span>.items.push(v) &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div></div></div>
 
-<p><strong>② <code>anytype</code> 鸭子类型</strong>（编译期推参数类型）：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fn add(a: anytype, b: anytype) @TypeOf(a) &#123; return a + b; &#125;  &#x2F;&#x2F; 谁传进来算谁</span><br></pre></td></tr></table></figure>
+<p><code>anytype</code>，按传入的参数推断类型：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">fn add(a: anytype, b: anytype) @TypeOf(a) &#123;</span><br><span class="line">    return a + b;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>两条路都<strong>单态化</strong>（每个具体类型生成一份代码，和 Rust 泛型一样零成本）。</p>
-<p><strong>关键差异</strong>：</p>
+<p>两种写法都会单态化，每个具体类型生成一份代码，和 Rust 泛型一样没有运行期开销。</p>
 <table>
 <thead>
 <tr>
@@ -575,247 +540,203 @@
 </thead>
 <tbody><tr>
 <td align="center">泛型</td>
-<td align="center"><code>fn f&lt;T: Trait&gt;</code>，编译器<strong>隐式</strong>推导 + trait 约束</td>
-<td align="center"><code>Foo(comptime T: type)</code> <strong>显式</strong>工厂 / <code>anytype</code></td>
+<td align="center"><code>fn f&lt;T: Trait&gt;</code>，编译器隐式推导，trait 约束</td>
+<td align="center"><code>Foo(comptime T: type)</code> 显式工厂，或 <code>anytype</code></td>
 </tr>
 <tr>
 <td align="center">约束</td>
-<td align="center">trait bound（编译期接口契约）</td>
-<td align="center"><code>@hasDecl</code>/<code>@compileError</code> 手动检查（鸭子）</td>
+<td align="center">trait bound，编译期的接口契约</td>
+<td align="center"><code>@hasDecl</code> 加 <code>@compileError</code> 手动检查</td>
 </tr>
 <tr>
 <td align="center">生命周期</td>
 <td align="center"><code>&lt;&#39;a&gt;</code> 标注，借用检查器验证</td>
-<td align="center"><strong>没有</strong>——指针有效性靠程序员</td>
+<td align="center">没有，指针是否有效靠程序员</td>
 </tr>
 <tr>
 <td align="center">报错</td>
-<td align="center">约束不满足 → 清晰的 trait 错误</td>
-<td align="center">鸭子类型 → 报错可能在模板深处</td>
+<td align="center">约束不满足时报清晰的 trait 错误</td>
+<td align="center">报错可能出现在实例化的深处</td>
 </tr>
 </tbody></table>
-<p>Rust 的 trait 是”先声明契约、再实现”；Zig 是”直接用，编译期发现缺方法才报错”。Rust 更<strong>结构化/可读</strong>，Zig 更<strong>灵活/啰嗦</strong>——又一次”强制 vs 自由”。</p>
-<hr>
-<h2 id="8-安全：编译期警察-vs-运行期可关检查"><a href="#8-安全：编译期警察-vs-运行期可关检查" class="headerlink" title="8. 安全：编译期警察 vs 运行期可关检查"></a>8. 安全：编译期警察 vs 运行期可关检查</h2><p><strong>Rust</strong>：借用检查器 + <code>Send</code>/<code>Sync</code> 在<strong>编译期强制</strong>内存安全和数据竞争自由——违规直接编译不过。<code>unsafe</code> 块才能逃逸。</p>
-<p><strong>Zig</strong>：<strong>没有借用检查器</strong>。内存安全靠<strong>运行期检查</strong>，且<strong>按编译模式可关</strong>（4 个 build mode）：</p>
+<p>Rust 先声明契约再实现，结构清楚、好读；Zig 直接用，编译期发现缺方法才报错，更灵活也更啰嗦。</p>
+<h2 id="安全检查"><a href="#安全检查" class="headerlink" title="安全检查"></a>安全检查</h2><p>Rust 的借用检查器与 <code>Send</code>、<code>Sync</code> 在编译期保证内存安全、没有数据竞争，违规代码编译不过，只有 <code>unsafe</code> 块能绕开。</p>
+<p>Zig 没有借用检查器，内存安全靠运行期检查，并且可以按构建模式关掉：</p>
 <table>
 <thead>
 <tr>
 <th align="center">模式</th>
 <th align="center">命令</th>
 <th align="center">安全检查</th>
-<th align="center">速度/体积</th>
+<th align="center">速度与体积</th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="center"><code>Debug</code></td>
 <td align="center">默认</td>
-<td align="center">全开（越界/溢出/UAF/null）+ <code>undefined</code> 填 0xAA</td>
+<td align="center">全开（越界、溢出、释放后使用、空值），<code>undefined</code> 填 <code>0xAA</code></td>
 <td align="center">最慢</td>
 </tr>
 <tr>
 <td align="center"><code>ReleaseSafe</code></td>
 <td align="center"><code>-Doptimize=ReleaseSafe</code></td>
-<td align="center"><strong>仍开</strong>安全检查</td>
-<td align="center">优化但带检查</td>
+<td align="center">仍然开着</td>
+<td align="center">优化，带检查</td>
 </tr>
 <tr>
 <td align="center"><code>ReleaseFast</code></td>
 <td align="center"><code>-Doptimize=ReleaseFast</code></td>
-<td align="center"><strong>全关</strong></td>
-<td align="center">最快（裸奔，和 C 一样）</td>
+<td align="center">全关</td>
+<td align="center">最快，和 C 一样不做检查</td>
 </tr>
 <tr>
 <td align="center"><code>ReleaseSmall</code></td>
 <td align="center"><code>-Doptimize=ReleaseSmall</code></td>
 <td align="center">全关</td>
-<td align="center">最小（裸机首选）</td>
+<td align="center">体积最小，裸机常用</td>
 </tr>
 </tbody></table>
-<p>外加 <code>DebugAllocator</code>（旧名 GPA）在 Debug 下自动抓<strong>内存泄漏 / double-free / use-after-free</strong>。</p>
-<blockquote>
-<p><strong>Rust 的 borrow checker 是”警察”，编译期强行拦下所有违规；Zig 是”交通规则写在纸上，但车可以随时飙到 300 码”</strong>（<code>ReleaseFast</code> 关掉检查）。Zig 承认”我管不了编译期那么多，让你在 Debug 抓到它，生产要性能就关检查”。对系统编程，有时<strong>“我知道我在干什么，别拦我” 比 “绝对安全” 更重要</strong>——这就是两门语言最根本的价值观分歧。</p>
-</blockquote>
-<hr>
-<h2 id="9-并发-异步-函数染色（我的初心）"><a href="#9-并发-异步-函数染色（我的初心）" class="headerlink" title="9. 并发 / 异步 / 函数染色（我的初心）"></a>9. 并发 / 异步 / 函数染色（我的初心）</h2><blockquote>
-<p>这是当初把我（Leo）领进 Zig 的那扇门。</p>
-</blockquote>
-<h3 id="9-1-什么是函数染色（Function-Coloring）"><a href="#9-1-什么是函数染色（Function-Coloring）" class="headerlink" title="9.1 什么是函数染色（Function Coloring）"></a>9.1 什么是函数染色（Function Coloring）</h3><p>Bob Nystrom 2015《What Color is Your Function?》：一门语言引入 <code>async</code>/<code>await</code> 后，函数被隐式分成两色——<strong>普通函数（红）</strong> 和 <strong>async 函数（蓝）</strong>。蓝函数只能被蓝函数调用，<strong>传染整条调用链</strong>：底层一个 <code>async</code>，上面全得 <code>async</code>。</p>
+<p>另外 <code>DebugAllocator</code> 在 Debug 模式下自动查内存泄漏、重复释放与释放后使用。</p>
+<p>Rust 在编译期拦下所有违规；Zig 把检查放到运行期，在 Debug 下抓问题，要性能时关掉。系统编程有时更需要「不被拦下」而不是「绝对安全」，这是两门语言最根本的分歧。</p>
+<h2 id="并发、异步与函数染色"><a href="#并发、异步与函数染色" class="headerlink" title="并发、异步与函数染色"></a>并发、异步与函数染色</h2><h3 id="什么是函数染色"><a href="#什么是函数染色" class="headerlink" title="什么是函数染色"></a>什么是函数染色</h3><p>Bob Nystrom 在 2015 年的《What Color is Your Function?》里指出：语言引入 <code>async</code>、<code>await</code> 之后，函数分成两色，普通函数（红）与异步函数（蓝）。蓝函数只能被蓝函数调用，并沿调用链往上传染：底层一个 <code>async</code>，上面全得 <code>async</code>。</p>
 <table>
 <thead>
 <tr>
 <th align="center">语言</th>
-<th align="center">方案</th>
-<th align="center">染色？</th>
+<th align="center">做法</th>
+<th align="center">是否染色</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="center">Python / JS / <strong>Rust</strong></td>
-<td align="center"><code>async</code>/<code>await</code> 关键字</td>
-<td align="center"><strong>有</strong>，传染</td>
+<td align="center">Python、JavaScript、Rust</td>
+<td align="center"><code>async</code>、<code>await</code> 关键字</td>
+<td align="center">有，会传染</td>
 </tr>
 <tr>
-<td align="center">Go / Java 虚拟线程</td>
-<td align="center">goroutine / 阻塞自动挂起</td>
-<td align="center"><strong>无</strong></td>
+<td align="center">Go、Java 虚拟线程</td>
+<td align="center">goroutine，阻塞时自动挂起</td>
+<td align="center">无</td>
 </tr>
 <tr>
-<td align="center"><strong>老 Zig（≤0.14）</strong></td>
-<td align="center"><code>async fn</code> 关键字</td>
-<td align="center"><strong>有</strong>（同 Rust）</td>
+<td align="center">Zig 0.10 及以前</td>
+<td align="center">stage1 编译器的 <code>async</code>、<code>await</code></td>
+<td align="center">有，同 Rust</td>
 </tr>
 <tr>
-<td align="center"><strong>新 Zig（0.15+）</strong></td>
-<td align="center">砍掉关键字 + <code>Io</code> 参数注入</td>
-<td align="center"><strong>设计上无</strong></td>
+<td align="center">Zig 0.11 至 0.14</td>
+<td align="center">自举编译器没有实现 async，关键字保留但不能用</td>
+<td align="center">不可用</td>
+</tr>
+<tr>
+<td align="center">Zig 0.15 起</td>
+<td align="center">删掉 <code>async</code>、<code>await</code>，0.16 起异步能力经 <code>std.Io</code> 参数传入</td>
+<td align="center">设计上无</td>
 </tr>
 </tbody></table>
-<h3 id="9-2-Zig-的答案：釜底抽薪——把-async-关键字砍了"><a href="#9-2-Zig-的答案：釜底抽薪——把-async-关键字砍了" class="headerlink" title="9.2 Zig 的答案：釜底抽薪——把 async 关键字砍了"></a>9.2 Zig 的答案：釜底抽薪——把 <code>async</code> 关键字砍了</h3><p><strong>0.17-dev</strong>：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">pub fn main() void &#123; var fr &#x3D; async foo(); &#125;</span><br><span class="line">&#x2F;&#x2F; → error: expected &#39;;&#39; after statement   ← async 根本不是关键字了!</span><br></pre></td></tr></table></figure>
+<h3 id="Zig-的做法"><a href="#Zig-的做法" class="headerlink" title="Zig 的做法"></a>Zig 的做法</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">pub fn main() void &#123;</span><br><span class="line">    var fr &#x3D; async foo();</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F; error: expected &#39;;&#39; after statement  （async 已经不是关键字）</span><br></pre></td></tr></table></figure>
 
-<p>Zig 在 <strong>0.15 移除了 <code>async</code>/<code>await</code>/<code>suspend</code>/<code>resume</code> 全部关键字</strong>（旧实现编译器复杂度爆炸、无法真零成本、与 comptime 交互困难）。<strong>没有颜色关键字 = 没有染色</strong>。取而代之（0.16+ 设计中）：协程能力通过 <strong><code>Io</code> 接口当参数注入</strong>，函数本身是中性的：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">fn fetch(io: std.Io, url: []const u8) ![]u8 &#123;   &#x2F;&#x2F; 普通函数,只是多收个 io 参数</span><br><span class="line">    return io.http.get(url);                      &#x2F;&#x2F; io 决定同步还是异步,函数不知道</span><br><span class="line">&#125;</span><br><span class="line">&#x2F;&#x2F; 同一个 fetch:单线程 Io → 顺序; 线程池 Io → 并发; io_uring Io → 异步 I&#x2F;O</span><br></pre></td></tr></table></figure>
+<p>Zig 在 0.15 删除了 <code>async</code>、<code>await</code> 关键字（<code>suspend</code>、<code>resume</code> 还能通过语法检查，编译时报 async 未在自举编译器中实现）：旧实现让编译器过于复杂，做不到真正的零开销，与 <code>comptime</code> 的配合也困难。没有标记颜色的关键字，函数也就不分颜色。</p>
+<p>0.16 起，异步能力通过 <code>std.Io</code> 接口作为参数传入，函数本身不分颜色：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">fn double(x: u32) u32 &#123;</span><br><span class="line">    return x * 2;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fn run(io: std.Io) u32 &#123;</span><br><span class="line">    var a &#x3D; io.async(double, .&#123;20&#125;);      &#x2F;&#x2F; 交给 io 调度，返回 Future</span><br><span class="line">    var b &#x3D; io.async(double, .&#123;1&#125;);</span><br><span class="line">    return a.await(io) + b.await(io);     &#x2F;&#x2F; 42</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h3 id="9-3-犀利吐槽"><a href="#9-3-犀利吐槽" class="headerlink" title="9.3 犀利吐槽"></a>9.3 犀利吐槽</h3><blockquote>
-<p><strong>本质还是没摆脱染色问题，只是把染色问题”推迟到调用方”</strong>——决定用哪种 <code>Io</code> 后端的那一刻，颜色就定了。</p>
-</blockquote>
-<p>旧设计把”是否异步”编码在<strong>函数类型</strong>里（染色传染）；新设计把”如何调度”编码在<strong>参数</strong>里（注入）。函数中性了，但<strong>调用链仍要一路把 <code>io</code> 传下去</strong>——这何尝不是另一种形式的”传染”？只是从”类型传染”变成”参数传染”，从编译期强制变成约定。Zig 没有”消灭”染色，而是<strong>换了个更可控、更显式的形态</strong>。</p>
-<blockquote>
-<p>截至 <code>0.17.0-dev</code>，语言里<strong>没有</strong> <code>async</code>/<code>await</code>；新的 <code>Io</code> 协程模型仍在落地，API 会变。想在 Zig 里写并发，当下用：<strong>手工状态机</strong>（裸机/no_std 永远有效）、<strong><code>std.Thread</code></strong>（有 OS）、或社区库 <strong>libxev</strong>（事件循环）/ <strong>zigcoro</strong>（有栈协程，汇编 context_switch，支持 RISC-V）。</p>
-</blockquote>
-<h3 id="9-4-原子操作（两门都直面内存序）"><a href="#9-4-原子操作（两门都直面内存序）" class="headerlink" title="9.4 原子操作（两门都直面内存序）"></a>9.4 原子操作（两门都直面内存序）</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var ctr &#x3D; std.atomic.Value(u64).init(0);</span><br><span class="line">_ &#x3D; ctr.fetchAdd(1, .monotonic);              &#x2F;&#x2F; .monotonic&#x2F;.acquire&#x2F;.release&#x2F;.acq_rel&#x2F;.seq_cst</span><br><span class="line">const ok &#x3D; ctr.cmpxchgWeak(0, 1, .acq_rel, .monotonic) &#x3D;&#x3D; null;  &#x2F;&#x2F; CAS</span><br></pre></td></tr></table></figure>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::sync::atomic::&#123;AtomicU64, Ordering&#125;;</span><br><span class="line"><span class="keyword">let</span> ctr = AtomicU64::new(<span class="number">0</span>);</span><br><span class="line">ctr.fetch_add(<span class="number">1</span>, Ordering::Relaxed);          <span class="comment">// Relaxed/Acquire/Release/AcqRel/SeqCst</span></span><br></pre></td></tr></table></figure>
-<p>内存序模型几乎一致（都是 C++11 那套）：Zig <code>.monotonic</code> = Rust <code>Relaxed</code>，其余同名。这层两门语言高度趋同。</p>
-<hr>
-<h2 id="10-标准库：显式、不偷偷分配"><a href="#10-标准库：显式、不偷偷分配" class="headerlink" title="10. 标准库：显式、不偷偷分配"></a>10. 标准库：显式、不偷偷分配</h2><p>Zig <code>std</code> 的设计跟它的哲学一脉相承：<strong>不默认分配堆</strong>、<strong>错误是返回值</strong>、<strong>无全局状态</strong>。</p>
+<p>同一个 <code>run</code>，传入什么 <code>Io</code> 实现就怎么调度：0.16 里完整可用的是线程池版 <code>Io.Threaded</code>，基于用户态栈切换的 <code>Io.Evented</code> 与基于 io_uring 的 <code>Io.Uring</code> 还在实验阶段。</p>
+<h3 id="评价"><a href="#评价" class="headerlink" title="评价"></a>评价</h3><p>染色并没有消失，只是推迟到了调用方：选定 <code>Io</code> 实现的那一刻，颜色就定了。</p>
+<p>旧设计把「是否异步」写进函数类型，沿类型传染；新设计把「怎么调度」放进参数，函数本身不分颜色，但调用链仍要一路把 <code>io</code> 传下去，只是从「类型传染」变成了「参数传染」，从编译期强制变成了约定。Zig 没有消灭染色，而是换成了更可控、更显式的形式。</p>
+<p>除了 <code>std.Io</code>，Zig 里写并发还可以用手工状态机（裸机与 <code>no_std</code> 始终可用）、<code>std.Thread</code>（有操作系统时），或社区库 libxev（事件循环）、zigcoro（有栈协程，用汇编切换上下文，支持 RISC-V）。</p>
+<h3 id="原子操作"><a href="#原子操作" class="headerlink" title="原子操作"></a>原子操作</h3><div class="tabs" id="atomic"><ul class="nav-tabs"><li class="tab active"><a href="#atomic-1">Zig</a></li><li class="tab"><a href="#atomic-2">Rust</a></li></ul><div class="tab-content"><div class="tab-pane active" id="atomic-1"><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">var ctr &#x3D; std.atomic.Value(u64).init(0);</span><br><span class="line">_ &#x3D; ctr.fetchAdd(1, .monotonic);                                   &#x2F;&#x2F; .monotonic、.acquire、.release、.acq_rel、.seq_cst</span><br><span class="line">const ok &#x3D; ctr.cmpxchgWeak(0, 1, .acq_rel, .monotonic) &#x3D;&#x3D; null;    &#x2F;&#x2F; CAS，成功时返回 null</span><br></pre></td></tr></table></figure></div><div class="tab-pane" id="atomic-2"><figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">use</span> std::sync::atomic::&#123;AtomicU64, Ordering&#125;;</span><br><span class="line"><span class="keyword">let</span> ctr = AtomicU64::new(<span class="number">0</span>);</span><br><span class="line">ctr.fetch_add(<span class="number">1</span>, Ordering::Relaxed);                               <span class="comment">// Relaxed、Acquire、Release、AcqRel、SeqCst</span></span><br></pre></td></tr></table></figure></div></div></div>
+
+<p>两门语言的内存序都沿用 C++11 的模型：Zig 的 <code>.monotonic</code> 对应 Rust 的 <code>Relaxed</code>，其余同名。</p>
+<h2 id="标准库"><a href="#标准库" class="headerlink" title="标准库"></a>标准库</h2><p>Zig 的 <code>std</code> 与它的设计取向一致：不默认分配堆内存，错误是返回值，没有全局状态。</p>
 <table>
-<thead>
-<tr>
-<th align="center">能力</th>
-<th align="center">Rust</th>
-<th align="center">Zig（0.17）</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center">动态数组</td>
-<td align="center"><code>Vec&lt;T&gt;</code>（自带全局分配）</td>
-<td align="center"><code>std.ArrayList(T) = .empty</code> + <code>append(a, x)</code></td>
-</tr>
-<tr>
-<td align="center">哈希表</td>
-<td align="center"><code>HashMap&lt;K,V&gt;</code></td>
-<td align="center"><code>std.AutoHashMap</code> / <code>std.StringHashMap</code>（<code>.init(a)</code>）</td>
-</tr>
-<tr>
-<td align="center">通用分配器</td>
-<td align="center">全局 <code>alloc</code>（隐式）</td>
-<td align="center"><code>DebugAllocator</code>（查泄漏）/ <code>Arena</code> / <code>FixedBuffer</code> / <code>smp_allocator</code></td>
-</tr>
-<tr>
-<td align="center">格式化</td>
-<td align="center"><code>format!</code> / <code>println!</code>（宏）</td>
-<td align="center"><code>std.fmt</code> + <code>std.debug.print</code>（comptime 格式串）</td>
-</tr>
-<tr>
-<td align="center">排序</td>
-<td align="center"><code>slice.sort()</code></td>
-<td align="center"><code>std.mem.sort(T, s, ctx, less)</code></td>
-</tr>
-</tbody></table>
-<p><strong>I/O 正在大改（Writergate）</strong>：旧的 <code>std.io.getStdOut().writer()</code> 在 0.15+ 被重构为新的 <code>Writer</code> 接口模型，0.17-dev 仍在流变（连”标准输出怎么写”在 0.17-dev 都还会报错）。例子里安全的输出用 <code>std.debug.print</code>（稳定）。这又是 Zig 不稳定的一个活样本。</p>
-<p>对位 Rust：<code>Vec</code>/<code>HashMap</code>/<code>String</code> 自带全局分配器、用起来”无脑”；Zig 把分配器摊开给你，<strong>省心 vs 可控</strong>的又一次取舍。</p>
-<h3 id="10-1-常用标准库对照（速查）"><a href="#10-1-常用标准库对照（速查）" class="headerlink" title="10.1 常用标准库对照（速查）"></a>10.1 常用标准库对照（速查）</h3><table>
 <thead>
 <tr>
 <th align="center">用途</th>
 <th align="center">Rust <code>std</code></th>
-<th align="center">Zig <code>std</code>（0.17）</th>
+<th align="center">Zig <code>std</code></th>
 </tr>
 </thead>
 <tbody><tr>
 <td align="center">动态数组</td>
-<td align="center"><code>Vec&lt;T&gt;</code>：<code>push</code>/<code>pop</code>/<code>len</code></td>
-<td align="center"><code>std.ArrayList(T)</code>（<code>.empty</code>）：<code>append(a, x)</code>/<code>pop</code>/<code>items.len</code></td>
+<td align="center"><code>Vec&lt;T&gt;</code>：<code>push</code>、<code>pop</code>、<code>len</code></td>
+<td align="center"><code>std.ArrayList(T)</code>（<code>.empty</code>）：<code>append(a, x)</code>、<code>pop</code>、<code>items.len</code></td>
 </tr>
 <tr>
 <td align="center">哈希表</td>
-<td align="center"><code>HashMap&lt;K,V&gt;</code> / <code>BTreeMap</code></td>
-<td align="center"><code>std.AutoHashMap(K,V)</code> / <code>std.StringHashMap(V)</code>（<code>.init(a)</code>）</td>
+<td align="center"><code>HashMap&lt;K, V&gt;</code>、<code>BTreeMap</code></td>
+<td align="center"><code>std.AutoHashMap(K, V)</code>、<code>std.StringHashMap(V)</code>（<code>.init(a)</code>）</td>
 </tr>
 <tr>
 <td align="center">集合</td>
-<td align="center"><code>HashSet</code> / <code>BTreeSet</code></td>
-<td align="center">无独立 Set，用 <code>AutoHashMap(K, void)</code> 顶</td>
+<td align="center"><code>HashSet</code>、<code>BTreeSet</code></td>
+<td align="center">没有单独的 Set，用 <code>AutoHashMap(K, void)</code></td>
 </tr>
 <tr>
 <td align="center">字符串</td>
-<td align="center"><code>String</code>（拥有）/ <code>&amp;str</code>（借用），<strong>保证 UTF-8</strong></td>
-<td align="center"><code>[]const u8</code>（裸字节切片，<strong>编码自负</strong>）；拼接用 <code>ArrayList(u8)</code> 或 <code>std.fmt.allocPrint</code></td>
+<td align="center"><code>String</code> 与 <code>&amp;str</code>，保证 UTF-8</td>
+<td align="center"><code>[]const u8</code>，编码自己负责；拼接用 <code>ArrayList(u8)</code> 或 <code>std.fmt.allocPrint</code></td>
 </tr>
 <tr>
 <td align="center">可空</td>
-<td align="center"><code>Option&lt;T&gt;</code>：<code>unwrap_or</code>/<code>map</code>/<code>?</code></td>
-<td align="center"><code>?T</code>：<code>orelse</code>/<code>.?</code>/<code>if (x) |v|</code></td>
+<td align="center"><code>Option&lt;T&gt;</code>：<code>unwrap_or</code>、<code>map</code>、<code>?</code></td>
+<td align="center"><code>?T</code>：<code>orelse</code>、<code>.?</code>、<code>if (x) |v|</code></td>
 </tr>
 <tr>
 <td align="center">错误</td>
-<td align="center"><code>Result&lt;T,E&gt;</code>：<code>?</code></td>
-<td align="center"><code>E!T</code>：<code>try</code>/<code>catch</code></td>
+<td align="center"><code>Result&lt;T, E&gt;</code>：<code>?</code></td>
+<td align="center"><code>E!T</code>：<code>try</code>、<code>catch</code></td>
 </tr>
 <tr>
-<td align="center">格式化成串</td>
+<td align="center">格式化成字符串</td>
 <td align="center"><code>format!(&quot;{}&quot;, x)</code></td>
-<td align="center"><code>std.fmt.allocPrint(a, &quot;{}&quot;, .{x})</code>（要 allocator）</td>
+<td align="center"><code>std.fmt.allocPrint(a, &quot;{}&quot;, .{x})</code>，要传分配器</td>
 </tr>
 <tr>
 <td align="center">打印</td>
-<td align="center"><code>println!</code> / <code>print!</code></td>
+<td align="center"><code>println!</code>、<code>print!</code></td>
 <td align="center"><code>std.debug.print(&quot;{}\n&quot;, .{x})</code></td>
 </tr>
 <tr>
-<td align="center">排序 / 二分</td>
-<td align="center"><code>slice.sort()</code> / <code>binary_search</code></td>
-<td align="center"><code>std.mem.sort(T, s, ctx, less)</code> / <code>std.sort.binarySearch</code></td>
+<td align="center">排序与二分</td>
+<td align="center"><code>slice.sort()</code>、<code>binary_search</code></td>
+<td align="center"><code>std.mem.sort(T, s, ctx, less)</code>、<code>std.sort.binarySearch</code></td>
 </tr>
 <tr>
 <td align="center">遍历</td>
-<td align="center"><code>Iterator</code> trait + <code>map</code>/<code>filter</code>/<code>collect</code> 适配器链</td>
-<td align="center"><strong>无 Iterator trait</strong>：手写 <code>for</code>/<code>while</code>，或容器自带 <code>iterator()</code></td>
+<td align="center"><code>Iterator</code> trait 加 <code>map</code>、<code>filter</code>、<code>collect</code></td>
+<td align="center">没有 <code>Iterator</code> trait，手写 <code>for</code>、<code>while</code>，或用容器自带的 <code>iterator()</code></td>
 </tr>
 <tr>
-<td align="center">随机</td>
-<td align="center"><code>rand</code>（crate）</td>
-<td align="center"><code>std.Random</code>（std 内建）</td>
+<td align="center">随机数</td>
+<td align="center"><code>rand</code>（第三方库）</td>
+<td align="center"><code>std.Random</code>，标准库自带</td>
 </tr>
 <tr>
 <td align="center">JSON</td>
-<td align="center"><code>serde_json</code>（crate）</td>
-<td align="center"><code>std.json</code>（std 内建）</td>
+<td align="center"><code>serde_json</code>（第三方库）</td>
+<td align="center"><code>std.json</code>，标准库自带</td>
 </tr>
 <tr>
-<td align="center">文件 / IO</td>
-<td align="center"><code>std::fs</code> / <code>std::io</code></td>
-<td align="center"><code>std.fs</code> / <code>std.Io</code>（0.17-dev 正重构：<code>std.fs</code> 部分搬进 <code>std.Io</code>、<code>Writer</code> 接口重做）</td>
+<td align="center">文件与 I/O</td>
+<td align="center"><code>std::fs</code>、<code>std::io</code></td>
+<td align="center"><code>std.Io</code>，0.16 起所有 I/O 都要传 <code>io</code></td>
 </tr>
 <tr>
 <td align="center">时间</td>
 <td align="center"><code>std::time::{Instant, Duration}</code></td>
-<td align="center"><code>std.time</code>（0.17-dev 在变）</td>
+<td align="center"><code>std.time</code></td>
 </tr>
 <tr>
-<td align="center">命令行 / env</td>
+<td align="center">命令行与环境变量</td>
 <td align="center"><code>std::env::{args, var}</code></td>
-<td align="center"><code>std.process</code>（args/env API 0.17-dev 在变）</td>
+<td align="center">0.16 起 <code>main</code> 可以接收 <code>std.process.Init</code>，参数与环境变量从这里取</td>
 </tr>
 </tbody></table>
-<p>两条总纲：① <strong>“要分配就传 allocator”贯穿整个 Zig std</strong>（<code>ArrayList.append(a, x)</code>、<code>allocPrint(a, …)</code>、<code>HashMap.init(a)</code>），Rust 用全局分配器把这层藏起来。② <strong>Zig 没有 <code>Iterator</code> trait</strong>——没有 <code>map</code>/<code>filter</code>/<code>collect</code> 惰性链，遍历靠 <code>for</code>/<code>while</code> 或容器自带的 <code>iterator()</code>。</p>
-<p>表里最后三行（fs/io、time、process）在 <code>0.17-dev</code> 正经历重构（<code>std.fs</code> 往 <code>std.Io</code> 搬、<code>Writer</code> 接口重做、args/env 改形）——今天的精确函数名下个版本未必还在。稳的是”显式分配 + 错误是值”这套哲学，变的是具体签名。</p>
-<hr>
-<h2 id="11-C-C-互操作：Zig-甩-Rust-一个街区"><a href="#11-C-C-互操作：Zig-甩-Rust-一个街区" class="headerlink" title="11. C / C++ 互操作：Zig 甩 Rust 一个街区"></a>11. C / C++ 互操作：Zig 甩 Rust 一个街区</h2><p><strong>Rust 调 C</strong>：写 <code>bindgen</code> 构建脚本 → 生成一堆 <code>extern &quot;C&quot;</code> + <code>unsafe fn</code> → 处理 <code>#[link]</code>/库路径 → C 宏调不了只能硬编码常量 → <code>size_t</code>↔<code>usize</code> 来回转、指针满天飞用 <code>std::ptr</code>。<strong>两套类型世界观</strong>（<code>int*</code> vs <code>*mut i32</code>）来回搬。</p>
-<p><strong>Zig 调 C</strong>：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">const c &#x3D; @cImport(&#123;</span><br><span class="line">    @cInclude(&quot;stdio.h&quot;);</span><br><span class="line">    @cInclude(&quot;SDL2&#x2F;SDL.h&quot;);</span><br><span class="line">&#125;);</span><br><span class="line">c.printf(&quot;Hello from Zig!\n&quot;);          &#x2F;&#x2F; 直接用,无 unsafe 块</span><br><span class="line">c.SDL_Init(c.SDL_INIT_VIDEO);</span><br></pre></td></tr></table></figure>
+<p>两点贯穿全表：要分配就传分配器（<code>append(a, x)</code>、<code>allocPrint(a, ...)</code>、<code>init(a)</code>），Rust 用全局分配器把这一层藏了起来；Zig 没有 <code>Iterator</code> trait，没有惰性的 <code>map</code>、<code>filter</code>、<code>collect</code> 链。</p>
+<p>I/O 在 0.15 重做了 <code>Writer</code> 接口，0.16 又改成所有 I/O 都经 <code>Io</code>，文件、时间、进程这几行变化最大，函数名以所用版本的标准库为准；文中示例的输出统一用 <code>std.debug.print</code>。</p>
+<h2 id="C-互操作"><a href="#C-互操作" class="headerlink" title="C 互操作"></a>C 互操作</h2><p>Rust 调 C：写 <code>bindgen</code> 构建脚本，生成一批 <code>extern &quot;C&quot;</code> 与 <code>unsafe fn</code>，处理 <code>#[link]</code> 与库路径；常量宏能翻译，函数式宏要手工改写；<code>size_t</code> 与 <code>usize</code>、<code>int*</code> 与 <code>*mut i32</code> 两套类型来回转换。</p>
+<p>Zig 调 C：0.16 起由构建系统翻译 C 头文件（之前是语言内建的 <code>@cImport</code>，0.16 弃用，0.17 已删除）。</p>
+<div class="tabs" id="cinterop"><ul class="nav-tabs"><li class="tab active"><a href="#cinterop-1">build.zig</a></li><li class="tab"><a href="#cinterop-2">src/main.zig</a></li></ul><div class="tab-content"><div class="tab-pane active" id="cinterop-1"><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">const c &#x3D; b.addTranslateC(.&#123;</span><br><span class="line">    .root_source_file &#x3D; b.path(&quot;src&#x2F;c.h&quot;),    &#x2F;&#x2F; 里面写 #include &lt;stdio.h&gt;</span><br><span class="line">    .target &#x3D; target,</span><br><span class="line">    .optimize &#x3D; optimize,</span><br><span class="line">&#125;);</span><br><span class="line">exe.root_module.addImport(&quot;c&quot;, c.createModule());</span><br></pre></td></tr></table></figure></div><div class="tab-pane" id="cinterop-2"><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">const c &#x3D; @import(&quot;c&quot;);</span><br><span class="line"></span><br><span class="line">pub fn main() void &#123;</span><br><span class="line">    _ &#x3D; c.printf(&quot;Hello from Zig!\n&quot;);        &#x2F;&#x2F; 直接调用，不需要 unsafe</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div></div></div>
 
-<p>这背后是质变：</p>
 <table>
 <thead>
 <tr>
@@ -826,35 +747,32 @@
 </thead>
 <tbody><tr>
 <td align="center">绑定生成</td>
-<td align="center"><code>bindgen</code>（独立工具 + build.rs）</td>
-<td align="center"><strong><code>@cImport</code> 内建 Clang，编译期解析头文件</strong></td>
+<td align="center"><code>bindgen</code>，独立工具加 <code>build.rs</code></td>
+<td align="center">构建系统的 translate-c，基于 Clang 解析头文件</td>
 </tr>
 <tr>
 <td align="center">C 宏</td>
-<td align="center">调不了</td>
-<td align="center"><code>@cImport</code> 部分翻译宏；<code>@cDefine</code> 还能反向传宏</td>
+<td align="center">常量宏可翻译，函数式宏手工改写</td>
+<td align="center">translate-c 翻译常量宏与简单的函数式宏</td>
 </tr>
 <tr>
 <td align="center"><code>unsafe</code></td>
-<td align="center">FFI 全要 <code>unsafe</code> 块</td>
-<td align="center"><strong>无 <code>unsafe</code> 关键字</strong>，直接调</td>
+<td align="center">FFI 调用都要 <code>unsafe</code> 块</td>
+<td align="center">没有 <code>unsafe</code> 关键字，直接调用</td>
 </tr>
 <tr>
 <td align="center">指针</td>
-<td align="center"><code>*mut i32</code> ↔ <code>int*</code> 两套</td>
-<td align="center"><code>@cImport</code> 直接生成 <code>[*c]i32</code>，无缝</td>
+<td align="center"><code>*mut i32</code> 与 <code>int*</code> 两套</td>
+<td align="center">翻译成 <code>[*c]i32</code>，直接用</td>
 </tr>
 <tr>
 <td align="center">交叉编译 C</td>
-<td align="center">要装目标工具链</td>
-<td align="center"><strong><code>zig cc -target riscv64-linux</code> 自带 libc/sysroot，零工具链</strong></td>
+<td align="center">要装目标平台的工具链</td>
+<td align="center"><code>zig cc -target riscv64-linux</code> 自带 libc 与 sysroot</td>
 </tr>
 </tbody></table>
-<blockquote>
-<p>写 Zig 有 C 的自由感，但又多受一部分约束（传入分配器参数）、多了 <code>defer</code> 和编译期计算、少了宏的繁杂。<strong>它不是 Rust 的替代品，是 C 的进化版。</strong> 渐进式替换很爽：先把 Zig 当”增强版 C 预处理器 + 构建系统”用（<code>zig cc</code> 是个能跨平台的 drop-in C 编译器），再慢慢用 Zig 重写模块。唯一代价：<code>@cImport</code> 编译期要起 Clang 解析头文件，略慢——但比 Rust 的 <code>bindgen</code> + 两步编译，体验好太多。</p>
-</blockquote>
-<hr>
-<h2 id="12-构建系统-包管理：zig-build-vs-Cargo"><a href="#12-构建系统-包管理：zig-build-vs-Cargo" class="headerlink" title="12. 构建系统 / 包管理：zig build vs Cargo"></a>12. 构建系统 / 包管理：<code>zig build</code> vs Cargo</h2><table>
+<p>Zig 更像 C 的升级：保留 C 的直接，多了 <code>defer</code>、编译期计算和显式分配器，去掉了宏。改造旧 C 项目可以分步：先把 <code>zig cc</code> 当跨平台的 C 编译器用，再逐个模块用 Zig 重写。</p>
+<h2 id="构建系统与包管理"><a href="#构建系统与包管理" class="headerlink" title="构建系统与包管理"></a>构建系统与包管理</h2><table>
 <thead>
 <tr>
 <th align="center"></th>
@@ -864,18 +782,18 @@
 </thead>
 <tbody><tr>
 <td align="center">构建脚本</td>
-<td align="center"><code>Cargo.toml</code>（声明式 TOML）+ <code>build.rs</code></td>
-<td align="center"><strong><code>build.zig</code>（用 Zig 写的命令式构建图）</strong></td>
+<td align="center"><code>Cargo.toml</code>（声明式）加 <code>build.rs</code></td>
+<td align="center"><code>build.zig</code>，用 Zig 写的构建图</td>
 </tr>
 <tr>
 <td align="center">包清单</td>
 <td align="center"><code>Cargo.toml</code></td>
-<td align="center"><code>build.zig.zon</code>（ZON = Zig 对象记法）</td>
+<td align="center"><code>build.zig.zon</code>（Zig 对象记法）</td>
 </tr>
 <tr>
 <td align="center">注册中心</td>
-<td align="center">crates.io（中心化）</td>
-<td align="center"><strong>无官方中心</strong>，靠 URL + hash 或本地路径</td>
+<td align="center">crates.io，中心化</td>
+<td align="center">没有官方中心，靠 URL 加哈希或本地路径</td>
 </tr>
 <tr>
 <td align="center">加依赖</td>
@@ -884,42 +802,37 @@
 </tr>
 <tr>
 <td align="center">跨平台构建</td>
-<td align="center">需对应 target 工具链</td>
-<td align="center"><code>-Dtarget=riscv64-freestanding-none</code> <strong>内建跨编译</strong></td>
+<td align="center">需要目标平台的工具链</td>
+<td align="center"><code>-Dtarget=riscv64-freestanding-none</code>，内建交叉编译</td>
 </tr>
 </tbody></table>
-<blockquote>
-<p>Zig 没有 crates.io 那样的中央仓库，”收录”全靠社区索引站：在 GitHub 及其他各大代码平台上，公开仓库<strong>打上 <code>zig-package</code> 的 topic 标签</strong>就能被自动识别、聚合进”Zig 包”列表——门槛极低，质量也因此良莠不齐。</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; build.zig:构建脚本就是普通 Zig 代码,你能用 if&#x2F;for&#x2F;comptime 编排</span><br><span class="line">pub fn build(b: *std.Build) void &#123;</span><br><span class="line">    const target &#x3D; b.standardTargetOptions(.&#123;&#125;);</span><br><span class="line">    const exe &#x3D; b.addExecutable(.&#123; .name &#x3D; &quot;app&quot;, .root_source_file &#x3D; b.path(&quot;src&#x2F;main.zig&quot;), .target &#x3D; target &#125;);</span><br><span class="line">    b.installArtifact(exe);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Zig 没有 crates.io 这样的中央仓库，包的收录靠社区索引站：Codeberg、GitHub 等代码平台上的公开仓库打上 <code>zig-package</code> 话题标签，就会被自动收进「Zig 包」列表，门槛很低，质量也参差不齐。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; build.zig：构建脚本就是普通 Zig 代码，可以用 if、for、comptime 编排</span><br><span class="line">pub fn build(b: *std.Build) void &#123;</span><br><span class="line">    const target &#x3D; b.standardTargetOptions(.&#123;&#125;);</span><br><span class="line">    const exe &#x3D; b.addExecutable(.&#123;</span><br><span class="line">        .name &#x3D; &quot;app&quot;,</span><br><span class="line">        .root_module &#x3D; b.createModule(.&#123;</span><br><span class="line">            .root_source_file &#x3D; b.path(&quot;src&#x2F;main.zig&quot;),</span><br><span class="line">            .target &#x3D; target,</span><br><span class="line">        &#125;),</span><br><span class="line">    &#125;);</span><br><span class="line">    b.installArtifact(exe);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<blockquote>
-<p>取舍：Cargo 生态成熟（crates.io 几十万包、版本解析强）、声明式好读；<code>zig build</code> 是<strong>图灵完备的命令式构建</strong>（能跨编译、能编 C、能跑任意步骤），但<strong>没有中心化注册表</strong>、生态小。Rust <strong>生态赢</strong>，Zig <strong>构建灵活性 + 跨编译赢</strong>。</p>
-</blockquote>
-<hr>
-<h2 id="13-裸机-嵌入式-RISC-V：两门都能-no-runtime"><a href="#13-裸机-嵌入式-RISC-V：两门都能-no-runtime" class="headerlink" title="13. 裸机 / 嵌入式 / RISC-V：两门都能 no-runtime"></a>13. 裸机 / 嵌入式 / RISC-V：两门都能 no-runtime</h2><p>这是 RISC-V 全栈最关心的一层。Rust <code>#![no_std]</code>，Zig <code>freestanding</code> target——都能脱离 OS/libc 跑在裸机。</p>
+<p>Cargo 生态成熟（crates.io 有几十万个包，版本解析强）、声明式好读；<code>build.zig</code> 是图灵完备的构建脚本，能交叉编译、能编 C、能跑任意步骤，但没有中心化的注册表，可用的包少。库的数量 Rust 占优，构建的灵活性与交叉编译 Zig 占优。</p>
+<h2 id="裸机、嵌入式与-RISC-V"><a href="#裸机、嵌入式与-RISC-V" class="headerlink" title="裸机、嵌入式与 RISC-V"></a>裸机、嵌入式与 RISC-V</h2><p>Rust 用 <code>#![no_std]</code>，Zig 用 <code>freestanding</code> 目标，都能脱离操作系统与 libc 在裸机上跑。</p>
 <table>
 <thead>
 <tr>
 <th align="center">能力</th>
-<th align="center">Rust（no_std）</th>
-<th align="center">Zig（freestanding）</th>
+<th align="center">Rust（<code>no_std</code>）</th>
+<th align="center">Zig（<code>freestanding</code>）</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="center">脱 OS</td>
-<td align="center"><code>#![no_std]</code> + <code>#![no_main]</code></td>
+<td align="center">脱离操作系统</td>
+<td align="center"><code>#![no_std]</code> 加 <code>#![no_main]</code></td>
 <td align="center"><code>-target riscv64-freestanding-none</code></td>
 </tr>
 <tr>
 <td align="center">入口</td>
-<td align="center"><code>#[no_mangle] extern &quot;C&quot; fn _start</code></td>
+<td align="center"><code>#[unsafe(no_mangle)] extern &quot;C&quot; fn _start</code></td>
 <td align="center"><code>export fn _start() callconv(.naked)</code></td>
 </tr>
 <tr>
 <td align="center">裸函数</td>
-<td align="center"><code>#[naked]</code>（需 nightly/外部 crate）</td>
-<td align="center"><code>callconv(.naked)</code>（内建）</td>
+<td align="center"><code>#[unsafe(naked)]</code> 加 <code>naked_asm!</code>，1.88 起稳定</td>
+<td align="center"><code>callconv(.naked)</code>，内建</td>
 </tr>
 <tr>
 <td align="center">内联汇编</td>
@@ -928,8 +841,8 @@
 </tr>
 <tr>
 <td align="center">MMIO</td>
-<td align="center"><code>read_volatile</code>/<code>write_volatile</code></td>
-<td align="center"><code>*volatile T</code> + <code>@ptrFromInt</code></td>
+<td align="center"><code>read_volatile</code>、<code>write_volatile</code></td>
+<td align="center"><code>*volatile T</code> 加 <code>@ptrFromInt</code></td>
 </tr>
 <tr>
 <td align="center">panic</td>
@@ -938,17 +851,14 @@
 </tr>
 <tr>
 <td align="center">链接脚本</td>
-<td align="center"><code>build.rs</code> + <code>.cargo/config</code></td>
-<td align="center"><code>exe.setLinkerScriptPath(...)</code>（build.zig 内建）</td>
+<td align="center"><code>build.rs</code> 加 <code>.cargo/config</code></td>
+<td align="center"><code>exe.setLinkerScriptPath(...)</code>，在 <code>build.zig</code> 里</td>
 </tr>
 </tbody></table>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; Zig 裸机 RISC-V 入口 + CSR + MMIO,全内建,无外部 crate</span><br><span class="line">export fn _start() callconv(.naked) noreturn &#123;</span><br><span class="line">    asm volatile (</span><br><span class="line">        \\csrr t0, mhartid</span><br><span class="line">        \\bnez t0, .Lwait</span><br><span class="line">        \\la sp, _stack_top</span><br><span class="line">        \\call zigStart</span><br><span class="line">        \\.Lwait: wfi</span><br><span class="line">        \\ j .Lwait</span><br><span class="line">        ::: &quot;t0&quot;, &quot;sp&quot;, &quot;ra&quot;</span><br><span class="line">    );</span><br><span class="line">&#125;</span><br><span class="line">const uart: *volatile u8 &#x3D; @ptrFromInt(0x10000000);   &#x2F;&#x2F; MMIO 寄存器</span><br><span class="line">fn putc(c: u8) void &#123; uart.* &#x3D; c; &#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 裸机 RISC-V 入口、CSR 与 MMIO，全部用语言内建的能力</span><br><span class="line">export fn _start() callconv(.naked) noreturn &#123;</span><br><span class="line">    asm volatile (</span><br><span class="line">        \\csrr t0, mhartid</span><br><span class="line">        \\bnez t0, .Lwait</span><br><span class="line">        \\la sp, _stack_top</span><br><span class="line">        \\call zigStart</span><br><span class="line">        \\.Lwait: wfi</span><br><span class="line">        \\ j .Lwait</span><br><span class="line">        ::: .&#123; .t0 &#x3D; true, .sp &#x3D; true, .ra &#x3D; true &#125;);     &#x2F;&#x2F; 被改动的寄存器写成结构体</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">const uart: *volatile u8 &#x3D; @ptrFromInt(0x10000000);       &#x2F;&#x2F; MMIO 寄存器</span><br><span class="line"></span><br><span class="line">fn putc(c: u8) void &#123;</span><br><span class="line">    uart.* &#x3D; c;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<blockquote>
-<p>Rust 裸机生态强（<code>embedded-hal</code>/<code>cortex-m</code>/<code>svd2rust</code> 一整套 trait + PAC 自动生成），但 <code>#[naked]</code> 等一些底层能力长期要 nightly/外部 crate；Zig 把 <strong>naked 函数、内联汇编、链接脚本、任意位宽整数 <code>u3</code>、<code>packed struct(u8)</code> 寄存器位段、<code>comptime</code> 编译期算页表常量</strong>全做进语言核心，写裸机 SBI/bootloader <strong>更顺手、更少魔法</strong>。两门都远胜 C 的“全靠宏 + 链接器脚本手搓”。</p>
-</blockquote>
-<hr>
-<h2 id="14-工具链-编译模型"><a href="#14-工具链-编译模型" class="headerlink" title="14. 工具链 / 编译模型"></a>14. 工具链 / 编译模型</h2><table>
+<p>Rust 的裸机生态强（<code>embedded-hal</code>、<code>cortex-m</code>、<code>svd2rust</code> 一整套 trait 与自动生成的外设访问层），但裸函数这类底层能力进入稳定版较晚。Zig 把裸函数、内联汇编、链接脚本、任意位宽整数、<code>packed struct(u8)</code> 寄存器位段、编译期计算页表常量都做进了语言核心，写 SBI 与 bootloader 更顺手。两门语言都比 C 依赖宏和手写链接脚本的做法省事。</p>
+<h2 id="工具链与编译模型"><a href="#工具链与编译模型" class="headerlink" title="工具链与编译模型"></a>工具链与编译模型</h2><table>
 <thead>
 <tr>
 <th align="center"></th>
@@ -958,33 +868,32 @@
 </thead>
 <tbody><tr>
 <td align="center">一站式</td>
-<td align="center">rustup + cargo + clippy + rustfmt</td>
-<td align="center"><strong>一个 <code>zig</code> 二进制</strong>：<code>build</code>/<code>test</code>/<code>fmt</code>/<code>cc</code> 全包</td>
+<td align="center">rustup、cargo、clippy、rustfmt</td>
+<td align="center">一个 <code>zig</code> 可执行文件：<code>build</code>、<code>test</code>、<code>fmt</code>、<code>cc</code> 都在里面</td>
 </tr>
 <tr>
 <td align="center">LSP</td>
-<td align="center">rust-analyzer（强）</td>
-<td align="center">zls（够用，社区）</td>
+<td align="center">rust-analyzer，功能强</td>
+<td align="center">zls，社区维护</td>
 </tr>
 <tr>
 <td align="center">编译后端</td>
-<td align="center"><strong>LLVM</strong>（唯一）</td>
-<td align="center">LLVM + <strong>自研后端</strong>（debug 构建已可绕开 LLVM，更快）</td>
+<td align="center">LLVM；Cranelift 后端可选，GCC 后端在开发</td>
+<td align="center">LLVM 加自研后端，调试构建可以不经 LLVM</td>
 </tr>
 <tr>
 <td align="center">编译速度</td>
-<td align="center">慢（借用检查 + 单态化 + LLVM）</td>
-<td align="center">快得多（尤其 debug 自研后端）</td>
+<td align="center">慢（借用检查、单态化、LLVM）</td>
+<td align="center">快，调试构建尤其明显</td>
 </tr>
 <tr>
 <td align="center">格式化</td>
 <td align="center"><code>cargo fmt</code></td>
-<td align="center"><code>zig fmt</code>（内建，无配置项——强制统一风格）</td>
+<td align="center"><code>zig fmt</code>，没有配置项，风格统一</td>
 </tr>
 </tbody></table>
-<p>Zig “一个二进制搞定一切” + 自研后端追求<strong>快编译</strong>，是对 Rust”编译慢”的直接回应。Rust 工具链更成熟（clippy 静态检查、rust-analyzer 体验顶级）。</p>
-<hr>
-<h2 id="15-稳定性-成熟度"><a href="#15-稳定性-成熟度" class="headerlink" title="15. 稳定性 / 成熟度"></a>15. 稳定性 / 成熟度</h2><table>
+<p>Zig 用一个可执行文件包办构建、测试、格式化与 C 编译，并用自研后端缩短调试构建的时间；Rust 的工具链更成熟，clippy 与 rust-analyzer 的体验很好。</p>
+<h2 id="稳定性与成熟度"><a href="#稳定性与成熟度" class="headerlink" title="稳定性与成熟度"></a>稳定性与成熟度</h2><table>
 <thead>
 <tr>
 <th align="center"></th>
@@ -994,97 +903,102 @@
 </thead>
 <tbody><tr>
 <td align="center">版本</td>
-<td align="center"><strong>1.0（2015）</strong></td>
-<td align="center"><strong>0.16 stable（2026-04），未到 1.0</strong></td>
+<td align="center">1.0 于 2015 年发布</td>
+<td align="center">0.16 于 2026 年 4 月发布，未到 1.0</td>
 </tr>
 <tr>
 <td align="center">兼容承诺</td>
-<td align="center">有（edition 机制，老代码永远能编）</td>
-<td align="center"><strong>无</strong>——官方下载页都没有破坏式更新政策</td>
+<td align="center">有，edition 机制保证老代码能继续编译</td>
+<td align="center">没有</td>
 </tr>
 <tr>
-<td align="center">更新风格</td>
-<td align="center">加功能不破坏</td>
-<td align="center"><strong>频繁破坏式重构</strong></td>
+<td align="center">更新方式</td>
+<td align="center">加功能，不破坏旧代码</td>
+<td align="center">经常大改</td>
 </tr>
 </tbody></table>
-<p><strong>例如</strong>：照 <strong>0.16</strong> 官方文档写的 Zig 笔记，到 <strong>0.17.0-dev</strong> <strong>已经多处编不过</strong>：</p>
+<p>按旧版本文档写的 Zig 代码，到 <code>0.17.0-dev.224</code> 已有多处编不过：</p>
 <table>
 <thead>
 <tr>
-<th align="center">之前的笔记内的写法（v0.16）</th>
-<th align="center">0.17-dev 表现</th>
+<th align="center">旧写法</th>
+<th align="center">现在的写法</th>
+<th align="center">哪一版改的</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="center"><code>@Type(.{.int=...})</code> 构造类型</td>
-<td align="center"><strong>删了</strong> → 必须 <code>@Int(.unsigned, N)</code></td>
+<td align="center"><code>@Type(.{ .int = ... })</code></td>
+<td align="center"><code>@Int(.unsigned, N)</code></td>
+<td align="center">0.16 删除 <code>@Type</code></td>
 </tr>
 <tr>
 <td align="center"><code>std.heap.GeneralPurposeAllocator</code></td>
-<td align="center"><strong>删了</strong> → <code>DebugAllocator</code></td>
+<td align="center"><code>std.heap.DebugAllocator</code></td>
+<td align="center">0.14 改名，0.17 开发版已无旧名</td>
 </tr>
 <tr>
-<td align="center"><code>ArrayList(T).init(a)</code> / <code>ArrayListUnmanaged</code></td>
-<td align="center">合并 → <code>ArrayList</code> 默认 unmanaged，<code>.empty</code></td>
+<td align="center"><code>ArrayList(T).init(a)</code>，容器保存分配器</td>
+<td align="center"><code>ArrayList(T)</code> 默认不存分配器，<code>.empty</code> 初始化，每次传分配器</td>
+<td align="center">0.15</td>
 </tr>
 <tr>
-<td align="center"><code>async fn</code> / <code>await</code></td>
-<td align="center"><strong>关键字早已移除</strong></td>
+<td align="center"><code>async</code>、<code>await</code> 关键字</td>
+<td align="center">删除，异步改走 <code>std.Io</code></td>
+<td align="center">0.15 删除，0.16 加入 <code>std.Io</code></td>
 </tr>
 <tr>
-<td align="center"><code>@typeInfo</code> 字段 <code>.Int</code>（部分旧章节）</td>
-<td align="center">全小写 <code>.int</code></td>
+<td align="center"><code>@typeInfo</code> 的 <code>.Int</code>、<code>.Struct</code></td>
+<td align="center"><code>.int</code>、<code>.@&quot;struct&quot;</code></td>
+<td align="center">0.14</td>
+</tr>
+<tr>
+<td align="center"><code>@cImport</code></td>
+<td align="center">构建系统的 <code>addTranslateC</code></td>
+<td align="center">0.16 弃用，0.17 开发版已删除</td>
 </tr>
 </tbody></table>
-<blockquote>
-<p>这就是 Zig 当下最大的”坑”：<strong>官方文档教你的写法，下个 dev 版本可能就变了</strong>。Rust 老用户对此要有心理准备——你买的是”自由 + 简单 + 快”，付的是”稳定性”。等 Zig 1.0，这条会大幅改善。</p>
-</blockquote>
-<hr>
-<h2 id="16-适用场景-总评"><a href="#16-适用场景-总评" class="headerlink" title="16. 适用场景 + 总评"></a>16. 适用场景 + 总评</h2><table>
+<p>Zig 在 1.0 之前不保证兼容，文档里的写法随版本变；付出的是稳定性，换来的是语言还能继续大改。</p>
+<h2 id="适用场景"><a href="#适用场景" class="headerlink" title="适用场景"></a>适用场景</h2><table>
 <thead>
 <tr>
-<th align="center">你要做的</th>
-<th align="center">更推荐</th>
-<th align="center">为什么</th>
+<th align="center">要做的事</th>
+<th align="center">推荐</th>
+<th align="center">原因</th>
 </tr>
 </thead>
 <tbody><tr>
-<td align="center">Web 服务 / 分布式 / 后端</td>
-<td align="center"><strong>Rust</strong></td>
-<td align="center">生态成熟（tokio/axum）、并发安全编译期保证、大团队协作稳</td>
+<td align="center">Web 服务、分布式、后端</td>
+<td align="center">Rust</td>
+<td align="center">生态成熟（tokio、axum），并发安全由编译期保证，适合大团队协作</td>
 </tr>
 <tr>
-<td align="center">安全关键 / 大型长期项目</td>
-<td align="center"><strong>Rust</strong></td>
-<td align="center">借用检查器 + 1.0 稳定承诺，重构有底气</td>
+<td align="center">安全关键、长期维护的大项目</td>
+<td align="center">Rust</td>
+<td align="center">借用检查器加 1.0 的兼容承诺，重构有底气</td>
 </tr>
 <tr>
-<td align="center">内核 / 驱动 / Bootloader / SBI</td>
-<td align="center"><strong>Zig</strong></td>
-<td align="center">naked/内联汇编/位段/comptime 全内建，少魔法、编译快</td>
+<td align="center">内核、驱动、bootloader、SBI</td>
+<td align="center">Zig</td>
+<td align="center">裸函数、内联汇编、位段、<code>comptime</code> 都是内建的，编译快</td>
 </tr>
 <tr>
-<td align="center">游戏引擎 / 高性能 / 手动内存</td>
-<td align="center"><strong>Zig</strong></td>
-<td align="center">显式 allocator、<code>ReleaseFast</code> 裸奔、无借用检查掣肘</td>
+<td align="center">游戏引擎、高性能、手动管理内存</td>
+<td align="center">Zig</td>
+<td align="center">显式分配器，<code>ReleaseFast</code> 关掉检查，没有借用检查的限制</td>
 </tr>
 <tr>
-<td align="center">接手/混编/渐进替换 C 项目</td>
-<td align="center"><strong>Zig</strong></td>
-<td align="center"><code>@cImport</code> + <code>zig cc</code> 无缝吃 C，甩 Rust 一条街</td>
+<td align="center">接手、混编、逐步替换 C 项目</td>
+<td align="center">Zig</td>
+<td align="center">translate-c 加 <code>zig cc</code> 直接对接 C</td>
 </tr>
 <tr>
-<td align="center">多版本结构体/编译期定制（如协议/固件）</td>
-<td align="center"><strong>Zig</strong></td>
-<td align="center">comptime 工厂选类型，比 Rust 宏+泛型体验好</td>
+<td align="center">多版本结构体、编译期定制（协议、固件）</td>
+<td align="center">Zig</td>
+<td align="center"><code>comptime</code> 工厂按条件选类型，比宏加泛型好写</td>
 </tr>
 </tbody></table>
-<blockquote>
-<p><strong>一句话总评</strong>：<br><strong>Rust 是”给你安全，代价是必须按我的规则写”；Zig 是”给你工具，你爱怎么造怎么造，炸了算你的”。</strong><br>写 Zig 有 C 的自由感，但又多受一部分约束（传入分配器参数）、多了 <code>defer</code> 和编译期计算、少了宏的繁杂——<strong>它不是 Rust 的替代品，是 C 的进化版</strong>。要稳、要大、要安全 → Rust；要爽、要底层、要可控、要混 C → Zig。而在<strong>异步（colorless 哲学）、泛型、多版本结构体构建</strong>上，Zig 的自由度和体验，我个人觉得比 Rust 更顺手。</p>
-</blockquote>
-<hr>
-<h2 id="17-全维度速查总表"><a href="#17-全维度速查总表" class="headerlink" title="17. 全维度速查总表"></a>17. 全维度速查总表</h2><table>
+<p>Rust 给你安全，代价是按它的规则写；Zig 给你工具，怎么用由你负责。要稳、要大、要安全选 Rust，要可控、要贴近硬件、要混 C 选 Zig。在异步、泛型和多版本结构体这几件事上，我更喜欢 Zig 的写法。</p>
+<h2 id="对比总表"><a href="#对比总表" class="headerlink" title="对比总表"></a>对比总表</h2><table>
 <thead>
 <tr>
 <th align="center">维度</th>
@@ -1093,59 +1007,59 @@
 </tr>
 </thead>
 <tbody><tr>
-<td align="center">哲学</td>
-<td align="center">安全优先·零成本抽象</td>
-<td align="center">简单·显式·无隐藏</td>
+<td align="center">设计取向</td>
+<td align="center">安全优先，零成本抽象</td>
+<td align="center">简单、显式、无隐藏</td>
 </tr>
 <tr>
 <td align="center">内存</td>
-<td align="center">所有权 + 借用检查器</td>
-<td align="center">显式 allocator + <code>defer</code>/<code>errdefer</code></td>
+<td align="center">所有权加借用检查器</td>
+<td align="center">显式分配器加 <code>defer</code>、<code>errdefer</code></td>
 </tr>
 <tr>
 <td align="center">安全</td>
 <td align="center">编译期强制</td>
-<td align="center">运行期可选检查（<code>ReleaseFast</code> 裸奔）</td>
+<td align="center">运行期检查，<code>ReleaseFast</code> 关闭</td>
 </tr>
 <tr>
 <td align="center">错误</td>
-<td align="center"><code>Result&lt;T,E&gt;</code> 带 payload</td>
-<td align="center"><code>!T</code> 仅标签，零成本</td>
+<td align="center"><code>Result&lt;T, E&gt;</code>，可带数据</td>
+<td align="center"><code>!T</code>，只有标签</td>
 </tr>
 <tr>
 <td align="center">元编程</td>
-<td align="center">宏 + 泛型 + const fn（四套）</td>
-<td align="center"><strong><code>comptime</code> 一套通吃</strong></td>
+<td align="center">宏、泛型、<code>const fn</code> 四套</td>
+<td align="center"><code>comptime</code> 一套</td>
 </tr>
 <tr>
 <td align="center">多态</td>
-<td align="center">trait + 生命周期</td>
-<td align="center">comptime 工厂 + <code>anytype</code> 鸭子</td>
+<td align="center">trait 加生命周期</td>
+<td align="center"><code>comptime</code> 工厂加 <code>anytype</code></td>
 </tr>
 <tr>
 <td align="center">异步</td>
-<td align="center"><code>async/await</code> + 染色</td>
-<td align="center">砍 async 关键字 + <code>Io</code> 参数（colorless-ish）</td>
+<td align="center"><code>async</code>、<code>await</code>，有染色</td>
+<td align="center">无关键字，<code>std.Io</code> 参数传入</td>
 </tr>
 <tr>
 <td align="center">整数</td>
 <td align="center">固定位宽</td>
-<td align="center"><strong>任意位宽 <code>u3</code></strong></td>
+<td align="center">任意位宽，如 <code>u3</code></td>
 </tr>
 <tr>
 <td align="center">C 互操作</td>
-<td align="center">bindgen + <code>unsafe</code></td>
-<td align="center"><strong><code>@cImport</code> + <code>zig cc</code> 无缝</strong></td>
+<td align="center"><code>bindgen</code> 加 <code>unsafe</code></td>
+<td align="center">translate-c 加 <code>zig cc</code></td>
 </tr>
 <tr>
 <td align="center">构建</td>
-<td align="center">Cargo + crates.io</td>
-<td align="center"><code>build.zig</code> + <code>zon</code>，内建跨编译</td>
+<td align="center">Cargo 加 crates.io</td>
+<td align="center"><code>build.zig</code> 加 <code>build.zig.zon</code>，内建交叉编译</td>
 </tr>
 <tr>
 <td align="center">工具链</td>
-<td align="center">rustup 全家桶（成熟）</td>
-<td align="center">一个 <code>zig</code>（快）</td>
+<td align="center">rustup 全家，成熟</td>
+<td align="center">一个 <code>zig</code>，快</td>
 </tr>
 <tr>
 <td align="center">编译速度</td>
@@ -1154,41 +1068,37 @@
 </tr>
 <tr>
 <td align="center">稳定性</td>
-<td align="center"><strong>1.0 稳定</strong></td>
-<td align="center"><strong>0.x 破坏式更新</strong></td>
+<td align="center">1.0 稳定</td>
+<td align="center">0.x，常有不兼容更新</td>
 </tr>
 <tr>
-<td align="center">生态</td>
-<td align="center">大</td>
-<td align="center">小但增长</td>
+<td align="center">可用的库</td>
+<td align="center">多</td>
+<td align="center">少，在增长</td>
 </tr>
 <tr>
-<td align="center">强项</td>
-<td align="center">Web/分布式/安全关键</td>
-<td align="center">内核/驱动/游戏/嵌入/混 C</td>
+<td align="center">擅长</td>
+<td align="center">Web、分布式、安全关键</td>
+<td align="center">内核、驱动、游戏、嵌入式、混 C</td>
 </tr>
 </tbody></table>
-<hr>
-<h2 id="18-思考题（附参考答案）"><a href="#18-思考题（附参考答案）" class="headerlink" title="18. 思考题（附参考答案）"></a>18. 思考题（附参考答案）</h2><p><strong>Q1. Zig 砍掉 <code>async</code> 关键字”解决”了函数染色——但为什么说”只是推迟到调用方”？<code>Io</code> 参数模型和 <code>async</code> 关键字模型在”传染性”上到底是不是一回事？</strong></p>
-<blockquote>
-<p><strong>半是半不是。</strong> <code>async</code> 关键字 = <strong>类型传染</strong>：蓝函数类型与红不兼容，编译期钉死，无法绕过。<code>Io</code> 参数 = <strong>参数传染</strong>：要异步能力的函数得收 <code>io</code> 参数，调用链一路往下传。相同点：都得改一整条链。不同点：<code>io</code> 是<strong>普通参数、函数类型不变</strong>——不需要异步的中间函数可以不收 <code>io</code>、可默认单线程后端、可运行时换后端；颜色从”编译期钉在类型上”变成”运行时由传入的 <code>io</code> 决定”。所以传染性<strong>弱化了（可选/可换/不改类型）但没消失（<code>io</code> 仍要传）</strong>。Leo 的”推迟到调用方”精准：染色决策从<strong>函数定义处</strong>挪到了<strong>注入处</strong>。</p>
-</blockquote>
-<p><strong>Q2. 为什么 <code>E!i32</code> 体积是 8（tag+T），而 Rust 的 <code>Result&lt;i32, E&gt;</code> 可能更大？根因？</strong></p>
-<blockquote>
-<p>Zig 的 error 是<strong>全局扁平整数标识符</strong>（<code>anyerror</code>=u16=2 字节），不带数据，故 <code>E!i32</code> = 4(i32) + 2(tag) + 对齐 = 8。Rust <code>Result&lt;T,E&gt;</code> 是 enum，<code>Err</code> 携带任意 <code>E</code>，布局 ≈ <code>max(sizeof T, sizeof E)</code> + 判别（可能被 niche 优化省掉），<code>E</code> 大则 <code>Result</code> 大。根因：Zig 把”错误带上下文”<strong>踢出</strong> error union（要上下文自己设计 struct）换零成本；Rust 让错误本身就是完整数据换表达力。</p>
-</blockquote>
-<p><strong>Q3. <code>comptime</code> 凭什么”一个机制”替掉 Rust 的宏+泛型+const fn？它和 Rust 过程宏的本质区别？</strong></p>
-<blockquote>
-<p>因为 Zig <strong>没有”宏”这个独立阶段</strong>——编译器解析 AST 时遇到 <code>comptime</code> 就用内置解释器直接跑那段普通 Zig 代码，结果（值或类型）替换原节点。于是”编译期算值（const fn）””按类型生成代码（泛型/宏）””反射类型”全是同一件事：<strong>编译期执行 Zig</strong>。和 Rust 过程宏的本质区别：过程宏是<strong>隔离的、操作 <code>TokenStream</code></strong>（语法层面拼 token，看不到类型语义、要自己 parse）、且是独立 crate 编译；<code>comptime</code> 直接在类型系统内、能 <code>@typeInfo</code> 看到完整类型语义、和普通代码同语言同语法、零隔离。</p>
-</blockquote>
-<p><strong>Q4.（开放）Rust 老用户转 Zig，最该警惕的”舒适区陷阱”是什么？</strong></p>
-<blockquote>
-<p>① <strong>没有 borrow checker 兜底</strong>——“编译过了”不等于安全，UAF/泄漏要靠 <code>defer</code>/<code>errdefer</code> 自律 + <code>DebugAllocator</code> 运行时抓，<code>ReleaseFast</code> 还会关检查。② <strong>0.x 破坏式更新</strong>——今天的代码下个版本可能编不过（我半年前的笔记到这个版本已失效）。③ <strong>error 无 payload</strong>——别指望像 Rust 那样把上下文塞进 <code>E</code>。④ <strong>没有 trait/RAII 自动析构</strong>——接口靠鸭子检查、释放靠手动 <code>defer</code>。</p>
-</blockquote>
-<hr>
-<blockquote>
-<p><strong>小结</strong>：Rust 和 Zig 都是”更好的 C”，但一个用<strong>编译期强制</strong>买安全（borrow checker + 1.0 稳定），一个用<strong>显式 + 简单</strong>买可控（<code>comptime</code> 统一元编程、<code>@cImport</code> 无缝吃 C、<code>defer</code> 显式清理、<code>ReleaseFast</code> 裸奔）。对 RISC-V 全栈这种”既要底层可控、又要混 C、还要编译期定制”的场景，Zig 的自由度很迷人；对要长期维护、要安全保证、要成熟生态的场景，Rust 更稳。<strong>而 Zig 当下最大的代价是不稳定（0.x 破坏式更新）——等 1.0，天平会再调一次。</strong></p>
-</blockquote>
+<h2 id="思考题"><a href="#思考题" class="headerlink" title="思考题"></a>思考题</h2><p><strong>Q1. Zig 删掉 <code>async</code> 关键字「解决」了函数染色，为什么说只是推迟到了调用方？<code>Io</code> 参数与 <code>async</code> 关键字在传染性上是不是一回事？</strong></p>
+<div class="note default"><p>一半是，一半不是。<code>async</code> 关键字是类型传染：蓝函数的类型与红函数不兼容，编译期固定，绕不开。<code>Io</code> 参数是参数传染：需要异步能力的函数要收 <code>io</code>，调用链一路往下传。相同点是都要改一整条调用链。不同点是 <code>io</code> 是普通参数，函数类型不变：不需要异步的中间函数可以不收 <code>io</code>，可以默认用线程池实现，可以在运行时换实现；颜色从「编译期写在类型上」变成「运行时由传入的 <code>io</code> 决定」。所以传染性减弱了（可选、可换、不改类型），但没有消失（<code>io</code> 仍要传），染色的决定从函数定义处挪到了传入 <code>io</code> 的地方。</p>
+</div>
+
+<p><strong>Q2. 为什么 <code>E!i32</code> 的体积是 8（标签加 <code>T</code>），而 Rust 的 <code>Result&lt;i32, E&gt;</code> 可能更大？根本原因是什么？</strong></p>
+<div class="note default"><p>Zig 的错误是全局的扁平整数（<code>anyerror</code> 是 <code>u16</code>，2 字节），不带数据，所以 <code>E!i32</code> 是 <code>i32</code> 的 4 字节加标签 2 字节再对齐，共 8 字节。Rust 的 <code>Result&lt;T, E&gt;</code> 是枚举，<code>Err</code> 携带任意的 <code>E</code>，布局约为 <code>max(sizeof T, sizeof E)</code> 加判别值（可能被 niche 优化省掉），<code>E</code> 大则 <code>Result</code> 大。根本原因：Zig 把「错误带上下文」移出了错误联合（要上下文就自己设计结构体），换来零开销；Rust 让错误本身就是完整的数据，换来表达力。</p>
+</div>
+
+<p><strong>Q3. <code>comptime</code> 凭什么用一个机制代替 Rust 的宏、泛型与 <code>const fn</code>？它和 Rust 过程宏的本质区别在哪？</strong></p>
+<div class="note default"><p>Zig 没有单独的「宏」阶段：编译器在语义分析时遇到 <code>comptime</code>，就直接执行这段普通的 Zig 代码，结果（值或类型）用在原处。于是「编译期算值」「按类型生成代码」「类型反射」都是同一件事：在编译期执行 Zig。过程宏是隔离的，操作的是 <code>TokenStream</code>，只能在语法层面拼 token，看不到类型信息，要自己解析，还要单独编译成一个 crate；<code>comptime</code> 在类型系统之内，能用 <code>@typeInfo</code> 看到完整的类型信息，与普通代码同一门语言、同一套语法。</p>
+</div>
+
+<p><strong>Q4.（开放）Rust 用户转 Zig，最该警惕的习惯是什么？</strong></p>
+<div class="note default"><p>其一，没有借用检查器把关，编译通过不等于安全，释放后使用与泄漏要靠 <code>defer</code>、<code>errdefer</code> 和 <code>DebugAllocator</code> 在运行期发现，<code>ReleaseFast</code> 还会关掉检查。其二，0.x 版本之间常有不兼容的修改，今天的代码下个版本可能编不过。其三，错误不能带数据，不能像 Rust 那样把上下文放进 <code>E</code>。其四，没有 trait 和 RAII 自动析构，接口靠编译期检查，释放靠手写 <code>defer</code>。</p>
+</div>
+
+<p>两门语言都想做更好的 C：Rust 用编译期强制换安全（借用检查器加 1.0 的兼容承诺），Zig 用显式和简单换可控（<code>comptime</code> 统一元编程、translate-c 对接 C、<code>defer</code> 显式清理、<code>ReleaseFast</code> 关掉检查）。对 RISC-V 全栈这种既要贴近硬件、又要混 C、还要编译期定制的场景，Zig 很合适；对要长期维护、要安全保证、要成熟生态的场景，Rust 更稳。Zig 眼下最大的代价是不稳定，到 1.0 之后值得再比一次。</p>
 
     </div>
 
@@ -1198,8 +1108,12 @@
 
       <footer class="post-footer">
           <div class="post-tags">
+              <a href="/blog/tags/Rust/" rel="tag"># Rust</a>
               <a href="/blog/tags/author-heke1228/" rel="tag"># author:heke1228</a>
               <a href="/blog/tags/repo-https-cnb-cool-heke-learning-Rustlings/" rel="tag"># repo:https://cnb.cool/heke_learning/Rustlings</a>
+              <a href="/blog/tags/Zig/" rel="tag"># Zig</a>
+              <a href="/blog/tags/Programming-Languages/" rel="tag"># Programming Languages</a>
+              <a href="/blog/tags/Beginner/" rel="tag"># Beginner</a>
           </div>
 
         

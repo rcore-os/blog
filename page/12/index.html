@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">795</span>
+          <span class="site-state-item-count">796</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-count">58</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">783</span>
+        <span class="site-state-item-count">962</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,139 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%8E%E6%98%8E%E6%B6%9B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2025/05/05/2025%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%8E%E6%98%8E%E6%B6%9B/" class="post-title-link" itemprop="url">2025春季开源操作系统训练营总结-李明涛</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2025-05-05 23:23:32" itemprop="dateCreated datePublished" datetime="2025-05-05T23:23:32+00:00">2025-05-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="rcore-总结"><a href="#rcore-总结" class="headerlink" title="rcore 总结"></a>rcore 总结</h1><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>之前就对rust有一些了解了，跟着《Rust语言圣经(Rust Course)》学过一遍，也做了《Rust by Example》，所以rustling很快就做完了。不过rcore是需要把操作系统相关的知识利用起来的，做完之后是有很多感想和体会的。</p>
+<h2 id="ch1"><a href="#ch1" class="headerlink" title="ch1"></a>ch1</h2><p>第一个难点是，我第一次接触rust的裸机编程，不过很幸运，因为它和C/C++是很相似的，<code>extern &quot;C&quot;</code>声明一个弱引用符号， 就可以在rust内部获取到符号的地址，通过这种方式可以很轻松地与汇编进行交互了。</p>
+<p>第二个难点是rust sbi， 首先我不太能理解SBI是什么，全称叫Supervisor Binary Interface，其次x86里面也没有这种东西可以参考。<br>我参考了《The RISC-V reader: an open architecture atlas》有关特权架构的部分，了解到riscv中，存在三层特权等级，从下往上依次是机器特权(M)，监控特权(S)，用户特权(U)，SBI有一个类似于x86中bootlooder的作用，用于启动内核镜像，还有一个作用是管理最底层的硬件资源，包括电源、串口和时钟，给处于S模式的内核提供基本的支持。</p>
+<h2 id="ch2"><a href="#ch2" class="headerlink" title="ch2"></a>ch2</h2><p>这一个章节是一个批处理操作系统，从我们的视角上看，我们终于有了一个用户态和内核态的区分了。在这个操作系统中，一个内核和一个应用被打包到同一个镜像中，在开机时也同时加载到内存中，由内核来执行在内存中放置好的应用程序，结束后直接关机。</p>
+<p>这一章节比较复杂的是<code>build.rs</code>，它的任务是加载应用程序并生成一个<code>link_app.S</code>文件，用于指导应用在内存中的布局，如何正确加载到合理的地方，并生成符号，让内核能够读取到应用的入口点。</p>
+<p>这一个章节第一次加入了系统调用的概念，这样就将操作系统和用户程序之间联系起来了。在现代处理器中，为了安全，U态的应用是不能访问S态的内存的，这意味着用户应用将将永远不能调用内核的函数，修改内核的数据。但是内核将应用程序与机器隔离了，如果用户不能影响内核，那应用在内核的视角下，与一个<code>while(true)</code>是等价的。</p>
+<p>所以系统调用显得尤为重要，用户要进入内核态，需要使用<code>ecall</code>进行调用，在riscv中<code>ecall</code>会使控制流会进入<code>stvec</code>指向的地址，这就是从用户态向内核态的转变入口了，我们在这个位置设置一个<code>trap</code>就可以进行捕获。内核工作结束后，内核调用<code>sret</code>在此返回用户态，只要保证切换前后必须的寄存器状态不变，那么应用就会像什么也没有发生一样正常工作了。</p>
+<h2 id="ch3"><a href="#ch3" class="headerlink" title="ch3"></a>ch3</h2><p>这一个章节是一个多道程序处理系统，这次需要处理两件事情，第一个是我们的系统需要一次性在内存中加载多个应用程序，第二个是实现分时多任务。</p>
+<p>面对第一个问题，基本保持ch2中的代码不变，只需要依次把应用顺序地加载到内存相应的位置即可。唯一需要在意的就是用户的栈空间，这个只需要在内存的某个地方分配一个固定大小的空间即可。</p>
+<p>但是第二个问题，需要考虑的就多的了。需要加入以下的内容：</p>
+<ol>
+<li>进程的概念</li>
+<li>上下文切换</li>
+<li>时钟中断</li>
+</ol>
+<p>这里的进程并不复杂，最好理解为一个应用程序的执行流，我们需要对这个执行流维护寄存器信息，来保证能够合理地进行上下文切换(switch)。switch操作是不用进入内核的，这个过程只需要保存原进程的寄存器到TaskContext中，再将目标进程的TaskContext恢复回当前的寄存器状态中，如此完成进程切换。</p>
+<p>下来是时钟中断，对于时钟和时钟中断，我们需要有硬件的配合，这个任务主要交给SBI。但是要实现合理的时钟中断机制，还需要在<code>trap_handler</code>中添加对Trap的处理。</p>
+<p>现在来完成题目，需要引入一个新的系统调用 <code>sys_trace</code>（ID 为 410）用来追踪当前任务系统调用的历史信息，并做对应的修改。</p>
+<p>由于当前，我们的内核中还没有“虚拟地址”的概念，所以对于传入的指针可以直接进行读写，不用担心地址空间不同的问题，因此<code>trace_request</code>为0、1的情况可以轻松解决。对于<code>trace_request</code>为2的情况，我在每个进程的结构体中添加了<code>BTreeMap&lt;uszie, usize&gt;</code>来对每一个系统调用的此时进行映射，也由此完成了lab1。</p>
+<h2 id="ch4"><a href="#ch4" class="headerlink" title="ch4"></a>ch4</h2><p>这一章加入了地址空间的概念，这也是我做得最吃力的一章。我所遇到的核心难点如下：</p>
+<ol>
+<li>如何对代码进行更好地debug？</li>
+<li>用户空间和内核空间如何进行交互？</li>
+</ol>
+<p>针对第一个难点，其实rcore里面已经给了很好的方案了，但是在gdb中看代码真的很痛苦！所以我选择使用vscode的codelldb插件，其实后端用的也是gdb，但是在vscode中看代码绝对会舒服很多。</p>
+<p>想要用上vscode来debug，涉及两个文件</p>
+<ol>
+<li><p>.vscode/launch.json</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">"version"</span>: <span class="string">"0.2.0"</span>,</span><br><span class="line">    <span class="attr">"configurations"</span>: [</span><br><span class="line">        <span class="comment">// 对 qemu 进行调试</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="attr">"type"</span>: <span class="string">"lldb"</span>,</span><br><span class="line">            <span class="attr">"request"</span>: <span class="string">"launch"</span>,</span><br><span class="line">            <span class="attr">"name"</span>: <span class="string">"qemu-debug"</span>,</span><br><span class="line">            <span class="comment">// 从 ELF 文件中获取 debug 符号表</span></span><br><span class="line">            <span class="attr">"program"</span>: <span class="string">"$&#123;workspaceFolder&#125;/os/target/riscv64gc-unknown-none-elf/release/os"</span>,</span><br><span class="line">            <span class="attr">"args"</span>: [],</span><br><span class="line">            <span class="attr">"processCreateCommands"</span>: [<span class="string">"gdb-remote 1234"</span>],</span><br><span class="line">            <span class="attr">"cwd"</span>: <span class="string">"$&#123;workspaceFolder&#125;"</span></span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>os/Cargo.toml</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[profile.release]</span></span><br><span class="line"><span class="attr">debug</span> = <span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+</li>
+</ol>
+<p>配置完成后，直接启动</p>
+<figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 启动 gdbgdbserver</span></span><br><span class="line"><span class="built_in">cd</span> os</span><br><span class="line">make gdbserver</span><br><span class="line"><span class="comment"># 在 vscode 调试页面启动 qemu-debug</span></span><br></pre></td></tr></table></figure>
+
+<p>实现了debug，接下来还需要处理用户空间和内核空间的交互问题。源代码中已经提供了一个<code>translated_byte_buffer</code>函数，用于获取用户态下，虚拟地址空间区域在物理地址空间的映射。因此，在内核态访问和修改用户态内存，可以通过处理返回的<code>Vec&lt;&amp;&#39;static mut [u8]&gt;</code>，逐个字节进行处理。接下来就可以对<code>sys_trace</code>和<code>sys_get_time</code>通过这样的方式进行更新了。</p>
+<h2 id="ch5"><a href="#ch5" class="headerlink" title="ch5"></a>ch5</h2><p>这一章向操作系统添加了进程管理，前几章的<code>task</code>可以理解为一个执行流，并且其中只是维护了一个用于switch的上下文，缺少父子进程的概念，无法在进程中生成其他进程，同时也几乎没有任务调度的方案。</p>
+<p>本章的难度并不大，通过参考已有的<code>sys_fork</code>和<code>sys_exec</code>系统调用，可以轻松添加<code>sys_spawn</code>。</p>
+<h2 id="ch6"><a href="#ch6" class="headerlink" title="ch6"></a>ch6</h2><p>这一章向操作系统中添加了文件系统，这样，当我们运行任务时，我们不再需要将所有的应用加载到内存中，而是保存在更廉价的磁盘里。在<code>easy-fs</code>中特别值得关注的就是分层的思想，从下到上分五层：</p>
+<ol>
+<li>磁盘块设备接口层</li>
+<li>块缓存层</li>
+<li>磁盘数据结构层</li>
+<li>磁盘块管理器层</li>
+<li>索引节点层</li>
+</ol>
+<p>我对文件系统的认知基本来自于《操作系统导论》的VSFS(Very Simple File System)，里面还没有硬链接的概念，而且并不区分<code>Inode</code>(面向用户操作的对象)和<code>DiskInode</code>(位于物理磁盘上)两者。也是这个原因，我在做实验时就很疑惑，因为我不清楚links需要在哪里进行维护。所以我还得找资料，我参考了《图解linux内核 基于6.x》中文件系统篇，最后将<code>links</code>放置在DiskInode中。这是这部分第一个需要考量的问题。</p>
+<p>第二个问题是结构体的大小，<code>layout.rs</code>中部分结构体大小是需要严格划定的，因为那些结构体是磁盘上的映射，本质上是放在硬盘上的，所以存在一些对齐要求：</p>
+<ol>
+<li>DiskInode：125字节(由于<code>#[repr(C)]</code>进行4字节对齐，实际大小为128字节)</li>
+<li>DirEntry：32字节</li>
+</ol>
+<p>所以如果放置在<code>DiskInode</code>中的<code>links</code>类型的大小大于3个字节，是会出现运行时异常的！参考《死灵书》：<code>https://nomicon.purewhite.io/data.html</code></p>
+<p>接下来的作业就不成问题了。</p>
+<h2 id="ch7"><a href="#ch7" class="headerlink" title="ch7"></a>ch7</h2><p>说真的ch7没怎么看，因为它也跑不起来，看报错大概是因为<code>zerocopy</code>库不支持<code>nightly-2024-02-25</code>的版本</p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[toolchain]</span></span><br><span class="line"><span class="attr">profile</span> = <span class="string">"minimal"</span></span><br><span class="line"><span class="comment"># use the nightly version of the last stable toolchain, see &lt;https://forge.rust-lang.org/&gt;</span></span><br><span class="line"><span class="attr">channel</span> = <span class="string">"nightly-2024-02-25"</span></span><br><span class="line"><span class="attr">components</span> = [<span class="string">"rust-src"</span>, <span class="string">"llvm-tools-preview"</span>, <span class="string">"rustfmt"</span>, <span class="string">"clippy"</span>]</span><br></pre></td></tr></table></figure>
+
+<p>有趣的是其他章节的版本用的工具链是<code>nightly-2024-05-02</code></p>
+<figure class="highlight toml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[toolchain]</span></span><br><span class="line"><span class="attr">profile</span> = <span class="string">"minimal"</span></span><br><span class="line"><span class="comment"># use the nightly version of the last stable toolchain, see &lt;https://forge.rust-lang.org/&gt;</span></span><br><span class="line"><span class="attr">channel</span> = <span class="string">"nightly-2024-05-02"</span></span><br><span class="line"><span class="attr">components</span> = [<span class="string">"rust-src"</span>, <span class="string">"llvm-tools-preview"</span>, <span class="string">"rustfmt"</span>, <span class="string">"clippy"</span>]</span><br></pre></td></tr></table></figure>
+
+<h2 id="ch8"><a href="#ch8" class="headerlink" title="ch8"></a>ch8</h2><p>这一章节，可以看到rcore中的进程模型又发生了变化，和linux相似。线程作为最基本的调度单位只维护用于switch的上下文，而进程变成了多个线程的载体，维护所有线程的共享资源，主要就包括这一节添加的<code>mux</code>，<code>condvar</code>和<code>semaphore</code>。</p>
+<p>本节的练习是死锁检测，好巧不巧，我参考的《操作系统概念(原书第10版)》上就有对应的算法解析，类似于用于死锁避免的银行家算法。</p>
+<p>最后这道题算是一个趣味题，像这样仅仅提供文字资料和要求的练习还是相对的考验人的！</p>
+<h2 id="第二阶段总结"><a href="#第二阶段总结" class="headerlink" title="第二阶段总结"></a>第二阶段总结</h2><p>第二阶段给我最大压力的应该就是虚拟地址和文件系统部分，其他章节还好。之前对于操作系统，基本停留在理论阶段，稍微看过一点xv6的代码，不过其实没有太深入，通过rcore的训练，我对操作系统的认识更加深入了。虽然每个地方都是做了一点点的训练，但是从ch1一直到ch8真的实实在在从零构建了一个较为完整的操作系统了。</p>
+<p>这个过程中，最受益匪浅的还是查资料的过程，rcore的资料已经很丰富了，但是永远不能指望所有细节都能面面俱到，我参考了很多手册，从配置环境用的qemu9.0，需要修改<code>sbi.rs</code>参考的《RISC-V Supervisor Binary Interface》，还有需要深入rv39虚拟地址机制参考的《The RISC-V Reader:  An Open Architecture Atlas》，这样的经历都非常的有价值。</p>
+<p>最后是rcore的设计理念，最惊艳的还是文件系统中分层架构，借助rust的语言机制实现几乎零成本抽象，这个过程中，我也逐渐知道什么是好的代码，又一次对于“抽象”有了更深一层的理解。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/05/2025%E6%98%A5%E5%AD%A3%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E6%80%BB%E7%BB%93-%E6%9D%8E%E6%98%8E%E6%B6%9B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +397,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -355,7 +488,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -423,7 +556,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -520,7 +653,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -593,7 +726,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -739,7 +872,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -747,11 +880,7 @@
               </span>
               <span class="post-meta-item-text">In</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
-                </span>
-                  , 
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/Leo-Cheng/%E8%A1%A5%E5%AE%8C%E8%AE%A1%E5%88%92/" itemprop="url" rel="index"><span itemprop="name">补完计划</span></a>
+                  <a href="/blog/categories/Lfan-ke/" itemprop="url" rel="index"><span itemprop="name">Lfan-ke</span></a>
                 </span>
             </span>
 
@@ -767,111 +896,6 @@
 
       
           <h1 id="rCore学习笔记"><a href="#rCore学习笔记" class="headerlink" title="rCore学习笔记"></a>rCore学习笔记</h1><p>根据学习顺序从头梳理一下操作系统的发展历史：</p>
-<h2 id="原生之初"><a href="#原生之初" class="headerlink" title="原生之初"></a>原生之初</h2><h3 id="CPU做了什么？"><a href="#CPU做了什么？" class="headerlink" title="CPU做了什么？"></a>CPU做了什么？</h3><p>CPU-Central Processing Unit，中央处理器，由IFU，EXU，MMU等等等组成，就不赘述了。以RV64IM指令集架构的角度来讲吧：</p>
-<ul>
-<li><p>门电路只能根据输入来生成输出</p>
-</li>
-<li><p>一个运算模块的输入：<code>ep1</code>，<code>ep2</code> 输出：<code>res</code> 取决于具体的指令</p>
-</li>
-<li><p>以一个简单的只有加减的<code>ALU</code>为例：<code>MUX(choose, res_add, res_sub)</code></p>
-</li>
-<li><pre><code class="verilog"><span class="keyword">module</span> ALU (
-    <span class="keyword">input</span> choose,
-    <span class="keyword">input</span> [<span class="number">63</span>:<span class="number">0</span>] ep1,
-    <span class="keyword">input</span> [<span class="number">63</span>:<span class="number">0</span>] ep2,
-    <span class="keyword">output</span> [<span class="number">63</span>:<span class="number">0</span>] res
-);
-    <span class="keyword">assign</span> res = choose == <span class="number">0</span> ? ep1 + ep2 : ep1 - ep2;
-<span class="keyword">endmodule</span></code></pre>
-</li>
-<li><p>电路只管<code>res_add</code>和<code>res_sub</code>的计算，结果是都算出来的，但是最后的<code>res</code>被通过选择器来选择输出<code>res_sub | res_add</code></p>
-</li>
-<li><p>CPU就是一个只管埋头干活的驴（有限状态机），而<code>choose</code>是CPU根据PC取值译码后得到的，用来选择哪个输入作为输入以及哪个输出作为输出</p>
-</li>
-<li><p>所以在CPU看来他只要不停的根据时钟进行不停01摇摆就行，而操作系统关心的就多了，包括“特权级的转换”/“进程调度”/“IO”等等</p>
-</li>
-<li><p>CPU角度的函数调用：我不知道发生了啥，只知道<code>gpr[rs1] = pc+4, pc = gpr[rs2]</code>，即：用了一下全加器，存了俩reg，调哪个函数全看pc指向内存里面的哪</p>
-</li>
-<li><p>CPU角度的设备读写：我不知道发生了啥，只知道某总线使用某协议按照某种规律发了一串特定的bit波形</p>
-</li>
-<li><p>CPU角度的异常处理：我不知道发生了啥，只知道某个被人类称为CSRs的寄存器组里面几个寄存器取了存，存了取</p>
-</li>
-<li><p>CPU角度的面向对象：我没有这个概念，只知道一个数字存哪取哪全靠选择器最后是否选中MEM，或者选中GPR？CSR？更高层次的汇编里面称这个决定选中哪里的一串01的数字为指针？</p>
-</li>
-</ul>
-<p>所以，CPU压根不知道一些奇奇怪怪的高级概念，更不知道什么奇奇怪怪的转换特权级，只知道，当前状态的输入，以及自己时钟边沿敏感后存下选中的输出。在CPU看来，只是一堆与或门在0101变，有的0101会连接到选择器的与或门上，决定了下一波存的0101而已。</p>
-<blockquote>
-<p>仿佛充电就不停运动的牛马，优雅的被称为“程序是一个状态机”，不停的在状态之间兜兜转转</p>
-</blockquote>
-<h3 id="ISA做了什么？"><a href="#ISA做了什么？" class="headerlink" title="ISA做了什么？"></a>ISA做了什么？</h3><p>​    指令集架构，以上面的<code>ALU</code>为例，规定了<code>choose == 0</code>时选择<code>res_add</code>，否则选择<code>res_sub</code>。在真实的CPU中，ISA规定了每一条指令的格式，数据类型，寄存器，中断/异常，字节次序等等等。比如末尾后7位是opcode，opcode是0110011是基本的运算族指令，比如add，sub等等。简而言之就是上面的规定了<code>choose == 0</code>时选择<code>res_add</code>，还是选择<code>res_sub</code>。</p>
-<p>​    它给人们提供了一套规范，可以有规范可查，遇到情况可以查相关的手册或者文档，有册可查，有规可依。</p>
-<blockquote>
-<p>规定了你看见A就说1，看见B就说0，AABBA就是11001，让CPU的电路运行有据可查</p>
-</blockquote>
-<h3 id="SBI做了什么？"><a href="#SBI做了什么？" class="headerlink" title="SBI做了什么？"></a>SBI做了什么？</h3><p>​    一套二进制接口，封装特定操作的软件程序，刷在PC初始值位置，用于初始化CPU的各项寄存器（广义，包括GPR，CSR，PC等等）中的值，之后提供了一个函数映射表的位置，当某些情况下<code>ecall</code>指令的时候，就把PC设置为这个函数映射表的位置，执行所指向的执行流，之后某个时机再返回到某个特定的位置。</p>
-<blockquote>
-<p>根据规范封装特定的指令，以及初始化指定的寄存器，初始化结束后，PC也被初始化到了OS所在的位置</p>
-</blockquote>
-<h3 id="OS做了什么？"><a href="#OS做了什么？" class="headerlink" title="OS做了什么？"></a>OS做了什么？</h3><p>​    也相当于一套二进制接口，是一个软件程序，用来管理硬件的各项资源，大部分的操作通过调用SBI提供的接口，很少直接操作硬件。决定了某些寄存器的值，以改变PC的指向，从而改变用户眼中的当前执行的程序（执行流）。</p>
-<blockquote>
-<p>因为遇事不决调SBICall，所以可以当是一个封装在特定SBI实现上的一个软件，或者调SBI实现的接口/库的一个程序</p>
-</blockquote>
-<h3 id="Syscall做了什么？"><a href="#Syscall做了什么？" class="headerlink" title="Syscall做了什么？"></a>Syscall做了什么？</h3><p>​    OS提供的一个函数映射表，当某些情况下<code>ecall</code>指令的时候，就把PC指向映射表的位置，映射表会根据参数和栈来决定下一步做什么，之后某个可能的时机再返回原来执行到的地方。</p>
-<blockquote>
-<p>封装了一个函数映射表，可以根据参数的值选择要执行的操作</p>
-</blockquote>
-<h3 id="用户程序做了什么？"><a href="#用户程序做了什么？" class="headerlink" title="用户程序做了什么？"></a>用户程序做了什么？</h3><p>​    依据各基于的标准库，来编写程序或更高层级的库，然后调用现有的依赖编写自己心目中的程序或者功能。游戏，网页，基础设施，编译器等等等，一切他们觉得让生产生活更方便的东西，比如：饥荒营火重生Mod，QQ，雷碧超市小程序……</p>
-<blockquote>
-<p>使用操作系统提供的接口，或者在操作系统之上的虚拟机平台提供的接口，拼接，组装，变成自己需要的程序</p>
-</blockquote>
-<h3 id="所以他们做了什么？"><a href="#所以他们做了什么？" class="headerlink" title="所以他们做了什么？"></a>所以他们做了什么？</h3><p>​    总结来看，仿佛就是一层调用一层的接口，一层接着一层的调包导库，实际上也是，不过是为了学习或使用方便而简化了一些东西而已。这些简化的东西在上层的使用者几乎不用关心，被称为“抽象”</p>
-<p>​    ISA规定了硬件都有哪些寄存器，遇到哪些指令该怎么做，提供了UB以外的确定性硬件操作（不确定的比如/0才是UB吧，所以这句就是废话是吧…）</p>
-<p>​    SBI初始化硬件提供的寄存器，之后跳转到OS所在位置，确保了OS的执行正确，不会遇到get_time的时候，一看，俩寄存器还是未初始化的随机脏值</p>
-<p>​    OS将“资源”具象化，来分配，调度OS所知晓的内存空间，存储空间。同时，也创建了对于用户程序不可见的物理地址之下的虚拟地址，为系统安全提供保障。用户所编写的程序将不需要关心真实的物理地址在哪，程序会被安排到什么地方。OS：“给你这些你就用，其他的别管！”</p>
-<p>​    用户程序，在OS的抽象下，用户以为自己独占了一台物理机，当其需要操作系统的服务，比如获取当前系统时间的时候，调用Syscall</p>
-<p>​    而为了区分不同层级的程序，为了用户越界访问系统的时候，硬件能给点反应，触发中断，切回OS叫醒OS：“你用户越界了！”，部分CSR寄存器的某些位连接了译码器以及MMU的部分部件，为的就是检测到不对就警报进行中断。为了配合这个硬件机制，软件上就得设置这些位是0还是1。比如SBI初始化的mstatus，OS初始化的sstatus等等。这样子在特定位没被设置的时候，某不属于此特权级的指令的执行就会触发中断。但是如果软件不设防，一切运行在裸机（没有SBI，没有OS来管理调度资源的芯片），那么特权级将会失去意义。</p>
-<p>​    这一过程就像你MC（一个游戏）开服务器，你不设防，认为一切道法自然，那么熊孩子炸了你家你也不知道，你也只能接受。但是当你软件开启“游客权限：不准使用TNT”，“好友权限：可申请使用TNT”的时候，你也就划分了特权级的抽象：“USM” - “房主 好友 游客”。</p>
-<blockquote>
-<p>所以，学的广不能学的深，调库侠不如底层佬什么什么的都是伪命题，都是在认知范围内合理利用工具而已</p>
-</blockquote>
-<h2 id="批处理"><a href="#批处理" class="headerlink" title="批处理"></a>批处理</h2><p>当我裸机能运行一个程序的时候，我就想让他运行两个，但是切换好麻烦，能不能一次输入，就能得到所有想要的输出？</p>
-<p>​    好，将两个程序拼接</p>
-<p>万一前面的出错怎么办？</p>
-<p>​    将PC指向下一个程序，这程序就算运行结束了</p>
-<p>有程序破坏系统篡改数据怎么办？</p>
-<p>​    我得规定程序的权限：不能随意访问空间，不能破坏系统</p>
-<blockquote>
-<p>简而言之，批处理系统是操作系统的雏形，通过简单的程序二进制拼接起来，依次执行，进行了简单的错误处理以及特权级切换</p>
-</blockquote>
-<h2 id="多道分时"><a href="#多道分时" class="headerlink" title="多道分时"></a>多道分时</h2><p>提高系统的性能和效率是操作系统的核心目标之一，一个个排着队，不论长短一直等着就不耐烦。为了解决这个问题，不同目的的操作系统有了不同的策略。执行流在被阻塞的状态下让出处理器是通用的。其余的，急者优先，先来先服务等等调度算法应用在了不同领域。但是最常见的还是基于时间平均分配时间片的分时复用算法。底层是每隔一小段时间触发一次时钟中断来切换执行流。</p>
-<blockquote>
-<p>在CPU角度，CPU是一个状态机，下一步的结果只与当前状态有关，所以切换执行流实际上就是保存了CPU当前的状态，即：Context-上下文，之后找个时间再恢复。所以CPU当前的状态是什么？</p>
-<p>取指的PC：关系到指令执行到哪了，该执行哪个了</p>
-<p>ISA规定的寄存器组：32个寄存器，起码zero恒0，不用保存，sp要手动霍霍调度执行流，不保存</p>
-<p>部分执行流相关csr：得按需保存，比如sstatus，sepc，scause等等，按需？比如裸机保存的就是mepc而不是sepc</p>
-</blockquote>
-<h2 id="地址空间"><a href="#地址空间" class="headerlink" title="地址空间"></a>地址空间</h2><p>将程序按部就班刷入固定位置，每次有新程序还得重新安排程序所在的位置，且用户程序能直接访问物理地址本来就是不安全的。</p>
-<p>所以地址空间思考的就是：如何使用一个抽象，让所有程序不必想自己得被安排到哪，且隔绝不同程序之间的地址空间？</p>
-<blockquote>
-<p>PageTable一个是方便MMU硬件查找虚拟地址对应的物理地址，一个是维护了软件的接口，方便操作系统需要时霍霍。</p>
-<p>[MapArea]保存了连续的虚拟地址的映射，以及此段地址的权限，分配和回收直接霍霍PageTable，方便了OS维护PT</p>
-<p>此时程序看到的地址都是OS提供的抽象幻象，隔绝了程序的同时，用户编写程序也不用思考程序将会被放在哪了！</p>
-</blockquote>
-<h2 id="进程管理"><a href="#进程管理" class="headerlink" title="进程管理"></a>进程管理</h2><p>之前的程序都是确定要运行的，被刷入的程序只能决定会被运行，不能决定自己什么时候不运行，什么时候去运行。人机交互差。所以一开始只执行一个负责和用户交互的程序，后续由用户选择执行特定的程序。提高了用户的自由度和体验。</p>
-<blockquote>
-<p>现在的程序可以被用户选择是否要运行，以及什么时候开始运行。比起之前开机只是为了关机的死程序疙瘩多了人性化。</p>
-<p>比死程序疙瘩多的操作也就是：如何将创建一个执行流的上下文，将上下文加入调度队列，以及获取上下文返回的信息</p>
-<p>由于地址空间的支持，所有程序的起始地址都可以相同，应该说，都是相同的，所以每次创建执行流的时候，虚拟起始地址每个程序都一样，不一样的只是被映射到的物理地址。</p>
-</blockquote>
-<h2 id="文件系统"><a href="#文件系统" class="headerlink" title="文件系统"></a>文件系统</h2><p>​    一次性刷好所有的程序，有新的程序还得重新刷，关机内存的数据就没了，所以需要一种持久化存储数据/程序的方式。然后管理这种持久化存储的程序的系统就是文件系统，这种持久化的程序或者数据的抽象就是“文件”。但是文件平铺对于习惯分门别类的人来说阅读性太差，就有了“目录”。归结到底“目录”也是一种特殊的文件，其中存的内容是规则的目录项罢了。</p>
-<p>​    所以，目录就是一个目录项的容器，目录项就是描述一个目录或者文件的指针和属性的集合。而一切的起源就是根目录，就是目录树的根节点。通过一层层指针，就能找到最终指向的文件区域。</p>
-<blockquote>
-<p>有了文件系统，可以很方便的持久化程序和数据。程序又何不是一种数据？</p>
-<p>之后想运行程序的时候就可以在持久化的数据中寻找对应的文件，读入内存，后创建PCB，加入调度</p>
-</blockquote>
-<h2 id="管道通信"><a href="#管道通信" class="headerlink" title="管道通信"></a>管道通信</h2><p>不同进程之间的通信，可以通过父进程的文件描述符来进行读写buffer。</p>
-<h2 id="并发和锁"><a href="#并发和锁" class="headerlink" title="并发和锁"></a>并发和锁</h2><p>​    当进程变为线程的管理容器的时候，线程共享着进程的资源。由于线程异步执行的不确定性，一个内存区域（资源）被不同线程访问修改后不能保证原执行流的原子性。很有可能一个数据，比如一个u128的变量，在sd低64位的时候被调度了，导致写线程还没把高64位写进去，读线程读的时候会发现数据错误。所以就需要一种机制来保证这种边沿区域的读写原子性。没写完就读的，让读的先缓缓，切回写的，写完再把要读的放出来读就不会出错了。</p>
-<p>​    但是往往一个线程有时候并不只需要一个资源，有时候需要N个不同的资源。这时假设A线程拿到了资源1，B线程拿到了资源2，但是B要访问资源1，A要访问资源2，但A拿着资源1睡去了，B就只能干耗着，形成死锁。死锁的解锁方式很多，比如卡足够时间就释放，过段随机时间再请求等等。但是如果可以预防死锁，在可能发生死锁的时候拒绝分配，让可以安全执行完成的执行流先完成，那么就不会形成死锁。所以在ch8完成了银行家算法的化简版。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/blog/2025/05/04/Lfan-ke%EF%BC%9ArCore%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/#more" rel="contents">
@@ -929,7 +953,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -1043,7 +1067,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -1295,7 +1319,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -1360,78 +1384,6 @@
 </ol>
 <h2 id="Lab6-simple-hv"><a href="#Lab6-simple-hv" class="headerlink" title="Lab6 simple_hv"></a>Lab6 simple_hv</h2><p>这一个lab给我们展示了一个“最小hypervisor”的实现。类似于rcore Lab中的syscall实验。在rcore和arceos阶段研读过操作系统的代码后，实际上Hypervisor的运行方式并不难以想象。操作系统的目的是，安全，高效的同时运行多个程序。为了达成这个目的主要实现了抢占式调度，地址空间，以及特权级机制。Hypervisor同理，它要安全，高效的运行多个操作系统。因此也可以通过类似的方法，比如抢占式调度（或者干脆利用多核实现真并行调度，如教学代码所示），对于操作系统来说也需要“虚拟物理地址”，相当于一个vm级别的地址空间。另外，OS不再直接管理外设，也不能直接控制硬件，所以对于一些可能影响硬件的”危险操作“我们再进行一次特权级的隔离。让os通过与syscall类似的hypercall把这些操作的权利交给hypervisor定夺。<br>仔细想想，实际上type-II hypervisor也几乎可以通过类似的机制实现。这一套并不局限于直接运行在硬件上的Type-I Hypervisor，只要硬件提供特权级的隔离这一套可以轻易实现。硬件支持真是个好东西。想到了当时读Xen的论文，通过Para Virtualization重量级实现hypervisor那种巨大的工程量，再到现在各个处理器指令集都支持虚拟化扩展，可以通过几百行代码实现一个简单虚拟机。也算是软件系统的需求促进的硬件发展的一个样例了。<br>时过境迁，前两年Timothy在OSDI疾呼研究者应该回归OS的本质做hardware-software co-design。现在新硬件层出不穷，硬件加速器，智能网卡，TEE，还有RDMA，CXL一堆新名词。好像“攻守之势异也”，变成了硬件推动OS进步了。面对着越来越多的外设和越来越专业化的使用场景，操作系统研究者的未来又在何方呢？</p>
 
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2025/05/02/2025%E6%98%A5%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%B8%B8%E8%AE%B0%EF%BC%88%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%EF%BC%89/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2025/05/02/2025%E6%98%A5%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%B8%B8%E8%AE%B0%EF%BC%88%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%EF%BC%89/" class="post-title-link" itemprop="url">2025春操作系统训练营游记（一二阶段）</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2025-05-02 16:33:52" itemprop="dateCreated datePublished" datetime="2025-05-02T16:33:52+00:00">2025-05-02</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
-              </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Caiwen 的 2025 年春季操作系统训练营一二阶段的学习笔记</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2025/05/02/2025%E6%98%A5%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%B8%B8%E8%AE%B0%EF%BC%88%E4%B8%80%E4%BA%8C%E9%98%B6%E6%AE%B5%EF%BC%89/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
       
     </div>
 

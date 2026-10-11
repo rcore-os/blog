@@ -184,20 +184,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/blog/archives/">
         
-          <span class="site-state-item-count">795</span>
+          <span class="site-state-item-count">796</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/blog/categories/">
           
-        <span class="site-state-item-count">240</span>
+        <span class="site-state-item-count">58</span>
         <span class="site-state-item-name">categories</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/blog/tags/">
           
-        <span class="site-state-item-count">783</span>
+        <span class="site-state-item-count">962</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -233,6 +233,133 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-WellDown64/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/28/2026%E6%98%A5%E5%A4%8F%E5%BC%80%E6%BA%90%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93-WellDown64/" class="post-title-link" itemprop="url">2026春夏开源操作系统训练营总结-WellDown64</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-28 04:33:22" itemprop="dateCreated datePublished" datetime="2026-06-28T04:33:22+00:00">2026-06-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="方案一：以-syscall-为引导的改进"><a href="#方案一：以-syscall-为引导的改进" class="headerlink" title="方案一：以 syscall 为引导的改进"></a>方案一：以 syscall 为引导的改进</h3><p>这一阶段主要做的是进程控制与资源相关的 syscall 的测试。</p>
+<ul>
+<li><code>prlimit64</code> <a href="https://github.com/rcore-os/tgoskits/pull/801" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/801</a></li>
+<li><code>capget</code> <a href="https://github.com/rcore-os/tgoskits/pull/863" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/863</a></li>
+<li><code>capset</code> <a href="https://github.com/rcore-os/tgoskits/pull/898" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/898</a></li>
+<li><code>getrusage</code> <a href="https://github.com/rcore-os/tgoskits/pull/902" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/902</a></li>
+<li><code>arch_prctl</code> <a href="https://github.com/rcore-os/tgoskits/pull/1049" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1049</a></li>
+</ul>
+<p>这个方向的整体思路来自 <a href="https://github.com/rcore-os/tgoskits/issues/650" target="_blank" rel="noopener">Issue #650</a>：挑几个 StarryOS 里尚未覆盖或实现有问题的系统调用，补测试、修 bug，一个个啃过去。最终合了 5 个 PR，还有 1 个在 review 中。有两个 syscall（<code>prctl</code>、<code>riscv_flush_icache</code>）因为工作量和优先级原因搁置了。</p>
+<p><strong>PR #801 — feat(starry): 为 prlimit64 添加用户态测试</strong> </p>
+<ul>
+<li>修正了 <code>sys_prlimit64</code> 的错误优先级：无效 pid 应该比非法 resource 更早返回 <code>ESRCH</code></li>
+<li>对提高 <code>rlim_max</code> 的路径补上了 <code>CAP_SYS_RESOURCE</code> 权限检查</li>
+</ul>
+<p><strong>PR #863 — test(starryos): capget 系统调用测试与 NULL datap 修复</strong> </p>
+<ul>
+<li>发现并修复了一个 bug：<code>datap=NULL</code> 时应视为版本探测，返回 <code>EINVAL</code> 并写回支持的版本号（对齐 Linux 行为）。StarryOS 原来的实现直接漏掉了这个分支</li>
+</ul>
+<p><strong>PR #1049 — fix(starry): arch_prctl 地址校验 + 异常信号映射修正</strong> </p>
+<ul>
+<li>看了 Linux 源码才发现，<code>ARCH_SET_FS</code>/<code>ARCH_SET_GS</code> 是有地址合法性校验的——超过 47-bit 规范边界的非 canonical 地址应该返回 <code>EPERM</code>，StarryOS 之前没做这个检查</li>
+<li>把用户态 <code>#GP</code>、<code>#SS</code>、<code>#NP</code>、<code>#TS</code> 等保护异常从 <code>SIGTRAP</code> 改成了 <code>SIGSEGV</code>（对齐 Linux/POSIX）</li>
+<li>附带了一份 CPUID faulting 的后续支持方案（<code>GetCpuid</code>/<code>SetCpuid</code> 的占位实现）</li>
+<li>这个 PR 改动涉及面比较广，还在完善中。</li>
+</ul>
+<h3 id="方案二：以-Linux-App-为引导的改进"><a href="#方案二：以-Linux-App-为引导的改进" class="headerlink" title="方案二：以 Linux App 为引导的改进"></a>方案二：以 Linux App 为引导的改进</h3><p>从“跑通真实 Linux 应用”出发来改善 StarryOS 的兼容性。这个方向的工作记录在 <a href="https://github.com/rcore-os/tgoskits/issues/1153" target="_blank" rel="noopener">Issue #1153</a>（procps 支持分析）和 <a href="https://github.com/rcore-os/tgoskits/issues/1324" target="_blank" rel="noopener">Issue #1324</a>（strace 支持）中。</p>
+<p>对 procps(ps/top/kill) 的支持分析：目前的 <code>ps</code> 和 <code>kill</code> 命令均可以正常运行，但是在测试过程中发现运行 <code>top</code> 命令会直接退出，没有结果输出。我主要针对这一问题进行了修复。</p>
+<p><strong>PR #1194 — fix(tui): 在 init.sh 中设置 TERM 环境变量</strong> </p>
+<ul>
+<li>在 <code>init.sh</code> 里加了 <code>export TERM=xterm</code>，修复了 TUI 应用因为缺少 <code>TERM</code> 环境变量而无法启动的问题</li>
+<li>改动虽然小，但是发现这个错误费了比较长的时间。我在让 AI 排查原因的时候 AI 产生了幻觉，提供了一些无用的建议，我的想法是让 AI 阅读 <code>top</code> 的源码，让它判断在哪一步出现问题了。</li>
+<li>这件事给我的体会是，使用 AI 的关键是给它提供全面的 context. 而如何给出合适的 context 取决于使用者对问题的理解。</li>
+</ul>
+<p>在排查 <code>top</code> 的问题时，我尝试使用 <code>strace</code> 来查看 <code>top</code> 的系统调用，但是发现 StarryOS 上目前还不支持 <code>strace</code>, 因此我又做了 <code>strace</code> 的支持。</p>
+<p><strong>PR #1323 — feat(starry-kernel): 实现 PTRACE_LISTEN（strace 支持）</strong> </p>
+<p>这个 PR 的目标是让 <code>strace</code> 能在 StarryOS 上跑起来。一开始以为“实现 <code>PTRACE_LISTEN</code> 就行了”，结果发现远不止如此——<code>strace</code> 使用的是 ptrace 的 SEIZE 流程而非传统的 TRACEME，对内核的要求比想象中多得多。这一系列改动涉及 7 个文件，新增约 380 行代码（含 179 行的 C 测试用例），按依赖关系可以分为三个层次：</p>
+<p><strong>第一层：信号与时序（修不好这个，后面都无从谈起）</strong></p>
+<p><code>must</code> — <strong>SIGCONT 不产生虚假 ptrace stop</strong>（<code>signal.rs</code>）。这个问题非常隐蔽：shell 启动前台作业时发送的 <code>SIGCONT</code> 可能在 strace child 自己发出的 <code>SIGSTOP</code> 之前被出队。此时内核会错误地产生一个 <code>SIGCONT</code> stop，把 strace 的初始化状态机彻底打乱。不修这个，无论是 TRACEME 还是 SEIZE 路径都起不来。修复方式是在信号处理中对 <code>SIGCONT</code> 类信号（以及 <code>SIGKILL</code>、<code>SIGSTOP</code> 等不可屏蔽信号）做特殊判断，跳过 ptrace stop 的生成。</p>
+<p><strong>第二层：SEIZE 流程核心机制</strong></p>
+<p>这一层是让 strace 能跑起来的“骨架”，缺一个都会导致 strace 直接退出或行为异常：</p>
+<p><code>must</code> — <strong>PTRACE_LISTEN 实现</strong>（<code>ptrace.rs</code>，opcode <code>0x4208</code>）。strace 在 SEIZE 流程中会将 <code>TE_GROUP_STOP</code> 转为 job-control stop，而这一步依赖 <code>PTRACE_LISTEN</code> 让 tracee 进入 listening 状态。没有它，strace 直接报 <code>Unsupported</code> 退出——这也是整个 PR 命名的由来。</p>
+<p><code>must</code> — <strong>exec 时跳过 syscall exit stop</strong>（<code>user.rs</code>）。这是一个非常微妙的细节：在 execve 的处理中，如果先触发了 syscall exit stop，<code>TCB_INSYSCALL</code> 标志会被清除。之后 exec event 到达时，因为标志已清，strace 会报 <code>Stray PTRACE_EVENT_EXEC</code>，并进入错误恢复路径——更致命的是，这会导致后续所有 syscall 的 entry/exit 判定永久反转，整个 trace 输出完全错乱。修复方式是在 exec 路径上跳过 exit stop，确保 exec event 到达时 <code>TCB_INSYSCALL</code> 仍然置位。</p>
+<p><code>high</code> — <strong>PTRACE_EVENT_STOP 编码</strong>（<code>ptrace.rs</code>）。<code>PTRACE_INTERRUPT</code> 触发的 stop 需要在 wait status 的高 16 位标记 <code>PTRACE_EVENT_STOP(128)</code>。strace 正是根据这个标记来区分 group-stop 和普通信号 stop，从而走 <code>TE_RESTART</code> 而非 <code>TE_GROUP_STOP</code> 路径。没有这个标记，strace 的 ptrace 状态机会做出错误的决策。</p>
+<p><code>high</code> — <strong>SEIZE 接收 options</strong>（<code>ptrace.rs</code>）。strace 调用 <code>ptrace(PTRACE_SEIZE, pid, NULL, ptrace_setoptions)</code> 时，会把 options（如 <code>0x51</code>）作为第 4 参数传入。StarryOS 原来的 SEIZE 实现忽略了 data 参数，导致 options（如 <code>PTRACE_O_TRACESYSGOOD</code>、<code>PTRACE_O_TRACEEXEC</code>）全部丢失。后果是 exec stop 没有 event tag，strace 会把它误判为普通的信号投递。</p>
+<p><code>high</code> — <strong>ATTACHED 也触发 exec stop</strong>（<code>execve.rs</code>）。这是 SEIZE 和 TRACEME 的一个重要差异：TRACEME 的 tracee 会主动调用 <code>ptrace(TRACEME)</code> 标记自己，而 SEIZE 的 tracee 是被动的，从未调用过 <code>TRACEME</code>。原来的代码只用 <code>is_ptrace_traceme()</code> 判断是否触发 exec stop，对于 SEIZE 的 child 永远为 false。需要额外加上 <code>is_ptrace_attached()</code> 的判断，否则 SEIZE 路径的 exec stop 永远不会触发。</p>
+<p><strong>第三层：兼容性打磨</strong></p>
+<p><code>medium</code> — <strong>TRACESECCOMP/EXITKILL 加入 valid_mask</strong>（<code>ptrace.rs</code>）。strace 在启用 seccomp 过滤或 <code>--kill-on-exit</code> 选项时，会在 <code>PTRACE_SETOPTIONS</code> 中传入 <code>PTRACE_O_TRACESECCOMP</code> 和 <code>PTRACE_O_EXITKILL</code>。这些 bit 不在 valid_mask 中的话，<code>SETOPTIONS</code> 返回 <code>EINVAL</code>，导致所有 options（包括前面那些关键的 exec/trace 相关选项）全部丢失。虽然不是 SEIZE 流程必需的，但缺了它，strace 的 seccomp 相关功能和 <code>--kill-on-exit</code> 就无法正常工作。</p>
+<p><code>low</code> — <strong>SEIZE self 恢复 EPERM</strong>（<code>ptrace.rs</code>）。之前的 workaround 在 SEIZE 自身时返回 <code>EIO</code>，现在 SEIZE 流程完整实现后改回 <code>EPERM</code>，对齐 Linux ABI 行为。</p>
+<p><strong>调试过程与测试</strong></p>
+<p>为验证这些修改，我写了一个 179 行的 C 用户态测试用例（<code>test-ptrace-listen</code>），覆盖 PTRACE_SEIZE → PTRACE_LISTEN 的基本流程。</p>
+<p>在 riscv64 QEMU 上验证了 <code>strace</code> 的基本功能可以正常工作，能输出完整的系统调用追踪。不过，运行 <code>strace -d</code> 时仍然会看到：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">strace: do_test_ptrace_get_syscall_info: PTRACE_GET_SYSCALL_INFO: Function not implemented</span><br><span class="line">strace: PTRACE_SET_SYSCALL_INFO does not work</span><br></pre></td></tr></table></figure>
+
+<p>这是因为 <code>PTRACE_GET_SYSCALL_INFO</code> 还没实现——strace 在调试模式下会探测这个接口的可用性，但这不影响基本的 syscall trace 功能。这是一个后续可以继续完善的点。</p>
+<p>另外，其他架构（x86_64、aarch64、loongarch64）的 ptrace 支持已有其他同学贡献（PR #1062, #1247, #1292），但 strace 还未在这些架构上测试过，也是后续可以做的事情。</p>
+<p>这次 strace 适配让我对 ptrace 子系统有了比较深入的理解。最大的感受是：像 <code>strace</code> 这种看起来“只差一个接口”的工具，实际上对内核的 ptrace 实现要求非常严格——从信号处理到 exec 流程再到 wait status 编码，环环相扣，任何一个环节的遗漏都会导致整个链路断裂。做这类兼容性工作，不能只看单个接口的实现，需要把工具的实际使用流程（特别是像 SEIZE 这种复杂流程）完整走一遍，才能发现那些隐藏在调用序列中的隐含依赖。</p>
+<h2 id="后续的计划"><a href="#后续的计划" class="headerlink" title="后续的计划"></a>后续的计划</h2><p>短期来看，先把手里两个未合并的 PR 收尾(#1049 #1323)，争取尽快合入。strace 这边还有一些可以完善的地方，比如 <code>PTRACE_GET_SYSCALL_INFO</code> 的实现、以及在其他架构上的测试验证，都是值得跟进的后续工作。</p>
+<p>长远一点来说，这次训练营让我对操作系统内核开发有了比较切实的感受，而不只是停留在看书的层面。如果有机会的话，希望可以参加相关实习，继续往这个方向深入下去。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>回过头来看这几个月，从 Rust 基础到 rCore 手写内核，再到给 StarryOS 提 PR、修 bug、补系统调用——每一步都在加深我对操作系统的理解。</p>
+<p>项目阶段是最有收获的部分。给一个真实的开源内核项目贡献代码，跟在教程框架里写实验是完全不同的体验。最大的区别在于：教程里的问题是有答案的，而真实项目中的问题没有现成的标准答案，需要自己去分析、去摸索。比如 strace 那条链路，一开始只想着”实现 PTRACE_LISTEN 就行了”，结果发现上游的 SIGCONT 时序、exec 的 stop 语义、甚至 wait status 的编码格式，一环扣一环，缺一个整个链路就断。这种 debug 不是”某个地方写错了”，而是”缺少了一整块逻辑”——能定位到问题本身，就已经是能力提升的体现。</p>
+<p>比较遗憾的是，由于我几乎比别人晚开始一周，方案二这边其实有不少想法还没来得及展开。像 strace 的 <code>PTRACE_GET_SYSCALL_INFO</code> 支持、其他架构上的测试验证，这些都是后续可以继续深入的方向。</p>
+<p>关于 AI 的使用，也是这次项目阶段体会比较深的一点。AI 确实很强，合理使用的话效率提升肉眼可见。但用下来的一个感受是：AI 特别容易在一个地方钻牛角尖，死磕某个错误的思路不肯回头。这时候就得靠人去给它指方向、补充相关的 context，帮它跳出那个坑。说到底，复杂的问题永远都是复杂的——AI 可以帮忙搬砖，但想清楚要搬什么、往哪搬，还是得靠自己。</p>
+<p>最后感谢训练营中各位老师的指导，感谢 OS 训练营提供这样一个平台供我学习，感谢与我热心交流的各位同学们，祝 OS 训练营越办越好。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/28/docker%E5%AE%9E%E7%8E%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -264,7 +391,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
 
           
@@ -328,7 +455,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -712,6 +839,524 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" class="post-title-link" itemprop="url">2026春季OS训练营总结报告——StarryOS网络应用适配与测试体系构建</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-06-27 20:00:00" itemprop="dateCreated datePublished" datetime="2026-06-27T20:00:00+00:00">2026-06-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h1><p>本次训练营我的工作主线是：围绕 StarryOS 的 Linux 网络应用兼容性，持续做「应用驱动测试 -&gt; 问题定位修复 -&gt; 测试框架固化」。</p>
+<p>阶段性成果可概括为三点：</p>
+<ol>
+<li>完成 Nginx 和 Apache 测试框架从零到一的构建，建立 smoke/phase/debug 三层测试体系。</li>
+<li>构建网络性能测试基础设施（net-bench），集成 eBPF 观测工具，为网络栈持续优化提供工具支撑。</li>
+<li>完成 OS 功能赛 proj57（ACT 推理）QEMU 和 RK3588 两阶段交付，NPU 执行性能已优于 Linux。</li>
+</ol>
+<hr>
+<h1 id="一、训练营阶段工作"><a href="#一、训练营阶段工作" class="headerlink" title="一、训练营阶段工作"></a>一、训练营阶段工作</h1><h2 id="1-1-第一阶段：系统调用测试基础"><a href="#1-1-第一阶段：系统调用测试基础" class="headerlink" title="1.1 第一阶段：系统调用测试基础"></a>1.1 第一阶段：系统调用测试基础</h2><p>在第一阶段以单一系统调用为目标，完成了事件复用和文件同步两个方向的测试与修复。</p>
+<h3 id="具体工作"><a href="#具体工作" class="headerlink" title="具体工作"></a>具体工作</h3><ol>
+<li><p><strong>事件复用系统调用</strong></p>
+<ul>
+<li>实现 <code>epoll_create1</code>、<code>epoll_ctl</code>、<code>epoll_pwait</code>、<code>epoll_pwait2</code> 测试</li>
+<li>修复 <code>sigsetsize</code> 检查与 Linux ABI 不一致问题</li>
+</ul>
+</li>
+<li><p><strong>文件同步系统调用</strong></p>
+<ul>
+<li>对齐 <code>fsync</code>、<code>fdatasync</code>、<code>sync_file_range</code>、<code>sync</code>、<code>syncfs</code> 的 Linux 语义</li>
+<li>修复返回值和错误码偏差</li>
+</ul>
+</li>
+</ol>
+<h3 id="对应-PR"><a href="#对应-PR" class="headerlink" title="对应 PR"></a>对应 PR</h3><ul>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/658" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/658</a> (Merged)</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/900" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/900</a> (Merged)</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/903" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/903</a> (Merged)</li>
+</ul>
+<hr>
+<h2 id="1-2-第二阶段：Nginx-测试框架与多架构适配"><a href="#1-2-第二阶段：Nginx-测试框架与多架构适配" class="headerlink" title="1.2 第二阶段：Nginx 测试框架与多架构适配"></a>1.2 第二阶段：Nginx 测试框架与多架构适配</h2><p>这一阶段从龙同学（LetsWalkInLine）手中接过初步的 Nginx 支持，将其发展为完整的测试框架。</p>
+<h3 id="1-2-1-统一测试入口与分层架构"><a href="#1-2-1-统一测试入口与分层架构" class="headerlink" title="1.2.1 统一测试入口与分层架构"></a>1.2.1 统一测试入口与分层架构</h3><p><strong>问题背景</strong>：</p>
+<ul>
+<li>初始版本测试脚本分散，QEMU 配置冗余</li>
+<li>缺少统一的测试模式切换机制</li>
+<li>难以在 smoke/phase/debug 间快速切换</li>
+</ul>
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li>实现 <code>nginx-runner.sh</code> 统一 guest 入口，支持：<ul>
+<li><code>smoke</code>：CI 快速验证（APK 安装 + 基础启动）</li>
+<li><code>phase</code>：阶段性功能测试（phase20-70）</li>
+<li><code>debug</code>：问题定位（单步调试、日志增强）</li>
+<li><code>stress</code>：性能压力测试</li>
+</ul>
+</li>
+<li>建立三层 QEMU 配置结构：<ul>
+<li><code>qemu/all/</code>：完整功能测试配置</li>
+<li><code>qemu/phase/</code>：单个 phase 快速验证</li>
+<li><code>qemu/debug/</code>：调试专用配置（更多内存、日志输出）</li>
+</ul>
+</li>
+</ul>
+<p><strong>代码组织</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">test-suit&#x2F;starryos&#x2F;normal&#x2F;nginx&#x2F;</span><br><span class="line">├── scripts&#x2F;</span><br><span class="line">│   ├── nginx-runner.sh          # 统一入口</span><br><span class="line">│   ├── smoke&#x2F;                    # CI 验证脚本</span><br><span class="line">│   ├── phase&#x2F;                    # 功能测试脚本</span><br><span class="line">│   └── debug&#x2F;                    # 调试脚本</span><br><span class="line">├── qemu&#x2F;</span><br><span class="line">│   ├── &#123;arch&#125;-nginx-all.toml    # CI 默认入口</span><br><span class="line">│   ├── all&#x2F;*.toml               # 完整测试</span><br><span class="line">│   ├── phase&#x2F;*.toml             # 单阶段测试</span><br><span class="line">│   └── debug&#x2F;*.toml             # 调试配置</span><br><span class="line">└── build-*.toml                  # 构建配置</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-2-2-关键问题定位与修复"><a href="#1-2-2-关键问题定位与修复" class="headerlink" title="1.2.2 关键问题定位与修复"></a>1.2.2 关键问题定位与修复</h3><p><strong>问题一：多 worker 卡死</strong></p>
+<ul>
+<li>现象：<code>worker_processes 4</code> 时概率性卡死</li>
+<li>根因：信号中断处理和 <code>EPOLLEXCLUSIVE</code> 语义不完整</li>
+<li>修复：<ul>
+<li>补齐 <code>EPOLLEXCLUSIVE</code> 在 <code>epoll_ctl</code> 中的正确处理</li>
+<li>修正 <code>accept()</code> 被信号中断时的返回值和重试逻辑</li>
+</ul>
+</li>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1018" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1018</a> (Merged)</li>
+</ul>
+<p><strong>问题二：x86_64 短连接超时</strong></p>
+<ul>
+<li>现象：phase31（短连接压测）在 x86_64 上偶发 HTTP 超时</li>
+<li>初步怀疑：网络栈性能问题</li>
+<li>深入定位：<ul>
+<li>通过分段计时发现瓶颈在 guest 侧 <code>curl</code> 进程启动</li>
+<li>x86 QEMU 下外部命令启动开销高达 1-3 秒</li>
+<li>Nginx 响应时间实际在毫秒级，非瓶颈</li>
+</ul>
+</li>
+<li>解决：将 <code>curl</code> 超时从 5 秒放宽到 15 秒，匹配 x86 实际开销</li>
+<li>教训：性能问题需要分段计时，避免误判根因</li>
+</ul>
+<p><strong>问题三：loongarch64 内存不足</strong></p>
+<ul>
+<li>现象：loongarch64 启动后 OOM</li>
+<li>根因：默认内存配置 1GB 不足以运行完整测试</li>
+<li>修复：提升到 2GB，并规范化各架构内存配置</li>
+</ul>
+<h3 id="1-2-3-稳定性改进"><a href="#1-2-3-稳定性改进" class="headerlink" title="1.2.3 稳定性改进"></a>1.2.3 稳定性改进</h3><ol>
+<li><p><strong>固定 APK 镜像版本</strong></p>
+<ul>
+<li>问题：使用 <code>edge</code> 仓库导致 glibc ABI 漂移，测试不稳定</li>
+<li>修复：固定到与 rootfs 一致的 Alpine 版本（3.19）</li>
+</ul>
+</li>
+<li><p><strong>动态启动路径修复</strong></p>
+<ul>
+<li>问题：Starry app qemu 未走动态平台启动，导致部分架构失败</li>
+<li>修复：统一通过 <code>axbuild</code> 动态启动路径</li>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1267" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1267</a> (Merged)</li>
+</ul>
+</li>
+</ol>
+<h3 id="对应-PR-1"><a href="#对应-PR-1" class="headerlink" title="对应 PR"></a>对应 PR</h3><ul>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1014" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1014</a> (Merged) - 初始 CI 实现</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1018" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1018</a> (Merged) - 多 worker 修复</li>
+<li><a href="https://github.com/rcore-os/tgoskits/pull/1038" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1038</a> (Merged) - 完整测试框架</li>
+</ul>
+<hr>
+<h2 id="1-3-第二阶段：Apache-测试实现"><a href="#1-3-第二阶段：Apache-测试实现" class="headerlink" title="1.3 第二阶段：Apache 测试实现"></a>1.3 第二阶段：Apache 测试实现</h2><p>在 Nginx 测试框架稳定后，我参照同样的架构从零实现了 Apache MPM prefork 测试。</p>
+<h3 id="1-3-1-测试覆盖设计"><a href="#1-3-1-测试覆盖设计" class="headerlink" title="1.3.1 测试覆盖设计"></a>1.3.1 测试覆盖设计</h3><p>Apache 测试分为 7 个 phase，覆盖从基础到高级的完整生命周期：</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>覆盖内容</th>
+<th>关键验证点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>phase20</td>
+<td>多进程管理</td>
+<td>prefork MPM、graceful 重启、worker 数量控制</td>
+</tr>
+<tr>
+<td>phase30</td>
+<td>HTTP 静态文件</td>
+<td>GET 请求、Content-Type、Last-Modified</td>
+</tr>
+<tr>
+<td>phase40</td>
+<td>目录访问</td>
+<td>DirectoryIndex、FancyIndexing、.htaccess</td>
+</tr>
+<tr>
+<td>phase50</td>
+<td>日志生命周期</td>
+<td>access_log/error_log、graceful 后日志追加</td>
+</tr>
+<tr>
+<td>phase55</td>
+<td>sendfile 与 range</td>
+<td>大文件传输、HTTP Range、mmap/sendfile 路径</td>
+</tr>
+<tr>
+<td>phase70</td>
+<td>CGI</td>
+<td>脚本执行、环境变量、管道通信</td>
+</tr>
+<tr>
+<td>phase80</td>
+<td>模块特性</td>
+<td>mod_rewrite、mod_alias、mod_headers</td>
+</tr>
+</tbody></table>
+<h3 id="1-3-2-关键问题定位：TCP-DEFER-ACCEPT"><a href="#1-3-2-关键问题定位：TCP-DEFER-ACCEPT" class="headerlink" title="1.3.2 关键问题定位：TCP_DEFER_ACCEPT"></a>1.3.2 关键问题定位：TCP_DEFER_ACCEPT</h3><p><strong>问题背景</strong>：</p>
+<ul>
+<li>reviewer 环境下 Apache 启动失败，日志显示 <code>AH00076</code> 警告</li>
+<li>警告内容：<code>setsockopt(TCP_DEFER_ACCEPT) failed: errno 92</code></li>
+</ul>
+<p><strong>深度调查</strong>：</p>
+<ol>
+<li>编写 C 语言探针 <code>tcp-defer-accept-probe.c</code>（172 行）</li>
+<li>验证三个关键问题：<ul>
+<li><code>setsockopt()</code> 返回值：-1</li>
+<li><code>errno</code>：92（协议不支持）</li>
+<li>监听 socket 是否可用：<strong>可用</strong>，能正常 <code>accept()</code></li>
+</ul>
+</li>
+</ol>
+<p><strong>结论</strong>：</p>
+<ul>
+<li><code>TCP_DEFER_ACCEPT</code> 失败是警告而非错误</li>
+<li>Apache 能正常回退到标准 <code>accept()</code> 路径</li>
+<li>监听 socket 完全可用，不影响功能</li>
+</ul>
+<p><strong>smoke 范围调整</strong>：</p>
+<ul>
+<li>基于此结论，将 smoke 收敛到前 4 步：<ul>
+<li>package（APK 安装）</li>
+<li>files（配置文件就位）</li>
+<li>environment（环境变量）</li>
+<li>config test（<code>apachectl configtest</code>）</li>
+</ul>
+</li>
+<li>移除 HTTP 测试到 <code>debug/apache-smoke-full.sh</code></li>
+</ul>
+<h3 id="1-3-3-调试工具集"><a href="#1-3-3-调试工具集" class="headerlink" title="1.3.3 调试工具集"></a>1.3.3 调试工具集</h3><p>为问题定位实现了 9 个 debug 脚本：</p>
+<ol>
+<li><code>mpm-prefork-wait.sh</code>：观测 prefork worker 启动和等待</li>
+<li><code>accept-mutex.sh</code>：验证 accept mutex 行为</li>
+<li><code>graceful-signal.sh</code>：测试 graceful 重启的信号传递</li>
+<li><code>htaccess-path-walk.sh</code>：追踪 <code>.htaccess</code> 路径遍历</li>
+<li><code>sendfile-mmap-range.sh</code>：对比 sendfile/mmap 性能</li>
+<li><code>cgi-pipe-exec.sh</code>：验证 CGI 管道和脚本执行</li>
+<li><code>log-append-reopen.sh</code>：测试日志追加和重开</li>
+<li><code>phase20-restart.sh</code>：单步调试 phase20 重启逻辑</li>
+<li><code>tcp-defer-accept-probe.c</code>：setsockopt 系统调用探针</li>
+</ol>
+<h3 id="当前状态"><a href="#当前状态" class="headerlink" title="当前状态"></a>当前状态</h3><ul>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1311" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1311</a> (Open)</li>
+<li>代码量：2367+ 行（测试脚本 + C 探针 + 配置）</li>
+<li>状态：等待 review，尚未合并</li>
+</ul>
+<hr>
+<h2 id="1-4-网络性能测试基础设施（net-bench）"><a href="#1-4-网络性能测试基础设施（net-bench）" class="headerlink" title="1.4 网络性能测试基础设施（net-bench）"></a>1.4 网络性能测试基础设施（net-bench）</h2><p>在方案二与方案三之间，我构建了网络性能测试框架，为网络栈持续优化提供工具支撑。</p>
+<h3 id="1-4-1-设计目标与理念"><a href="#1-4-1-设计目标与理念" class="headerlink" title="1.4.1 设计目标与理念"></a>1.4.1 设计目标与理念</h3><ul>
+<li><strong>“入口 + 参数明确”的严肃测试架构</strong>：<code>run.sh</code> 为唯一严肃入口，显式指定场景（<code>--scenario</code>）、架构（<code>--arch</code>）、加速器（<code>--accel</code>）、重复次数（<code>--repeat</code>），保证可复现、可对照</li>
+<li><strong>智能入口实验化</strong>：自动检测环境后委托 <code>run.sh</code> 执行，属于开发期便捷能力，不参与严肃测试</li>
+<li><strong>多拓扑支持</strong>：vhost（主力性能）、tap（降级方案）、slirp（功能冒烟），新增 tap-smp4 和 vhost-smp4 多核扩展场景</li>
+<li><strong>全流程自动化</strong>：一键宿主机配置、测试执行、结果汇总、清理回退</li>
+</ul>
+<h3 id="1-4-2-实现架构"><a href="#1-4-2-实现架构" class="headerlink" title="1.4.2 实现架构"></a>1.4.2 实现架构</h3><p><strong>统一入口与公共流程</strong>：</p>
+<p>围绕 <code>run.sh</code> 构建两级入口体系：</p>
+<ul>
+<li>严肃入口：<code>run.sh</code> 显式接收参数，获取公共流程封装后逐轮启动 iperf3 服务端、执行 guest 测试、收集结果、调用汇总脚本</li>
+<li>实验性入口：自动检测平台（WSL2/裸 Linux）、架构、KVM 和 vhost-net 可用性，推断参数后委托 <code>run.sh</code>（确保行为一致），测试结束自动清理；另有 WSL2 快捷封装</li>
+</ul>
+<p>公共流程封装集中在一处，消除散落硬编码：</p>
+<ul>
+<li>常量：网段、端口、拓扑定义</li>
+<li>配置矩阵解析：根据 scenario/arch/accel 自动推导 QEMU 配置文件路径</li>
+<li>iperf3 生命周期：启动、停止、进程级信号兜底（EXIT/INT/TERM）</li>
+<li>前置检查：KVM 可用性、vhost-net 可用性、TAP 设备就绪、DHCP 服务端监听校验（:67 端口）</li>
+<li>环境指纹：记录硬件/OS/内核/编译参数</li>
+<li>结果汇总：mean/stddev，NOISY 标记 &gt;10% stddev</li>
+</ul>
+<p><strong>补齐配置矩阵</strong>：</p>
+<p>QEMU 配置文件按 <code>&lt;scenario&gt;-&lt;arch&gt;-&lt;accel&gt;.toml</code> 命名规范覆盖 20 个组合：</p>
+<ul>
+<li>场景：slirp、tap、vhost、tap-smp4、vhost-smp4</li>
+<li>架构：x86_64、aarch64</li>
+<li>加速模式：kvm（同架构硬件加速）、tcg（跨架构或 KVM 不可用，仅功能验证）</li>
+</ul>
+<p><strong>一键宿主机配置</strong>：</p>
+<p><code>bin/setup</code> 实现全自动配置：</p>
+<ul>
+<li>自动安装缺失依赖（iperf3、brctl、jq、dnsmasq）</li>
+<li>自动加载 vhost_net 模块并放开 <code>/dev/vhost-net</code> 和 <code>/dev/kvm</code> 权限</li>
+<li>创建桥接 br0、tap0 设备，启动 dnsmasq DHCP（iperf3 服务端由 run.sh 自管生命周期）</li>
+<li>资源与进程状态写入状态文件</li>
+</ul>
+<p><code>bin/teardown</code> 读取状态文件，逆序清理进程和设备，实现状态化回滚。</p>
+<p><strong>测试覆盖</strong>：<br>| Test ID | 说明 | iperf3 参数 |<br>|———|——|————-|<br>| tcp1 | TCP 单流上行 | <code>-c $HOST</code> |<br>| tcp4 | TCP 4 并发流 | <code>-P 4</code> |<br>| tcp1r | TCP 单流下行 | <code>-R</code> (reverse) |<br>| udp1g | UDP 大包 1Gbps | <code>-u -b 1G</code> |<br>| udp64 | UDP 64B 小包 | <code>-u -l 64</code> |</p>
+<p>每个测试：1 次 warmup + 5 次正式测量。延迟与短连接由 netperf（TCP_RR/UDP_RR/TCP_CRR）补充。</p>
+<p><strong>基于 WSL2 端到端测试发现的 4 个真实缺陷</strong>：</p>
+<ol>
+<li><code>AX_IP</code>/<code>AX_GW</code> 环境变量注入无效：guest 内核在 xtask 路径下只支持 DHCP 获取地址（<code>axruntime</code> 未解析静态 IP 环境变量），移除误导性环境变量注入并文档化 DHCP 依赖</li>
+<li>DHCP 服务端未校验：缺少 DHCP 时 guest 静默 <code>DHCP timed out</code>，现已对 :67 端口监听校验，缺失时直接报错</li>
+<li>iperf3 服务端残留：失败运行后 <code>trap RETURN</code> 在 <code>set -e</code> 下未触发，改为进程级 EXIT/INT/TERM 兜底</li>
+<li>iperf3 服务端冲突：setup 自启 iperf3 导致与 run.sh 争用端口，改为仅由 run.sh 自管 iperf3 生命周期</li>
+</ol>
+<h3 id="1-4-3-eBPF-网络观测工具"><a href="#1-4-3-eBPF-网络观测工具" class="headerlink" title="1.4.3 eBPF 网络观测工具"></a>1.4.3 eBPF 网络观测工具</h3><p>依托 CN-TangLin 同学的 eBPF 内核运行时（#848、#850、#886），实现了 <code>net_stats</code> 观测工具。</p>
+<p><strong>实现原理</strong>：</p>
+<ul>
+<li>kprobe 入口：统计调用次数（<code>*_pkts</code>）</li>
+<li>kretprobe 出口：统计字节数（<code>*_bytes</code>）</li>
+<li>探测符号：<ul>
+<li><code>ax_net::tcp::TcpSocket::send</code></li>
+<li><code>ax_net::tcp::TcpSocket::recv</code></li>
+<li><code>ax_net::udp::UdpSocket::send</code></li>
+<li><code>ax_net::udp::UdpSocket::recv</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>技术特点</strong>：</p>
+<ul>
+<li>Rust v0 mangled 符号解析</li>
+<li>Multi-symbol attach（同一探针 attach 到多个 monomorphized 符号）</li>
+<li>内置 loopback 自测（<code>--test</code> 模式）</li>
+</ul>
+<p><strong>已知限制</strong>：</p>
+<ul>
+<li><code>*_pkts</code> 实际是调用次数，非真实包数</li>
+<li>统计层级是 socket 层，不含 TCP/IP header</li>
+<li>SMP 并发计数非原子，高并发可能丢失增量</li>
+</ul>
+<p><strong>当前状态</strong>：</p>
+<ul>
+<li>x86_64 self-test 通过</li>
+<li>x86_64 WSL2 端到端（slirp/tap/vhost/vhost-smp4/tap-smp4 全场景）全部 PASS</li>
+<li>eBPF 与 net-bench 的自动集成尚在完善</li>
+</ul>
+<h3 id="对应分支"><a href="#对应分支" class="headerlink" title="对应分支"></a>对应分支</h3><ul>
+<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1417" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1417</a> (Open)</li>
+<li><code>feat/net-enhance</code> (未合并)</li>
+<li>提交：<code>c30afcc60</code>、<code>394bb6414</code>、<code>7e11d94e4</code>、<code>78fd92817</code></li>
+</ul>
+<hr>
+<h2 id="1-5-OS-功能赛-proj57：ACT-推理"><a href="#1-5-OS-功能赛-proj57：ACT-推理" class="headerlink" title="1.5 OS 功能赛 proj57：ACT 推理"></a>1.5 OS 功能赛 proj57：ACT 推理</h2><h3 id="1-5-1-赛题背景"><a href="#1-5-1-赛题背景" class="headerlink" title="1.5.1 赛题背景"></a>1.5.1 赛题背景</h3><p>在 rk3588/sg2002 开发板上实现 ACT（Action Chunking Transformer）模型推理，为移动机器人提供感知-决策能力。</p>
+<p><strong>推理规格</strong>：</p>
+<ul>
+<li>输入：RGB 图像 224x224 + 机器人状态 <code>[left_vel, right_vel]</code></li>
+<li>输出：8 步动作序列 <code>[left_vel, right_vel, gripper_target]</code></li>
+<li>预处理：ImageNet 归一化 + QUANTILES 归一化</li>
+<li>后处理：动作反归一化 + 方向判断</li>
+</ul>
+<h3 id="1-5-2-QEMU-阶段（5月28日）"><a href="#1-5-2-QEMU-阶段（5月28日）" class="headerlink" title="1.5.2 QEMU 阶段（5月28日）"></a>1.5.2 QEMU 阶段（5月28日）</h3><p><strong>快速原型</strong>：</p>
+<ul>
+<li>第一天即在 QEMU StarryOS 中跑通 ACT 推理</li>
+<li>推理引擎：<code>tract</code>（纯 Rust ONNX runtime）</li>
+<li>平台：QEMU riscv64 + musl</li>
+</ul>
+<p><strong>关键指标</strong>：</p>
+<ul>
+<li>模型：193.25 MiB ONNX</li>
+<li>二进制：~17.26 MiB (riscv64)</li>
+<li>推理耗时：~25,233 ms</li>
+<li>验证：golden 对照通过</li>
+</ul>
+<h3 id="1-5-3-RK3588-阶段（6月2日-6月13日）"><a href="#1-5-3-RK3588-阶段（6月2日-6月13日）" class="headerlink" title="1.5.3 RK3588 阶段（6月2日-6月13日）"></a>1.5.3 RK3588 阶段（6月2日-6月13日）</h3><p><strong>6月2日</strong>：rk3588 到货</p>
+<p><strong>6月3日-6月7日</strong>：镜像构建探索</p>
+<ul>
+<li>研究香橙派官方镜像结构</li>
+<li>分析 FIT image、U-Boot、DTB 布局</li>
+<li>手动构建 StarryOS 启动链</li>
+</ul>
+<p><strong>6月8日-6月9日</strong>：RKNN 推理实现</p>
+<ul>
+<li>集成 RKNPU2 runtime SDK</li>
+<li>实现 ONNX → RKNN 转换</li>
+<li>完成用户态推理程序</li>
+</ul>
+<p><strong>6月10日</strong>：多核与局部更新</p>
+<ul>
+<li>更新 StarryOS 镜像支持多核</li>
+<li>实现镜像局部更新脚本（避免完整重刷）</li>
+</ul>
+<p><strong>6月11日</strong>：突破与验证</p>
+<ul>
+<li>关键决策：更换为官方香橙派 DTB 以支持 NPU 驱动</li>
+<li>在板上跑通 ACT 推理，输出正确</li>
+<li>验证：golden 对照通过，左转/右转样例通过</li>
+</ul>
+<p><strong>6月13日-6月15日</strong>：性能对比与文档</p>
+<ul>
+<li>实现分阶段计时（模型加载/预处理/NPU 执行/后处理）</li>
+<li>StarryOS vs Linux 对比测试</li>
+<li>固化镜像构建工作流（rootfs overlay + FIT repack）</li>
+<li>撰写交付报告和复现文档</li>
+</ul>
+<h3 id="1-5-4-关键技术突破"><a href="#1-5-4-关键技术突破" class="headerlink" title="1.5.4 关键技术突破"></a>1.5.4 关键技术突破</h3><p><strong>镜像构建固化</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 工作流</span></span><br><span class="line">1. build-overlay-rootfs.sh  <span class="comment"># 构建 ACT 程序 overlay</span></span><br><span class="line">2. make-dtb.sh              <span class="comment"># 提取官方 DTB</span></span><br><span class="line">3. repack-fit.sh            <span class="comment"># 重新打包 FIT image</span></span><br><span class="line">4. build-image.sh           <span class="comment"># 生成最终镜像</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>性能优化</strong>：<br>| 阶段 | Linux | StarryOS | 倍数 |<br>|——|——-|———-|——|<br>| NPU 执行 | 32.4ms | 28.6ms | 0.88x |<br>| 端到端 | 22.3ms | 29.9ms | 1.34x |<br>| 模型加载 | 37ms | 228ms | 6.17x |</p>
+<p><strong>结论</strong>：</p>
+<ul>
+<li>NPU 执行阶段 StarryOS 已优于 Linux</li>
+<li>瓶颈在模型加载和预处理，非推理核心</li>
+</ul>
+<h3 id="1-5-5-SG2002-计划"><a href="#1-5-5-SG2002-计划" class="headerlink" title="1.5.5 SG2002 计划"></a>1.5.5 SG2002 计划</h3><ul>
+<li>当前状态：尚未开始</li>
+<li>后续：申请 sg2002 开发板</li>
+<li>技术路径：ONNX → CVITEK TPU，参考 rk3588 流程</li>
+</ul>
+<h3 id="对应分支-1"><a href="#对应分支-1" class="headerlink" title="对应分支"></a>对应分支</h3><ul>
+<li><code>proj57</code> (未合并)</li>
+<li>位置：<code>wt-proj57/proj57/{qemu,rk3588}/</code></li>
+</ul>
+<hr>
+<h1 id="二、方法与经验"><a href="#二、方法与经验" class="headerlink" title="二、方法与经验"></a>二、方法与经验</h1><h2 id="2-1-测试框架设计模式"><a href="#2-1-测试框架设计模式" class="headerlink" title="2.1 测试框架设计模式"></a>2.1 测试框架设计模式</h2><p>在 Nginx 和 Apache 测试中形成的可复用模式：</p>
+<ol>
+<li><p><strong>三层测试体系</strong></p>
+<ul>
+<li>smoke：CI 快速验证，覆盖基础功能</li>
+<li>phase：阶段性递进测试，覆盖完整生命周期</li>
+<li>debug：自由度高的问题定位脚本</li>
+</ul>
+</li>
+<li><p><strong>统一 runner 架构</strong></p>
+<ul>
+<li>单一入口脚本</li>
+<li>模式切换通过参数控制</li>
+<li>超时和清理统一处理</li>
+</ul>
+</li>
+<li><p><strong>分层 QEMU 配置</strong></p>
+<ul>
+<li><code>qemu/all/</code>：完整测试（CI 默认）</li>
+<li><code>qemu/phase/</code>：单阶段快速验证</li>
+<li><code>qemu/debug/</code>：调试配置（更多资源）</li>
+</ul>
+</li>
+</ol>
+<h2 id="2-2-典型教训"><a href="#2-2-典型教训" class="headerlink" title="2.2 典型教训"></a>2.2 典型教训</h2><ol>
+<li><p><strong>性能问题需分段计时</strong></p>
+<ul>
+<li>x86 短连接超时案例：误判为网络栈问题，实际是进程启动开销</li>
+<li>教训：先做分段计时，再下结论</li>
+</ul>
+</li>
+<li><p><strong>smoke 测试范围要保守</strong></p>
+<ul>
+<li>Apache <code>TCP_DEFER_ACCEPT</code> 案例：在 reviewer 环境失败</li>
+<li>策略：smoke 只覆盖确定可用的功能，可选特性放到 debug</li>
+</ul>
+</li>
+<li><p><strong>小步快跑的重要性</strong></p>
+<ul>
+<li>反面案例：方案三很多想法（网络命名空间、流水线推理）未落地</li>
+<li>原因：步子太大，未及时拆分和提交</li>
+</ul>
+</li>
+</ol>
+<h2 id="2-3-工具建设的价值"><a href="#2-3-工具建设的价值" class="headerlink" title="2.3 工具建设的价值"></a>2.3 工具建设的价值</h2><p>net-bench 和 eBPF 工具虽然尚未完全成熟，但建立了方法论：</p>
+<ul>
+<li>自动化环境配置和清理</li>
+<li>状态跟踪和回退保护</li>
+<li>内核态观测能力（eBPF）</li>
+</ul>
+<p>这些为后续网络栈持续优化提供了基础。</p>
+<hr>
+<h1 id="三、产出索引"><a href="#三、产出索引" class="headerlink" title="三、产出索引"></a>三、产出索引</h1><h2 id="3-1-已合并-PR（共-9-个）"><a href="#3-1-已合并-PR（共-9-个）" class="headerlink" title="3.1 已合并 PR（共 9 个）"></a>3.1 已合并 PR（共 9 个）</h2><ul>
+<li>#658: epoll 测试</li>
+<li>#900: epoll/sigmask sigsetsize 修复</li>
+<li>#903: 文件同步系统调用对齐</li>
+<li>#1014: Nginx CI 初始实现</li>
+<li>#1018: 多 worker 信号中断修复</li>
+<li>#1038: Nginx 完整测试框架</li>
+<li>#1267: 动态启动路径修复</li>
+<li>#1297: x86 IPI 修复</li>
+<li>#1316: VmPeak &amp; VmHWM 增强</li>
+</ul>
+<h2 id="3-2-开放-PR（共-2-个）"><a href="#3-2-开放-PR（共-2-个）" class="headerlink" title="3.2 开放 PR（共 2 个）"></a>3.2 开放 PR（共 2 个）</h2><ul>
+<li>#1311: Apache 测试框架 (Open)</li>
+<li>#1417: net-bench 网络性能测试框架 (Open)</li>
+</ul>
+<h2 id="3-3-独立分支（未合并）"><a href="#3-3-独立分支（未合并）" class="headerlink" title="3.3 独立分支（未合并）"></a>3.3 独立分支（未合并）</h2><ul>
+<li><code>test/alpine-nginx</code>：Nginx 测试最新版本</li>
+<li><code>test/alpine-apache</code>：Apache 测试</li>
+<li><code>feat/net-enhance</code>：网络性能测试框架</li>
+<li><code>proj57</code>：ACT 推理 QEMU + RK3588</li>
+</ul>
+<h2 id="3-4-工作仓库"><a href="#3-4-工作仓库" class="headerlink" title="3.4 工作仓库"></a>3.4 工作仓库</h2><ul>
+<li>Fork 仓库：<a href="https://github.com/Antareske/tgoskits" target="_blank" rel="noopener">https://github.com/Antareske/tgoskits</a></li>
+<li>上游仓库：<a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits</a></li>
+</ul>
+<hr>
+<h1 id="四、致谢与总结"><a href="#四、致谢与总结" class="headerlink" title="四、致谢与总结"></a>四、致谢与总结</h1><p>感谢助教 Mr Graveyard（方案一）、Ajax（rk3588）、周睿老师（rk3588 NPU 优化和 PR review）的帮助。感谢同组学员 aptacc2421、WellDown64 的讨论交流，感谢龙同学（LetsWalkInLine）交接的初步 Nginx 支持。特别感谢 CN-TangLin 同学的 eBPF 内核运行时工作，为网络观测工具提供了基础。</p>
+<p>这次训练营让我从”写测试”进阶到”建框架”，从”跑通功能”深入到”定位根因”。最大的收获不是代码量，而是工程方法上的变化：更重视测试覆盖、问题跟踪和工具建设，也更能把复杂问题拆成可验证的小问题逐步推进。</p>
+<p>后续计划：完善 net-bench 集成、推动 Apache 测试合并、完成 sg2002 ACT 推理、参与网络栈持续优化。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/#more" rel="contents">
+                Read more &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-CN-TangLin-eBPF%E5%86%85%E6%A0%B8%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%A2%9E%E5%BC%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -743,7 +1388,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -1611,524 +2256,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" class="post-title-link" itemprop="url">2026春季OS训练营总结报告——StarryOS网络应用适配与测试体系构建</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-06-27 20:00:00" itemprop="dateCreated datePublished" datetime="2026-06-27T20:00:00+00:00">2026-06-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h1><p>本次训练营我的工作主线是：围绕 StarryOS 的 Linux 网络应用兼容性，持续做「应用驱动测试 -&gt; 问题定位修复 -&gt; 测试框架固化」。</p>
-<p>阶段性成果可概括为三点：</p>
-<ol>
-<li>完成 Nginx 和 Apache 测试框架从零到一的构建，建立 smoke/phase/debug 三层测试体系。</li>
-<li>构建网络性能测试基础设施（net-bench），集成 eBPF 观测工具，为网络栈持续优化提供工具支撑。</li>
-<li>完成 OS 功能赛 proj57（ACT 推理）QEMU 和 RK3588 两阶段交付，NPU 执行性能已优于 Linux。</li>
-</ol>
-<hr>
-<h1 id="一、训练营阶段工作"><a href="#一、训练营阶段工作" class="headerlink" title="一、训练营阶段工作"></a>一、训练营阶段工作</h1><h2 id="1-1-第一阶段：系统调用测试基础"><a href="#1-1-第一阶段：系统调用测试基础" class="headerlink" title="1.1 第一阶段：系统调用测试基础"></a>1.1 第一阶段：系统调用测试基础</h2><p>在第一阶段以单一系统调用为目标，完成了事件复用和文件同步两个方向的测试与修复。</p>
-<h3 id="具体工作"><a href="#具体工作" class="headerlink" title="具体工作"></a>具体工作</h3><ol>
-<li><p><strong>事件复用系统调用</strong></p>
-<ul>
-<li>实现 <code>epoll_create1</code>、<code>epoll_ctl</code>、<code>epoll_pwait</code>、<code>epoll_pwait2</code> 测试</li>
-<li>修复 <code>sigsetsize</code> 检查与 Linux ABI 不一致问题</li>
-</ul>
-</li>
-<li><p><strong>文件同步系统调用</strong></p>
-<ul>
-<li>对齐 <code>fsync</code>、<code>fdatasync</code>、<code>sync_file_range</code>、<code>sync</code>、<code>syncfs</code> 的 Linux 语义</li>
-<li>修复返回值和错误码偏差</li>
-</ul>
-</li>
-</ol>
-<h3 id="对应-PR"><a href="#对应-PR" class="headerlink" title="对应 PR"></a>对应 PR</h3><ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/658" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/658</a> (Merged)</li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/900" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/900</a> (Merged)</li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/903" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/903</a> (Merged)</li>
-</ul>
-<hr>
-<h2 id="1-2-第二阶段：Nginx-测试框架与多架构适配"><a href="#1-2-第二阶段：Nginx-测试框架与多架构适配" class="headerlink" title="1.2 第二阶段：Nginx 测试框架与多架构适配"></a>1.2 第二阶段：Nginx 测试框架与多架构适配</h2><p>这一阶段从龙同学（LetsWalkInLine）手中接过初步的 Nginx 支持，将其发展为完整的测试框架。</p>
-<h3 id="1-2-1-统一测试入口与分层架构"><a href="#1-2-1-统一测试入口与分层架构" class="headerlink" title="1.2.1 统一测试入口与分层架构"></a>1.2.1 统一测试入口与分层架构</h3><p><strong>问题背景</strong>：</p>
-<ul>
-<li>初始版本测试脚本分散，QEMU 配置冗余</li>
-<li>缺少统一的测试模式切换机制</li>
-<li>难以在 smoke/phase/debug 间快速切换</li>
-</ul>
-<p><strong>解决方案</strong>：</p>
-<ul>
-<li>实现 <code>nginx-runner.sh</code> 统一 guest 入口，支持：<ul>
-<li><code>smoke</code>：CI 快速验证（APK 安装 + 基础启动）</li>
-<li><code>phase</code>：阶段性功能测试（phase20-70）</li>
-<li><code>debug</code>：问题定位（单步调试、日志增强）</li>
-<li><code>stress</code>：性能压力测试</li>
-</ul>
-</li>
-<li>建立三层 QEMU 配置结构：<ul>
-<li><code>qemu/all/</code>：完整功能测试配置</li>
-<li><code>qemu/phase/</code>：单个 phase 快速验证</li>
-<li><code>qemu/debug/</code>：调试专用配置（更多内存、日志输出）</li>
-</ul>
-</li>
-</ul>
-<p><strong>代码组织</strong>：</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">test-suit&#x2F;starryos&#x2F;normal&#x2F;nginx&#x2F;</span><br><span class="line">├── scripts&#x2F;</span><br><span class="line">│   ├── nginx-runner.sh          # 统一入口</span><br><span class="line">│   ├── smoke&#x2F;                    # CI 验证脚本</span><br><span class="line">│   ├── phase&#x2F;                    # 功能测试脚本</span><br><span class="line">│   └── debug&#x2F;                    # 调试脚本</span><br><span class="line">├── qemu&#x2F;</span><br><span class="line">│   ├── &#123;arch&#125;-nginx-all.toml    # CI 默认入口</span><br><span class="line">│   ├── all&#x2F;*.toml               # 完整测试</span><br><span class="line">│   ├── phase&#x2F;*.toml             # 单阶段测试</span><br><span class="line">│   └── debug&#x2F;*.toml             # 调试配置</span><br><span class="line">└── build-*.toml                  # 构建配置</span><br></pre></td></tr></table></figure>
-
-<h3 id="1-2-2-关键问题定位与修复"><a href="#1-2-2-关键问题定位与修复" class="headerlink" title="1.2.2 关键问题定位与修复"></a>1.2.2 关键问题定位与修复</h3><p><strong>问题一：多 worker 卡死</strong></p>
-<ul>
-<li>现象：<code>worker_processes 4</code> 时概率性卡死</li>
-<li>根因：信号中断处理和 <code>EPOLLEXCLUSIVE</code> 语义不完整</li>
-<li>修复：<ul>
-<li>补齐 <code>EPOLLEXCLUSIVE</code> 在 <code>epoll_ctl</code> 中的正确处理</li>
-<li>修正 <code>accept()</code> 被信号中断时的返回值和重试逻辑</li>
-</ul>
-</li>
-<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1018" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1018</a> (Merged)</li>
-</ul>
-<p><strong>问题二：x86_64 短连接超时</strong></p>
-<ul>
-<li>现象：phase31（短连接压测）在 x86_64 上偶发 HTTP 超时</li>
-<li>初步怀疑：网络栈性能问题</li>
-<li>深入定位：<ul>
-<li>通过分段计时发现瓶颈在 guest 侧 <code>curl</code> 进程启动</li>
-<li>x86 QEMU 下外部命令启动开销高达 1-3 秒</li>
-<li>Nginx 响应时间实际在毫秒级，非瓶颈</li>
-</ul>
-</li>
-<li>解决：将 <code>curl</code> 超时从 5 秒放宽到 15 秒，匹配 x86 实际开销</li>
-<li>教训：性能问题需要分段计时，避免误判根因</li>
-</ul>
-<p><strong>问题三：loongarch64 内存不足</strong></p>
-<ul>
-<li>现象：loongarch64 启动后 OOM</li>
-<li>根因：默认内存配置 1GB 不足以运行完整测试</li>
-<li>修复：提升到 2GB，并规范化各架构内存配置</li>
-</ul>
-<h3 id="1-2-3-稳定性改进"><a href="#1-2-3-稳定性改进" class="headerlink" title="1.2.3 稳定性改进"></a>1.2.3 稳定性改进</h3><ol>
-<li><p><strong>固定 APK 镜像版本</strong></p>
-<ul>
-<li>问题：使用 <code>edge</code> 仓库导致 glibc ABI 漂移，测试不稳定</li>
-<li>修复：固定到与 rootfs 一致的 Alpine 版本（3.19）</li>
-</ul>
-</li>
-<li><p><strong>动态启动路径修复</strong></p>
-<ul>
-<li>问题：Starry app qemu 未走动态平台启动，导致部分架构失败</li>
-<li>修复：统一通过 <code>axbuild</code> 动态启动路径</li>
-<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1267" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1267</a> (Merged)</li>
-</ul>
-</li>
-</ol>
-<h3 id="对应-PR-1"><a href="#对应-PR-1" class="headerlink" title="对应 PR"></a>对应 PR</h3><ul>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1014" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1014</a> (Merged) - 初始 CI 实现</li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1018" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1018</a> (Merged) - 多 worker 修复</li>
-<li><a href="https://github.com/rcore-os/tgoskits/pull/1038" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1038</a> (Merged) - 完整测试框架</li>
-</ul>
-<hr>
-<h2 id="1-3-第二阶段：Apache-测试实现"><a href="#1-3-第二阶段：Apache-测试实现" class="headerlink" title="1.3 第二阶段：Apache 测试实现"></a>1.3 第二阶段：Apache 测试实现</h2><p>在 Nginx 测试框架稳定后，我参照同样的架构从零实现了 Apache MPM prefork 测试。</p>
-<h3 id="1-3-1-测试覆盖设计"><a href="#1-3-1-测试覆盖设计" class="headerlink" title="1.3.1 测试覆盖设计"></a>1.3.1 测试覆盖设计</h3><p>Apache 测试分为 7 个 phase，覆盖从基础到高级的完整生命周期：</p>
-<table>
-<thead>
-<tr>
-<th>Phase</th>
-<th>覆盖内容</th>
-<th>关键验证点</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>phase20</td>
-<td>多进程管理</td>
-<td>prefork MPM、graceful 重启、worker 数量控制</td>
-</tr>
-<tr>
-<td>phase30</td>
-<td>HTTP 静态文件</td>
-<td>GET 请求、Content-Type、Last-Modified</td>
-</tr>
-<tr>
-<td>phase40</td>
-<td>目录访问</td>
-<td>DirectoryIndex、FancyIndexing、.htaccess</td>
-</tr>
-<tr>
-<td>phase50</td>
-<td>日志生命周期</td>
-<td>access_log/error_log、graceful 后日志追加</td>
-</tr>
-<tr>
-<td>phase55</td>
-<td>sendfile 与 range</td>
-<td>大文件传输、HTTP Range、mmap/sendfile 路径</td>
-</tr>
-<tr>
-<td>phase70</td>
-<td>CGI</td>
-<td>脚本执行、环境变量、管道通信</td>
-</tr>
-<tr>
-<td>phase80</td>
-<td>模块特性</td>
-<td>mod_rewrite、mod_alias、mod_headers</td>
-</tr>
-</tbody></table>
-<h3 id="1-3-2-关键问题定位：TCP-DEFER-ACCEPT"><a href="#1-3-2-关键问题定位：TCP-DEFER-ACCEPT" class="headerlink" title="1.3.2 关键问题定位：TCP_DEFER_ACCEPT"></a>1.3.2 关键问题定位：TCP_DEFER_ACCEPT</h3><p><strong>问题背景</strong>：</p>
-<ul>
-<li>reviewer 环境下 Apache 启动失败，日志显示 <code>AH00076</code> 警告</li>
-<li>警告内容：<code>setsockopt(TCP_DEFER_ACCEPT) failed: errno 92</code></li>
-</ul>
-<p><strong>深度调查</strong>：</p>
-<ol>
-<li>编写 C 语言探针 <code>tcp-defer-accept-probe.c</code>（172 行）</li>
-<li>验证三个关键问题：<ul>
-<li><code>setsockopt()</code> 返回值：-1</li>
-<li><code>errno</code>：92（协议不支持）</li>
-<li>监听 socket 是否可用：<strong>可用</strong>，能正常 <code>accept()</code></li>
-</ul>
-</li>
-</ol>
-<p><strong>结论</strong>：</p>
-<ul>
-<li><code>TCP_DEFER_ACCEPT</code> 失败是警告而非错误</li>
-<li>Apache 能正常回退到标准 <code>accept()</code> 路径</li>
-<li>监听 socket 完全可用，不影响功能</li>
-</ul>
-<p><strong>smoke 范围调整</strong>：</p>
-<ul>
-<li>基于此结论，将 smoke 收敛到前 4 步：<ul>
-<li>package（APK 安装）</li>
-<li>files（配置文件就位）</li>
-<li>environment（环境变量）</li>
-<li>config test（<code>apachectl configtest</code>）</li>
-</ul>
-</li>
-<li>移除 HTTP 测试到 <code>debug/apache-smoke-full.sh</code></li>
-</ul>
-<h3 id="1-3-3-调试工具集"><a href="#1-3-3-调试工具集" class="headerlink" title="1.3.3 调试工具集"></a>1.3.3 调试工具集</h3><p>为问题定位实现了 9 个 debug 脚本：</p>
-<ol>
-<li><code>mpm-prefork-wait.sh</code>：观测 prefork worker 启动和等待</li>
-<li><code>accept-mutex.sh</code>：验证 accept mutex 行为</li>
-<li><code>graceful-signal.sh</code>：测试 graceful 重启的信号传递</li>
-<li><code>htaccess-path-walk.sh</code>：追踪 <code>.htaccess</code> 路径遍历</li>
-<li><code>sendfile-mmap-range.sh</code>：对比 sendfile/mmap 性能</li>
-<li><code>cgi-pipe-exec.sh</code>：验证 CGI 管道和脚本执行</li>
-<li><code>log-append-reopen.sh</code>：测试日志追加和重开</li>
-<li><code>phase20-restart.sh</code>：单步调试 phase20 重启逻辑</li>
-<li><code>tcp-defer-accept-probe.c</code>：setsockopt 系统调用探针</li>
-</ol>
-<h3 id="当前状态"><a href="#当前状态" class="headerlink" title="当前状态"></a>当前状态</h3><ul>
-<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1311" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1311</a> (Open)</li>
-<li>代码量：2367+ 行（测试脚本 + C 探针 + 配置）</li>
-<li>状态：等待 review，尚未合并</li>
-</ul>
-<hr>
-<h2 id="1-4-网络性能测试基础设施（net-bench）"><a href="#1-4-网络性能测试基础设施（net-bench）" class="headerlink" title="1.4 网络性能测试基础设施（net-bench）"></a>1.4 网络性能测试基础设施（net-bench）</h2><p>在方案二与方案三之间，我构建了网络性能测试框架，为网络栈持续优化提供工具支撑。</p>
-<h3 id="1-4-1-设计目标与理念"><a href="#1-4-1-设计目标与理念" class="headerlink" title="1.4.1 设计目标与理念"></a>1.4.1 设计目标与理念</h3><ul>
-<li><strong>“入口 + 参数明确”的严肃测试架构</strong>：<code>run.sh</code> 为唯一严肃入口，显式指定场景（<code>--scenario</code>）、架构（<code>--arch</code>）、加速器（<code>--accel</code>）、重复次数（<code>--repeat</code>），保证可复现、可对照</li>
-<li><strong>智能入口实验化</strong>：自动检测环境后委托 <code>run.sh</code> 执行，属于开发期便捷能力，不参与严肃测试</li>
-<li><strong>多拓扑支持</strong>：vhost（主力性能）、tap（降级方案）、slirp（功能冒烟），新增 tap-smp4 和 vhost-smp4 多核扩展场景</li>
-<li><strong>全流程自动化</strong>：一键宿主机配置、测试执行、结果汇总、清理回退</li>
-</ul>
-<h3 id="1-4-2-实现架构"><a href="#1-4-2-实现架构" class="headerlink" title="1.4.2 实现架构"></a>1.4.2 实现架构</h3><p><strong>统一入口与公共流程</strong>：</p>
-<p>围绕 <code>run.sh</code> 构建两级入口体系：</p>
-<ul>
-<li>严肃入口：<code>run.sh</code> 显式接收参数，获取公共流程封装后逐轮启动 iperf3 服务端、执行 guest 测试、收集结果、调用汇总脚本</li>
-<li>实验性入口：自动检测平台（WSL2/裸 Linux）、架构、KVM 和 vhost-net 可用性，推断参数后委托 <code>run.sh</code>（确保行为一致），测试结束自动清理；另有 WSL2 快捷封装</li>
-</ul>
-<p>公共流程封装集中在一处，消除散落硬编码：</p>
-<ul>
-<li>常量：网段、端口、拓扑定义</li>
-<li>配置矩阵解析：根据 scenario/arch/accel 自动推导 QEMU 配置文件路径</li>
-<li>iperf3 生命周期：启动、停止、进程级信号兜底（EXIT/INT/TERM）</li>
-<li>前置检查：KVM 可用性、vhost-net 可用性、TAP 设备就绪、DHCP 服务端监听校验（:67 端口）</li>
-<li>环境指纹：记录硬件/OS/内核/编译参数</li>
-<li>结果汇总：mean/stddev，NOISY 标记 &gt;10% stddev</li>
-</ul>
-<p><strong>补齐配置矩阵</strong>：</p>
-<p>QEMU 配置文件按 <code>&lt;scenario&gt;-&lt;arch&gt;-&lt;accel&gt;.toml</code> 命名规范覆盖 20 个组合：</p>
-<ul>
-<li>场景：slirp、tap、vhost、tap-smp4、vhost-smp4</li>
-<li>架构：x86_64、aarch64</li>
-<li>加速模式：kvm（同架构硬件加速）、tcg（跨架构或 KVM 不可用，仅功能验证）</li>
-</ul>
-<p><strong>一键宿主机配置</strong>：</p>
-<p><code>bin/setup</code> 实现全自动配置：</p>
-<ul>
-<li>自动安装缺失依赖（iperf3、brctl、jq、dnsmasq）</li>
-<li>自动加载 vhost_net 模块并放开 <code>/dev/vhost-net</code> 和 <code>/dev/kvm</code> 权限</li>
-<li>创建桥接 br0、tap0 设备，启动 dnsmasq DHCP（iperf3 服务端由 run.sh 自管生命周期）</li>
-<li>资源与进程状态写入状态文件</li>
-</ul>
-<p><code>bin/teardown</code> 读取状态文件，逆序清理进程和设备，实现状态化回滚。</p>
-<p><strong>测试覆盖</strong>：<br>| Test ID | 说明 | iperf3 参数 |<br>|———|——|————-|<br>| tcp1 | TCP 单流上行 | <code>-c $HOST</code> |<br>| tcp4 | TCP 4 并发流 | <code>-P 4</code> |<br>| tcp1r | TCP 单流下行 | <code>-R</code> (reverse) |<br>| udp1g | UDP 大包 1Gbps | <code>-u -b 1G</code> |<br>| udp64 | UDP 64B 小包 | <code>-u -l 64</code> |</p>
-<p>每个测试：1 次 warmup + 5 次正式测量。延迟与短连接由 netperf（TCP_RR/UDP_RR/TCP_CRR）补充。</p>
-<p><strong>基于 WSL2 端到端测试发现的 4 个真实缺陷</strong>：</p>
-<ol>
-<li><code>AX_IP</code>/<code>AX_GW</code> 环境变量注入无效：guest 内核在 xtask 路径下只支持 DHCP 获取地址（<code>axruntime</code> 未解析静态 IP 环境变量），移除误导性环境变量注入并文档化 DHCP 依赖</li>
-<li>DHCP 服务端未校验：缺少 DHCP 时 guest 静默 <code>DHCP timed out</code>，现已对 :67 端口监听校验，缺失时直接报错</li>
-<li>iperf3 服务端残留：失败运行后 <code>trap RETURN</code> 在 <code>set -e</code> 下未触发，改为进程级 EXIT/INT/TERM 兜底</li>
-<li>iperf3 服务端冲突：setup 自启 iperf3 导致与 run.sh 争用端口，改为仅由 run.sh 自管 iperf3 生命周期</li>
-</ol>
-<h3 id="1-4-3-eBPF-网络观测工具"><a href="#1-4-3-eBPF-网络观测工具" class="headerlink" title="1.4.3 eBPF 网络观测工具"></a>1.4.3 eBPF 网络观测工具</h3><p>依托 CN-TangLin 同学的 eBPF 内核运行时（#848、#850、#886），实现了 <code>net_stats</code> 观测工具。</p>
-<p><strong>实现原理</strong>：</p>
-<ul>
-<li>kprobe 入口：统计调用次数（<code>*_pkts</code>）</li>
-<li>kretprobe 出口：统计字节数（<code>*_bytes</code>）</li>
-<li>探测符号：<ul>
-<li><code>ax_net::tcp::TcpSocket::send</code></li>
-<li><code>ax_net::tcp::TcpSocket::recv</code></li>
-<li><code>ax_net::udp::UdpSocket::send</code></li>
-<li><code>ax_net::udp::UdpSocket::recv</code></li>
-</ul>
-</li>
-</ul>
-<p><strong>技术特点</strong>：</p>
-<ul>
-<li>Rust v0 mangled 符号解析</li>
-<li>Multi-symbol attach（同一探针 attach 到多个 monomorphized 符号）</li>
-<li>内置 loopback 自测（<code>--test</code> 模式）</li>
-</ul>
-<p><strong>已知限制</strong>：</p>
-<ul>
-<li><code>*_pkts</code> 实际是调用次数，非真实包数</li>
-<li>统计层级是 socket 层，不含 TCP/IP header</li>
-<li>SMP 并发计数非原子，高并发可能丢失增量</li>
-</ul>
-<p><strong>当前状态</strong>：</p>
-<ul>
-<li>x86_64 self-test 通过</li>
-<li>x86_64 WSL2 端到端（slirp/tap/vhost/vhost-smp4/tap-smp4 全场景）全部 PASS</li>
-<li>eBPF 与 net-bench 的自动集成尚在完善</li>
-</ul>
-<h3 id="对应分支"><a href="#对应分支" class="headerlink" title="对应分支"></a>对应分支</h3><ul>
-<li>PR：<a href="https://github.com/rcore-os/tgoskits/pull/1417" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits/pull/1417</a> (Open)</li>
-<li><code>feat/net-enhance</code> (未合并)</li>
-<li>提交：<code>c30afcc60</code>、<code>394bb6414</code>、<code>7e11d94e4</code>、<code>78fd92817</code></li>
-</ul>
-<hr>
-<h2 id="1-5-OS-功能赛-proj57：ACT-推理"><a href="#1-5-OS-功能赛-proj57：ACT-推理" class="headerlink" title="1.5 OS 功能赛 proj57：ACT 推理"></a>1.5 OS 功能赛 proj57：ACT 推理</h2><h3 id="1-5-1-赛题背景"><a href="#1-5-1-赛题背景" class="headerlink" title="1.5.1 赛题背景"></a>1.5.1 赛题背景</h3><p>在 rk3588/sg2002 开发板上实现 ACT（Action Chunking Transformer）模型推理，为移动机器人提供感知-决策能力。</p>
-<p><strong>推理规格</strong>：</p>
-<ul>
-<li>输入：RGB 图像 224x224 + 机器人状态 <code>[left_vel, right_vel]</code></li>
-<li>输出：8 步动作序列 <code>[left_vel, right_vel, gripper_target]</code></li>
-<li>预处理：ImageNet 归一化 + QUANTILES 归一化</li>
-<li>后处理：动作反归一化 + 方向判断</li>
-</ul>
-<h3 id="1-5-2-QEMU-阶段（5月28日）"><a href="#1-5-2-QEMU-阶段（5月28日）" class="headerlink" title="1.5.2 QEMU 阶段（5月28日）"></a>1.5.2 QEMU 阶段（5月28日）</h3><p><strong>快速原型</strong>：</p>
-<ul>
-<li>第一天即在 QEMU StarryOS 中跑通 ACT 推理</li>
-<li>推理引擎：<code>tract</code>（纯 Rust ONNX runtime）</li>
-<li>平台：QEMU riscv64 + musl</li>
-</ul>
-<p><strong>关键指标</strong>：</p>
-<ul>
-<li>模型：193.25 MiB ONNX</li>
-<li>二进制：~17.26 MiB (riscv64)</li>
-<li>推理耗时：~25,233 ms</li>
-<li>验证：golden 对照通过</li>
-</ul>
-<h3 id="1-5-3-RK3588-阶段（6月2日-6月13日）"><a href="#1-5-3-RK3588-阶段（6月2日-6月13日）" class="headerlink" title="1.5.3 RK3588 阶段（6月2日-6月13日）"></a>1.5.3 RK3588 阶段（6月2日-6月13日）</h3><p><strong>6月2日</strong>：rk3588 到货</p>
-<p><strong>6月3日-6月7日</strong>：镜像构建探索</p>
-<ul>
-<li>研究香橙派官方镜像结构</li>
-<li>分析 FIT image、U-Boot、DTB 布局</li>
-<li>手动构建 StarryOS 启动链</li>
-</ul>
-<p><strong>6月8日-6月9日</strong>：RKNN 推理实现</p>
-<ul>
-<li>集成 RKNPU2 runtime SDK</li>
-<li>实现 ONNX → RKNN 转换</li>
-<li>完成用户态推理程序</li>
-</ul>
-<p><strong>6月10日</strong>：多核与局部更新</p>
-<ul>
-<li>更新 StarryOS 镜像支持多核</li>
-<li>实现镜像局部更新脚本（避免完整重刷）</li>
-</ul>
-<p><strong>6月11日</strong>：突破与验证</p>
-<ul>
-<li>关键决策：更换为官方香橙派 DTB 以支持 NPU 驱动</li>
-<li>在板上跑通 ACT 推理，输出正确</li>
-<li>验证：golden 对照通过，左转/右转样例通过</li>
-</ul>
-<p><strong>6月13日-6月15日</strong>：性能对比与文档</p>
-<ul>
-<li>实现分阶段计时（模型加载/预处理/NPU 执行/后处理）</li>
-<li>StarryOS vs Linux 对比测试</li>
-<li>固化镜像构建工作流（rootfs overlay + FIT repack）</li>
-<li>撰写交付报告和复现文档</li>
-</ul>
-<h3 id="1-5-4-关键技术突破"><a href="#1-5-4-关键技术突破" class="headerlink" title="1.5.4 关键技术突破"></a>1.5.4 关键技术突破</h3><p><strong>镜像构建固化</strong>：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 工作流</span></span><br><span class="line">1. build-overlay-rootfs.sh  <span class="comment"># 构建 ACT 程序 overlay</span></span><br><span class="line">2. make-dtb.sh              <span class="comment"># 提取官方 DTB</span></span><br><span class="line">3. repack-fit.sh            <span class="comment"># 重新打包 FIT image</span></span><br><span class="line">4. build-image.sh           <span class="comment"># 生成最终镜像</span></span><br></pre></td></tr></table></figure>
-
-<p><strong>性能优化</strong>：<br>| 阶段 | Linux | StarryOS | 倍数 |<br>|——|——-|———-|——|<br>| NPU 执行 | 32.4ms | 28.6ms | 0.88x |<br>| 端到端 | 22.3ms | 29.9ms | 1.34x |<br>| 模型加载 | 37ms | 228ms | 6.17x |</p>
-<p><strong>结论</strong>：</p>
-<ul>
-<li>NPU 执行阶段 StarryOS 已优于 Linux</li>
-<li>瓶颈在模型加载和预处理，非推理核心</li>
-</ul>
-<h3 id="1-5-5-SG2002-计划"><a href="#1-5-5-SG2002-计划" class="headerlink" title="1.5.5 SG2002 计划"></a>1.5.5 SG2002 计划</h3><ul>
-<li>当前状态：尚未开始</li>
-<li>后续：申请 sg2002 开发板</li>
-<li>技术路径：ONNX → CVITEK TPU，参考 rk3588 流程</li>
-</ul>
-<h3 id="对应分支-1"><a href="#对应分支-1" class="headerlink" title="对应分支"></a>对应分支</h3><ul>
-<li><code>proj57</code> (未合并)</li>
-<li>位置：<code>wt-proj57/proj57/{qemu,rk3588}/</code></li>
-</ul>
-<hr>
-<h1 id="二、方法与经验"><a href="#二、方法与经验" class="headerlink" title="二、方法与经验"></a>二、方法与经验</h1><h2 id="2-1-测试框架设计模式"><a href="#2-1-测试框架设计模式" class="headerlink" title="2.1 测试框架设计模式"></a>2.1 测试框架设计模式</h2><p>在 Nginx 和 Apache 测试中形成的可复用模式：</p>
-<ol>
-<li><p><strong>三层测试体系</strong></p>
-<ul>
-<li>smoke：CI 快速验证，覆盖基础功能</li>
-<li>phase：阶段性递进测试，覆盖完整生命周期</li>
-<li>debug：自由度高的问题定位脚本</li>
-</ul>
-</li>
-<li><p><strong>统一 runner 架构</strong></p>
-<ul>
-<li>单一入口脚本</li>
-<li>模式切换通过参数控制</li>
-<li>超时和清理统一处理</li>
-</ul>
-</li>
-<li><p><strong>分层 QEMU 配置</strong></p>
-<ul>
-<li><code>qemu/all/</code>：完整测试（CI 默认）</li>
-<li><code>qemu/phase/</code>：单阶段快速验证</li>
-<li><code>qemu/debug/</code>：调试配置（更多资源）</li>
-</ul>
-</li>
-</ol>
-<h2 id="2-2-典型教训"><a href="#2-2-典型教训" class="headerlink" title="2.2 典型教训"></a>2.2 典型教训</h2><ol>
-<li><p><strong>性能问题需分段计时</strong></p>
-<ul>
-<li>x86 短连接超时案例：误判为网络栈问题，实际是进程启动开销</li>
-<li>教训：先做分段计时，再下结论</li>
-</ul>
-</li>
-<li><p><strong>smoke 测试范围要保守</strong></p>
-<ul>
-<li>Apache <code>TCP_DEFER_ACCEPT</code> 案例：在 reviewer 环境失败</li>
-<li>策略：smoke 只覆盖确定可用的功能，可选特性放到 debug</li>
-</ul>
-</li>
-<li><p><strong>小步快跑的重要性</strong></p>
-<ul>
-<li>反面案例：方案三很多想法（网络命名空间、流水线推理）未落地</li>
-<li>原因：步子太大，未及时拆分和提交</li>
-</ul>
-</li>
-</ol>
-<h2 id="2-3-工具建设的价值"><a href="#2-3-工具建设的价值" class="headerlink" title="2.3 工具建设的价值"></a>2.3 工具建设的价值</h2><p>net-bench 和 eBPF 工具虽然尚未完全成熟，但建立了方法论：</p>
-<ul>
-<li>自动化环境配置和清理</li>
-<li>状态跟踪和回退保护</li>
-<li>内核态观测能力（eBPF）</li>
-</ul>
-<p>这些为后续网络栈持续优化提供了基础。</p>
-<hr>
-<h1 id="三、产出索引"><a href="#三、产出索引" class="headerlink" title="三、产出索引"></a>三、产出索引</h1><h2 id="3-1-已合并-PR（共-9-个）"><a href="#3-1-已合并-PR（共-9-个）" class="headerlink" title="3.1 已合并 PR（共 9 个）"></a>3.1 已合并 PR（共 9 个）</h2><ul>
-<li>#658: epoll 测试</li>
-<li>#900: epoll/sigmask sigsetsize 修复</li>
-<li>#903: 文件同步系统调用对齐</li>
-<li>#1014: Nginx CI 初始实现</li>
-<li>#1018: 多 worker 信号中断修复</li>
-<li>#1038: Nginx 完整测试框架</li>
-<li>#1267: 动态启动路径修复</li>
-<li>#1297: x86 IPI 修复</li>
-<li>#1316: VmPeak &amp; VmHWM 增强</li>
-</ul>
-<h2 id="3-2-开放-PR（共-2-个）"><a href="#3-2-开放-PR（共-2-个）" class="headerlink" title="3.2 开放 PR（共 2 个）"></a>3.2 开放 PR（共 2 个）</h2><ul>
-<li>#1311: Apache 测试框架 (Open)</li>
-<li>#1417: net-bench 网络性能测试框架 (Open)</li>
-</ul>
-<h2 id="3-3-独立分支（未合并）"><a href="#3-3-独立分支（未合并）" class="headerlink" title="3.3 独立分支（未合并）"></a>3.3 独立分支（未合并）</h2><ul>
-<li><code>test/alpine-nginx</code>：Nginx 测试最新版本</li>
-<li><code>test/alpine-apache</code>：Apache 测试</li>
-<li><code>feat/net-enhance</code>：网络性能测试框架</li>
-<li><code>proj57</code>：ACT 推理 QEMU + RK3588</li>
-</ul>
-<h2 id="3-4-工作仓库"><a href="#3-4-工作仓库" class="headerlink" title="3.4 工作仓库"></a>3.4 工作仓库</h2><ul>
-<li>Fork 仓库：<a href="https://github.com/Antareske/tgoskits" target="_blank" rel="noopener">https://github.com/Antareske/tgoskits</a></li>
-<li>上游仓库：<a href="https://github.com/rcore-os/tgoskits" target="_blank" rel="noopener">https://github.com/rcore-os/tgoskits</a></li>
-</ul>
-<hr>
-<h1 id="四、致谢与总结"><a href="#四、致谢与总结" class="headerlink" title="四、致谢与总结"></a>四、致谢与总结</h1><p>感谢助教 Mr Graveyard（方案一）、Ajax（rk3588）、周睿老师（rk3588 NPU 优化和 PR review）的帮助。感谢同组学员 aptacc2421、WellDown64 的讨论交流，感谢龙同学（LetsWalkInLine）交接的初步 Nginx 支持。特别感谢 CN-TangLin 同学的 eBPF 内核运行时工作，为网络观测工具提供了基础。</p>
-<p>这次训练营让我从”写测试”进阶到”建框架”，从”跑通功能”深入到”定位根因”。最大的收获不是代码量，而是工程方法上的变化：更重视测试覆盖、问题跟踪和工具建设，也更能把复杂问题拆成可验证的小问题逐步推进。</p>
-<p>后续计划：完善 net-bench 集成、推动 Apache 测试合并、完成 sg2002 ACT 推理、参与网络栈持续优化。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/blog/2026/06/27/20260627-Antareske-2026%E6%98%A5%E5%AD%A3OS%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/#more" rel="contents">
-                Read more &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/27/20260627-Utopia-V-%E4%BB%A5Git%E4%B8%BA%E7%89%B5%E5%BC%95%E7%9A%84StarryOS-Linux%E5%85%BC%E5%AE%B9%E6%80%A7%E6%94%B9%E8%BF%9B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -2160,7 +2287,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2242,7 +2369,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2520,7 +2647,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -2607,7 +2734,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -3132,7 +3259,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
+                <time title="Modified: 2026-10-11 03:38:21" itemprop="dateModified" datetime="2026-10-11T03:38:21+00:00">2026-10-11</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -6163,141 +6290,6 @@
 <p><strong>可以用<code>CoroutineLayout::field_tys</code>和<code>CoroutineLayout::variant_fields</code>来复核AI分析的输出结果是否正确。</strong></p>
 <h2 id="3-8-代码链接"><a href="#3-8-代码链接" class="headerlink" title="3.8 代码链接"></a>3.8 代码链接</h2><p><a href="https://github.com/xisanlou/opencamp2026s-async/tree/main/task3/code/crawler_async" target="_blank" rel="noopener">crawler_async代码</a></p>
 <h1 id="PPT链接"><a href="#PPT链接" class="headerlink" title="PPT链接"></a>PPT链接</h1><p><a href="https://github.com/xisanlou/opencamp2026s-async/blob/main/2026%E6%98%A5%E8%AE%AD%E7%BB%83%E8%90%A5%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A-%E5%9F%BA%E4%BA%8E%E5%8D%8F%E7%A8%8B%E5%BC%82%E6%AD%A5%E6%9C%BA%E5%88%B6%E7%9A%84%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E9%A9%B1%E5%8A%A8-%E9%83%9D%E5%85%89%E7%85%9C.pptx" target="_blank" rel="noopener">2026春训练营总结报告PPT</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/06/20/20260621-jk-embassy-preempt%E7%A7%BB%E6%A4%8D%E4%B8%8EFFIFuture%E5%AE%9E%E7%8E%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/blog/images/avatar.gif">
-      <meta itemprop="name" content="rcore-os Group">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="rcore-os Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/blog/2026/06/20/20260621-jk-embassy-preempt%E7%A7%BB%E6%A4%8D%E4%B8%8EFFIFuture%E5%AE%9E%E7%8E%B0/" class="post-title-link" itemprop="url">20260621-jk-embassy_preempt移植与FFIFuture实现</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2026-06-20 23:44:45" itemprop="dateCreated datePublished" datetime="2026-06-20T23:44:45+00:00">2026-06-20</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2026-10-11 03:30:34" itemprop="dateModified" datetime="2026-10-11T03:30:34+00:00">2026-10-11</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/blog/categories/OSTraining/" itemprop="url" rel="index"><span itemprop="name">OSTraining</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>我参加的 “基于协程异步机制的操作系统/驱动” 项目分为 3 个阶段, 在一阶段, 我主要阅读了 tokio-tutorial, 了解了 Rust 中的异步编程常见结构和异步执行方式, 产出了一个爬虫程序, 该爬虫主要对 进程, 线程, 协程 三种实现的并发程序进行相互比较, 进一步让我理解了协程的作用以及和进程/线程的区别。</p>
-<p>在第二阶段, 我主要阅读了 embassy 的源码和文档, embassy 有点类似于 tokio, 区别是 embassy 是一个运行在嵌入式裸机上的异步运行时, 而 tokio 则大量使用了标准库(即操作系统)提供的一些方法。我的产出是对 mini-tokio - 一个 tokio-tutorial 里教学用的最小化异步运行时进行了优先级支持, 即每个任务拥有各自的优先级, 优先级高的任务在调度时会被优先执行。</p>
-<p>来到了第三阶段, 我主要阅读了 embassy_preempt 的源码, 了解其执行流。 embassy_preempt 实现了协程之间的抢占, 即在定时器发出中断后保存其上下文并切换任务, 由于抢占这件事在现实中发生的次数一般较少, 我们认为这样操作带来的性能损失是可以接受的; 同时, 这也在某种程度上实现了进程和协程的统一: 协程在被抢占时退化为线程, 在再次执行并让权时自然的恢复为协程。我主要的贡献为将 embassy_preempt 从 stm32f401re 移植到 stm32f103c8 开发板上, 并为 embassy_preempt 实现了 Future 的 FFI 化, 即我们可以在手动构造一个 Future 并通过 FFI 传给 embassy_preempt 执行, 给异步任务的构造提供了新的选择。</p>
-<hr>
-<p>在从 stm32f401re 到 stm32f103c8 的移植过程中, 我主要做了以下改动:</p>
-<p>F103C8 仅有 20KB SRAM 和 64KB Flash,而 F401RE 拥有 96KB SRAM 和 512KB Flash。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">MEMORY</span><br><span class="line">&#123;</span><br><span class="line">RAM (xrw)      : ORIGIN &#x3D; 0x20000000, LENGTH &#x3D; 20K</span><br><span class="line">FLASH (rx)      : ORIGIN &#x3D; 0x8000000, LENGTH &#x3D; 64K</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>OS_ARENA_SIZE</code> 定义任务控制块分配器的容量。F401 设置为 10240 字节,可容纳约 80 个任务;F103 的 20KB 总 RAM 使其必须缩小至 4096 字节(约 30 个任务)。<code>APB_HZ</code> 是定时器的输入时钟频率。STM32F103 的最高系统时钟为 72MHz(F401 为 84MHz),该值直接用于计算 TIM3 的预分频器: <code>psc = APB_HZ / TICK_HZ - 1</code>。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> OS_ARENA_SIZE: USIZE = <span class="number">10240</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> OS_ARENA_SIZE: USIZE = <span class="number">4096</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> APB_HZ: INT64U = <span class="number">84000000</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> APB_HZ: INT64U = <span class="number">72000000</span>;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> STACK_START: *<span class="keyword">mut</span> <span class="built_in">u8</span> = <span class="number">0x20001400</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> STACK_SIZE: <span class="built_in">usize</span> = <span class="number">6</span> * <span class="number">1024</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> PROGRAM_STACK_SIZE: <span class="built_in">usize</span> = <span class="number">1024</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> INTERRUPT_STACK_SIZE: <span class="built_in">usize</span> = <span class="number">1024</span>;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> HEAP_START: *<span class="keyword">mut</span> <span class="built_in">u8</span> = <span class="number">0x20002C00</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u8</span>;</span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">const</span> HEAP_SIZE: <span class="built_in">usize</span> = <span class="number">2</span> * <span class="number">1024</span>;</span><br></pre></td></tr></table></figure>
-
-<p>一开始我编译运行后 BSS 段实际占用 0x20000038-0x200011EC(约 4.5KB), 而 STACK_START 设于 0x20001000,正处于 BSS 范围内。<code>init_stack_allocator()</code> 初始化时通过 <code>FixedSizeBlockAllocator</code> 在 0x20001000 处建立链表元数据, 随后 <code>__aeabi_memclr8</code> 运行 BSS 清零,将已分配的元数据结构覆盖为全零, 导致后续 <code>alloc_stack()</code> 返回空指针或访问损坏的链表, 触发 BusFault → HardFault。移至 0x20001400 后解决。</p>
-<p><code>STACK_SIZE</code> 影响系统可支持的最大并发抢占数, PROGRAM_STACK(1KB) + INTERRUPT_STACK(1KB) 固定消耗 2KB, 剩余 (STACK_SIZE - 2KB) / TASK_STACK_SIZE 为最大同时被抢占的任务数。以 6KB 栈池和 1KB 每任务计算,可支持 4 个任务同时处于被抢占状态。preempt_test 需要 3 个抢占栈,最初的 4KB 设置仅余 2KB(2 个栈), 在分配第 3 个时栈池返回空指针导致 panic, 需扩容至 6KB。</p>
-<p>HEAP_START 和 HEAP_SIZE 需紧随 STACK 末尾,避免中间产生间隙浪费 SRAM。2KB 足以满足 <code>lazy_static</code> 和 arena 之外的零星 <code>alloc</code> 需求。</p>
-<p>F103 与 F401 的 RCC 外设属于完全不同的两代设计, F401 将 PLL 配置置于独立寄存器 <code>RCC.pllcfgr()</code>,包含 PLLM/PLLN/PLLP/PLLQ 四个分频系数,源自 F4 系列为 USB/SDIO/I2S 等多种外设提供独立时钟的需求。F103 的 PLL 参数直接集成在 <code>RCC.cfgr()</code> 中,仅有一个倍频系数 <code>PLLMUL</code>, 因为 F1 系列只需为 CPU 和简单外设提供时钟。此外 F401 拥有 PLLI2S 和 PLLSAI 且需在启动时显式禁用, F103 则完全没有这些外设。Flash 等待周期也不同: F401 使用 <code>set_prften()</code> 使能预取缓冲, F103 对应方法名为 <code>set_prftbe()</code>。</p>
-<p>TIM3 定时器在两种芯片上使用了相同的 <code>timer_v1.rs</code> PAC 模块和 <code>TIM_GP16</code> 类型,因此 <code>enable_Timer()</code> 及所有定时器操作代码无需修改。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">rcc_init</span></span>() &#123;</span><br><span class="line">    <span class="keyword">use</span> stm32_metapac::rcc::vals::&#123;Pllmul, Pllsrc, Pllxtpre&#125;;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 启用 HSE (8MHz 外部晶振)</span></span><br><span class="line">    RCC.cr().modify(|v| &#123; v.set_hseon(<span class="literal">true</span>); &#125;);</span><br><span class="line">    <span class="keyword">while</span> !RCC.cr().read().hserdy() &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 配置 PLL, 源=HSE, 倍频=9 -&gt; 72MHz</span></span><br><span class="line">    RCC.cfgr().modify(|v| &#123;</span><br><span class="line">        v.set_pllsrc(Pllsrc::HSE_DIV_PREDIV);</span><br><span class="line">        v.set_pllxtpre(Pllxtpre::DIV1);</span><br><span class="line">        v.set_pllmul(Pllmul::MUL9);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 设置 Flash 等待周期, 72MHz 需要 2 个等待周期</span></span><br><span class="line">    FLASH.acr().modify(|v| &#123;</span><br><span class="line">        v.set_latency(Latency::WS2);</span><br><span class="line">        v.set_prftbe(<span class="literal">true</span>);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 启用 PLL</span></span><br><span class="line">    RCC.cr().modify(|v| &#123; v.set_pllon(<span class="literal">true</span>); &#125;);</span><br><span class="line">    <span class="keyword">while</span> !RCC.cr().read().pllrdy() &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 配置总线分频, AHB=72MHz, APB1=36MHz, APB2=72MHz</span></span><br><span class="line">    RCC.cfgr().modify(|v| &#123;</span><br><span class="line">        v.set_hpre(Hpre::DIV1);</span><br><span class="line">        v.set_ppre1(Ppre::DIV2);</span><br><span class="line">        v.set_ppre2(Ppre::DIV1);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 切换系统时钟到 PLL</span></span><br><span class="line">    RCC.cfgr().modify(|v| v.set_sw(Sw::PLL1_P));</span><br><span class="line">    <span class="keyword">while</span> RCC.cfgr().read().sws() != Sw::PLL1_P &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>F401 和 F103 的 GPIO 是两代完全不同的外设设计。F401 使用 4 个独立寄存器分别配置每个引脚的模式 MODER、输出类型 OTYPER、速度 OSPEEDR和上下拉 PUPDR, 每个寄存器为 16 个引脚各分配 2 位。F103 将所有配置压缩在 CRL/CRH 两个寄存器中: 每个引脚占 4 位, 低 2 位为 MODE(输入/2MHz/10MHz/50MHz), 高 2 位为 CNF(推挽/开漏/复用功能)。CRL 管理引脚 0-7, CRH 管理引脚 8-15。</p>
-<p>此外, 时钟总线也不同: F401 的 GPIO 挂在 AHB1 总线上(<code>RCC.ahb1enr()</code>), F103 的 GPIO 挂在 APB2 上(<code>RCC.apb2enr()</code>)。</p>
-<p>F103 实现使用 <code>core::ptr::write_volatile</code> 直接操作硬件地址而非 PAC 抽象, 原因之一是调试 LED 问题时需要绕过 PAC 逐层验证寄存器写入是否生效, 二是在两个芯片的 PAC 类型系统不兼容的情况下, 直接内存访问反而更清晰。</p>
-<p>LED 极性也值得注意: Blue Pill 板载 LED 连接 PC13 且为低电平有效(输出 LOW=灯亮,HIGH=灯灭)。Embassy 官方 blinky 示例使用 <code>Output::new(p.PC13, Level::High, Speed::Low)</code> 将初始电平设为 HIGH(灯灭),与我们的 <code>LED_OFF()</code> 逻辑一致。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// F401</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">LED_Init</span></span>() &#123;</span><br><span class="line">    RCC.ahb1enr().modify(|v| v.set_gpioaen(<span class="literal">true</span>));      <span class="comment">// AHB1 总线</span></span><br><span class="line">    GPIOA.moder().modify(|v| v.set_moder(<span class="number">5</span>, vals::Moder::OUTPUT));</span><br><span class="line">    GPIOA.otyper().modify(|v| v.set_ot(<span class="number">5</span>, vals::Ot::PUSHPULL));</span><br><span class="line">    GPIOA.ospeedr().modify(|v| v.set_ospeedr(<span class="number">5</span>, vals::Ospeedr::HIGHSPEED));</span><br><span class="line">    GPIOA.pupdr().modify(|v| v.set_pupdr(<span class="number">5</span>, vals::Pupdr::FLOATING));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// F103</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f103c8"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">LED_Init</span></span>() &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> &#123;</span><br><span class="line">        <span class="comment">// GPIO 时钟在 APB2 上(F401 在 AHB1)</span></span><br><span class="line">        <span class="keyword">let</span> r = core::ptr::read_volatile(<span class="number">0x40021018</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>);</span><br><span class="line">        core::ptr::write_volatile(<span class="number">0x40021018</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u32</span>, r | (<span class="number">1</span> &lt;&lt; <span class="number">4</span>));</span><br><span class="line">        asm!(<span class="string">"dsb"</span>); asm!(<span class="string">"isb"</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// F103 使用 CRH 寄存器,每 4 位编码一个引脚的全部属性</span></span><br><span class="line">        <span class="keyword">let</span> crh = core::ptr::read_volatile(<span class="number">0x40011004</span> <span class="keyword">as</span> *<span class="keyword">const</span> <span class="built_in">u32</span>);</span><br><span class="line">        core::ptr::write_volatile(<span class="number">0x40011004</span> <span class="keyword">as</span> *<span class="keyword">mut</span> <span class="built_in">u32</span>,</span><br><span class="line">            (crh &amp; !(<span class="number">0xF</span> &lt;&lt; <span class="number">20</span>)) | (<span class="number">0x2</span> &lt;&lt; <span class="number">20</span>));</span><br><span class="line">        <span class="comment">// bits[23:20] = 0b0010 → CNF=00(推挽), MODE=10(2MHz)</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>bottom_driver</code> 模块是一个按键中断驱动,用于测试外部中断触发的任务抢占。它操作 F401 的 <code>SYSCFG</code> 外设来选择 EXTI 线的映射引脚。F103 没有 SYSCFG 外设,替代方案是 <code>AFIO</code>(Alternate Function I/O), 但两者寄存器布局、字段名称、使能位全部不同。该驱动不是 RTOS 核心调度功能的前提——任务的创建、定时器、优先级调度、PendSV 上下文切换均不依赖它, 因此直接对 F103 禁用。测试中使用 <code>bottom_driver</code> 的 bin(如 <code>bottom_test</code>, <code>time_performance</code> 等)在 F103 上无法编译, 这是预期行为。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// port/mod.rs</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="keyword">mod</span> bottom_driver;   <span class="comment">// F401-only,使用 SYSCFG 外设</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// os_core.rs</span></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line"><span class="keyword">use</span> bottom_driver::BOT_DRIVER;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[cfg(feature = <span class="meta-string">"stm32f401re"</span>)]</span></span><br><span class="line">BOT_DRIVER.init();</span><br></pre></td></tr></table></figure>
-
-<hr>
-<p>而对于第二个任务, 一个 <code>dyn Trait</code> 显然无法通过 FFI 传递, 需要做以下修改: </p>
-<p><code>FfiWaker</code> 用 C 函数指针作为 <code>vtable</code>,把 Rust 的 <code>Waker</code> 包装成 C 可以克隆/唤醒/销毁的指针。<code>FfiContext</code> 把这个指针重新包装回 <code>Rust</code> 的 <code>Context</code>,让 C 侧能通过它唤醒任务。</p>
-<p>标准库的 <code>Poll</code> 没有 #[repr(C)],不能跨 FFI 边界传递。所以我们需要另一个 <code>Poll</code></p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C, u8)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">enum</span> <span class="title">FfiPoll</span></span>&lt;T&gt; &#123;</span><br><span class="line">    Ready(T),</span><br><span class="line">    Pending,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>C 侧的对应类型</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="keyword">uint8_t</span> _tag;      <span class="comment">// 0=Ready, 1=Pending</span></span><br><span class="line">    <span class="keyword">uint8_t</span> _pad[<span class="number">3</span>];   <span class="comment">// 对齐到 4 字节</span></span><br><span class="line">    <span class="keyword">uint32_t</span> value;    <span class="comment">// 仅 Ready 时有效</span></span><br><span class="line">&#125; FfiPoll_u32;</span><br></pre></td></tr></table></figure>
-
-<p>内存布局</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Ready(42):   00 00 00 00  2a 00 00 00</span><br><span class="line">             ^tag&#x3D;0       ^value&#x3D;42</span><br><span class="line">             </span><br><span class="line">Pending:     01 00 00 00  00 00 00 00</span><br><span class="line">             ^tag&#x3D;1       ^未使用</span><br></pre></td></tr></table></figure>
-
-<p>同时, 我们将 <code>Waker</code> 视为一个不透明的结构体提供给 C, 我在 Task2 里面描述过 <code>Waker</code> 的内部结构(<a href="https://gitlab.eduxiji.net/T2026106149910763/project3136859-388282/-/blob/task2/docs/waker.md" target="_blank" rel="noopener">https://gitlab.eduxiji.net/T2026106149910763/project3136859-388282/-/blob/task2/docs/waker.md</a>), 这里不再赘述。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">FfiWakerBase</span></span> &#123;</span><br><span class="line">    vtable: *<span class="keyword">const</span> FfiWakerVTable,  <span class="comment">// 指向函数指针表</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">FfiWaker</span></span> &#123;</span><br><span class="line">    base: FfiWakerBase,</span><br><span class="line">    waker: ManuallyDrop&lt;Waker&gt;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">FfiWakerVTable</span></span> &#123;</span><br><span class="line">    clone:       <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase) -&gt; *<span class="keyword">const</span> FfiWakerBase,</span><br><span class="line">    wake:        <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase),</span><br><span class="line">    wake_by_ref: <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase),</span><br><span class="line">    <span class="built_in">drop</span>:        <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">const</span> FfiWakerBase),</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> REF_VTABLE: FfiWakerVTable = &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">clone</span></span>(data) -&gt; *<span class="keyword">const</span> FfiWakerBase &#123;</span><br><span class="line">        <span class="comment">// C 调 clone → 分配新的 FfiWaker (Owned)</span></span><br><span class="line">        <span class="keyword">let</span> cloned = Waker::clone(&amp;(*w).waker);  <span class="comment">// 从原始 Waker clone</span></span><br><span class="line">        <span class="built_in">Box</span>::into_raw(<span class="built_in">Box</span>::new(FfiWaker &#123;</span><br><span class="line">            base: FfiWakerBase &#123; vtable: &amp;OWNED_VTABLE &#125;,  <span class="comment">// 新的 vtable!</span></span><br><span class="line">            waker: ManuallyDrop::new(cloned),</span><br><span class="line">        &#125;))</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">wake</span></span>(data) &#123; <span class="built_in">unreachable!</span>(); &#125;</span><br><span class="line">    <span class="comment">//     ↑ wake 不应该被调用——FfiWaker 是借来的,</span></span><br><span class="line">    <span class="comment">//       不拥有 Waker, 不能消费它</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">wake_by_ref</span></span>(data) &#123;</span><br><span class="line">        w.waker.wake_by_ref();  <span class="comment">// 委托给 Rust Waker</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">drop</span></span>(data) &#123; <span class="built_in">unreachable!</span>(); &#125;</span><br><span class="line">    <span class="comment">//     ↑ drop 也不允许——借来的不能释放</span></span><br><span class="line"></span><br><span class="line">    FfiWakerVTable &#123; clone, wake: unreachable, wake_by_ref, <span class="built_in">drop</span>: unreachable &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>C 端不能 <code>wake()</code> 或 <code>drop()</code>。这两个操作会消费所有权,但 <code>borrowed waker</code> 没有所有权。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> OWNED_VTABLE: FfiWakerVTable = &#123;</span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">clone</span></span>(data) -&gt; *<span class="keyword">const</span> FfiWakerBase &#123;</span><br><span class="line">        <span class="keyword">let</span> cloned = Waker::clone(&amp;(*w).waker);</span><br><span class="line">        <span class="built_in">Box</span>::into_raw(<span class="built_in">Box</span>::new(FfiWaker &#123; <span class="comment">/* ... */</span> &#125;))</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">wake</span></span>(data) &#123;</span><br><span class="line">        <span class="keyword">let</span> b = <span class="built_in">Box</span>::from_raw(data <span class="keyword">as</span> *<span class="keyword">mut</span> FfiWaker);</span><br><span class="line">        ManuallyDrop::into_inner(b.waker).wake();  <span class="comment">// 消费 Waker</span></span><br><span class="line">        <span class="comment">// b 被 drop, FfiWaker 内存释放</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span> <span class="title">drop</span></span>(data) &#123;</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> b = <span class="built_in">Box</span>::from_raw(data <span class="keyword">as</span> *<span class="keyword">mut</span> FfiWaker);</span><br><span class="line">        ManuallyDrop::<span class="built_in">drop</span>(&amp;<span class="keyword">mut</span> b.waker);  <span class="comment">// 安静释放, 不唤醒</span></span><br><span class="line">        <span class="comment">// b 被 drop, FfiWaker 内存释放</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    FfiWakerVTable &#123; clone, wake, wake_by_ref, <span class="built_in">drop</span> &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>C 端通过 <code>clone()</code> 得到的 <code>waker</code> 是完全拥有的, 可以 <code>wake()</code>、<code>drop()</code>、或 <code>clone()</code>。</p>
-<p><code>Waker</code> 的上层 <code>Context</code> 同样需要处理。</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">FfiContext</span></span>&lt;<span class="symbol">'a</span>&gt; &#123;</span><br><span class="line">    task: OS_TCB_REF,               <span class="comment">// TCB 指针，用于 ffi_task_delay</span></span><br><span class="line">    waker: *<span class="keyword">const</span> FfiWakerBase,     <span class="comment">// waker 引用，用于 ffi_wake_by_ref</span></span><br><span class="line">    _marker: PhantomData&lt;&amp;<span class="symbol">'a</span> FfiWakerBase&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>C 的 <code>poll</code> 函数接收 <code>*mut FfiContext</code>,通过 <code>with_context()</code> 方法获取标准 <code>&amp;mut Context</code></p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">with_context</span></span>&lt;T&gt;(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, f: <span class="keyword">impl</span> <span class="built_in">FnOnce</span>(&amp;<span class="keyword">mut</span> Context) -&gt; T) -&gt; T &#123;</span><br><span class="line">    <span class="comment">// RUST_VTABLE: 把 FfiWaker 包装成 RawWaker</span></span><br><span class="line">    <span class="keyword">static</span> RUST_VTABLE: RawWakerVTable = &#123;</span><br><span class="line">        <span class="comment">// clone → 调用 C vtable 的 clone</span></span><br><span class="line">        <span class="comment">// wake  → 调用 C vtable 的 wake</span></span><br><span class="line">        <span class="comment">// wake_by_ref → 调用 C vtable 的 wake_by_ref</span></span><br><span class="line">        <span class="comment">// drop → 调用 C vtable 的 drop</span></span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> raw = RawWaker::new(<span class="keyword">self</span>.waker.cast(), &amp;RUST_VTABLE);</span><br><span class="line">    <span class="keyword">let</span> waker = <span class="keyword">unsafe</span> &#123; Waker::from_raw(raw) &#125;;</span><br><span class="line">    <span class="keyword">let</span> waker = ManuallyDrop::new(waker);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">let</span> <span class="keyword">mut</span> cx = Context::from_waker(&amp;waker);</span><br><span class="line">    f(&amp;<span class="keyword">mut</span> cx)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>Future</code> 同理</p>
-<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#[repr(C)]</span></span><br><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">FfiFuture</span></span>&lt;T&gt; &#123;</span><br><span class="line">    <span class="keyword">pub</span> fut_ptr: *<span class="keyword">mut</span> (),</span><br><span class="line">    <span class="keyword">pub</span> poll_fn: <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">mut</span> (), *<span class="keyword">mut</span> FfiContext) -&gt; FfiPoll&lt;T&gt;,</span><br><span class="line">    <span class="keyword">pub</span> drop_fn: <span class="keyword">unsafe</span> <span class="keyword">extern</span> <span class="string">"C"</span> <span class="function"><span class="keyword">fn</span></span>(*<span class="keyword">mut</span> ()),</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">impl</span>&lt;T&gt; Future <span class="keyword">for</span> FfiFuture&lt;T&gt; &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">poll</span></span>(<span class="keyword">self</span>: Pin&lt;&amp;<span class="keyword">mut</span> <span class="keyword">Self</span>&gt;, cx: &amp;<span class="keyword">mut</span> Context&lt;<span class="symbol">'_</span>&gt;) -&gt; Poll&lt;T&gt; &#123;</span><br><span class="line">        <span class="keyword">let</span> task_ref = executor::task_from_waker(cx.waker());  <span class="comment">// 获取 TCB</span></span><br><span class="line">        <span class="keyword">let</span> rust_waker = cx.waker().clone();</span><br><span class="line">        <span class="keyword">let</span> ffi_waker = ManuallyDrop::new(FfiWaker &#123;           <span class="comment">// 包装 waker</span></span><br><span class="line">            base: FfiWakerBase &#123; vtable: &amp;REF_VTABLE &#125;,</span><br><span class="line">            waker: ManuallyDrop::new(rust_waker),</span><br><span class="line">        &#125;);</span><br><span class="line">        <span class="keyword">let</span> <span class="keyword">mut</span> ffi_ctx = FfiContext::new(task_ref, &amp;*ffi_waker);</span><br><span class="line">        <span class="keyword">let</span> ret = (<span class="keyword">self</span>.poll_fn)(<span class="keyword">self</span>.fut_ptr, &amp;<span class="keyword">mut</span> ffi_ctx);  <span class="comment">// 调用 C</span></span><br><span class="line">        Poll::from(ret)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>与 <code>async-ffi</code> 的主要区别是, <code>async-ffi</code> 基于 <code>std</code> 环境, 做了一些额外的包装, 包括捕获 <code>unwind panic</code> 等问题。我在嵌入式领域做了相应的改造, 去除了一些不必要的功能, 同时可以与 <code>no-std</code> 环境适配。</p>
-<hr>
-<p>训练营到这里就结束了, 我接下来的想法是继续沿着 “同步与异步统一” 这个问题继续走下去, 先前的 FFIFuture 也是我在这个问题上的初步尝试, 最终形成成果。</p>
 
       
     </div>
