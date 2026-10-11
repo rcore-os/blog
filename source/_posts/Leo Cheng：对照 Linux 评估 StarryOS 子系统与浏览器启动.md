@@ -4,7 +4,6 @@ date: 2026-10-07 21:32:00
 categories:
     - Leo Cheng
 tags:
-    - author:heke1228
     - repo:https://github.com/rcore-os/tgoskits
     - wiki:https://github.com/Lfan-ke/tgoskits/wiki
     - StarryOS
