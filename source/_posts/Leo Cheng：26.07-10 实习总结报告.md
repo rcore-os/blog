@@ -2,9 +2,10 @@
 title: 'Leo Cheng: 26.07-10 实习总结报告'
 date: 2026-10-04 14:00:00
 categories:
-    - Leo Cheng
+    - 实习总结报告
 tags:
     - author:heke1228
+    - Leo Cheng
     - repo:https://github.com/rcore-os/tgoskits
     - wiki:https://github.com/Lfan-ke/tgoskits/wiki
     - StarryOS
@@ -12,6 +13,7 @@ tags:
     - Linux 对照
     - 系统调用
     - 溯源
+    - AsyncOS
 ---
 
 实习期自 2026-07 起。期间与 Agent 集群协作提交 88 个 PR，合入 36 个；其余多为计算与渲染用例，不验证内核语义，按收录范围撤下。本页只讲实习开始后提交的工作，分三段：用真实应用补/测内核，把浏览器跑起来并对照 Linux 提速，把系统调用拆成可替换的包。末尾是对全部内核补丁的溯源。

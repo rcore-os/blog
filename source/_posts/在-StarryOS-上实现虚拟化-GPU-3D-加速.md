@@ -12,6 +12,7 @@ tags:
     - 虚拟化
     - mesa
     - virtio
+    - AsyncOS
 ---
 
 ## 1. 摘要
