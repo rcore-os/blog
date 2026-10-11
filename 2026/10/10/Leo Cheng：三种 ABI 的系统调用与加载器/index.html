@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="同一台 x86_64 机器，Linux、Windows、macOS 给程序的是同一批能力：读写文件、映射内存、建线程、计时。不同的是三件事：程序怎么进内核，可执行文件长什么样，路径、换行、设备名这些约定怎么写。StarryOS 把这一层拆成可替换的包，Windows 与 macOS 各一套，分别参考 Wine 与 Darling。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="三种 ABI 的系统调用与加载器">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/10/10/Leo%20Cheng%EF%BC%9A%E4%B8%89%E7%A7%8D%20ABI%20%E7%9A%84%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E4%B8%8E%E5%8A%A0%E8%BD%BD%E5%99%A8/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="同一台 x86_64 机器，Linux、Windows、macOS 给程序的是同一批能力：读写文件、映射内存、建线程、计时。不同的是三件事：程序怎么进内核，可执行文件长什么样，路径、换行、设备名这些约定怎么写。StarryOS 把这一层拆成可替换的包，Windows 与 macOS 各一套，分别参考 Wine 与 Darling。">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-10-10T12:34:56.000Z">
+<meta property="article:modified_time" content="2026-10-11T14:56:21.173Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;rcore-os&#x2F;tgoskits">
+<meta property="article:tag" content="wiki:https:&#x2F;&#x2F;github.com&#x2F;Lfan-ke&#x2F;tgoskits&#x2F;wiki">
+<meta property="article:tag" content="ABI">
+<meta property="article:tag" content="Windows">
+<meta property="article:tag" content="macOS">
+<meta property="article:tag" content="Wine">
+<meta property="article:tag" content="Darling">
+<meta property="article:tag" content="ELF">
+<meta property="article:tag" content="PE">
+<meta property="article:tag" content="Mach-O">
+<meta property="article:tag" content="binfmt_misc">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="MacOS">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/10/10/Leo%20Cheng%EF%BC%9A%E4%B8%89%E7%A7%8D%20ABI%20%E7%9A%84%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E4%B8%8E%E5%8A%A0%E8%BD%BD%E5%99%A8/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>三种 ABI 的系统调用与加载器 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#三家各自的稳定边界"><span class="nav-number">1.</span> <span class="nav-text">三家各自的稳定边界</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Windows"><span class="nav-number">2.</span> <span class="nav-text">Windows</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#官方"><span class="nav-number">2.1.</span> <span class="nav-text">官方</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#参考：Wine-与-ReactOS"><span class="nav-number">2.2.</span> <span class="nav-text">参考：Wine 与 ReactOS</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#abi-win"><span class="nav-number">2.3.</span> <span class="nav-text">abi-win</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#macOS"><span class="nav-number">3.</span> <span class="nav-text">macOS</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#官方-1"><span class="nav-number">3.1.</span> <span class="nav-text">官方</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#参考：XNU、dyld-与-Darling"><span class="nav-number">3.2.</span> <span class="nav-text">参考：XNU、dyld 与 Darling</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#abi-mac"><span class="nav-number">3.3.</span> <span class="nav-text">abi-mac</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#abi-linux"><span class="nav-number">4.</span> <span class="nav-text">abi-linux</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#加载器"><span class="nav-number">5.</span> <span class="nav-text">加载器</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#从-SELF-说起"><span class="nav-number">5.1.</span> <span class="nav-text">从 SELF 说起</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#自拟一个格式"><span class="nav-number">5.2.</span> <span class="nav-text">自拟一个格式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ELF、PE、Mach-O"><span class="nav-number">5.3.</span> <span class="nav-text">ELF、PE、Mach-O</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#脚本与-binfmt-misc"><span class="nav-number">5.4.</span> <span class="nav-text">#! 脚本与 binfmt_misc</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三套系统的约定差异"><span class="nav-number">6.</span> <span class="nav-text">三套系统的约定差异</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#人格包的分层"><span class="nav-number">7.</span> <span class="nav-text">人格包的分层</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#扩展方向"><span class="nav-number">8.</span> <span class="nav-text">扩展方向</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Windows：参考-Wine"><span class="nav-number">8.1.</span> <span class="nav-text">Windows：参考 Wine</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#macOS：参考-XNU、dyld-与-Darling"><span class="nav-number">8.2.</span> <span class="nav-text">macOS：参考 XNU、dyld 与 Darling</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关链接"><span class="nav-number">9.</span> <span class="nav-text">相关链接</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">798</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">58</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">977</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/10/10/Leo%20Cheng%EF%BC%9A%E4%B8%89%E7%A7%8D%20ABI%20%E7%9A%84%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E4%B8%8E%E5%8A%A0%E8%BD%BD%E5%99%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          三种 ABI 的系统调用与加载器
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-10-10 12:34:56" itemprop="dateCreated datePublished" datetime="2026-10-10T12:34:56+00:00">2026-10-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-10-11 14:56:21" itemprop="dateModified" datetime="2026-10-11T14:56:21+00:00">2026-10-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>同一台 x86_64 机器，Linux、Windows、macOS 给程序的是同一批能力：读写文件、映射内存、建线程、计时。不同的是三件事：程序怎么进内核，可执行文件长什么样，路径、换行、设备名这些约定怎么写。StarryOS 把这一层拆成可替换的包，Windows 与 macOS 各一套，分别参考 Wine 与 Darling。</p>
+<a id="more"></a>
+
+<h2 id="三家各自的稳定边界"><a href="#三家各自的稳定边界" class="headerlink" title="三家各自的稳定边界"></a>三家各自的稳定边界</h2><table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">Linux</th>
+<th align="center">Windows</th>
+<th align="center">macOS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">稳定的边界</td>
+<td align="center">系统调用号</td>
+<td align="center">DLL 导出的函数名</td>
+<td align="center">libSystem 导出的符号名</td>
+</tr>
+<tr>
+<td align="center">调用号</td>
+<td align="center">固定，永不改义</td>
+<td align="center">每个版本都可能变</td>
+<td align="center">不承诺稳定</td>
+</tr>
+<tr>
+<td align="center">程序直接 <code>syscall</code></td>
+<td align="center">可以，静态链接常见</td>
+<td align="center">少数程序这么做，换个版本就可能坏</td>
+<td align="center">不支持，苹果不支持静态链接</td>
+</tr>
+<tr>
+<td align="center">失败怎么报</td>
+<td align="center">返回负的 errno</td>
+<td align="center">NTSTATUS；Win32 层再换成 <code>GetLastError</code></td>
+<td align="center">返回 errno，同时置进位标志</td>
+</tr>
+</tbody></table>
+<p>Linux 的调用号就是 ABI：x86_64 上号放 <code>rax</code>，参数依次放 <code>rdi</code>、<code>rsi</code>、<code>rdx</code>、<code>r10</code>、<code>r8</code>、<code>r9</code>，libc 只是一层薄包装。另外两家的稳定边界在用户态的库里，下面分开讲。</p>
+<h2 id="Windows"><a href="#Windows" class="headerlink" title="Windows"></a>Windows</h2><h3 id="官方"><a href="#官方" class="headerlink" title="官方"></a>官方</h3><p>分层是 应用 → Win32 API（<code>kernel32</code>、<code>kernelbase</code>、<code>user32</code>……）→ <code>ntdll.dll</code> → 内核 <code>ntoskrnl.exe</code>（图形相关在 <code>win32k.sys</code>）。<code>ntdll</code> 是用户态里离内核最近的一层：<code>Nt*</code> 系列的系统调用桩、PE 加载器（<code>Ldr*</code>）都在它里面。调用号由同版本的 <code>ntdll</code> 与内核约定，<a href="https://j00ru.vexillium.org/syscalls/nt/64/" target="_blank" rel="noopener">每个版本都在变</a>，所以程序认的是函数名。</p>
+<p>一个进程起来时，<code>ntdll</code> 建好进程环境块（PEB）与线程环境块（TEB），<code>gs</code> 指向 TEB；然后按 exe 的导入表加载 DLL、填导入地址表，依次通知每个 DLL「进程已建立」，最后进 exe 的入口。</p>
+<h3 id="参考：Wine-与-ReactOS"><a href="#参考：Wine-与-ReactOS" class="headerlink" title="参考：Wine 与 ReactOS"></a>参考：Wine 与 ReactOS</h3><p><a href="https://gitlab.winehq.org/wine/wine" target="_blank" rel="noopener">Wine</a> 在 Linux 之上用用户态把这套重写了一遍：</p>
+<ul>
+<li>一个 Windows 进程就是一个 Linux 进程，Windows 线程就是 Linux 线程。</li>
+<li><code>ntdll</code> 分成两半：PE 格式的一半给 Windows 程序链接，需要碰宿主系统的另一半是普通的 Unix 库，两边经 <code>__wine_unix_call</code> 衔接。</li>
+<li>句柄、同步对象、进程这些「内核对象」由一个单独的进程 wineserver 统一管理。</li>
+<li>盘符 <code>Z:</code> 默认指向 Linux 的根 <code>/</code>。</li>
+<li>少数程序（多为带防护的游戏）绕过 <code>ntdll</code> 直接发 <code>syscall</code>；Linux 5.11 为此加了 <a href="https://docs.kernel.org/admin-guide/syscall-user-dispatch.html" target="_blank" rel="noopener">Syscall User Dispatch</a>，Wine 从 11.5 起用它把这类调用转回自己处理。</li>
+</ul>
+<p><a href="https://github.com/reactos/reactos" target="_blank" rel="noopener">ReactOS</a> 则是重写 NT 内核本身，用来查 TEB、PEB 的结构与偏移，以及 NT 调用在内核侧的行为。</p>
+<p>我们主要拿 Wine 查三样东西：函数语义（<code>dlls/kernel32</code>、<code>dlls/kernelbase</code>）、错误码怎么映射（<code>errno_to_status</code>）、导入绑定的顺序。</p>
+<h3 id="abi-win"><a href="#abi-win" class="headerlink" title="abi-win"></a>abi-win</h3><p>包名 <code>ax-abi-windows</code>，代码在 <a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-win" target="_blank" rel="noopener"><code>feat-personality-win</code></a>。与 Wine 最大的不同：Win32 这条边界不在用户态，而在随内核运行的包里。</p>
+<ul>
+<li><strong>系统库由内核合成</strong>：加载器走导入表时，<code>KERNEL32</code>、<code>WS2_32</code>、<code>ADVAPI32</code> 等 14 个库的 421 个入口各绑到一段 48 字节的替身代码：把 Windows 调用约定的 <code>rcx</code>、<code>rdx</code>、<code>r8</code>、<code>r9</code> 与栈上参数挪进陷入约定的寄存器，以 <code>0x1000 + 下标</code> 陷入。合成库带导出目录，<code>GetModuleHandleW</code> 加 <code>GetProcAddress</code> 照样能答。</li>
+<li><strong>随程序发布的 DLL 照常加载</strong>：<code>python314.dll</code>、<code>vcruntime140.dll</code>、<code>ucrtbase.dll</code>、<code>.pyd</code> 从程序目录与 <code>/windows/system32</code> 找到后按 PE 映射，做 <code>.reloc</code> 重定位与导入绑定。</li>
+<li><strong>没有 wineserver</strong>：句柄直接对应内核的文件描述符，同步、管道、套接字都走内核已有的实现。</li>
+<li><strong>直接发 NT 调用的程序也认</strong>：落在 NT 调用号上的陷入交给 NT 那一路分发。</li>
+<li><strong>进程起来前</strong>建好 TEB 与 PEB，<code>gs</code> 指向 TEB；程序从一段 attach 跳板起跑，先通知各 DLL，再进入口；<code>ExitProcess</code> 先跑各 DLL 的退出通知（C 运行库在这里冲刷缓冲），再结束进程。</li>
+<li><strong>报错</strong>：端口返回的 errno 照 Wine 的对照表换成 NTSTATUS。</li>
+</ul>
+<p>验收程序是 python.org 的 Windows 版 CPython 3.14.7：<code>platform.platform()</code> 得 <code>Windows-10-10.0.19041-SP0</code>，经 <code>ctypes</code> 调 <code>kernel32.GetCurrentProcessId()</code> 也能拿到结果。</p>
+<h2 id="macOS"><a href="#macOS" class="headerlink" title="macOS"></a>macOS</h2><h3 id="官方-1"><a href="#官方-1" class="headerlink" title="官方"></a>官方</h3><p>分层是 应用 → <code>libSystem.B.dylib</code>（<code>libsystem_c</code>、<code>libsystem_pthread</code>、放系统调用桩的 <code>libsystem_kernel</code>……）→ XNU。XNU 由 BSD 与 Mach 两部分组成，陷入按类别分：BSD 调用是类别 2（号加 <code>0x2000000</code>），Mach trap 是类别 1，另有机器相关与诊断两类。苹果不保证调用号稳定，也<a href="https://developer.apple.com/library/archive/qa/qa1118/_index.html" target="_blank" rel="noopener">不支持静态链接</a>；Go 从 <a href="https://go.dev/doc/go1.11" target="_blank" rel="noopener">1.11</a> 起在 macOS 上改为经 libSystem 调用，就是这个原因。</p>
+<p>内核把可执行文件与 dyld 映射进来，dyld 负责其余的事：加载 <code>LC_LOAD_DYLIB</code> 列出的库，执行 rebase 与 bind，按加载顺序调各镜像的初始化函数，最后调 <code>LC_MAIN</code> 指定的 <code>main</code>，用它的返回值调 <code>exit</code>。</p>
+<h3 id="参考：XNU、dyld-与-Darling"><a href="#参考：XNU、dyld-与-Darling" class="headerlink" title="参考：XNU、dyld 与 Darling"></a>参考：XNU、dyld 与 Darling</h3><ul>
+<li><a href="https://github.com/apple-oss-distributions/xnu" target="_blank" rel="noopener">XNU</a> 与 <a href="https://github.com/apple-oss-distributions/dyld" target="_blank" rel="noopener">dyld</a> 苹果都开源了：调用号与参数查 <code>bsd/kern/syscalls.master</code>，绑定格式与初始化顺序查 dyld。</li>
+<li><a href="https://github.com/darlinghq/darling" target="_blank" rel="noopener">Darling</a> 是 macOS 程序在 Linux 上的兼容层，地位相当于 Wine：用一个很小的加载器启动苹果开源的 dyld；<code>libSystem</code> 尽量用苹果源码编；Mach 端口一类 XNU 才有的服务由用户态的 <a href="https://docs.darlinghq.org/internals/darlingserver/index.html" target="_blank" rel="noopener">darlingserver</a> 提供，它直接复用了一部分 XNU 源码，早年放在内核模块里的做法已经弃用。</li>
+</ul>
+<h3 id="abi-mac"><a href="#abi-mac" class="headerlink" title="abi-mac"></a>abi-mac</h3><p>包名 <code>ax-abi-darwin</code>，代码在 <a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-mac" target="_blank" rel="noopener"><code>feat-personality-mac</code></a>。与 Darling 的不同：没有 dyld，也不跑苹果的 libSystem，两者的活都由内核里的包做。</p>
+<ul>
+<li><strong>libSystem 由内核合成</strong>：382 个入口加 8 个变量，按 python.org 的 CPython 3.14 及其扩展模块实际绑定的符号列出。每个入口是一段很短的陷入代码：挪开 <code>rcx</code>（C 调用约定与陷入约定只差这一个寄存器），以 <code>0x0F000000 + 下标</code> 陷入；返回时若进位标志置位，就把 errno 写进线程私有区、返回 -1。<code>0x0F000000</code> 在 XNU 的四个类别之外，不会与程序自己发出的调用相撞。</li>
+<li><strong>dyld 的活由包做完</strong>：rebase 与 bind 两条操作码流在程序起跑前全部执行，缺一个符号就拒绝加载；启动代码先调各镜像的 <code>__mod_init_func</code>，再调 <code>main</code>，返回值交给 <code>exit</code>。</li>
+<li><strong>扩展模块经 <code>dlopen</code> 在运行时加载</strong>，已加载镜像的表放在进程自己的内存里。</li>
+<li><strong>通用二进制</strong>：从切片表里挑 x86_64 那片加载。</li>
+<li><strong>进位标志由内核写</strong>：返回用户态前按成败设置标志寄存器的进位位。</li>
+</ul>
+<p>验收程序是 python.org 的 macOS 版 CPython 3.14.7：交互解释器可用，<code>platform.platform()</code> 得 <code>Darwin-20.6.0-x86_64-64bit</code>，<code>os.uname()</code> 得 <code>Darwin 20.6.0 x86_64</code>。</p>
+<h2 id="abi-linux"><a href="#abi-linux" class="headerlink" title="abi-linux"></a>abi-linux</h2><p>StarryOS 原本就实现 Linux 的系统调用，拆包时把这张表连同 ELF 加载整体搬进 <code>ax-abi-linux</code>，行为不变。验收程序是 Alpine 的 CPython 3.14.7，测试套件 23 个模块全部通过。内核默认只链接这一套，另外两套由 <code>starry-kernel</code> 的 <code>abi-win</code>、<code>abi-mac</code> 打开。</p>
+<h2 id="加载器"><a href="#加载器" class="headerlink" title="加载器"></a>加载器</h2><h3 id="从-SELF-说起"><a href="#从-SELF-说起" class="headerlink" title="从 SELF 说起"></a>从 SELF 说起</h3><p><a href="https://github.com/fzakaria/selfdb" target="_blank" rel="noopener">SELF</a> 把可执行文件存成 SQLite 数据库：段、符号都是表里的行。<code>file</code> 认出来是 <code>SQLite 3.x database, application id 0x53454c46</code>，<code>0x53454c46</code> 就是 ASCII 的 <code>SELF</code>，写在 SQLite 文件头偏移 68 处。Linux 的 <code>binfmt_misc</code> 按「偏移 0 是 SQLite 魔数、偏移 68 是 <code>SELF</code>」认出它，交给解释器 <code>self-exec</code>。<code>self-exec</code> 有三种跑法：重建出 ELF 再 <code>execveat</code>；自己映射段再交给 <code>ld.so</code>；自己当动态链接器，用 SQL 查符号做绑定（<a href="https://fzakaria.com/2026/08/23/your-executable-is-a-sqlite-database" target="_blank" rel="noopener">作者的说明</a>）。</p>
+<p>由此可见：可执行格式只是一份描述，加载器照着描述把字节放到该放的地址上，任何能装下这份描述的容器都能当可执行文件。</p>
+<h3 id="自拟一个格式"><a href="#自拟一个格式" class="headerlink" title="自拟一个格式"></a>自拟一个格式</h3><p>假设我们定一个最简单的格式 TOY：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">toy_header</span> &#123;</span></span><br><span class="line">    <span class="keyword">char</span>     magic[<span class="number">4</span>];     <span class="comment">// "TOY\0"</span></span><br><span class="line">    <span class="keyword">uint64_t</span> entry;        <span class="comment">// 入口的虚拟地址</span></span><br><span class="line">    <span class="keyword">uint64_t</span> stack_size;   <span class="comment">// 要多大的栈</span></span><br><span class="line">    <span class="keyword">uint32_t</span> nseg, nimp;   <span class="comment">// 段数、导入数</span></span><br><span class="line">&#125;;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">toy_segment</span> &#123;</span>       <span class="comment">// 一段代码或数据</span></span><br><span class="line">    <span class="keyword">uint64_t</span> file_off, file_size;</span><br><span class="line">    <span class="keyword">uint64_t</span> vaddr, mem_size;</span><br><span class="line">    <span class="keyword">uint32_t</span> prot;         <span class="comment">// 读、写、执行</span></span><br><span class="line">&#125;;</span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">toy_import</span> &#123;</span>        <span class="comment">// 把 name 的地址写进 slot</span></span><br><span class="line">    <span class="keyword">uint64_t</span> slot;</span><br><span class="line">    <span class="keyword">char</span>     name[<span class="number">32</span>];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>加载它要五步：</p>
+<ol>
+<li><strong>认格式</strong>：读开头四个字节。</li>
+<li><strong>映射</strong>：每段在 <code>vaddr</code> 处映射 <code>mem_size</code> 字节，前 <code>file_size</code> 字节从文件 <code>file_off</code> 处来，其余填零（这就是 <code>.bss</code>），再按 <code>prot</code> 设权限。</li>
+<li><strong>修地址</strong>：按导入表把每个名字解析成地址，写进对应的槽。槽就是 ELF 的 GOT、PE 的 IAT。程序若没装在它想要的基址上，还要按重定位表把绝对地址挪一挪。</li>
+<li><strong>建栈</strong>：按 <code>stack_size</code> 分配，压入参数与环境变量。</li>
+<li><strong>交出控制</strong>：内核准备一份启动记录（入口、栈顶、线程指针），交给一小段跳板代码。跳板把栈指针换成记录里的值，设好线程指针，跳到入口。</li>
+</ol>
+<p>三家真实的格式都是这五步，差别在字段怎么摆、动态链接交给谁。在 StarryOS 里，启动记录就是 <code>ax-binfmt</code> 的 <code>Loaded { entry, stack, thread_pointer }</code>，跳板就是上面说的 Windows 的 attach 跳板与 Darwin 的启动代码。</p>
+<h3 id="ELF、PE、Mach-O"><a href="#ELF、PE、Mach-O" class="headerlink" title="ELF、PE、Mach-O"></a>ELF、PE、Mach-O</h3><table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">ELF</th>
+<th align="center">PE</th>
+<th align="center">Mach-O</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">魔数</td>
+<td align="center"><code>7f 45 4c 46</code>（<code>\x7fELF</code>）</td>
+<td align="center">开头 <code>4d 5a</code>（<code>MZ</code>），偏移 <code>0x3c</code> 处的值指向 <code>PE\0\0</code></td>
+<td align="center"><code>cf fa ed fe</code>（64 位）；通用二进制是 <code>ca fe ba be</code></td>
+</tr>
+<tr>
+<td align="center">描述段的结构</td>
+<td align="center">程序头 <code>PT_LOAD</code></td>
+<td align="center">节表（<code>.text</code>、<code>.rdata</code>、<code>.data</code>……）</td>
+<td align="center">加载命令 <code>LC_SEGMENT_64</code></td>
+</tr>
+<tr>
+<td align="center">入口</td>
+<td align="center"><code>e_entry</code></td>
+<td align="center"><code>AddressOfEntryPoint</code>（相对基址）</td>
+<td align="center"><code>LC_MAIN</code> 的 <code>entryoff</code></td>
+</tr>
+<tr>
+<td align="center">换基址</td>
+<td align="center">位置无关的可执行文件加重定位表</td>
+<td align="center"><code>ImageBase</code> 加 <code>.reloc</code></td>
+<td align="center">rebase 操作码；新工具链改用链式修正</td>
+</tr>
+<tr>
+<td align="center">导入</td>
+<td align="center"><code>DT_NEEDED</code> 加符号表，经 GOT、PLT</td>
+<td align="center">导入表：DLL 名加函数名或序号，填 IAT</td>
+<td align="center"><code>LC_LOAD_DYLIB</code> 加 bind 操作码：库序号加符号名</td>
+</tr>
+<tr>
+<td align="center">谁做动态链接</td>
+<td align="center"><code>PT_INTERP</code> 点名的 <code>ld.so</code></td>
+<td align="center"><code>ntdll</code> 里的加载器</td>
+<td align="center"><code>LC_LOAD_DYLINKER</code> 点名的 dyld</td>
+</tr>
+<tr>
+<td align="center">内核交给进程的</td>
+<td align="center">栈上 <code>argc</code>、<code>argv</code>、<code>envp</code>、辅助向量</td>
+<td align="center">进程环境块由 <code>ntdll</code> 初始化</td>
+<td align="center">栈上 <code>argc</code>、<code>argv</code>、<code>envp</code>、<code>apple</code></td>
+</tr>
+<tr>
+<td align="center">StarryOS 里</td>
+<td align="center">内核映射后照旧交给 <code>ld.so</code></td>
+<td align="center"><code>ax-abi-windows</code> 自己绑定，系统库由内核合成</td>
+<td align="center"><code>ax-abi-darwin</code> 执行 rebase、bind，libSystem 由内核合成</td>
+</tr>
+</tbody></table>
+<p>macOS 内核（XNU 的 <a href="https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_exec.c" target="_blank" rel="noopener"><code>bsd/kern/kern_exec.c</code></a>）按文件头区分能直接执行的文件：</p>
+<table>
+<thead>
+<tr>
+<th align="center">类型</th>
+<th align="center">文件开头的字节</th>
+<th align="center">常量</th>
+<th align="center">内核的处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">单架构 Mach-O，64 位</td>
+<td align="center"><code>cf fa ed fe</code></td>
+<td align="center"><code>MH_MAGIC_64</code>（0xfeedfacf，小端存放）</td>
+<td align="center"><code>filetype</code> 必须是 <code>MH_EXECUTE</code>，按加载命令映射</td>
+</tr>
+<tr>
+<td align="center">单架构 Mach-O，32 位</td>
+<td align="center"><code>ce fa ed fe</code></td>
+<td align="center"><code>MH_MAGIC</code>（0xfeedface，小端存放）</td>
+<td align="center">格式能识别，macOS 10.15 起不再运行 32 位程序</td>
+</tr>
+<tr>
+<td align="center">通用二进制（fat）</td>
+<td align="center"><code>ca fe ba be</code></td>
+<td align="center"><code>FAT_MAGIC</code>（0xcafebabe，大端存放）</td>
+<td align="center">读切片表，选出与当前 CPU 匹配的切片，再按单架构 Mach-O 加载；切片里不能再嵌套通用二进制</td>
+</tr>
+<tr>
+<td align="center">脚本</td>
+<td align="center"><code>23 21</code>（<code>#!</code>）</td>
+<td align="center"></td>
+<td align="center">读第一行的解释器路径，改为加载解释器</td>
+</tr>
+</tbody></table>
+<p>字节序相反的 <code>MH_CIGAM</code>、<code>MH_CIGAM_64</code>（开头是 <code>fe ed fa ce</code>、<code>fe ed fa cf</code>）内核能认出，但直接返回 <code>EBADARCH</code>；切片偏移为 64 位的 <code>FAT_MAGIC_64</code>（<code>ca fe ba bf</code>）只在工具链里出现，exec 不接受。Java 的 class 文件开头也是 <code>ca fe ba be</code>，<code>file</code> 靠后面的字段区分。</p>
+<p>python.org 发的 macOS 版 CPython 就是通用二进制，<code>cafebabe</code> 后面有两个切片：<code>0x1000007</code> 是 x86_64，<code>0x100000c</code> 是 arm64。StarryOS 的 Mach-O 加载器也先认 <code>cafebabe</code>，从切片表里选出 x86_64 那片（偏移 <code>0x4000</code>），再按切片开头的 <code>cffaedfe</code> 加载。</p>
+<h3 id="脚本与-binfmt-misc"><a href="#脚本与-binfmt-misc" class="headerlink" title="#! 脚本与 binfmt_misc"></a><code>#!</code> 脚本与 binfmt_misc</h3><ul>
+<li><strong><code>#!</code></strong>：内核读到文件开头是 <code>#!</code>，就把这一行写的解释器当程序加载，脚本路径作为参数（Linux 的 <a href="https://github.com/torvalds/linux/blob/master/fs/binfmt_script.c" target="_blank" rel="noopener"><code>fs/binfmt_script.c</code></a>）。macOS 同样支持；Windows 内核不认，靠资源管理器与命令行按扩展名关联打开。</li>
+<li><strong>binfmt_misc</strong>：Linux 让用户态按「偏移加魔数」或扩展名注册解释器，写 <code>/proc/sys/fs/binfmt_misc/register</code>，格式是 <code>:名字:类型:偏移:魔数:掩码:解释器:标志</code>。qemu-user 跑别的架构的程序、Wine 直接执行 <code>.exe</code>、上面的 SELF，都靠它。</li>
+<li><strong>StarryOS 里</strong>：<code>ax-binfmt</code> 的 <code>register_binfmt!</code> 注册格式，<code>dispatch_image()</code> 按文件头挑格式，作用相当于 Linux 的 <code>search_binary_handler</code>；<code>LoadEnv::interpret</code> 对应「换一个解释器接着加载」，<code>#!</code> 与 <code>PT_INTERP</code> 都走它。</li>
+</ul>
+<h2 id="三套系统的约定差异"><a href="#三套系统的约定差异" class="headerlink" title="三套系统的约定差异"></a>三套系统的约定差异</h2><p>把系统调用拆成独立的包时，要逐项处理这些差别：</p>
+<table>
+<thead>
+<tr>
+<th align="center">项</th>
+<th align="center">Linux</th>
+<th align="center">Windows</th>
+<th align="center">macOS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">路径分隔符</td>
+<td align="center"><code>/</code></td>
+<td align="center"><code>\</code>（API 也接受 <code>/</code>）</td>
+<td align="center"><code>/</code></td>
+</tr>
+<tr>
+<td align="center">根</td>
+<td align="center">单一根 <code>/</code></td>
+<td align="center">盘符 <code>C:\</code>；<code>\\?\</code> 是长路径前缀</td>
+<td align="center">单一根 <code>/</code></td>
+</tr>
+<tr>
+<td align="center">大小写</td>
+<td align="center">区分</td>
+<td align="center">NTFS 默认不区分</td>
+<td align="center">APFS 默认不区分</td>
+</tr>
+<tr>
+<td align="center">换行</td>
+<td align="center">LF</td>
+<td align="center">CRLF</td>
+<td align="center">LF（经典 Mac OS 是 CR）</td>
+</tr>
+<tr>
+<td align="center">怎么算可执行</td>
+<td align="center">执行权限位加文件头</td>
+<td align="center">扩展名（<code>.exe</code>、<code>.dll</code>）加 PE 头</td>
+<td align="center">执行权限位加 Mach-O 头</td>
+</tr>
+<tr>
+<td align="center">保留文件名</td>
+<td align="center">无</td>
+<td align="center"><code>CON</code>、<code>PRN</code>、<code>AUX</code>、<code>NUL</code>、<code>COM1</code> 至 <code>COM9</code>、<code>LPT1</code> 至 <code>LPT9</code></td>
+<td align="center">无</td>
+</tr>
+<tr>
+<td align="center">串口</td>
+<td align="center"><code>/dev/ttyS0</code>；USB 转串口 <code>/dev/ttyUSB0</code>、<code>/dev/ttyACM0</code></td>
+<td align="center"><code>COM1</code>；<code>COM10</code> 起要写 <code>\\.\COM10</code></td>
+<td align="center"><code>/dev/tty.usbserial-*</code>（接入）、<code>/dev/cu.usbserial-*</code>（拨出）</td>
+</tr>
+<tr>
+<td align="center">磁盘</td>
+<td align="center"><code>/dev/sda</code>、<code>/dev/nvme0n1</code></td>
+<td align="center"><code>\\.\PhysicalDrive0</code></td>
+<td align="center"><code>/dev/disk0</code>、裸设备 <code>/dev/rdisk0</code></td>
+</tr>
+<tr>
+<td align="center">环境变量里的路径分隔</td>
+<td align="center"><code>:</code></td>
+<td align="center"><code>;</code></td>
+<td align="center"><code>:</code></td>
+</tr>
+<tr>
+<td align="center">动态库</td>
+<td align="center"><code>.so</code></td>
+<td align="center"><code>.dll</code></td>
+<td align="center"><code>.dylib</code>、<code>.framework</code></td>
+</tr>
+<tr>
+<td align="center">函数调用约定</td>
+<td align="center"><code>rdi</code>、<code>rsi</code>、<code>rdx</code>、<code>rcx</code>、<code>r8</code>、<code>r9</code></td>
+<td align="center"><code>rcx</code>、<code>rdx</code>、<code>r8</code>、<code>r9</code>，另留 32 字节影子空间</td>
+<td align="center">同 Linux</td>
+</tr>
+<tr>
+<td align="center">线程指针</td>
+<td align="center"><code>fs</code></td>
+<td align="center"><code>gs</code> 指向 TEB</td>
+<td align="center"><code>gs</code> 指向线程私有区</td>
+</tr>
+<tr>
+<td align="center">时间起点</td>
+<td align="center">1970 年，秒与纳秒</td>
+<td align="center">1601 年，100 纳秒为单位</td>
+<td align="center">1970 年</td>
+</tr>
+</tbody></table>
+<p>在 StarryOS 上的处理：</p>
+<ul>
+<li>路径：<code>ax-abi-path</code> 换分隔符、去掉 <code>\\?\</code> 与 <code>\??\</code> 前缀、转换盘符、按 Windows 的规则不区分大小写比较。演示里 Windows 版 Python 的 <code>sys.executable</code> 是 <code>Z:\python\python.exe</code>，对应的文件是 <code>/python/python.exe</code>。</li>
+<li>设备：Windows 程序经 <code>NtDeviceIoControlFile</code> 访问设备，<code>ax-abi-driver</code> 把打包的控制码（<code>CTL_CODE</code>）解码，再交给内核的驱动。</li>
+<li>调用约定、线程指针：在替身代码与进程初始化里处理，见前文。</li>
+<li>报错：Linux 原样返回 errno，Windows 换成 NTSTATUS，Darwin 返回 errno 并置进位标志。</li>
+<li>换行、环境变量分隔这些归运行库管，内核不碰。</li>
+</ul>
+<h2 id="人格包的分层"><a href="#人格包的分层" class="headerlink" title="人格包的分层"></a>人格包的分层</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">flowchart TB</span><br><span class="line">    T[陷入] --&gt; S[按 abi_slot 取实现]</span><br><span class="line">    S --&gt; L[ax-abi-linux]</span><br><span class="line">    S --&gt; W[ax-abi-windows]</span><br><span class="line">    S --&gt; D[ax-abi-darwin]</span><br><span class="line">    W --&gt; P2[ax-abi-path &#x2F; ax-abi-driver]</span><br><span class="line">    L --&gt; P[ax-abi-port 能力端口]</span><br><span class="line">    W --&gt; P</span><br><span class="line">    D --&gt; P</span><br><span class="line">    P --&gt; K[内核：fd 表、地址空间、线程、时钟、axfs]</span><br><span class="line">    B[ax-binfmt：认格式、加载] -.记下 abi_slot.-&gt; S</span><br><span class="line">%% 陷入 -&gt; 按 abi_slot 取实现 -&gt; linux | windows | darwin</span><br><span class="line">%%                                  |      |(path&#x2F;driver)   |</span><br><span class="line">%%                                  +------+----------------+</span><br><span class="line">%%                                         v</span><br><span class="line">%%                                  ax-abi-port 能力端口</span><br><span class="line">%%                                         v</span><br><span class="line">%%                         内核：fd 表、地址空间、线程、时钟、axfs</span><br><span class="line">%% ax-binfmt 加载镜像时记下 abi_slot</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">包</th>
+<th align="center">做什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><code>ax-dispatch</code></td>
+<td align="center">登记编进内核的各套实现，按进程所属的 ABI 分发陷入</td>
+</tr>
+<tr>
+<td align="center"><code>ax-binfmt</code></td>
+<td align="center">按文件头认格式，交给认领它的包加载</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi-port</code></td>
+<td align="center">能力端口：文件、路径、内存、任务、信号、时钟、随机数、套接字</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi</code></td>
+<td align="center">按 feature 选哪几套进链接，给出默认分发策略</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi-linux</code>、<code>ax-abi-windows</code>、<code>ax-abi-darwin</code></td>
+<td align="center">三套参考实现</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi-path</code>、<code>ax-abi-driver</code></td>
+<td align="center">Windows 的路径与设备控制码转换</td>
+</tr>
+<tr>
+<td align="center"><code>ax-abi-embedded</code>、<code>ax-abi-custom</code></td>
+<td align="center">中断向量表；用户扩展的调用号段</td>
+</tr>
+</tbody></table>
+<p>这样分的理由：</p>
+<ol>
+<li><strong>差别只在系统调用这一层</strong>：读写文件、映射内存这些能力三家相同，内核只实现一遍能力端口，各家包只管把自己的参数解码、把结果编码。</li>
+<li><strong>编进内核就自动登记</strong>：每个包用 <code>linkme</code> 的分布式切片登记自己，没有中心名单；去掉一个包，内核不用改。</li>
+<li><strong>调用号会撞</strong>：NT 的 <code>WriteFile</code> 与 Linux 的 <code>write</code> 在 x86_64 上都是 1。所以进程控制块记下 <code>abi_slot</code>，加载镜像时写入，fork 时照抄，陷入时按它直接取实现，不搜索。</li>
+<li><strong>返回值由实现自己写回</strong>：负 errno、NTSTATUS、errno 加进位标志，各写各的。</li>
+<li><strong>系统库移进内核</strong>：Windows 与 macOS 的稳定边界本来就在用户态的库里、靠名字找到，这里在进程里合成这些库，每个入口是一段很短的陷入代码。</li>
+</ol>
+<p>判断标准：加第四种 ABI，或给现有 ABI 加入口，都只加数据（新的包、表里的新项），不改结构。</p>
+<h2 id="扩展方向"><a href="#扩展方向" class="headerlink" title="扩展方向"></a>扩展方向</h2><h3 id="Windows：参考-Wine"><a href="#Windows：参考-Wine" class="headerlink" title="Windows：参考 Wine"></a>Windows：参考 Wine</h3><ol>
+<li>找没实现的入口：程序调到这类入口时，内核日志有一行 <code>abi: X is not implemented</code>。</li>
+<li>在 Wine 里找同名函数（<code>dlls/kernel32</code>、<code>dlls/kernelbase</code>、<code>dlls/ntdll</code>），看它最终落到哪个 NT 调用、错误怎么映射。</li>
+<li>在 <code>ax-abi-windows</code> 的表里加一项（库名加函数名），实现里只做参数解码与结果编码，干活交给端口。</li>
+<li>端口缺能力，就在 <code>ax-abi-port</code> 加一个方法，内核实现一次，三套 ABI 都能用。</li>
+<li>用 python.org 的 Windows 版 CPython 跑同一套测试当验收。</li>
+</ol>
+<h3 id="macOS：参考-XNU、dyld-与-Darling"><a href="#macOS：参考-XNU、dyld-与-Darling" class="headerlink" title="macOS：参考 XNU、dyld 与 Darling"></a>macOS：参考 XNU、dyld 与 Darling</h3><ol>
+<li>调用号与参数查 XNU 的 <code>syscalls.master</code>，返回值与 errno 查对应的 <code>bsd/kern</code> 源码。</li>
+<li>libSystem 层的函数加进 <code>ax-abi-darwin</code> 的符号表；BSD 调用加进按调用号分发的那张表。</li>
+<li>进程与事件（<code>fork</code>、<code>pipe</code>、<code>kqueue</code>、线程、信号）在 Linux 端口里都有对应能力，要补的主要是编解码与 Mach 端口的语义，darlingserver 怎么在 Linux 上实现这些可以直接参考。</li>
+<li>新工具链默认的链式修正（<code>LC_DYLD_CHAINED_FIXUPS</code>）是加载器要补的另一种绑定格式，照 dyld 源码实现。</li>
+</ol>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><ul>
+<li>设计文档：<a href="https://github.com/Lfan-ke/tgoskits/blob/feat-personality-win/docs/design/syscall-abi-packages.md" target="_blank" rel="noopener"><code>docs/design/syscall-abi-packages.md</code></a></li>
+<li>代码：<a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-win" target="_blank" rel="noopener"><code>feat-personality-win</code></a>（Linux 与 Windows）、<a href="https://github.com/Lfan-ke/tgoskits/tree/feat-personality-mac" target="_blank" rel="noopener"><code>feat-personality-mac</code></a>（Darwin）</li>
+<li>设计讨论：<a href="https://github.com/rcore-os/tgoskits/issues/2202" target="_blank" rel="noopener">rcore-os/tgoskits#2202</a></li>
+<li>周报与总结：<a href="https://github.com/Lfan-ke/tgoskits/wiki" target="_blank" rel="noopener">wiki</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/repo-https-github-com-rcore-os-tgoskits/" rel="tag"># repo:https://github.com/rcore-os/tgoskits</a>
+              <a href="/blog/tags/wiki-https-github-com-Lfan-ke-tgoskits-wiki/" rel="tag"># wiki:https://github.com/Lfan-ke/tgoskits/wiki</a>
+              <a href="/blog/tags/ABI/" rel="tag"># ABI</a>
+              <a href="/blog/tags/Windows/" rel="tag"># Windows</a>
+              <a href="/blog/tags/macOS/" rel="tag"># macOS</a>
+              <a href="/blog/tags/Wine/" rel="tag"># Wine</a>
+              <a href="/blog/tags/Darling/" rel="tag"># Darling</a>
+              <a href="/blog/tags/ELF/" rel="tag"># ELF</a>
+              <a href="/blog/tags/PE/" rel="tag"># PE</a>
+              <a href="/blog/tags/Mach-O/" rel="tag"># Mach-O</a>
+              <a href="/blog/tags/binfmt-misc/" rel="tag"># binfmt_misc</a>
+              <a href="/blog/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/blog/tags/MacOS/" rel="tag"># MacOS</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/" rel="prev" title="实习总结报告：SG2002 WiFi 驱动优化与 ax-net 网络栈 eBPF 可观测性建设">
+      <i class="fa fa-chevron-left"></i> 实习总结报告：SG2002 WiFi 驱动优化与 ax-net 网络栈 eBPF 可观测性建设
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/10/20261010-xianxw-%E5%9D%97%E8%AE%BE%E5%A4%87%E5%AD%98%E5%82%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E7%8E%B0%E5%BC%82%E6%AD%A5-I-O-%E8%BF%90%E8%A1%8C%E6%97%B6%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" rel="next" title="20261010-xianxw-块设备存储链路实现异步 I/O 运行时实习总结">
+      20261010-xianxw-块设备存储链路实现异步 I/O 运行时实习总结 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>

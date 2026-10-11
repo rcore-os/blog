@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="StarryOS 当前内核未解耦系统调用时期的默认系统调用实现是 GNU Linux 的系统调用，所以 Linux 本身就是最好的参照：同一个程序在两边跑，结果该一样，耗时该接近。做法是把两边放进同一个环境，把差距落到具体子系统，再对着 Linux 的源码改；浏览器启动这条长路径则拆成段，逐段比。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="对照 Linux 评估 StarryOS 子系统与浏览器启动">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/10/07/Leo%20Cheng%EF%BC%9A%E5%AF%B9%E7%85%A7%20Linux%20%E8%AF%84%E4%BC%B0%20StarryOS%20%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E5%90%AF%E5%8A%A8/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="StarryOS 当前内核未解耦系统调用时期的默认系统调用实现是 GNU Linux 的系统调用，所以 Linux 本身就是最好的参照：同一个程序在两边跑，结果该一样，耗时该接近。做法是把两边放进同一个环境，把差距落到具体子系统，再对着 Linux 的源码改；浏览器启动这条长路径则拆成段，逐段比。">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-10-07T21:32:00.000Z">
+<meta property="article:modified_time" content="2026-10-11T14:56:21.173Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;rcore-os&#x2F;tgoskits">
+<meta property="article:tag" content="wiki:https:&#x2F;&#x2F;github.com&#x2F;Lfan-ke&#x2F;tgoskits&#x2F;wiki">
+<meta property="article:tag" content="Firefox">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="difftest">
+<meta property="article:tag" content="性能">
+<meta property="article:tag" content="epoll">
+<meta property="article:tag" content="mm">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/10/07/Leo%20Cheng%EF%BC%9A%E5%AF%B9%E7%85%A7%20Linux%20%E8%AF%84%E4%BC%B0%20StarryOS%20%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E5%90%AF%E5%8A%A8/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>对照 Linux 评估 StarryOS 子系统与浏览器启动 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#流程"><span class="nav-number">1.</span> <span class="nav-text">流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#同环境"><span class="nav-number">1.1.</span> <span class="nav-text">同环境</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#压力基准"><span class="nav-number">1.2.</span> <span class="nav-text">压力基准</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#定位"><span class="nav-number">1.3.</span> <span class="nav-text">定位</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#子系统与参考实现"><span class="nav-number">2.</span> <span class="nav-text">子系统与参考实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#浏览器启动实验"><span class="nav-number">3.</span> <span class="nav-text">浏览器启动实验</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#把启动拆成段"><span class="nav-number">3.1.</span> <span class="nav-text">把启动拆成段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#指标"><span class="nav-number">3.2.</span> <span class="nav-text">指标</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#结果"><span class="nav-number">3.3.</span> <span class="nav-text">结果</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#对比的前提"><span class="nav-number">3.4.</span> <span class="nav-text">对比的前提</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#相关链接"><span class="nav-number">4.</span> <span class="nav-text">相关链接</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">798</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">58</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">977</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/10/07/Leo%20Cheng%EF%BC%9A%E5%AF%B9%E7%85%A7%20Linux%20%E8%AF%84%E4%BC%B0%20StarryOS%20%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E5%90%AF%E5%8A%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          对照 Linux 评估 StarryOS 子系统与浏览器启动
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-10-07 21:32:00" itemprop="dateCreated datePublished" datetime="2026-10-07T21:32:00+00:00">2026-10-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-10-11 14:56:21" itemprop="dateModified" datetime="2026-10-11T14:56:21+00:00">2026-10-11</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/Leo-Cheng/" itemprop="url" rel="index"><span itemprop="name">Leo Cheng</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>StarryOS 当前内核未解耦系统调用时期的默认系统调用实现是 GNU Linux 的系统调用，所以 Linux 本身就是最好的参照：同一个程序在两边跑，结果该一样，耗时该接近。做法是把两边放进同一个环境，把差距落到具体子系统，再对着 Linux 的源码改；浏览器启动这条长路径则拆成段，逐段比。</p>
+<a id="more"></a>
+
+<h2 id="流程"><a href="#流程" class="headerlink" title="流程"></a>流程</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    A[选负载] --&gt; B[两侧同环境运行] --&gt; C[量出差距] --&gt; D[定位到子系统] --&gt; E[对照 Linux 源码修改] --&gt; F[先红后绿] --&gt; G[合入前检查] --&gt; H[溯源]</span><br><span class="line">%% 选负载 -&gt; 两侧同环境运行 -&gt; 量出差距 -&gt; 定位到子系统</span><br><span class="line">%%   -&gt; 对照 Linux 源码修改 -&gt; 先红后绿 -&gt; 合入前检查 -&gt; 溯源</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="center">步骤</th>
+<th align="center">做什么</th>
+<th align="center">产出</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">选负载</td>
+<td align="center">真实应用（Firefox、dnsmasq、CPython 套件）与专门的压力基准</td>
+<td align="center">能暴露问题的场景</td>
+</tr>
+<tr>
+<td align="center">同环境运行</td>
+<td align="center">两侧同一套 QEMU 参数、同一份根盘、同一个二进制，只换内核</td>
+<td align="center">可直接相除的数字</td>
+</tr>
+<tr>
+<td align="center">量出差距</td>
+<td align="center">语义看通过数是否一致，性能看比值与放大倍数</td>
+<td align="center">差距清单</td>
+</tr>
+<tr>
+<td align="center">定位</td>
+<td align="center">内核栈采样、分段计时、两侧同开应用日志</td>
+<td align="center">具体到函数的热点</td>
+</tr>
+<tr>
+<td align="center">修改</td>
+<td align="center">打开 Linux 对应源码（固定到同一提交），照它的语义与数据结构改</td>
+<td align="center">补丁，正文引到行</td>
+</tr>
+<tr>
+<td align="center">先红后绿</td>
+<td align="center">先只加用例，在旧实现上确认失败；再加修复确认通过</td>
+<td align="center">回归用例</td>
+</tr>
+<tr>
+<td align="center">合入前检查</td>
+<td align="center"><code>fmt</code>、<code>clippy</code>、宿主单测、内核单测、分组系统套件</td>
+<td align="center">可合入的提交</td>
+</tr>
+<tr>
+<td align="center">溯源</td>
+<td align="center">每个补丁一份文件，写明对应的 Linux 源码行与 man 原文</td>
+<td align="center">能逐条核对的记录</td>
+</tr>
+</tbody></table>
+<h3 id="同环境"><a href="#同环境" class="headerlink" title="同环境"></a>同环境</h3><ul>
+<li>QEMU：两侧都是 <code>q35,accel=kvm:tcg -cpu max -m 6G -smp 4</code>，NVMe 根盘、virtio-gpu、virtio-net、SLIRP。</li>
+<li>根盘：Linux 侧直接复制 StarryOS 应用构建出的镜像，只换 init。浏览器脚本、Firefox、基准程序因此必然是同一份，作业里用 <code>cmp</code> 校验。</li>
+<li>内核：Linux 6.12（Alpine 的 <code>virt</code> 版）。</li>
+<li>控制项：纯用户态循环 <code>cpu</code> 两侧比值是 1.00，<code>memcpy</code> 在 0.94 到 1.48。环境本身不偏向任何一边，其余比值可以直接读。</li>
+<li>语义类用例另有一个更省事的参照：x86_64 上直接在宿主 Linux（WSL2 的内核）跑同一个用例，两边的通过数应当相同。</li>
+</ul>
+<h3 id="压力基准"><a href="#压力基准" class="headerlink" title="压力基准"></a>压力基准</h3><p><code>perfbench</code> 是一个静态链接的小程序，18 个环节，每个环节三档压力：</p>
+<table>
+<thead>
+<tr>
+<th align="center">类别</th>
+<th align="center">环节</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">控制项</td>
+<td align="center"><code>cpu</code>、<code>memcpy</code></td>
+</tr>
+<tr>
+<td align="center">系统调用与文件</td>
+<td align="center"><code>syscall</code>、<code>open</code>、<code>stat</code>、<code>tmpwrite</code>、<code>diskwrite</code></td>
+</tr>
+<tr>
+<td align="center">内存</td>
+<td align="center"><code>fault</code>、<code>mmap</code>、<code>unmap</code></td>
+</tr>
+<tr>
+<td align="center">事件与通信</td>
+<td align="center"><code>epoll</code>、<code>pipe</code>、<code>unixsock</code>、<code>tcp</code></td>
+</tr>
+<tr>
+<td align="center">调度与进程</td>
+<td align="center"><code>yield</code>、<code>futex</code>、<code>thread</code>、<code>fork</code>、<code>signal</code></td>
+</tr>
+</tbody></table>
+<p>判断标准是放大倍数：同一环节最高压力与最低压力的耗时比。接近 1 说明代价与规模无关，是固定开销；明显大于 1 说明内部有随规模增长的遍历或拷贝。只有 StarryOS 放大而 Linux 平坦，才是缺陷线索；两边都放大（比如 fork 随已写过的内存变慢）是正常代价。</p>
+<p>09.16 的结果：</p>
+<table>
+<thead>
+<tr>
+<th align="center">结论</th>
+<th align="center">环节（StarryOS ÷ Linux）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">随压力放大</td>
+<td align="center"><code>epoll_wait</code> 13.8 至 891、<code>fork</code> 6.3 至 494、<code>mmap</code> 4.3 至 58、<code>munmap</code> 47 至 126、<code>open</code> 1.8 至 8.7</td>
+</tr>
+<tr>
+<td align="center">固定倍数</td>
+<td align="center">信号 30、缺页 15、线程创建 15、回环 TCP 12</td>
+</tr>
+<tr>
+<td align="center">已追平</td>
+<td align="center">空系统调用 0.58、<code>stat</code> 0.8、管道 0.44、unix socket 1.16、写文件 0.3 至 1.7</td>
+</tr>
+</tbody></table>
+<h3 id="定位"><a href="#定位" class="headerlink" title="定位"></a>定位</h3><ul>
+<li>内核栈采样：QEMU 的 gdb stub 每隔一段时间停一次虚拟机，对所有 CPU 取一次调用栈，汇总栈顶函数。要在负载真正在跑的时段采，页面稳定后一半以上的样本落在空闲上。</li>
+<li>分段计时：浏览器脚本在每个阶段打一行标记，串口每行带宿主的单调时间戳，两侧按标记对照。</li>
+<li>两侧同开应用日志：比如 Firefox 的 <code>MOZ_LOG</code> 网络日志，逐个事务对照，看差在发请求之前还是之后。</li>
+</ul>
+<h2 id="子系统与参考实现"><a href="#子系统与参考实现" class="headerlink" title="子系统与参考实现"></a>子系统与参考实现</h2><p>Linux 源码固定在提交 <code>8cd9520d35a6</code>，PR 正文里每处改动都引到具体行。</p>
+<table>
+<thead>
+<tr>
+<th align="center">子系统</th>
+<th align="center">对照得到的问题</th>
+<th align="center">Linux 的做法</th>
+<th align="center">修复</th>
+<th align="center">修复前 → 修复后（Linux）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">epoll</td>
+<td align="center">每次等待都把所有描述符重新注册一遍</td>
+<td align="center">只看就绪链表，代价与注册数无关（<code>fs/eventpoll.c</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2302" target="_blank" rel="noopener">#2302</a>、<a href="https://github.com/rcore-os/tgoskits/pull/2433" target="_blank" rel="noopener">#2433</a></td>
+<td align="center">1020 个描述符 499.9 → 37.0 µs（0.56 µs）</td>
+</tr>
+<tr>
+<td align="center">跨核唤醒</td>
+<td align="center">每发一次 IPI 都重建 APIC 句柄，读 CPUID 引发虚拟机退出</td>
+<td align="center">写 ICR 前只加一道串行化屏障（<code>arch/x86/kernel/apic/x2apic_phys.c</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2432" target="_blank" rel="noopener">#2432</a></td>
+<td align="center">回环 TCP 往返 415.7 → 129.9 µs（34.3 µs）</td>
+</tr>
+<tr>
+<td align="center">地址空间</td>
+<td align="center">每次改映射都把整棵 VMA 树展开</td>
+<td align="center">只取与区间相交的 VMA，映射数随增删维护（<code>mm/mmap.c</code>、<code>mm/vma.c</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2302" target="_blank" rel="noopener">#2302</a>、<a href="https://github.com/rcore-os/tgoskits/pull/2578" target="_blank" rel="noopener">#2578</a></td>
+<td align="center">1024 个映射 277.1 → 96.8 µs（4.4 µs）</td>
+</tr>
+<tr>
+<td align="center">fork</td>
+<td align="center">登记页归属时两两比较查重</td>
+<td align="center">游标只增不减，地址不重复由遍历方式保证（<code>mm/memory.c</code> 的 <code>copy_pte_range()</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2577" target="_blank" rel="noopener">#2577</a></td>
+<td align="center">64 MiB 84.5 → 14.0 ms（0.17 ms）</td>
+</tr>
+<tr>
+<td align="center">文件锁</td>
+<td align="center">关闭描述符时扫全系统的 fd 表</td>
+<td align="center">打开文件描述的最后一个引用消失时释放（<code>fs/locks.c</code> 的 <code>locks_remove_file()</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2576" target="_blank" rel="noopener">#2576</a></td>
+<td align="center">持 512 个 fd 时 <code>open</code> 加 <code>close</code> 19.8 → 3.2 µs（2.3 µs）</td>
+</tr>
+<tr>
+<td align="center">slab 分配</td>
+<td align="center">分配对象时遍历整条满 slab 链表</td>
+<td align="center">SLUB 默认不把满的 slab 挂在链表上</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2301" target="_blank" rel="noopener">#2301</a></td>
+<td align="center">512 次分配遍历 2701 个节点 → 0 个</td>
+</tr>
+<tr>
+<td align="center">TCP</td>
+<td align="center">半关闭后状态不再更新，<code>poll</code> 不报事件</td>
+<td align="center"><code>tcp_poll()</code> 按两个方向的关闭状态报 <code>POLLHUP</code>、<code>POLLRDHUP</code>（<code>net/ipv4/tcp.c</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2575" target="_blank" rel="noopener">#2575</a></td>
+<td align="center"><code>nc</code> 等回复 16 秒后失败 → 立即返回</td>
+</tr>
+<tr>
+<td align="center">netlink</td>
+<td align="center">回复没补到 4 的倍数，读的一方越界</td>
+<td align="center">写消息时补齐（<code>net/netlink/af_netlink.c</code> 的 <code>__nlmsg_put()</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2574" target="_blank" rel="noopener">#2574</a></td>
+<td align="center">Firefox 冷启动 12 次段错误 5 次 → 0 次</td>
+</tr>
+<tr>
+<td align="center">unix stream</td>
+<td align="center">两端共用一个等待队列，发送方把自己也唤醒</td>
+<td align="center">每端一个等待队列（<code>net/unix/af_unix.c</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2194" target="_blank" rel="noopener">#2194</a></td>
+<td align="center">用例 21 过 3 挂 → 24 项全部通过</td>
+</tr>
+<tr>
+<td align="center">tty</td>
+<td align="center">打开 tty 不设控制终端等五处</td>
+<td align="center"><code>tty_open()</code> 的会话与前台进程组规则（<code>drivers/tty/tty_io.c</code>）</td>
+<td align="center"><a href="https://github.com/rcore-os/tgoskits/pull/2426" target="_blank" rel="noopener">#2426</a></td>
+<td align="center">远程桌面里 xterm 起不来 → 正常</td>
+</tr>
+</tbody></table>
+<h2 id="浏览器启动实验"><a href="#浏览器启动实验" class="headerlink" title="浏览器启动实验"></a>浏览器启动实验</h2><h3 id="把启动拆成段"><a href="#把启动拆成段" class="headerlink" title="把启动拆成段"></a>把启动拆成段</h3><p>Firefox 从脚本开始到页面出完，中间有十几个环节。脚本在每个环节打一行标记，两侧按标记切段：</p>
+<table>
+<thead>
+<tr>
+<th align="center">段</th>
+<th align="center">StarryOS（秒）</th>
+<th align="center">Linux（秒）</th>
+<th align="center">判断</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">进入脚本到清点图片加载器</td>
+<td align="center">3.8</td>
+<td align="center">2.4</td>
+<td align="center">文件系统与进程启动偏慢</td>
+</tr>
+<tr>
+<td align="center">Weston 启动到套接字就绪</td>
+<td align="center">1.1</td>
+<td align="center">1.0</td>
+<td align="center">持平</td>
+</tr>
+<tr>
+<td align="center">经代理探测中继</td>
+<td align="center">1.7</td>
+<td align="center">0.9</td>
+<td align="center">偏慢</td>
+</tr>
+<tr>
+<td align="center"><code>nc</code> 探测中继</td>
+<td align="center">16.0（失败）</td>
+<td align="center">0.6</td>
+<td align="center">功能缺陷</td>
+</tr>
+<tr>
+<td align="center">直连取 1 MB</td>
+<td align="center">0.1</td>
+<td align="center">0.0</td>
+<td align="center">持平，吞吐不是瓶颈</td>
+</tr>
+<tr>
+<td align="center">经中继取首页</td>
+<td align="center">1.6</td>
+<td align="center">0.6</td>
+<td align="center">偏慢</td>
+</tr>
+<tr>
+<td align="center">启动 Firefox 到导航完成</td>
+<td align="center">52.2 至 73.4</td>
+<td align="center">22.1 至 22.6</td>
+<td align="center">2.7 倍</td>
+</tr>
+</tbody></table>
+<p>16.0 秒正好是 SYN 重传 1+2+4+8 秒的退避之和，同一目标 <code>wget</code> 立刻成功，于是这一段从「慢」改判为「连接建立有缺陷」，后来查到是 TCP 半关闭（#2575）。</p>
+<h3 id="指标"><a href="#指标" class="headerlink" title="指标"></a>指标</h3><table>
+<thead>
+<tr>
+<th align="center">指标</th>
+<th align="center">怎么取</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">启动到导航</td>
+<td align="center">标记行的时间差</td>
+</tr>
+<tr>
+<td align="center">导航尝试次数</td>
+<td align="center">脚本内重试计数，一次启动最多三次</td>
+</tr>
+<tr>
+<td align="center">已取资源数</td>
+<td align="center">Firefox 缓存条目数，每 15 秒一次</td>
+</tr>
+<tr>
+<td align="center">内核态占比</td>
+<td align="center"><code>/proc/&lt;pid&gt;/stat</code> 的 <code>utime</code> 与 <code>stime</code>（按实际在核时间拆分，不含阻塞）</td>
+</tr>
+<tr>
+<td align="center">画面</td>
+<td align="center">每 10 秒取一帧 QEMU 的显示输出，统计非背景像素占比与颜色数</td>
+</tr>
+</tbody></table>
+<h3 id="结果"><a href="#结果" class="headerlink" title="结果"></a>结果</h3><table>
+<thead>
+<tr>
+<th align="center">指标</th>
+<th align="center">09.16</th>
+<th align="center">09.28</th>
+<th align="center">Linux 6.12</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">启动到导航</td>
+<td align="center">59.2 秒</td>
+<td align="center">42.4 秒</td>
+<td align="center">22.5 秒</td>
+</tr>
+<tr>
+<td align="center">导航尝试次数</td>
+<td align="center">1.7</td>
+<td align="center">1</td>
+<td align="center">1</td>
+</tr>
+<tr>
+<td align="center"><code>nc</code> 发 CONNECT</td>
+<td align="center">16 秒后失败</td>
+<td align="center">0 秒</td>
+<td align="center">0 秒</td>
+</tr>
+<tr>
+<td align="center">Firefox 内核态 CPU 占比</td>
+<td align="center">92.3%</td>
+<td align="center">83.3%</td>
+<td align="center">39%</td>
+</tr>
+</tbody></table>
+<p>两侧同开网络日志后看到：主文档到手后，StarryOS 隔了 3.255 秒才发出第一个子资源请求，Linux 是 0.013 秒；请求的 URL 列表两边一致，没有一个失败。少取的资源是没来得及发，不是取失败。这与内核态占九成是同一件事：时间都花在了内核里。</p>
+<h3 id="对比的前提"><a href="#对比的前提" class="headerlink" title="对比的前提"></a>对比的前提</h3><ul>
+<li>两侧轮次相等：各预热一轮，再交替跑三轮取均值。曾经修复后跑一轮、修复前跑两轮取最小值，<code>mmap</code> 被量成「变慢 1.9 倍」，补齐轮次后回到 1.00。</li>
+<li>同一个中继缓存：宿主上起一个带缓存的代理，两侧取的是同一份网页资源。</li>
+<li>探测工具不能替被测对象下结论：busybox <code>nc</code> 在 SLIRP 上本身有问题，一度让人以为公网 4399 打不开，换 <code>wget</code> 后取到 108 个资源并完整渲染。</li>
+<li>Linux 侧要把输入设备配好：这版 Weston 的 DRM 后端找不到输入设备会直接退出，需要 <code>modprobe evdev</code> 并补上 udev 记录。</li>
+<li>计数方法要核对：StarryOS 的 <code>/proc/stat</code> 按存活任务求和，任务退出后总数会回落，不能拿差值。</li>
+<li>画面以 QEMU 的显示输出为准，不读客户机里的 <code>/dev/fb0</code>。</li>
+</ul>
+<h2 id="相关链接"><a href="#相关链接" class="headerlink" title="相关链接"></a>相关链接</h2><ul>
+<li>周报：<a href="https://github.com/Lfan-ke/tgoskits/wiki/周报-2026-09-14" target="_blank" rel="noopener">09.14-09.20</a>、<a href="https://github.com/Lfan-ke/tgoskits/wiki/周报-2026-09-21" target="_blank" rel="noopener">09.21-09.27</a>、<a href="https://github.com/Lfan-ke/tgoskits/wiki/周报-2026-09-28" target="_blank" rel="noopener">09.28-10.08</a></li>
+<li>总结报告：<a href="https://github.com/Lfan-ke/tgoskits/wiki/总结报告" target="_blank" rel="noopener">wiki</a></li>
+<li>Firefox 应用：<a href="https://github.com/rcore-os/tgoskits/pull/2323" target="_blank" rel="noopener">#2323</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/repo-https-github-com-rcore-os-tgoskits/" rel="tag"># repo:https://github.com/rcore-os/tgoskits</a>
+              <a href="/blog/tags/wiki-https-github-com-Lfan-ke-tgoskits-wiki/" rel="tag"># wiki:https://github.com/Lfan-ke/tgoskits/wiki</a>
+              <a href="/blog/tags/Firefox/" rel="tag"># Firefox</a>
+              <a href="/blog/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/blog/tags/difftest/" rel="tag"># difftest</a>
+              <a href="/blog/tags/%E6%80%A7%E8%83%BD/" rel="tag"># 性能</a>
+              <a href="/blog/tags/epoll/" rel="tag"># epoll</a>
+              <a href="/blog/tags/mm/" rel="tag"># mm</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/04/20261002-daivy2333-StarryOS%E5%BC%82%E6%AD%A5%E9%A9%B1%E5%8A%A8%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/" rel="prev" title="StarryOS 的串口、有线网卡的异步化">
+      <i class="fa fa-chevron-left"></i> StarryOS 的串口、有线网卡的异步化
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/09/20261009-Antareske-SG2002-WiFi%E9%A9%B1%E5%8A%A8%E4%BC%98%E5%8C%96%E4%B8%8Eax-net%E7%BD%91%E7%BB%9C%E6%A0%88eBPF%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E5%BB%BA%E8%AE%BE/" rel="next" title="实习总结报告：SG2002 WiFi 驱动优化与 ax-net 网络栈 eBPF 可观测性建设">
+      实习总结报告：SG2002 WiFi 驱动优化与 ax-net 网络栈 eBPF 可观测性建设 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
