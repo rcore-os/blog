@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/all.min.css">
+  
+  <link rel="stylesheet" href="/blog/lib/animate-css/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"rcore-os.github.io","root":"/blog/","scheme":"Muse","version":"8.0.0-rc.4","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}}};
+  </script>
+
+  <meta name="description" content="摘要在 StarryOS 上把串口和网卡两个驱动改造成异步结构：中断只负责唤醒，数据搬运交给后台任务，队列有界，故障可恢复。两个驱动共用同一套”四段流程加四条规则”写法——串口按字节流组织，网卡按整包分五层，流程统一而数据结构各按设备设计。D1 真板上异步串口把 64B 短包写到 96.6% 物理线速；QEMU 十六核下异步网卡跑通 TCP&#x2F;UDP 双向收发、poll&#x2F;select 就绪通知与故障">
+<meta property="og:type" content="article">
+<meta property="og:title" content="StarryOS 的串口、有线网卡的异步化">
+<meta property="og:url" content="http://rcore-os.github.io/blog/2026/11/09/20261002-daivy2333-StarryOS%E5%BC%82%E6%AD%A5%E9%A9%B1%E5%8A%A8%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/index.html">
+<meta property="og:site_name" content="rcore-os Blog">
+<meta property="og:description" content="摘要在 StarryOS 上把串口和网卡两个驱动改造成异步结构：中断只负责唤醒，数据搬运交给后台任务，队列有界，故障可恢复。两个驱动共用同一套”四段流程加四条规则”写法——串口按字节流组织，网卡按整包分五层，流程统一而数据结构各按设备设计。D1 真板上异步串口把 64B 短包写到 96.6% 物理线速；QEMU 十六核下异步网卡跑通 TCP&#x2F;UDP 双向收发、poll&#x2F;select 就绪通知与故障">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-11-09T16:30:00.000Z">
+<meta property="article:modified_time" content="2026-11-10T08:27:09.250Z">
+<meta property="article:author" content="rcore-os Group">
+<meta property="article:tag" content="AsyncOS">
+<meta property="article:tag" content="StarryOS">
+<meta property="article:tag" content="author:daivy2333">
+<meta property="article:tag" content="驱动">
+<meta property="article:tag" content="串口">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;daivy2333&#x2F;StarryOS">
+<meta property="article:tag" content="repo:https:&#x2F;&#x2F;github.com&#x2F;daivy2333&#x2F;k3">
+<meta property="article:tag" content="网卡">
+<meta property="article:tag" content="多核">
+<meta property="article:tag" content="K3">
+<meta property="article:tag" content="GMAC">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://rcore-os.github.io/blog/2026/11/09/20261002-daivy2333-StarryOS%E5%BC%82%E6%AD%A5%E9%A9%B1%E5%8A%A8%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>StarryOS 的串口、有线网卡的异步化 | rcore-os Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <main class="main">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+        <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line toggle-line-first"></span>
+        <span class="toggle-line toggle-line-middle"></span>
+        <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/blog/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">rcore-os Blog</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#摘要"><span class="nav-number">1.</span> <span class="nav-text">摘要</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实习概况"><span class="nav-number">2.</span> <span class="nav-text">实习概况</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#时间线"><span class="nav-number">3.</span> <span class="nav-text">时间线</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#为什么做异步驱动"><span class="nav-number">4.</span> <span class="nav-text">为什么做异步驱动</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#统一流程与四条规则"><span class="nav-number">5.</span> <span class="nav-text">统一流程与四条规则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#串口：字节流加双环形缓冲"><span class="nav-number">6.</span> <span class="nav-text">串口：字节流加双环形缓冲</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#网卡：整包分五层"><span class="nav-number">7.</span> <span class="nav-text">网卡：整包分五层</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#多核适配：绑核与跨核唤醒"><span class="nav-number">8.</span> <span class="nav-text">多核适配：绑核与跨核唤醒</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#K3-真板：从板级事实到-16-hart-异步化"><span class="nav-number">9.</span> <span class="nav-text">K3 真板：从板级事实到 16 hart 异步化</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#启动链与板级事实"><span class="nav-number">9.1.</span> <span class="nav-text">启动链与板级事实</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#中断框架与本板实测结论"><span class="nav-number">9.2.</span> <span class="nav-text">中断框架与本板实测结论</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#网卡：轮询基线到异步数据面"><span class="nav-number">9.3.</span> <span class="nav-text">网卡：轮询基线到异步数据面</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#串口与用户态"><span class="nav-number">9.4.</span> <span class="nav-text">串口与用户态</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#16-hart-验收"><span class="nav-number">9.5.</span> <span class="nav-text">16 hart 验收</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#与原厂-Linux-的吞吐对比"><span class="nav-number">9.6.</span> <span class="nav-text">与原厂 Linux 的吞吐对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#视频演示"><span class="nav-number">10.</span> <span class="nav-text">视频演示</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#不足"><span class="nav-number">11.</span> <span class="nav-text">不足</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">rcore-os Group</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">798</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">58</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">980</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </header>
+
+      
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div id="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+      <div class="main-inner">
+        
+
+        <div class="content post posts-expand">
+          
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://rcore-os.github.io/blog/2026/11/09/20261002-daivy2333-StarryOS%E5%BC%82%E6%AD%A5%E9%A9%B1%E5%8A%A8%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="rcore-os Group">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="rcore-os Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          StarryOS 的串口、有线网卡的异步化
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2026-11-09 16:30:00" itemprop="dateCreated datePublished" datetime="2026-11-09T16:30:00+00:00">2026-11-09</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2026-11-10 08:27:09" itemprop="dateModified" datetime="2026-11-10T08:27:09+00:00">2026-11-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" itemprop="url" rel="index"><span itemprop="name">实习总结报告</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>在 StarryOS 上把串口和网卡两个驱动改造成异步结构：中断只负责唤醒，数据搬运交给后台任务，队列有界，故障可恢复。两个驱动共用同一套”四段流程加四条规则”写法——串口按字节流组织，网卡按整包分五层，流程统一而数据结构各按设备设计。D1 真板上异步串口把 64B 短包写到 96.6% 物理线速；QEMU 十六核下异步网卡跑通 TCP/UDP 双向收发、poll/select 就绪通知与故障注入后的恢复；K3 CoM260 Kit 真板上同一套写法迁到 GMAC 控制器，16 hart 下网卡与串口测试通过，单连接 TCP 吞吐达到同板原厂 Linux 的 76.5%（板→PC）和 25.6%（PC→板）。</p>
+<a id="more"></a>
+
+<h2 id="实习概况"><a href="#实习概况" class="headerlink" title="实习概况"></a>实习概况</h2><table>
+<thead>
+<tr>
+<th>项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>时间</td>
+<td>2026-06-21 ~ 2026-10-22（17.6 周）</td>
+</tr>
+<tr>
+<td>项目</td>
+<td><a href="https://github.com/daivy2333/StarryOS" target="_blank" rel="noopener">StarryOS</a> <code>mul-hart-k3</code> 分支：Rust 宏内核，基于 ArceOS 组件化架构；报告完成后转入 <code>k3</code> 分支做 K3 CoM260 Kit 真板验证</td>
+</tr>
+<tr>
+<td>方向</td>
+<td>异步驱动开发：UART 串口 → VirtIO 网卡 → GMAC 网卡，QEMU、D1 真板、K3 真板三条线验证</td>
+</tr>
+<tr>
+<td>代码</td>
+<td>176 个提交，<code>mul-hart-k3</code> 153 个 + <code>k3</code> 分支自 2026-09-27 分叉后 23 个，前期为 <code>uart-16550-lichee</code>、<code>net-k3</code></td>
+</tr>
+<tr>
+<td>记录</td>
+<td>14 篇周报、1 篇实习总结与 42 篇笔记汇总在 <a href="https://daivy2333.github.io/OhMyOs/" target="_blank" rel="noopener">OhMyOs</a>，实习总结见 <a href="https://github.com/daivy2333/OhMyOs/blob/main/docs/weeks/weekly-2026-W15.md" target="_blank" rel="noopener">W15 周报</a>；K3 硬件见 <a href="https://github.com/daivy2333/k3" target="_blank" rel="noopener">k3</a> 仓库</td>
+</tr>
+<tr>
+<td>幻灯片</td>
+<td><a href="https://github.com/daivy2333/OhMyOs/blob/main/docs/fornow/%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%B1%87%E6%8A%A5%20%C2%B7%20StarryOS%20%E5%BC%82%E6%AD%A5%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91.pptx" target="_blank" rel="noopener">实习总结汇报 · StarryOS 异步驱动开发</a></td>
+</tr>
+<tr>
+<td>实习之前的训练营记录在 <a href="https://github.com/daivy2333/2026sOsReport" target="_blank" rel="noopener">2026sOsReport</a>。</td>
+<td></td>
+</tr>
+</tbody></table>
+<h2 id="时间线"><a href="#时间线" class="headerlink" title="时间线"></a>时间线</h2><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>时间</th>
+<th>工作内容</th>
+<th>结束状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>异步串口 + D1 真板</td>
+<td>6/21 ~ 7/25</td>
+<td>新建 D1 平台组件，实现 <code>/dev/console</code>、TTY、<code>tcdrain</code> 与非阻塞 I/O，userbench 真板跑通</td>
+<td>7/25 串口主线文档归档</td>
+</tr>
+<tr>
+<td>异步网卡（QEMU 单核）</td>
+<td>7/26 ~ 9/4</td>
+<td>八步推进：同步接通 → 轮询回退 → 中断诊断 → 收包异步化 → 双向有界数据面 → 协议栈自主推进 → poll/select 就绪 → 故障恢复</td>
+<td>9/2 恢复语义定稿，故障注入无重复释放、无永久挂起、无静默丢包</td>
+</tr>
+<tr>
+<td>K3 板与多核适配</td>
+<td>9/5 ~ 9/27</td>
+<td>K3 板接线与工具链配置，两驱动后台角色绑核，SMP=16 六组场景验证</td>
+<td>9/26 验证通过；9/27 提交验证装置与复现手册（<a href="https://github.com/daivy2333/StarryOS/commit/5df918cd" target="_blank" rel="noopener"><code>5df918cd</code></a>）</td>
+</tr>
+<tr>
+<td>K3 真板异步化</td>
+<td>10/1 ~ 10/22</td>
+<td>板级事实核对 → AIA 中断框架 → GMAC 轮询双向网络 → 单 hart 异步数据面 → 单 hart 恢复语义 → 异步串口交互 shell → RAM rootfs 普通 shell → 16 hart 多 hart 异步 I/O 验收</td>
+<td>10/16 全部阶段定稿；10/22 补齐端到端复现手册与板端 TCP 聊天载荷</td>
+</tr>
+</tbody></table>
+<p>每步只做一处主要改动，出问题时能直接定位到当次修改。</p>
+<h2 id="为什么做异步驱动"><a href="#为什么做异步驱动" class="headerlink" title="为什么做异步驱动"></a>为什么做异步驱动</h2><p>纯轮询让 CPU 在空闲时空转，纯中断在吞吐上升时退化成中断风暴。方案取两者中间：中断只负责唤醒，后台 copier 任务批量搬运数据，参照 NAPI 的做法。空闲时全链路睡眠；数据密集时 copier 按预算切到轮询模式连续读取，把中断次数压到最低。队列有界，积压显式可见，故障可恢复。</p>
+<h2 id="统一流程与四条规则"><a href="#统一流程与四条规则" class="headerlink" title="统一流程与四条规则"></a>统一流程与四条规则</h2><p>“中断进来到应用拿到数据”拆成四段，串口与网卡写法相同：</p>
+<ol>
+<li>ISR 收中断，读寄存器识别原因；</li>
+<li>清中断；</li>
+<li>唤醒 waker；</li>
+<li>调度异步任务继续搬运。</li>
+</ol>
+<p>四段流程配四条规则：</p>
+<ol>
+<li>ISR 不搬数据，只做原因确认、清中断、唤醒；</li>
+<li>waker 注册后立即重查硬件状态，防丢唤醒；</li>
+<li>每轮工作量设上限，积压显式可见；</li>
+<li>返回等待前先释放锁再唤醒，防死锁。</li>
+</ol>
+<p>四段流程在两个驱动里的对应实现：</p>
+<table>
+<thead>
+<tr>
+<th>流程段</th>
+<th>串口</th>
+<th>网卡</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>收中断、识别原因</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/uart_16550/src/async_/isr.rs" target="_blank" rel="noopener"><code>uart_16550/src/async_/isr.rs</code></a> 读 ISR 与 LSR 寄存器确定位型</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/kernel/src/drivers/virtio_net_irq.rs" target="_blank" rel="noopener"><code>kernel/src/drivers/virtio_net_irq.rs</code></a> 读 VirtIO 中断状态</td>
+</tr>
+<tr>
+<td>唤醒</td>
+<td>按位型唤醒 RX、TX、DRAIN 三个 <code>AtomicWaker</code></td>
+<td>唤醒队列 owner 注册的 waker</td>
+</tr>
+<tr>
+<td>调度任务</td>
+<td>axtask 调度 RX/TX copier 任务</td>
+<td>axtask 调度队列 owner 任务</td>
+</tr>
+</tbody></table>
+<p>网卡开发与测试全程，异步串口一直承担控制台 I/O——SMP=16 那轮运行的记录本身就是经串口打印的。两个驱动在同一内核共存，说明这套流程规则能支撑结构相同的更多异步驱动。K3 真板上的 GMAC 后端沿用同一套四段流程与四条规则：ISR 读 GMAC 中断状态、按 source 分派，清中断后唤醒队列 owner，owner 按预算收包发包，细节见后文”K3 真板”一节。</p>
+<h2 id="串口：字节流加双环形缓冲"><a href="#串口：字节流加双环形缓冲" class="headerlink" title="串口：字节流加双环形缓冲"></a>串口：字节流加双环形缓冲</h2><p>串口数据是字节流，模块都在 <code>uart_16550</code> crate 的 <code>async_</code> 目录与内核的 <code>drivers</code> 目录下：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>文件</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ISR</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/uart_16550/src/async_/isr.rs" target="_blank" rel="noopener"><code>async_/isr.rs</code></a></td>
+<td>读 ISR 寄存器识别中断类型，关对应 IER 位，唤醒 RX/TX/DRAIN 三个 <code>embassy_sync::AtomicWaker</code> 之一；<code>IRQ_COUNT</code> 记录中断次数</td>
+</tr>
+<tr>
+<td>copier 任务</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/uart_16550/src/async_/driver.rs" target="_blank" rel="noopener"><code>async_/driver.rs</code></a></td>
+<td>RX/TX 两个后台任务在硬件 FIFO 与环形缓冲间搬数据，NAPI 中断合并</td>
+</tr>
+<tr>
+<td>环形缓冲</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/uart_16550/src/async_/ring_buffer.rs" target="_blank" rel="noopener"><code>async_/ring_buffer.rs</code></a></td>
+<td>SPSC 无锁队列，静态分配，收发各 64 KiB</td>
+</tr>
+<tr>
+<td>字符设备</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/uart_16550/src/async_/device_ops.rs" target="_blank" rel="noopener"><code>async_/device_ops.rs</code></a></td>
+<td><code>AsyncUartReader</code>/<code>AsyncUartWriter</code> 实现 <code>embedded_io_async</code>，<code>flush</code> 提供 <code>tcdrain</code> 语义</td>
+</tr>
+<tr>
+<td>TTY 绑定</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/kernel/src/drivers/ntty_async.rs" target="_blank" rel="noopener"><code>kernel/src/drivers/ntty_async.rs</code></a></td>
+<td><code>ASYNC_TTY</code> 以 <code>ProcessMode::External</code> 把 tty-reader 的 waker 挂到 RX 环形缓冲的 PollSet</td>
+</tr>
+<tr>
+<td>OS 抽象</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/kernel/src/drivers/os_arceos.rs" target="_blank" rel="noopener"><code>kernel/src/drivers/os_arceos.rs</code></a></td>
+<td>62 行实现 <code>OsRuntime</code> 与 <code>OsWakerSet</code> 两个 trait，对接 axtask 与 axpoll</td>
+</tr>
+</tbody></table>
+<p>串口的异步行为由三处机制决定。ISR 内不做数据搬运，只读寄存器、关中断、唤醒，处理函数约 25 行。RX copier 带 NAPI 中断合并：连续 16 次读到数据（<code>NAPI_THRESHOLD = 16</code>）后关中断进入轮询模式，每轮批量读 64 次（<code>NAPI_BATCH_SIZE = 64</code>），FIFO 抽空后重新开中断回到睡眠；TX 方向对称，另有一层 <code>flush()</code> 等 LSR 的 TEMT 位（发送移位寄存器空）实现 <code>tcdrain</code>，由 DRAIN_WAKER 唤醒。TTY 行规程通过 <code>ProcessMode::External</code> 改成被唤醒驱动，不再轮询缓冲。</p>
+<p>D1 真板基准（2026-07-07 采集，115200 bps 物理线速 11.52 KB/s）：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>实测输出</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>64B 短包写 + 排空 ×100</td>
+<td>11.13 KB/s，96.6% 线速，short_writes=0，排空错误 0</td>
+</tr>
+<tr>
+<td>256B / 1024B 写 + 排空 ×100</td>
+<td>97.3% / 98.8% 线速</td>
+</tr>
+<tr>
+<td>1024B 批量排空（8 写 1 排）</td>
+<td>99.1% 线速</td>
+</tr>
+<tr>
+<td>单字节发送延迟 ×100</td>
+<td>平均 0.186 ms</td>
+</tr>
+<tr>
+<td>非阻塞读（O_NONBLOCK 与 FIONBIO 开启）</td>
+<td>PASS，空读返回 EAGAIN</td>
+</tr>
+<tr>
+<td>内核态入队速度</td>
+<td>64B 包 4.2 MB/s，约为物理线速的 368 倍，写入不阻塞</td>
+</tr>
+<tr>
+<td>RX 环形缓冲读微基准</td>
+<td>8.4 GB/s，读取延迟 P99 246 ns</td>
+</tr>
+</tbody></table>
+<p>完整输出留档于 StarryOS 仓库的 <a href="https://github.com/daivy2333/StarryOS/tree/mul-hart-k3/.agents/analysis/_archive/2026-07-11-q19c-d1-async-uart-closeout/lichee" target="_blank" rel="noopener">D1 真板验收记录</a>。</p>
+<p>真板环境暴露并修掉三个问题：</p>
+<ul>
+<li>THRE 边沿丢失导致 <code>tcdrain</code> 不返回。</li>
+<li>64B 标准输出积压在缓冲里污染测量，修完后 D1 64B 场景从约 1 KB/s 提到 11.13 KB/s。</li>
+<li>TX copier 预算耗尽后卡死。</li>
+</ul>
+<h2 id="网卡：整包分五层"><a href="#网卡：整包分五层" class="headerlink" title="网卡：整包分五层"></a>网卡：整包分五层</h2><p>网卡以整包为粒度，从硬件到应用分五层，代码集中在 <code>axnet</code> crate：</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>职责</th>
+<th>代码</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ISR</td>
+<td>读 VirtIO 中断状态、清中断、唤醒</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/kernel/src/drivers/virtio_net_irq.rs" target="_blank" rel="noopener"><code>kernel/src/drivers/virtio_net_irq.rs</code></a></td>
+</tr>
+<tr>
+<td>队列 owner</td>
+<td>唯一后台任务，收（reap/refill）与发（submit/reclaim）按预算推进</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axnet/src/service.rs" target="_blank" rel="noopener"><code>axnet/src/service.rs</code></a> 与 <a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axnet/src/async_rx.rs" target="_blank" rel="noopener"><code>async_rx.rs</code></a></td>
+</tr>
+<tr>
+<td>栈 runner</td>
+<td>常驻任务，推进 smoltcp 收发、维护与定时器</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axnet/src/stack_runner.rs" target="_blank" rel="noopener"><code>axnet/src/stack_runner.rs</code></a></td>
+</tr>
+<tr>
+<td>就绪桥</td>
+<td>把 smoltcp 单槽 waker 展开成多等待者，接 poll/select</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axnet/src/readiness.rs" target="_blank" rel="noopener"><code>axnet/src/readiness.rs</code></a></td>
+</tr>
+<tr>
+<td>socket</td>
+<td>TCP/UDP 公共句柄</td>
+<td><a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axnet/src/socket.rs" target="_blank" rel="noopener"><code>axnet/src/socket.rs</code></a></td>
+</tr>
+</tbody></table>
+<p>定长槽位。<code>FixedFrameQueue</code>（<a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axnet/src/device/fixed_queue.rs" target="_blank" rel="noopener"><code>device/fixed_queue.rs</code></a>）用固定容量槽位存整包，内存占用有硬上界，队列压满时新包显式拒绝而不是无限缓存。</p>
+<p>发送票号。每次发送向 <code>TicketTracker</code> 领一张递增票号，状态从 Queued 经 <code>mark_device_owned</code> 转到设备持有，回收时按票号注销；存活票上限 128 张（<code>MAX_LIVE_TICKETS</code>）。<code>QueueEpoch</code> 随队列重建推进，完成通知带的票号属于旧代际直接作废，缓冲区只有提交、完成、回收三处计数闭合后才复用。</p>
+<p>每轮预算。owner 的收、回收与提交各 32（<code>RX_BUDGET</code>/<code>RECLAIM_BUDGET</code>/<code>SUBMIT_BUDGET</code>），栈 runner 每阶段 32（<code>STACK_STAGE_BUDGET</code>）。一轮做不完留到下一轮，由 waker 接力，不空转。</p>
+<p>flush 语义。<code>FlushTicket</code>/<code>FlushWaiter</code>（<a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axnet/src/flush.rs" target="_blank" rel="noopener"><code>flush.rs</code></a>）记录当前 <code>last_accepted</code> 票号为目标，等所有小于等于目标的存活票回收后完成，目标之后提交的票不计入本次等待，语义对应串口的 <code>tcdrain</code>。</p>
+<p>就绪通知。每个公共 socket 句柄持有一个 <code>ReadinessBridge</code>，读、写、终态各挂一组 <code>PollSet</code>；smoltcp 的一次性单槽 waker 注册到桥上，桥把就绪事件扇出到 poll/select 注册的多个等待者。</p>
+<p>恢复语义。取消按等待者取消、提交前撤销与设备持有三段区分；对外终态收敛为 6 种（连接复位、链路断开、超时、取消、所有权错误、设备 I/O），各带稳定错误码；复位必须确认设备状态清零后才重建队列。</p>
+<p>SMP=16 六组场景（2026-09-26 运行；队列 owner 固定 hart 15、栈 runner 固定 hart 0、串口 RX/TX copier 分别在 hart 13/14）：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>实测输出</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>绑核检查</td>
+<td>单例绑核、实际运行核与绑核一致、零拒绝，PASS</td>
+</tr>
+<tr>
+<td>关定时器跨核唤醒</td>
+<td>唤醒完成 1 次、定时器恢复且无丢失；IPI 发送 = 接收 = 191</td>
+</tr>
+<tr>
+<td>TCP 双向</td>
+<td>客内 socket 发 8 收 8，宿主机对端 ok；提交 11 = 完成 11 = 回收 11</td>
+</tr>
+<tr>
+<td>UDP 双向</td>
+<td>客内 socket 发 8 收 8；提交 21 = 完成 21 = 回收 21</td>
+</tr>
+<tr>
+<td>队列满载恢复</td>
+<td>压满 64 槽再释放，恢复后发送 322 = 完成 322 = 回收 322、在途 0</td>
+</tr>
+<tr>
+<td>空闲安静窗口</td>
+<td>poll 就绪与实际 I/O 一致，静默期收发路径无动作</td>
+</tr>
+</tbody></table>
+<p>六组全 PASS，探针退出码 0，宿主机抓包与客内 socket 计数逐项一致。串口多核冒烟测试同轮通过：远端唤醒字节送达、IPI 因果计数 4 = 4、TX 环形缓冲收敛。运行记录与抓包文件留档于 <a href="https://github.com/daivy2333/StarryOS/tree/mul-hart-k3/openspec/changes/archive/2026-09-26-ms08-qemu-multi-hart-correctness-baseline/evidence/005-per-driver-smp16-fixed-qualification/003-rework" target="_blank" rel="noopener">SMP=16 资格验证目录</a>。</p>
+<h2 id="多核适配：绑核与跨核唤醒"><a href="#多核适配：绑核与跨核唤醒" class="headerlink" title="多核适配：绑核与跨核唤醒"></a>多核适配：绑核与跨核唤醒</h2><p>K3（进迭时空）AP 域有 8 个 X100 加 8 个 A100 共 16 核，两个驱动的后台角色固定绑核。绑核与唤醒走 <code>axtask</code> 新增的三处能力：<code>spawn_with_name_affinity</code> 在任务入队前完成绑定，调度器按 <code>AxCpuMask</code> 选运行队列；<code>send_reschedule_ipi</code> 向目标核发一次远端唤醒 IPI；<code>ipi_sent_count</code>/<code>ipi_received_count</code> 逐核计数，测试里 191 = 191 就是靠这对计数比对。角色与核的绑定写在 <a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/kernel/src/drivers/net_placement.rs" target="_blank" rel="noopener"><code>kernel/src/drivers/net_placement.rs</code></a>：owner hart 15、runner hart 0、串口 RX/TX copier hart 13/14。观测两组：<a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/kernel/src/drivers/uart_smp_snapshot.rs" target="_blank" rel="noopener"><code>uart_smp_snapshot.rs</code></a> 与 <a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/kernel/src/drivers/net_wake_witness.rs" target="_blank" rel="noopener"><code>net_wake_witness.rs</code></a>，直接读出每个角色跑在哪个核、IPI 是否丢失。内核临界区从”只关本地中断”升级为”本地中断恢复 + 全局互斥 + 每核嵌套计数”。唤醒本地优先，必须跨核时恰好发一次 IPI，避免唤醒风暴。</p>
+<p>多核过程中修掉两个问题。TX 方向丢唤醒，通过在 waker 注册后重查硬件状态加重试解决。release 构建越界读出”幽灵核”，<code>AxCpuMask</code> 的 <a href="https://github.com/daivy2333/StarryOS/blob/mul-hart-k3/crates/axtask/src/cpumask.rs" target="_blank" rel="noopener"><code>try_one_shot</code>/<code>set</code></a> 加容量检查后越界返回错误，不再读出幽灵核。</p>
+<h2 id="K3-真板：从板级事实到-16-hart-异步化"><a href="#K3-真板：从板级事实到-16-hart-异步化" class="headerlink" title="K3 真板：从板级事实到 16 hart 异步化"></a>K3 真板：从板级事实到 16 hart 异步化</h2><p>W15 实习总结交付后，工作转到 SpacemiT K3 CoM260 Kit 真板。目标板是进迭时空 K3，AP 域 16 核。这条线沿用前面在 QEMU 和 D1 上验证过的异步结构，把它们搬到实物硬件后端：中断从 QEMU 的 PLIC 换成 K3 的 AIA（APLIC + IMSIC），网卡从 VirtIO 换成 Synopsys DWMAC5，PHY 从虚拟模型换成实物 RTL8211F，用户态从内核态载荷换成带 rootfs 的普通 shell。</p>
+<p>工作分八个阶段推进：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>时间</th>
+<th>交付内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>板级事实核对</td>
+<td>10/2</td>
+<td>临时 RAM 启动可重复、MAC 寄存器可读、PHY 身份与链路插拔基线</td>
+</tr>
+<tr>
+<td>AIA 中断框架</td>
+<td>10/3</td>
+<td>中断投递通路 + PHY 设备 IRQ/status 基线</td>
+</tr>
+<tr>
+<td>GMAC 轮询双向网络</td>
+<td>10/6</td>
+<td>DMA 与 cache 的一致性约定 + 16 slot 轮询收发 + 四协议会话</td>
+</tr>
+<tr>
+<td>异步串口与交互 shell</td>
+<td>10/8</td>
+<td>runtime timer、PXA UART port、tty 行规程</td>
+</tr>
+<tr>
+<td>RAM rootfs 普通 shell</td>
+<td>10/8</td>
+<td>ext4 内存镜像挂载 + 动态 BusyBox</td>
+</tr>
+<tr>
+<td>单 hart 异步双向数据面</td>
+<td>10/13</td>
+<td><code>K3NetAdapter</code> 接入既有 NetDriverOps/queue/stack 接口</td>
+</tr>
+<tr>
+<td>单 hart 恢复语义</td>
+<td>10/14</td>
+<td>受控 reset 矩阵、物理拔插、epoch 隔离</td>
+</tr>
+<tr>
+<td>16 hart 多 hart 异步 I/O 验收</td>
+<td>10/16</td>
+<td>网卡与串口在 16 hart 上的联合验收</td>
+</tr>
+</tbody></table>
+<p>平台常量、AIA、DMA 与内存布局在 <a href="https://github.com/daivy2333/StarryOS/tree/k3/crates/axplat-riscv64-k3" target="_blank" rel="noopener"><code>crates/axplat-riscv64-k3/</code></a>，GMAC 控制器与描述符在 <a href="https://github.com/daivy2333/StarryOS/tree/k3/kernel/src/platform/k3_gmac" target="_blank" rel="noopener"><code>kernel/src/platform/k3_gmac/</code></a>，<a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/platform/k3_async_net.rs" target="_blank" rel="noopener"><code>kernel/src/platform/k3_async_net.rs</code></a> 承接 AIA 中断通路与异步 owner，PXA UART 硬件层在 <a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/drivers/k3_uart_core.rs" target="_blank" rel="noopener"><code>kernel/src/drivers/k3_uart_core.rs</code></a>。多 hart 入口按形态分三个文件：网卡 <a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/platform/k3_smp_net.rs" target="_blank" rel="noopener"><code>kernel/src/platform/k3_smp_net.rs</code></a>、串口 <a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/platform/k3_smp_uart.rs" target="_blank" rel="noopener"><code>k3_smp_uart.rs</code></a>，以及组合形态的 <a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/platform/k3_smp_combined.rs" target="_blank" rel="noopener"><code>k3_smp_combined.rs</code></a>。</p>
+<h3 id="启动链与板级事实"><a href="#启动链与板级事实" class="headerlink" title="启动链与板级事实"></a>启动链与板级事实</h3><p>板载 Bianbu 原厂 U-Boot handoff 后由 StarryOS 裸机内核接管（RISC-V S-mode），全程不写持久介质：上电长按 <code>s</code> 进 U-Boot，<code>usb start</code> 后 <code>fatload</code> 把 FIT 装载到 <code>0x2e0000000</code>，<code>setenv fdt_high 0xffffffffffffffff</code> 后 <code>bootm</code> 启动。任意时刻 <code>reset</code> 或断电都回到原厂 Bianbu，10/1 与 10/6 多轮验证一致。FIT 的 kernel load/entry 在 <code>0x180000000</code>，FDT 在 <code>0x181000000</code>。</p>
+<p>逐项核对得到的板级事实：MAC MMIO 在 <code>0xcac82000</code>，APMU 两步使能后读到 <code>version=0x1054</code>；PHY 经 MDIO Clause 22 读回 <code>phyid=0x001cc916</code>，实物是 RTL8211F，reset 脚是 GPIO1_5；120 s 窗口内 ≥5 个完整的 link up→down→up 循环可重复。这些事实同时写进 <a href="https://github.com/daivy2333/k3" target="_blank" rel="noopener">k3 仓库</a>的 <code>docs/</code>，作为该板后续开发的基线。</p>
+<h3 id="中断框架与本板实测结论"><a href="#中断框架与本板实测结论" class="headerlink" title="中断框架与本板实测结论"></a>中断框架与本板实测结论</h3><p>K3 的中断走 AIA。APLIC base <code>0xe0804000</code>，IMSIC base <code>0xe0400000</code>。S-mode 下 <code>stopei</code> 做原子 claim+EOI 且先于 handler 执行，SETIPNUM 与 GENMSI 两个入口都能投递，双 mask，retrap 与 unknown cause 分流处理，另有中断风暴预算限制。代码在 <a href="https://github.com/daivy2333/StarryOS/blob/k3/crates/axplat-riscv64-k3/src/aia.rs" target="_blank" rel="noopener"><code>crates/axplat-riscv64-k3/src/aia.rs</code></a>。真板 wired source 编号逐个测出来：PHY 是 60，GMAC MAC 是 133（异步使用）与 277（只读观察），UART 是 42。</p>
+<p>板上实测出一批官方资料没有记载的行为，代码与注释按此修改：</p>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>处置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>EIE 掩码窗口内 MSI 丢弃</td>
+<td>掩码不在触发前置位，触发后才置</td>
+</tr>
+<tr>
+<td>MFPR EDGE CLEAR 复位默认置位（hold-in-clear）</td>
+<td>武装前必须显式释放，并读回校验</td>
+</tr>
+<tr>
+<td>每个物理事件产生一条 INSR=0 回声 claim</td>
+<td>分类器排除回声</td>
+</tr>
+<tr>
+<td>APLIC SETIPNUM 对已 deassert 的 LevelHigh 源不生效</td>
+<td>改走 source-60 事件路径</td>
+</tr>
+<tr>
+<td>UART FCR 触发阈值 00 不推进 RX 中断</td>
+<td>必须写 PXAR8（<code>0x41</code>）</td>
+</tr>
+<tr>
+<td>PXA Errata-20 在本板适用</td>
+<td>RTOIE 先清 → RBR 批量读 → 恢复</td>
+</tr>
+<tr>
+<td>IIR 对 IER 已掩码 cause 照报</td>
+<td>ISR 以 8-cause 预算收尾</td>
+</tr>
+<tr>
+<td>GMAC TX tail 是排他 fetch 上界</td>
+<td>doorbell 写 next slot</td>
+</tr>
+<tr>
+<td>GMAC RX tail 写为唤醒 doorbell</td>
+<td>fetch 由 OWN 驱动</td>
+</tr>
+<tr>
+<td>PHY INTN 是电平型</td>
+<td>插回上升沿可达，arm 时清 INSR pending</td>
+</tr>
+</tbody></table>
+<h3 id="网卡：轮询基线到异步数据面"><a href="#网卡：轮询基线到异步数据面" class="headerlink" title="网卡：轮询基线到异步数据面"></a>网卡：轮询基线到异步数据面</h3><p>先做轮询，是为了先定下 DMA 与 cache 的一致性要求。独占 18 页 arena（73728 B），16 个 slot，descriptor 64 B，buffer 2048 B；地址走线性 PA，cache 用显式 Zicbom 路径维护（<code>.insn i 15,2</code> 做 clean/flush/inval，cache line 64 B，CBO 用 VA、设备用 PA，门铃前 <code>fence iorw</code>），这套要求写在 <a href="https://github.com/daivy2333/StarryOS/blob/k3/crates/axplat-riscv64-k3/src/dma.rs" target="_blank" rel="noopener"><code>crates/axplat-riscv64-k3/src/dma.rs</code></a>。轮询网络阶段的真板验收在 60 s 会话窗内跑通，串口打印的结果为 <code>result icmp-replies=10 udp-echo=8 udp-over-limit=0 tcp-echo=8 tcp-close=Closed rx-frames=23 rx-drops=0 tx-terminals=16 tx-errors=0 tx-timeouts=0</code>，即零 drop、16 个发出帧全部进入 terminal。</p>
+<p>轮询跑通后换异步。GMAC source-133 的 IOC 中断通路按注册/重臂/重查协议工作，deferred owner 与 fatal latch 已就绪；<a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/platform/k3_gmac/adapter.rs" target="_blank" rel="noopener"><code>kernel/src/platform/k3_gmac/adapter.rs</code></a> 的 <code>K3NetAdapter</code> 接入前面积累的 NetDriverOps/queue/stack 接口，保持唯一 owner、slot 与 descriptor 计数一致，以及两级 Full→恢复，C4 flush 走 Pending→release→C4 路径。真板四协议复测两轮 ping 10/10、UDP 与 TCP 全字节回显，quiet 窗口在吸收 TCP 关闭尾流的沉降阶段结束后，2 s 内计数逐字节冻结。</p>
+<p>恢复语义按三段区分取消：等待者取消、提交前撤销与设备持有。单 hart 恢复阶段的受控矩阵在真板上跑了 18 页 arena 原地 stop/SWR/重建、QueueEpoch 与 cookie 的旧新隔离，resident owner 与旧 socket 连接复位终态，以及 flush abort，容量第 1 轮 81 帧的两级边界也测到了。物理拔插用 source-60，插回后上升沿可达——<code>phy60-event observed events=3→5</code>——插回后的新会话逐字节 UDP/TCP 交换成立。插回后 link 不稳定的三种候选机制没有定位，按当时的评审决定记录留档，不再追查。</p>
+<h3 id="串口与用户态"><a href="#串口与用户态" class="headerlink" title="串口与用户态"></a>串口与用户态</h3><p>K3 的 UART 是 PXA 兼容实现，MMIO <code>0xd4017000</code>，64 B FIFO，固定 115200 8N1，硬件层在 <a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/drivers/k3_uart_core.rs" target="_blank" rel="noopener"><code>kernel/src/drivers/k3_uart_core.rs</code></a>。异步 port 接入既有 copier/ring/tty/用户态接口：64 KiB 收发环、check-register-arm-recheck 协议与三步 FCR 激活加陈旧 RBR 排空，以及四条件物理 drain——末字节的 TEMT 位由 native 1 ms timer hook 推进。tty 保持 canonical 语义：空格与 tab、ERASE 与 KILL 两类编辑键，1024 B 行界整行 discard，以及 EOF 0-read。</p>
+<p>用户态走两条路。先是内存根内嵌静态 ELF 的最小交互 shell（help/echo/sleep/exit），板测两轮全场景通过，含 SIGINT 对照与复位回归；再是 RAM rootfs 的普通 shell，从临时加载的 ext4 内存镜像挂载根文件系统，经普通 loader 启动动态 BusyBox <code>/bin/sh</code>（musl 解释器）并执行挂载进来的文件系统中的外部命令。RAM rootfs 阶段的 OOM 根因在 axruntime 的页分配器：主区取 <code>.bss</code> 之后第一个 FREE 区，预留的 rootfs 承载窗不能落进这段区间。</p>
+<h3 id="16-hart-验收"><a href="#16-hart-验收" class="headerlink" title="16 hart 验收"></a>16 hart 验收</h3><p>最终形态是 <code>k3-smp-combined</code>，16 个 AP hart 全部实际调度，per-hart timer 与 <code>S_SOFT</code> 均真板验证。各角色绑定的核与 QEMU 那轮不同：NIC owner hart 2、runner hart 3 与 app hart 9，串口 RX/TX copier 在 hart 0/1，shell 用户任务在 hart 8，boot hart 为 0。板测输出 <code>placement owner=2 runner=3 app=9 harts=16 anchor=0</code>、<code>owner-active hart=2</code>、<code>stack-active hart=3</code>、<code>app begin hart_actual=9 expect=9</code>，角色绑定与实际执行一致。</p>
+<p>16 个 AP hart 分成两个异构簇：0-7 是 X100，8-15 是 A100。上面的分配让后台角色跨簇分布：shell 任务在 hart 8（A100 簇），UART copier 在 hart 0/1（X100 簇），跨簇唤醒经 remote-ready IPI 完成；板测里关闭 hart 8 的 STIE 后由 source-1 注入链唤醒，<code>timer_restored=1</code> 且随后的 sleep 成立，说明目标 hart 自己的定时器停摆不影响跨核投递。</p>
+<p>网卡专项两轮覆盖四协议、两级容量、C4 与 quiet，容量输出 <code>accepted=80 tx-slot-full=1 desc-inflight=16 slot-backlog=64</code> → <code>restored tx-slot=0 desc-inflight=0 buf-available=16</code> → <code>flush pending</code> → <code>release-2 ok</code> → <code>flush c4 ok</code> → <code>auto-release=0</code>。串口专项两轮覆盖 raw 与 shell 双形态，raw 侧的输出 <code>txfull drained requested=73728 accepted=73728 short_writes=89</code> 与 <code>drain done (TxCompletion four conditions)</code>，错误计数 <code>rx_dropped_bytes=0</code>、各类错误计数全零；shell 侧 help/echo/sleep/行编辑/异常输入恢复/exit 全部成立，退出后在 30 s 上限内 drain 完成。</p>
+<p>组合形态是 BusyBox RAM rootfs 加 16 hart：<code>wget</code> 下载 10 字节并逐字节读回 <code>k3-http-ok</code>，<code>nc</code> 的 TCP 与 UDP 同内容回显，shell 全程存活。这一轮暴露并修掉两个产品问题，都先在真板上复现，修复后回板验证：</p>
+<ul>
+<li>K3 跨簇 instruction page fault 间歇性污染 <code>stval</code>（<code>sepc</code> 始终正确），<a href="https://github.com/daivy2333/StarryOS/blob/k3/kernel/src/mm/loader.rs" target="_blank" rel="noopener"><code>kernel/src/mm/loader.rs</code></a> 的 <code>map_elf</code> 改为 eager populate 规避。</li>
+<li>用户态网络 syscall 家族此前被 cfg 全门，<code>wget</code> 报 <code>Function not implemented</code>，门收窄为仅 <code>k3-smp-combined</code> 开启。</li>
+</ul>
+<p>之后补了一个板端 TCP 聊天载荷 <a href="https://github.com/daivy2333/StarryOS/blob/k3/tests/k3_chat_client.c" target="_blank" rel="noopener"><code>tests/k3_chat_client.c</code></a>，配合 PC 侧的 <a href="https://github.com/daivy2333/StarryOS/blob/k3/tests/k3_chat_server.py" target="_blank" rel="noopener"><code>k3_chat_server.py</code></a>：父进程把串口输入转进 socket，子进程把 socket 收到的内容打回串口。串口异步 I/O 与网卡异步收发在同一进程里同时跑，两条链路互不干扰。</p>
+<h3 id="与原厂-Linux-的吞吐对比"><a href="#与原厂-Linux-的吞吐对比" class="headerlink" title="与原厂 Linux 的吞吐对比"></a>与原厂 Linux 的吞吐对比</h3><p>同一块板、同一根网线、同一个 Windows PC 网卡，单连接 TCP、32 MiB 载荷、接收端计时：</p>
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th>StarryOS</th>
+<th>原厂 Linux</th>
+<th>比值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>板→PC</td>
+<td>714.3 Mbps</td>
+<td>934.0 Mbps</td>
+<td>76.5%</td>
+</tr>
+<tr>
+<td>PC→板</td>
+<td>218.8 Mbps</td>
+<td>854.3 Mbps</td>
+<td>25.6%</td>
+</tr>
+</tbody></table>
+<p>K3 这条线的完整阶段状态、每轮真板输出与复现步骤，都留档在 <a href="https://github.com/daivy2333/StarryOS/tree/k3/openspec/changes/archive" target="_blank" rel="noopener">StarryOS 仓库的 K3 归档目录</a> 与 <a href="https://github.com/daivy2333/k3/blob/main/.agents/analysis/k3-starryos-real-board-verification.md" target="_blank" rel="noopener">k3 仓库的真板运行验证分析</a>。</p>
+<h2 id="视频演示"><a href="#视频演示" class="headerlink" title="视频演示"></a>视频演示</h2><p><a href="https://daivy2333.github.io/OhMyOs/notes/%E8%A7%86%E9%A2%91/screen-recording-2026-10-06/" target="_blank" rel="noopener">SMP=16 演示录屏（2026-10-06）</a>：ping 百度与经宿主机服务器拉取文件，网卡收发与串口输出均正常（<a href="https://daivy2333.github.io/OhMyOs/video/screen-recording-2026-10-06.mp4" target="_blank" rel="noopener">mp4 直链</a>）。</p>
+<p><a href="https://www.bilibili.com/video/BV1WenG6cE9N/" target="_blank" rel="noopener">异步驱动开发成果演示（2026-10-18，4 分 45 秒）</a>：K3 真板上的驱动成果演示，含串口交互与网卡收发的实际运行过程。</p>
+<h2 id="不足"><a href="#不足" class="headerlink" title="不足"></a>不足</h2><p>K3 上的 TCP 吞吐为原厂 Linux 的 76.5%（板→PC）与 25.6%（PC→板），差异没有定位；整体架构没有做优化，异步改造的收益也没有量化测试。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/AsyncOS/" rel="tag"># AsyncOS</a>
+              <a href="/blog/tags/StarryOS/" rel="tag"># StarryOS</a>
+              <a href="/blog/tags/author-daivy2333/" rel="tag"># author:daivy2333</a>
+              <a href="/blog/tags/%E9%A9%B1%E5%8A%A8/" rel="tag"># 驱动</a>
+              <a href="/blog/tags/%E4%B8%B2%E5%8F%A3/" rel="tag"># 串口</a>
+              <a href="/blog/tags/repo-https-github-com-daivy2333-StarryOS/" rel="tag"># repo:https://github.com/daivy2333/StarryOS</a>
+              <a href="/blog/tags/repo-https-github-com-daivy2333-k3/" rel="tag"># repo:https://github.com/daivy2333/k3</a>
+              <a href="/blog/tags/%E7%BD%91%E5%8D%A1/" rel="tag"># 网卡</a>
+              <a href="/blog/tags/%E5%A4%9A%E6%A0%B8/" rel="tag"># 多核</a>
+              <a href="/blog/tags/K3/" rel="tag"># K3</a>
+              <a href="/blog/tags/GMAC/" rel="tag"># GMAC</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/blog/2026/10/11/Leo%20Cheng%EF%BC%9A26.07-10%20%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%E6%8A%A5%E5%91%8A/" rel="prev" title="以浏览器等程序为导向的系统完善与修复及多系统系统调用解耦与实现">
+      <i class="fa fa-chevron-left"></i> 以浏览器等程序为导向的系统完善与修复及多系统系统调用解耦与实现
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+        </div>
+        
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">rcore-os Group</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/blog/lib/anime.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/muse.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
